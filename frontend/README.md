@@ -1,70 +1,136 @@
-# Getting Started with Create React App
+# COA Migration Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Universal Expo app for mapping and migrating Chart of Accounts between ERP systems. Targets Web, iOS, and Android.
 
-## Available Scripts
+## Tech Stack
 
-In the project directory, you can run:
+| Concern | Library |
+|---------|---------|
+| Framework | Expo SDK (managed workflow) |
+| Language | TypeScript (`strict: true`) |
+| Styling | NativeWind v4 (Tailwind CSS for React Native) |
+| Navigation | React Navigation (typed stacks + tabs) |
+| State | Zustand (one store per feature) |
+| Server State | TanStack Query v5 |
+| Forms | react-hook-form + zod |
+| HTTP | axios (typed instance with interceptors) |
+| Icons | lucide-react-native |
+| Notifications | react-native-toast-message |
+| Storage | expo-secure-store (native) / localStorage (web) |
+| File Picking | expo-document-picker (native) / input element (web) |
+| Fonts | expo-font (Chivo, Inter, JetBrains Mono) |
+| Testing | Jest + React Native Testing Library |
 
-### `npm start`
+## Getting Started
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+```bash
+cd frontend-expo
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+# Install dependencies
+npm install
 
-### `npm test`
+# Install web platform support
+npx expo install react-dom react-native-web
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+# Start dev server for web
+npx expo start --web
+```
 
-### `npm run build`
+The web app runs at [http://localhost:8081](http://localhost:8081) by default.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### Other targets
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```bash
+npx expo start              # Expo Go / dev client (QR code)
+npx expo run:android        # native Android build
+npx expo run:ios            # native iOS build
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### Checks
 
-### `npm run eject`
+```bash
+npm run lint                # TypeScript type check (tsc --noEmit)
+npm test                    # Jest + React Native Testing Library
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## Environment Configuration
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Create environment files for each target:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+| File | Purpose |
+|------|---------|
+| `.env.development` | Local dev — `API_BASE_URL=http://localhost:8001` |
+| `.env.staging` | Staging server |
+| `.env.production` | Production server |
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+The API base URL is configured via `src/config/env.ts` and read through `expo-constants`.
 
-## Learn More
+## Project Structure
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```
+src/
+├── app/                    # Bootstrap — providers, root component
+├── features/
+│   ├── auth/               # Login, session management
+│   ├── projects/           # Project CRUD, member roles
+│   ├── migration/          # Core 5-step COA mapping wizard
+│   ├── erp-config/         # ERP schema registry and adapters
+│   └── export/             # Export mapped COA to Excel/CSV
+├── shared/
+│   ├── components/         # UI primitives, layout, forms, feedback
+│   ├── hooks/              # useDebounce, usePlatform, useToast
+│   ├── services/           # HTTP client, storage, validation
+│   ├── store/              # Global app store (theme, locale)
+│   ├── types/              # Result<T,E>, pagination, common types
+│   ├── utils/              # Date, string, array, platform utilities
+│   └── constants/          # ERP systems list, confidence thresholds
+├── navigation/             # React Navigation stacks, tabs, types
+└── config/                 # env, theme tokens, ERP adapter registry
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+Each feature follows a vertical-slice architecture: `types/ → services/ → store/ → hooks/ → components/ → screens/`.
 
-### Code Splitting
+## Migration Wizard Flow
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+The core workflow is a 5-step wizard:
 
-### Analyzing the Bundle Size
+1. **ERP Select** — pick source and target ERP systems
+2. **File Upload** — upload source COA, target COA, and optional type mapping Excel/CSV files
+3. **Type Mapping** — review and edit auto-matched account type pairs (source type to target type)
+4. **Account Mapping** — review grouped account mappings with confidence scores (High >= 90%, Medium 70-89%, Low < 70%)
+5. **Export Preview** — final preview of all mappings, download as Excel
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## Supported ERP Systems
 
-### Making a Progressive Web App
+SAP, Oracle NetSuite, Microsoft Dynamics 365, QuickBooks, Sage Intacct, Xero, Odoo (stub), Syspro (stub), Accpac (stub).
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+Adding a new ERP: create a mapper file in `src/features/migration/mappers/source/` and `mappers/target/`, then register it in `src/config/erp-registry.ts`.
 
-### Advanced Configuration
+## API
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+The frontend targets `/api/v1/*` endpoints exclusively, served by the FastAPI backend on port 8001. Key endpoint groups:
 
-### Deployment
+- `/api/v1/erp-systems` — ERP metadata, sample data, account types
+- `/api/v1/projects` — Project CRUD
+- `/api/v1/files` — File upload and data retrieval
+- `/api/v1/mappings` — Hierarchical mapping, bulk operations, export
+- `/api/v1/jobs` — Async job tracking
+- `/api/v1/auth` — Authentication (currently mock)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+## Design System
 
-### `npm run build` fails to minify
+Defined in `design_guidelines.json` and implemented via NativeWind + `src/config/theme.ts`:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- **Fonts**: Chivo (headings), Inter (body), JetBrains Mono (account numbers, scores)
+- **Confidence colors**: Green (#16A34A) >= 90%, Yellow (#D97706) 70-89%, Red (#DC2626) < 70%
+- **Radius**: 8px (0.5rem) default
+- **Container**: `max-w-7xl` centered with responsive padding
+
+## Docker
+
+Run the full stack from the repository root:
+
+```bash
+cd infrastructure/docker
+docker-compose up    # api + postgres + rabbitmq + frontend
+```
