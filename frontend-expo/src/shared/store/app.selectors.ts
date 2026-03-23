@@ -1,11 +1,19 @@
-import { useAppStore } from './app.store';
-import type { Theme, Locale } from './app.store';
+import { useShallow } from 'zustand/react/shallow';
+import { useAppStore, type Theme, type Locale, type AppActions } from './app.store';
 
-export const selectTheme = (state: ReturnType<typeof useAppStore.getState>): Theme =>
-  state.theme;
+export const useTheme = (): Theme => useAppStore((s) => s.theme);
 
-export const selectLocale = (state: ReturnType<typeof useAppStore.getState>): Locale =>
-  state.locale;
+export const useLocale = (): Locale => useAppStore((s) => s.locale);
 
-export const selectIsOnline = (state: ReturnType<typeof useAppStore.getState>): boolean =>
-  state.isOnline;
+export const useIsOnline = (): boolean => useAppStore((s) => s.isOnline);
+
+export const useAppActions = (): AppActions =>
+  useAppStore(
+    useShallow((s) => ({
+      setTheme: s.setTheme,
+      setLocale: s.setLocale,
+      setOnline: s.setOnline,
+      toggleTheme: s.toggleTheme,
+      reset: s.reset,
+    })),
+  );
