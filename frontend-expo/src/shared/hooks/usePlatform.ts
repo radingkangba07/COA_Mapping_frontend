@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
-import { Platform, useWindowDimensions } from 'react-native';
-import { BREAKPOINTS, type Breakpoint } from '@/shared/utils/platform.utils';
+import { useState, useEffect } from 'react';
+import { Platform, Dimensions } from 'react-native';
+
+type Breakpoint = 'sm' | 'md' | 'lg' | 'xl';
 
 interface PlatformInfo {
   isWeb: boolean;
@@ -11,27 +12,44 @@ interface PlatformInfo {
   breakpoint: Breakpoint;
 }
 
+const BREAKPOINTS = {
+  SM: 640,
+  MD: 768,
+  LG: 1024,
+} as const;
+
 function getBreakpoint(width: number): Breakpoint {
-  if (width >= BREAKPOINTS.xl) return 'xl';
-  if (width >= BREAKPOINTS.lg) return 'lg';
-  if (width >= BREAKPOINTS.md) return 'md';
-  return 'sm';
+  if (width < BREAKPOINTS.SM) return 'sm';
+  if (width < BREAKPOINTS.MD) return 'md';
+  if (width < BREAKPOINTS.LG) return 'lg';
+  return 'xl';
+}
+
+function buildPlatformInfo(width: number): PlatformInfo {
+  return {
+    isWeb: Platform.OS === 'web',
+    isNative: Platform.OS === 'ios' || Platform.OS === 'android',
+    isIOS: Platform.OS === 'ios',
+    isAndroid: Platform.OS === 'android',
+    screenWidth: width,
+    breakpoint: getBreakpoint(width),
+  };
 }
 
 export function usePlatform(): PlatformInfo {
-  const { width } = useWindowDimensions();
-
-  const breakpoint = useMemo(() => getBreakpoint(width), [width]);
-
-  return useMemo(
-    () => ({
-      isWeb: Platform.OS === 'web',
-      isNative: Platform.OS === 'ios' || Platform.OS === 'android',
-      isIOS: Platform.OS === 'ios',
-      isAndroid: Platform.OS === 'android',
-      screenWidth: width,
-      breakpoint,
-    }),
-    [width, breakpoint],
+  const [info, setInfo] = useState<PlatformInfo>(() =>
+    buildPlatformInfo(Dimensions.get('window').width),
   );
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setInfo(buildPlatformInfo(window.width));
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  return info;
 }

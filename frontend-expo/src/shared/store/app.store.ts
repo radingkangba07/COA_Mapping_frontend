@@ -3,8 +3,9 @@ import { immer } from 'zustand/middleware/immer';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type Theme = 'light' | 'dark';
-export type Locale = 'en';
+type Theme = 'light' | 'dark';
+
+type Locale = 'en';
 
 interface AppState {
   theme: Theme;
@@ -20,7 +21,7 @@ interface AppActions {
   reset: () => void;
 }
 
-type AppStore = AppState & AppActions;
+interface AppStore extends AppState, AppActions {}
 
 // ─── Initial State ───────────────────────────────────────────────────────────
 
@@ -36,32 +37,36 @@ export const useAppStore = create<AppStore>()(
   immer((set) => ({
     ...initialState,
 
-    setTheme: (theme: Theme): void => {
+    setTheme: (theme: Theme) => {
       set((state) => {
         state.theme = theme;
       });
     },
 
-    setLocale: (locale: Locale): void => {
+    setLocale: (locale: Locale) => {
       set((state) => {
         state.locale = locale;
       });
     },
 
-    setOnline: (isOnline: boolean): void => {
+    setOnline: (isOnline: boolean) => {
       set((state) => {
         state.isOnline = isOnline;
       });
     },
 
-    toggleTheme: (): void => {
+    toggleTheme: () => {
       set((state) => {
         state.theme = state.theme === 'light' ? 'dark' : 'light';
       });
     },
 
-    reset: (): void => {
+    reset: () => {
       set(() => initialState);
     },
   })),
 );
+
+// ─── Types (re-exported for selectors) ──────────────────────────────────────
+
+export type { Theme, Locale, AppState, AppActions };
