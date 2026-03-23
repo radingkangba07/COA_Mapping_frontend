@@ -1,15 +1,40 @@
 import React, { useCallback } from 'react';
-import { Text, View } from 'react-native';
+import { View, Text } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Font from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { AppProviders } from './providers/AppProviders';
+import { RootNavigator } from '@/navigation/RootNavigator';
+import { useSessionGuard } from '@/features/auth/hooks/useSessionGuard';
+import { Spinner } from '@/shared/components/ui/Spinner';
 
 import '../global.css';
 
 SplashScreen.preventAutoHideAsync();
 
-export function App() {
+function AppContent(): React.JSX.Element | null {
+  const { isRestoring } = useSessionGuard();
+
+  if (isRestoring) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background">
+        <Spinner size="lg" />
+        <Text className="mt-4 font-body text-sm text-muted-foreground">
+          Loading...
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <>
+      <RootNavigator />
+      <StatusBar style="auto" />
+    </>
+  );
+}
+
+export function App(): React.JSX.Element | null {
   const [fontsLoaded, fontError] = Font.useFonts({
     Chivo: require('../../assets/fonts/Chivo-Regular.ttf'),
     'Chivo-Bold': require('../../assets/fonts/Chivo-Bold.ttf'),
@@ -33,19 +58,10 @@ export function App() {
   }
 
   return (
-    <AppProviders>
-      <View
-        className="flex-1 items-center justify-center bg-background"
-        onLayout={onLayoutRootView}
-      >
-        <Text className="font-heading text-2xl font-bold text-foreground">
-          COA Migration System
-        </Text>
-        <Text className="mt-2 font-body text-sm text-muted-foreground">
-          Hello World
-        </Text>
-        <StatusBar style="auto" />
-      </View>
-    </AppProviders>
+    <View className="flex-1" onLayout={onLayoutRootView}>
+      <AppProviders>
+        <AppContent />
+      </AppProviders>
+    </View>
   );
 }

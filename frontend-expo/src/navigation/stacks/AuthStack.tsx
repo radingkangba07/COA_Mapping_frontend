@@ -1,14 +1,11 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { colors } from '@/config/theme';
+import { LoginScreen } from '@/features/auth/screens/LoginScreen';
 import { PlaceholderScreen } from '../screens/PlaceholderScreen';
 import type { AuthStackParamList } from '../types';
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
-
-const LoginScreen = (): React.JSX.Element => (
-  <PlaceholderScreen name="Login" testID="login-screen" />
-);
 
 const RegisterScreen = (): React.JSX.Element => (
   <PlaceholderScreen name="Register" testID="register-screen" />
