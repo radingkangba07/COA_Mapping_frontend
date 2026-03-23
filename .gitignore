@@ -219,6 +219,9 @@ specs/
 
 # Worktrees (parallel agent workspaces)
 .worktrees/
+
+# Agent output files
+.agent-*.txt
 /frontend/.idea/inspectionProfiles/Project_Default.xml
 /frontend/.idea/.gitignore
 /frontend/.idea/frontend.iml
