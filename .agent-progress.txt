@@ -1,0 +1,50 @@
+# Agent Progress: expo/01b-http-storage-validation
+# Date: 2026-03-23
+
+## Completed Tasks
+
+### T024 [Ph1] — src/shared/services/http/http.types.ts
+- HttpClient type alias for AxiosInstance
+- HttpError interface (status, code, message, details)
+- HttpClientConfig with async-compatible getToken
+
+### T025 [Ph1] — src/shared/services/http/http.client.ts
+- createHttpClient factory with auth + 401 interceptors
+- toAppError helper converting AxiosError to AppError
+- Async request interceptor for token injection
+
+### T026 [Ph1] — src/shared/services/storage/storage.types.ts
+- StorageService interface (get, set, remove, clear)
+- STORAGE_KEYS constants
+
+### T027 [Ph1] — src/shared/services/storage/storage.service.ts
+- Platform-aware: expo-secure-store (native) / localStorage (web)
+- Exported as storageService singleton
+
+### T028 [Ph1] — src/shared/services/validation/validation.utils.ts
+- emailSchema, requiredString, positiveNumber, erpIdSchema
+- Zod v4 compatible with proper enum tuple cast
+
+### T029 [Ph1] — src/shared/hooks/useDebounce.ts
+- Generic debounce hook, 300ms default
+
+### T030 [Ph1] — src/shared/hooks/usePlatform.ts
+- Reactive platform info with useWindowDimensions
+- Breakpoint computation (sm/md/lg/xl)
+
+### T031 [Ph1] — src/shared/hooks/useToast.ts
+- showSuccess, showError, showWarning wrappers
+- Memoized callbacks via useCallback
+
+### T032 [Ph1] — src/shared/hooks/useConfirm.ts
+- Native: Alert.alert with Promise pattern
+- Web: state-based dialogProps for consumer rendering
+
+### T033 [Ph1] — src/shared/store/app.store.ts + app.selectors.ts
+- Zustand + immer store: theme, locale, isOnline
+- Actions: setTheme, setLocale, setOnline, toggleTheme, reset
+- Selectors in separate file per convention
+
+## Review
+- All issues from code review fixed
+- TypeScript compiles with zero errors
