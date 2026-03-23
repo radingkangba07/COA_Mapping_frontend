@@ -2,15 +2,14 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthStack } from './stacks/AuthStack';
 import { AppTabs } from './tabs/AppTabs';
+import { useAuthStore } from '@/features/auth/store/auth.store';
+import { selectIsAuthenticated } from '@/features/auth/store/auth.selectors';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-// Stub until features/auth/store/auth.store.ts is created
-const IS_AUTHENTICATED_STUB = false;
-
 export const RootNavigator = (): React.JSX.Element => {
-  const isAuthenticated = IS_AUTHENTICATED_STUB;
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
 
   return (
     <Stack.Navigator
