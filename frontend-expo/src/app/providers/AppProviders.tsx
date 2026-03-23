@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 
@@ -7,7 +8,7 @@ interface AppProvidersProps {
   children: React.ReactNode;
 }
 
-export function AppProviders({ children }: AppProvidersProps) {
+export function AppProviders({ children }: AppProvidersProps): React.JSX.Element {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -23,7 +24,9 @@ export function AppProviders({ children }: AppProvidersProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
-        {children}
+        <NavigationContainer>
+          {children}
+        </NavigationContainer>
         <Toast />
       </SafeAreaProvider>
     </QueryClientProvider>
