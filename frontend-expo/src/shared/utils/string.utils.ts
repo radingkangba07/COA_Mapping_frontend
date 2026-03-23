@@ -7,12 +7,16 @@ export function cn(...inputs: ClassValue[]): string {
 
 export function capitalize(str: string): string {
   if (str.length === 0) return str;
-  return str.charAt(0).toUpperCase() + str.slice(1);
+  const first = str[0];
+  if (first === undefined) return str;
+  return first.toUpperCase() + str.slice(1);
 }
 
-export function truncate(str: string, maxLength: number, suffix = '...'): string {
-  if (str.length <= maxLength) return str;
-  return str.slice(0, maxLength - suffix.length) + suffix;
+export function truncate(str: string, length: number): string {
+  if (length < 0) return str;
+  if (str.length <= length) return str;
+  if (length <= 3) return str.slice(0, length);
+  return str.slice(0, length - 3) + '...';
 }
 
 export function slugify(str: string): string {
@@ -21,5 +25,6 @@ export function slugify(str: string): string {
     .trim()
     .replace(/[^\w\s-]/g, '')
     .replace(/[\s_]+/g, '-')
-    .replace(/-+/g, '-');
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
 }
