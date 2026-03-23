@@ -24,24 +24,34 @@ Universal Expo app for mapping and migrating Chart of Accounts between ERP syste
 ## Getting Started
 
 ```bash
+cd frontend-expo
+
 # Install dependencies
-npx expo install
+npm install
 
-# Start dev server (Expo Go / dev client)
-npx expo start
+# Install web platform support
+npx expo install react-dom react-native-web
 
-# Web target
+# Start dev server for web
 npx expo start --web
-
-# Native builds
-npx expo run:android
-npx expo run:ios
-
-# Run tests
-npm test
 ```
 
 The web app runs at [http://localhost:8081](http://localhost:8081) by default.
+
+### Other targets
+
+```bash
+npx expo start              # Expo Go / dev client (QR code)
+npx expo run:android        # native Android build
+npx expo run:ios            # native iOS build
+```
+
+### Checks
+
+```bash
+npm run lint                # TypeScript type check (tsc --noEmit)
+npm test                    # Jest + React Native Testing Library
+```
 
 ## Environment Configuration
 
