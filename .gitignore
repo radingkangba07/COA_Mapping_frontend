@@ -205,3 +205,25 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+/.idea/inspectionProfiles/Project_Default.xml
+/.idea/.gitignore
+/.idea/COA_Mapping_frontend_V0.iml
+/.idea/modules.xml
+/.idea/vcs.xml
+
+# Specs (local planning docs, not shipped)
+specs/
+
+# OS files
+.DS_Store
+
+# Worktrees (parallel agent workspaces)
+.worktrees/
+
+# Agent output files
+.agent-*.txt
+/frontend/.idea/inspectionProfiles/Project_Default.xml
+/frontend/.idea/.gitignore
+/frontend/.idea/frontend.iml
+/frontend/.idea/modules.xml
+/frontend/.idea/vcs.xml
