@@ -1,50 +1,50 @@
-# Agent Progress: expo/01b-http-storage-validation
+# Agent Progress: expo/01d-layout-forms-feedback
 # Date: 2026-03-23
 
 ## Completed Tasks
 
-### T024 [Ph1] — src/shared/services/http/http.types.ts
-- HttpClient type alias for AxiosInstance
-- HttpError interface (status, code, message, details)
-- HttpClientConfig with async-compatible getToken
+### T041 [Ph1] — src/shared/components/layout/Screen.tsx
+- SafeAreaView wrapper with optional ScrollView (scroll prop)
+- Web: max-w-7xl mx-auto container
+- Default: flex-1 bg-background
+- Platform check via isWeb from platform.utils
 
-### T025 [Ph1] — src/shared/services/http/http.client.ts
-- createHttpClient factory with auth + 401 interceptors
-- toAppError helper converting AxiosError to AppError
-- Async request interceptor for token injection
+### T042 [Ph1] — src/shared/components/layout/Row.tsx
+- Flex row with gap, align, justify props
+- Type-safe GapSize union (0|1|2|3|4|5|6|8|10|12)
+- Shared constants from layout.constants.ts
 
-### T026 [Ph1] — src/shared/services/storage/storage.types.ts
-- StorageService interface (get, set, remove, clear)
-- STORAGE_KEYS constants
+### T043 [Ph1] — src/shared/components/layout/Stack.tsx
+- Flex column with gap, align props
+- Same type-safe GapSize and shared constants as Row
 
-### T027 [Ph1] — src/shared/services/storage/storage.service.ts
-- Platform-aware: expo-secure-store (native) / localStorage (web)
-- Exported as storageService singleton
+### T044 [Ph1] — src/shared/components/feedback/Toast.tsx
+- toastConfig for react-native-toast-message
+- success/error/warning renderers with colored left border
+- Uses theme token classes (border-l-success, etc.)
 
-### T028 [Ph1] — src/shared/services/validation/validation.utils.ts
-- emailSchema, requiredString, positiveNumber, erpIdSchema
-- Zod v4 compatible with proper enum tuple cast
+### T045 [Ph1] — src/shared/components/feedback/EmptyState.tsx
+- Centered layout with optional icon, title, description, action Button
+- Fully presentational component
 
-### T029 [Ph1] — src/shared/hooks/useDebounce.ts
-- Generic debounce hook, 300ms default
+### T046 [Ph1] — src/shared/components/feedback/ErrorBoundary.tsx
+- Class component with getDerivedStateFromError
+- Default fallback: "Something went wrong" + error message + Try Again button
+- Supports custom fallback prop
 
-### T030 [Ph1] — src/shared/hooks/usePlatform.ts
-- Reactive platform info with useWindowDimensions
-- Breakpoint computation (sm/md/lg/xl)
+### T047 [Ph1] — src/shared/components/forms/FormField.tsx
+- Wraps Label + children + FormError
+- Integrates with react-hook-form at consumer level (keeps component simple)
 
-### T031 [Ph1] — src/shared/hooks/useToast.ts
-- showSuccess, showError, showWarning wrappers
-- Memoized callbacks via useCallback
+### T048 [Ph1] — src/shared/components/forms/FormError.tsx
+- Animated error text with slide-down/fade-in (Animated API)
+- Returns null when no message
+- text-destructive styling
 
-### T032 [Ph1] — src/shared/hooks/useConfirm.ts
-- Native: Alert.alert with Promise pattern
-- Web: state-based dialogProps for consumer rendering
-
-### T033 [Ph1] — src/shared/store/app.store.ts + app.selectors.ts
-- Zustand + immer store: theme, locale, isOnline
-- Actions: setTheme, setLocale, setOnline, toggleTheme, reset
-- Selectors in separate file per convention
+### Supporting file: layout/layout.constants.ts
+- Shared GapSize, Alignment types + GAP_MAP, ALIGN_MAP constants
+- Used by both Row.tsx and Stack.tsx (DRY)
 
 ## Review
 - All issues from code review fixed
-- TypeScript compiles with zero errors
+- Verdict: PASS
