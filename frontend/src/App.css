@@ -1,0 +1,90 @@
+/* Main App Styles */
+.app-container {
+    min-height: 100vh;
+    background: linear-gradient(to bottom, #ffffff, #f4f4f5);
+}
+
+/* Header */
+.app-header {
+    border-bottom: 1px solid #e4e4e7;
+    background: white;
+}
+
+/* Main content area */
+.main-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+}
+
+/* Card hover effects */
+.hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Workflow steps */
+.workflow-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 2rem;
+}
+
+/* Select dropdown styling */
+.mapping-select {
+    min-width: 200px;
+}
+
+/* Export button */
+.export-btn {
+    background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%);
+    transition: all 0.2s ease;
+}
+
+.export-btn:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #71717a;
+}
+
+/* Loading spinner */
+.spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Toast customization */
+.sonner-toast {
+    font-family: 'Inter', sans-serif;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .main-content {
+        padding: 1rem;
+    }
+    
+    .workflow-container {
+        flex-wrap: wrap;
+    }
+}

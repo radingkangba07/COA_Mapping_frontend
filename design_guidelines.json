@@ -1,0 +1,145 @@
+{
+  "identity": {
+    "name": "The Data Architect",
+    "persona": "Swiss Precision Utility. You value clarity, data density, and immediate comprehension over decoration. Every pixel must serve a purpose.",
+    "emotional_tone": "Professional, Efficient, Trustworthy, Technical"
+  },
+  "typography": {
+    "font_family": {
+      "headings": "Chivo, sans-serif",
+      "body": "Inter, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    },
+    "scale": {
+      "h1": "text-4xl font-bold tracking-tight",
+      "h2": "text-2xl font-semibold tracking-tight",
+      "h3": "text-xl font-semibold",
+      "body": "text-sm leading-relaxed",
+      "small": "text-xs text-muted-foreground",
+      "mono": "font-mono text-xs"
+    },
+    "weights": {
+      "heading_bold": "700",
+      "body_regular": "400",
+      "body_medium": "500"
+    }
+  },
+  "colors": {
+    "theme": "light",
+    "palette": {
+      "background": "#FFFFFF",
+      "foreground": "#09090B",
+      "surface": "#F4F4F5",
+      "surface_highlight": "#FAFAFA",
+      "border": "#E4E4E7",
+      "primary": "#18181B",
+      "primary_foreground": "#FAFAFA",
+      "accent": "#2563EB",
+      "accent_foreground": "#FFFFFF",
+      "success": "#16A34A",
+      "warning": "#D97706",
+      "error": "#DC2626",
+      "muted": "#71717A"
+    },
+    "gradients": {
+      "subtle_fade": "linear-gradient(to bottom, #FFFFFF, #F4F4F5)"
+    }
+  },
+  "layout_strategies": {
+    "grid_system": "Bento Grid Mode B (High Density)",
+    "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "spacing": {
+      "section_gap": "py-12",
+      "component_gap": "gap-6",
+      "internal_padding": "p-6"
+    },
+    "z_index": {
+      "sticky_header": "z-40",
+      "modal": "z-50",
+      "tooltip": "z-60"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+      "secondary": "bg-white text-primary border border-input shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-4 py-2 text-sm font-medium transition-colors",
+      "ghost": "hover:bg-accent hover:text-accent-foreground rounded-md px-4 py-2 text-sm font-medium transition-colors",
+      "destructive": "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm rounded-md px-4 py-2 text-sm font-medium transition-colors"
+    },
+    "cards": {
+      "base": "rounded-lg border bg-card text-card-foreground shadow-sm",
+      "hover_effect": "hover:shadow-md transition-shadow duration-200 cursor-pointer hover:border-accent/50"
+    },
+    "inputs": {
+      "base": "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+    },
+    "tables": {
+      "container": "w-full overflow-auto rounded-md border",
+      "header": "h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 bg-muted/50 sticky top-0 z-10 backdrop-blur-sm",
+      "row": "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
+      "cell": "p-2 align-middle [&:has([role=checkbox])]:pr-0 text-sm"
+    }
+  },
+  "motion": {
+    "reduced_motion": true,
+    "hover_scale": "hover:scale-[1.01] transition-transform duration-200",
+    "page_transition": "animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out"
+  },
+  "assets": {
+    "images": [
+      {
+        "category": "background_texture",
+        "url": "https://images.pexels.com/photos/3137064/pexels-photo-3137064.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "usage": "Use as a subtle background pattern with very low opacity (5%) on the landing page or empty states."
+      },
+      {
+        "category": "microsoft_logo_ref",
+        "url": "https://images.pexels.com/photos/10142683/pexels-photo-10142683.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "usage": "Reference only."
+      }
+    ],
+    "icons": {
+      "library": "lucide-react",
+      "preferred": [
+        "ArrowRight",
+        "UploadCloud",
+        "Database",
+        "FileSpreadsheet",
+        "CheckCircle2",
+        "AlertTriangle",
+        "ArrowLeftRight",
+        "Search",
+        "Settings2",
+        "Download"
+      ]
+    }
+  },
+  "page_specific_rules": {
+    "landing": {
+      "layout": "Centered hero with grid background. Two large cards for 'Start Migration' and 'View History'.",
+      "visuals": "Use the 'background_texture' image with `mix-blend-overlay` and `opacity-5`."
+    },
+    "mapping_interface": {
+      "layout": "Full-width fluid container. Sticky header for controls (Auto-map, Export). Split view: Source (Left) -> Mapping Logic (Center) -> Target (Right).",
+      "density": "Compact. Use `py-1` for table rows to maximize data visibility."
+    }
+  },
+  "accessibility": {
+    "rules": [
+      "Ensure 4.5:1 contrast ratio for all text.",
+      "Interactive elements must have a focus ring.",
+      "Use semantic HTML (table, thead, tbody, th, td) for the mapping grid.",
+      "Provide aria-labels for icon-only buttons."
+    ]
+  },
+  "universal_guidelines": [
+    "Do not use gradients for backgrounds, keep it flat and clean.",
+    "Use 'Chivo' for all headings to give a technical/industrial feel.",
+    "Use 'JetBrains Mono' for all COA codes, Account Numbers, and fuzzy match scores.",
+    "Mapping lines (if visualized) should be bezier curves with `stroke-width-2`.",
+    "Always show a 'Confidence Score' for fuzzy matches (Green: >90%, Yellow: 70-89%, Red: <70%).",
+    "Use `sonner` for all notifications (success, error, loading).",
+    "For the ERP Selection step, use large selectable cards with a clear 'Selected' state (thick border + checkmark icon).",
+    "Ensure the 'Next' button is prominent and placed consistently (bottom right or sticky bottom)."
+  ]
+}
