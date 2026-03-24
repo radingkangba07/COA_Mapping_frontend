@@ -61,9 +61,10 @@ export const useAuthStore = create<AuthStore>()(
       const result = await authService.restoreSession(storageService);
 
       if (result.ok && result.data !== null) {
+        const { user, token } = result.data;
         set((state) => {
-          state.user = result.data.user;
-          state.token = result.data.token;
+          state.user = user;
+          state.token = token;
           state.isRestoring = false;
         });
       } else {
