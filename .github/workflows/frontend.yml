@@ -1,0 +1,38 @@
+name: Frontend CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "frontend-expo/**"
+      - ".github/workflows/frontend.yml"
+
+jobs:
+  test:
+    name: Lint, Test & Build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend-expo
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: TypeScript check
+        run: npx --no-install tsc --noEmit
+
+      - name: Run tests
+        run: npm test -- --ci --coverage --watchAll=false --passWithNoTests
+
+      - name: Build web
+        run: npx expo export --platform web
