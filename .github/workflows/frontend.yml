@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - "frontend/**"
+      - "frontend-expo/**"
       - ".github/workflows/frontend.yml"
 
 jobs:
@@ -14,7 +14,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: frontend
+        working-directory: frontend-expo
 
     steps:
       - name: Checkout repository
@@ -29,15 +29,10 @@ jobs:
         run: npm install --legacy-peer-deps
 
       - name: TypeScript check
-        run: npx --no-install tsc --noEmit || echo "TypeScript not installed, skipping"
+        run: npx --no-install tsc --noEmit
 
       - name: Run tests
         run: npm test -- --ci --coverage --watchAll=false --passWithNoTests
 
-      - name: Build
-        run: |
-          if command -v expo &>/dev/null || [ -f node_modules/.bin/expo ]; then
-            npx expo export --platform web
-          else
-            npm run build
-          fi
+      - name: Build web
+        run: npx expo export --platform web
