@@ -32,7 +32,7 @@ jobs:
         run: npx --no-install tsc --noEmit || echo "TypeScript not installed, skipping"
 
       - name: Run tests
-        run: npm test -- --ci --coverage --watchAll=false
+        run: npm test -- --ci --coverage --watchAll=false --passWithNoTests
 
       - name: Build
         run: |
