@@ -26,18 +26,18 @@ module.exports = {
         },
         muted: {
           DEFAULT: '#F4F4F5',
-          foreground: '#71717A',
+          foreground: '#6B6B73',
         },
         destructive: {
-          DEFAULT: '#DC2626',
+          DEFAULT: '#D72222',
           foreground: '#FAFAFA',
         },
         success: {
-          DEFAULT: '#16A34A',
+          DEFAULT: '#15803D',
           foreground: '#FFFFFF',
         },
         warning: {
-          DEFAULT: '#D97706',
+          DEFAULT: '#B45309',
           foreground: '#FFFFFF',
         },
         card: {

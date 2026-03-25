@@ -11,7 +11,7 @@ import { cn } from '@/shared/utils/string.utils';
 import { colors } from '@/config/theme';
 
 const buttonVariants = cva(
-  'flex-row items-center justify-center rounded-md',
+  'flex-row items-center justify-center rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
   {
     variants: {
       variant: {
@@ -97,6 +97,7 @@ export const Button = React.forwardRef<View, ButtonProps>(
           isDisabled && 'opacity-50',
           className,
         )}
+        accessibilityRole="button"
         testID={testID}
         {...pressableProps}
       >

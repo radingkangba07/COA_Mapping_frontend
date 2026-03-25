@@ -5,6 +5,7 @@ import { Button } from '@/shared/components/ui/Button';
 interface ErrorBoundaryProps {
   children: React.ReactNode;
   fallback?: React.ReactNode;
+  fallbackRender?: (props: { error: Error; resetError: () => void }) => React.ReactNode;
 }
 
 interface ErrorBoundaryState {
@@ -29,6 +30,10 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   override render(): React.ReactNode {
     if (!this.state.hasError) {
       return this.props.children;
+    }
+
+    if (this.props.fallbackRender !== undefined && this.state.error !== null) {
+      return this.props.fallbackRender({ error: this.state.error, resetError: this.handleReset });
     }
 
     if (this.props.fallback !== undefined) {

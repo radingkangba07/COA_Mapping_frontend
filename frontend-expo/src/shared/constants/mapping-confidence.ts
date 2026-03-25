@@ -6,9 +6,9 @@ export const CONFIDENCE_THRESHOLDS = {
 
 // Hex values for contexts where NativeWind classes cannot be used (charts, SVG fills)
 export const CONFIDENCE_COLORS = {
-  HIGH: '#16A34A',
-  MEDIUM: '#D97706',
-  LOW: '#DC2626',
+  HIGH: '#15803D',
+  MEDIUM: '#B45309',
+  LOW: '#D72222',
 } as const;
 
 export const CONFIDENCE_BG_CLASSES = {
