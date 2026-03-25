@@ -1,7 +1,8 @@
-import React, { useCallback } from 'react';
-import { FlatList, RefreshControl, type ListRenderItemInfo } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
+import { FlatList, RefreshControl, View, type ListRenderItemInfo } from 'react-native';
 import { FolderOpen } from 'lucide-react-native';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
+import { usePlatform } from '@/shared/hooks/usePlatform';
 import { colors } from '@/config/theme';
 import { ProjectCard } from './ProjectCard';
 import type { Project } from '../types/projects.types';
@@ -17,6 +18,17 @@ interface ProjectListProps {
 
 const EMPTY_ICON = <FolderOpen size={48} color={colors.mutedForeground} />;
 
+type Breakpoint = 'sm' | 'md' | 'lg' | 'xl';
+
+function getNumColumns(breakpoint: Breakpoint): number {
+  if (breakpoint === 'lg' || breakpoint === 'xl') return 3;
+  if (breakpoint === 'md') return 2;
+  return 1;
+}
+
+const COLUMN_GAP = 12;
+const ITEM_VERTICAL_GAP = 12;
+
 export const ProjectList = ({
   projects,
   isRefreshing,
@@ -25,15 +37,21 @@ export const ProjectList = ({
   onCreatePress,
   testID,
 }: ProjectListProps): React.JSX.Element => {
+  const { breakpoint } = usePlatform();
+  const numColumns = getNumColumns(breakpoint);
+  const itemStyle = useMemo(() => ({ flex: 1 / numColumns }), [numColumns]);
+
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<Project>) => (
-      <ProjectCard
-        project={item}
-        onPress={onProjectPress}
-        testID={`project-card-${item.projectId}`}
-      />
+      <View style={itemStyle}>
+        <ProjectCard
+          project={item}
+          onPress={onProjectPress}
+          testID={`project-card-${item.projectId}`}
+        />
+      </View>
     ),
-    [onProjectPress],
+    [onProjectPress, itemStyle],
   );
 
   const keyExtractor = useCallback(
@@ -55,10 +73,13 @@ export const ProjectList = ({
 
   return (
     <FlatList
+      key={numColumns}
       data={projects}
+      numColumns={numColumns}
       keyExtractor={keyExtractor}
       renderItem={renderItem}
-      contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8 }}
+      contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, gap: ITEM_VERTICAL_GAP }}
+      {...(numColumns > 1 ? { columnWrapperStyle: { gap: COLUMN_GAP } } : {})}
       refreshControl={
         <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
       }

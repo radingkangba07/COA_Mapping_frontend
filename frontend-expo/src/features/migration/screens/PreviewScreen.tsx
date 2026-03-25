@@ -90,7 +90,7 @@ export const PreviewScreen = (): React.JSX.Element => {
 
   return (
     <Screen scroll testID="preview-screen">
-      <View className="max-w-4xl mx-auto w-full px-4 py-6">
+      <View className="max-w-4xl mx-auto w-full px-4 md:px-6 py-6">
         <MigrationStepper
           currentStep={4}
           completedSteps={vm.completedSteps}
@@ -104,7 +104,7 @@ export const PreviewScreen = (): React.JSX.Element => {
           </Text>
         </View>
 
-        <View className="flex-row flex-wrap gap-3">
+        <View className="flex-row flex-wrap gap-3 md:flex-nowrap">
           <StatCard title="Account Types" value={vm.stats.totalTypes} testID="stat-types" />
           <StatCard title="Accounts Mapped" value={vm.stats.totalAccounts} testID="stat-accounts" />
           <StatCard title="High Confidence" value={vm.stats.highConfidence} colorClass="text-green-600" testID="stat-high" />
@@ -158,37 +158,39 @@ export const PreviewScreen = (): React.JSX.Element => {
           </Card.Content>
         </Card>
 
-        <View className="mt-6">
-          <ExportFormatPicker
-            value={exportFormat}
-            onChange={changeFormat}
-            disabled={isExporting}
-            testID="export-format-picker"
-          />
-        </View>
-
-        <View className="mt-4 flex-row gap-3">
-          <Button variant="outline" size="lg" onPress={vm.handleBack} className="flex-1" testID="back-button">
-            <View className="flex-row items-center gap-2">
-              <ArrowLeft size={ICON_SIZE} color={colors.foreground} />
-              <Text className="text-sm font-medium text-foreground">Back</Text>
-            </View>
-          </Button>
-          <Button size="lg" onPress={handleExport} disabled={isExporting} className="flex-1" testID="download-button">
-            <View className="flex-row items-center gap-2">
-              <Download size={ICON_SIZE} color={colors.primaryForeground} />
-              <Text className="text-sm font-medium text-primary-foreground">
-                {isExporting ? 'Exporting...' : 'Download'}
-              </Text>
-            </View>
-          </Button>
-        </View>
-        <Button variant="outline" size="lg" onPress={handleStartNew} className="mt-3 w-full" testID="start-new-button">
-          <View className="flex-row items-center gap-2">
-            <RefreshCw size={ICON_SIZE} color={colors.foreground} />
-            <Text className="text-sm font-medium text-foreground">Start New Migration</Text>
+        <View className="mt-6 flex-col md:flex-row md:items-end gap-4">
+          <View className="md:flex-1">
+            <ExportFormatPicker
+              value={exportFormat}
+              onChange={changeFormat}
+              disabled={isExporting}
+              testID="export-format-picker"
+            />
           </View>
-        </Button>
+
+          <View className="flex-col md:flex-row gap-3 md:items-center">
+            <Button variant="outline" size="lg" onPress={vm.handleBack} testID="back-button">
+              <View className="flex-row items-center gap-2">
+                <ArrowLeft size={ICON_SIZE} color={colors.foreground} />
+                <Text className="text-sm font-medium text-foreground">Back</Text>
+              </View>
+            </Button>
+            <Button size="lg" onPress={handleExport} disabled={isExporting} testID="download-button">
+              <View className="flex-row items-center gap-2">
+                <Download size={ICON_SIZE} color={colors.primaryForeground} />
+                <Text className="text-sm font-medium text-primary-foreground">
+                  {isExporting ? 'Exporting...' : 'Download'}
+                </Text>
+              </View>
+            </Button>
+            <Button variant="outline" size="lg" onPress={handleStartNew} testID="start-new-button">
+              <View className="flex-row items-center gap-2">
+                <RefreshCw size={ICON_SIZE} color={colors.foreground} />
+                <Text className="text-sm font-medium text-foreground">Start New Migration</Text>
+              </View>
+            </Button>
+          </View>
+        </View>
       </View>
     </Screen>
   );

@@ -2,7 +2,7 @@ import React, { useCallback } from 'react';
 import { View, Text } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowRight } from 'lucide-react-native';
+import { ArrowRight, ArrowDown } from 'lucide-react-native';
 import { Screen } from '@/shared/components/layout/Screen';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
@@ -10,6 +10,7 @@ import { MigrationStepper } from '../components/MigrationStepper/MigrationSteppe
 import { ERPCombobox } from '../components/ERPCombobox/ERPCombobox';
 import { useMigrationViewModel } from '../hooks/useMigrationViewModel';
 import { useERPConfig } from '@/features/erp-config/hooks/useERPConfig';
+import { usePlatform } from '@/shared/hooks/usePlatform';
 import { useMigrationScreenRoute } from '@/navigation/types';
 import type { MigrationStackParamList } from '@/navigation/types';
 import { colors } from '@/config/theme';
@@ -20,6 +21,8 @@ export const ERPSelectScreen = (): React.JSX.Element => {
   const navigation = useNavigation<MigrationNavProp>();
   const route = useMigrationScreenRoute<'ERPSelect'>();
   const projectId = route.params.projectId;
+  const { breakpoint } = usePlatform();
+  const isWide = breakpoint === 'md' || breakpoint === 'lg' || breakpoint === 'xl';
 
   const {
     currentStep,
@@ -83,35 +86,41 @@ export const ERPSelectScreen = (): React.JSX.Element => {
 
         <Card testID="erp-selection-card">
           <Card.Content className="gap-4">
-            <View>
-              <Text className="mb-2 font-body text-sm font-medium text-foreground">
-                Source ERP
-              </Text>
-              <ERPCombobox
-                value={sourceERP?.id ?? null}
-                onSelect={handleSourceChange}
-                erpSystems={erpSystems}
-                placeholder="Select Source ERP"
-                testID="source-erp-combobox"
-              />
-            </View>
+            <View className="flex-col md:flex-row md:items-end md:gap-4">
+              <View className="flex-1">
+                <Text className="mb-2 font-body text-sm font-medium text-foreground">
+                  Source ERP
+                </Text>
+                <ERPCombobox
+                  value={sourceERP?.id ?? null}
+                  onSelect={handleSourceChange}
+                  erpSystems={erpSystems}
+                  placeholder="Select Source ERP"
+                  testID="source-erp-combobox"
+                />
+              </View>
 
-            <View className="items-center py-2">
-              <ArrowRight size={24} color={colors.mutedForeground} />
-            </View>
+              <View className="items-center py-2 md:pb-3">
+                {isWide ? (
+                  <ArrowRight size={24} color={colors.mutedForeground} />
+                ) : (
+                  <ArrowDown size={24} color={colors.mutedForeground} />
+                )}
+              </View>
 
-            <View>
-              <Text className="mb-2 font-body text-sm font-medium text-foreground">
-                Target ERP
-              </Text>
-              <ERPCombobox
-                value={targetERP?.id ?? null}
-                onSelect={handleTargetChange}
-                erpSystems={erpSystems}
-                excludeId={sourceERP?.id}
-                placeholder="Select Target ERP"
-                testID="target-erp-combobox"
-              />
+              <View className="flex-1">
+                <Text className="mb-2 font-body text-sm font-medium text-foreground">
+                  Target ERP
+                </Text>
+                <ERPCombobox
+                  value={targetERP?.id ?? null}
+                  onSelect={handleTargetChange}
+                  erpSystems={erpSystems}
+                  excludeId={sourceERP?.id}
+                  placeholder="Select Target ERP"
+                  testID="target-erp-combobox"
+                />
+              </View>
             </View>
           </Card.Content>
         </Card>

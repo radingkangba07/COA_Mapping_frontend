@@ -76,7 +76,7 @@ export const FileUploader = ({
 
   return (
     <View testID={testID} className="gap-6">
-      <View className="flex-col gap-4 md:flex-row">
+      <View className="flex-col gap-4 md:flex-row md:gap-6">
         <View className="flex-1">
           <FileUploadBox
             label="Source Chart of Accounts"
@@ -112,7 +112,7 @@ export const FileUploader = ({
         </View>
       </View>
 
-      <View className="flex-row items-center justify-between">
+      <View className="flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <Text
           className="font-body text-sm text-muted-foreground"
           testID={`${testID}-summary`}
