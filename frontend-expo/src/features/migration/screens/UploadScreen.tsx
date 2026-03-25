@@ -108,17 +108,21 @@ export function UploadScreen(): React.JSX.Element {
 
   return (
     <Screen scroll testID="upload-screen">
-      <View className="max-w-4xl flex-1 self-center w-full px-4 py-6 gap-6">
-        <MigrationStepper
-          currentStep={currentStep}
-          completedSteps={completedSteps}
-          onStepPress={goToStep}
-        />
+      <View className="max-w-4xl flex-1 self-center w-full px-4 md:px-6 py-6 gap-6">
+        <View className="flex-col md:flex-row md:items-start gap-6">
+          <View className="md:flex-1">
+            <MigrationStepper
+              currentStep={currentStep}
+              completedSteps={completedSteps}
+              onStepPress={goToStep}
+            />
+          </View>
 
-        <ERPSummaryCard
-          sourceName={sourceERP?.name ?? 'Not selected'}
-          targetName={targetERP?.name ?? 'Not selected'}
-        />
+          <ERPSummaryCard
+            sourceName={sourceERP?.name ?? 'Not selected'}
+            targetName={targetERP?.name ?? 'Not selected'}
+          />
+        </View>
 
         <FileUploader
           sourceFile={sourceFileInfo}

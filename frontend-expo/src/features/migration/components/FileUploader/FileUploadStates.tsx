@@ -14,9 +14,9 @@ export const EmptyState = React.memo(function EmptyState({
   isDragOver,
 }: EmptyStateProps) {
   return (
-    <View className="items-center gap-2 py-4">
+    <View className="items-center gap-1.5 py-2 md:gap-2 md:py-4">
       <Upload
-        size={28}
+        size={isWeb ? 28 : 22}
         color={isDragOver ? colors.accent : colors.mutedForeground}
         strokeWidth={1.5}
       />

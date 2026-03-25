@@ -67,24 +67,30 @@ const AccountRow = memo(({
 
   return (
     <View className="gap-1.5 border-b border-border/50 py-3 last:border-b-0" testID={testID}>
-      <View className="flex-row items-center gap-2">
-        <Text className="font-mono text-xs text-muted-foreground">{account.source_number}</Text>
-        <Text className="flex-1 text-sm text-foreground" numberOfLines={1}>
-          {account.source_name}
-        </Text>
-        <ArrowRight size={ICON_SIZE} color={colors.mutedForeground} />
-        <View className="flex-1">
-          <Input
-            value={localName}
-            onChangeText={setLocalName}
-            inputClassName="h-8 text-xs"
-            testID={testID !== undefined ? `${testID}-input` : undefined}
-          />
+      <View className="flex-col gap-1.5 md:flex-row md:items-center md:gap-2">
+        <View className="flex-row items-center gap-2 md:flex-none">
+          <Text className="font-mono text-xs text-muted-foreground">{account.source_number}</Text>
+          <Text className="flex-1 text-sm text-foreground md:flex-none" numberOfLines={1}>
+            {account.source_name}
+          </Text>
         </View>
-        <FuzzyMatchBadge score={account.score} size="sm" showLabel={false} />
-        <Button variant="ghost" size="icon" onPress={handleDelete} className="h-8 w-8">
-          <Trash2 size={ICON_SIZE} color={colors.destructive} />
-        </Button>
+        <View className="flex-row items-center gap-2 w-full md:flex-1">
+          <ArrowRight size={ICON_SIZE} color={colors.mutedForeground} />
+          <View className="flex-1">
+            <Input
+              value={localName}
+              onChangeText={setLocalName}
+              inputClassName="h-8 text-xs"
+              testID={testID !== undefined ? `${testID}-input` : undefined}
+            />
+          </View>
+        </View>
+        <View className="flex-row items-center gap-2 self-end md:self-auto">
+          <FuzzyMatchBadge score={account.score} size="sm" showLabel={false} />
+          <Button variant="ghost" size="icon" onPress={handleDelete} className="h-8 w-8">
+            <Trash2 size={ICON_SIZE} color={colors.destructive} />
+          </Button>
+        </View>
       </View>
       {account.remark.length > 0 && (
         <Text className="pl-1 text-xs text-muted-foreground">{account.remark}</Text>

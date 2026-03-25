@@ -136,7 +136,7 @@ const TabsContent = React.forwardRef<View, TabsContentProps>(
       <View
         ref={ref}
         className={cn('mt-2', className)}
-        role="tabpanel"
+        accessibilityRole="summary"
         testID={testID}
         {...props}
       >

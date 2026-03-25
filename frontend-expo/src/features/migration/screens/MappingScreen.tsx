@@ -104,11 +104,44 @@ export const MappingScreen = (): React.JSX.Element => {
           </Text>
         </View>
 
-        <MappingSummaryCard
-          matched={mappingSummary.matched}
-          total={mappingSummary.total}
-          allMatched={mappingSummary.allMatched}
-        />
+        <View className="flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <View className="md:flex-1">
+            <MappingSummaryCard
+              matched={mappingSummary.matched}
+              total={mappingSummary.total}
+              allMatched={mappingSummary.allMatched}
+            />
+          </View>
+
+          <View className="flex-row items-center justify-between md:justify-end md:gap-3">
+            <Button
+              variant="outline"
+              onPress={handleBack}
+              testID="mapping-back-button"
+            >
+              <View className="flex-row items-center gap-1.5">
+                <ArrowLeft size={16} color={colors.foreground} />
+                <Text className="font-body text-sm font-medium text-foreground">
+                  Back
+                </Text>
+              </View>
+            </Button>
+
+            <Button
+              onPress={() => void handleProceed()}
+              disabled={!canProceed}
+              isLoading={isMapping}
+              testID="mapping-proceed-button"
+            >
+              <View className="flex-row items-center gap-1.5">
+                <Text className="font-body text-sm font-medium text-primary-foreground">
+                  Proceed to Account Mapping
+                </Text>
+                <ArrowRight size={16} color={colors.primaryForeground} />
+              </View>
+            </Button>
+          </View>
+        </View>
 
         <FieldMappingTable
           rows={typeMappingRows}
@@ -119,34 +152,6 @@ export const MappingScreen = (): React.JSX.Element => {
           testID="mapping-field-table"
         />
 
-        <View className="flex-row items-center justify-between pt-2">
-          <Button
-            variant="outline"
-            onPress={handleBack}
-            testID="mapping-back-button"
-          >
-            <View className="flex-row items-center gap-1.5">
-              <ArrowLeft size={16} color={colors.foreground} />
-              <Text className="font-body text-sm font-medium text-foreground">
-                Back
-              </Text>
-            </View>
-          </Button>
-
-          <Button
-            onPress={() => void handleProceed()}
-            disabled={!canProceed}
-            isLoading={isMapping}
-            testID="mapping-proceed-button"
-          >
-            <View className="flex-row items-center gap-1.5">
-              <Text className="font-body text-sm font-medium text-primary-foreground">
-                Proceed to Account Mapping
-              </Text>
-              <ArrowRight size={16} color={colors.primaryForeground} />
-            </View>
-          </Button>
-        </View>
       </View>
     </Screen>
   );

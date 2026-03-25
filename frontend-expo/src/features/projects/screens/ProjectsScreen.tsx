@@ -47,7 +47,7 @@ export const ProjectsScreen = (): React.JSX.Element => {
 
   return (
     <Screen testID="projects-screen">
-      <View className="flex-row items-center justify-between px-4 py-4">
+      <View className="flex-row items-center justify-between px-4 py-4 md:px-6">
         <Text className="font-heading text-2xl font-bold text-foreground">
           Your Projects
         </Text>

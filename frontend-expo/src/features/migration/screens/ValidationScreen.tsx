@@ -51,7 +51,7 @@ export const ValidationScreen = (): React.JSX.Element => {
 
   return (
     <Screen scroll testID="validation-screen">
-      <View className="max-w-4xl mx-auto w-full px-4 py-6">
+      <View className="max-w-4xl mx-auto w-full px-4 md:px-6 py-6">
         <MigrationStepper
           currentStep={vm.currentStep}
           completedSteps={vm.completedSteps}
@@ -67,35 +67,41 @@ export const ValidationScreen = (): React.JSX.Element => {
           )}
         </View>
 
-        <MappingStatsBar
-          totalAccounts={vm.stats.totalAccounts}
-          highConfidence={vm.stats.highConfidence}
-          mediumConfidence={vm.stats.mediumConfidence}
-          lowConfidence={vm.stats.lowConfidence}
-          confirmedHigh={vm.confirmedHigh}
-          confirmedMedium={vm.confirmedMedium}
-          confirmedLow={vm.confirmedLow}
-          activeFilter={vm.confidenceFilter}
-          onFilterPress={vm.handleFilterPress}
-          testID="mapping-stats-bar"
-        />
+        <View className="flex-col md:flex-row md:items-start gap-4">
+          <View className="md:flex-1">
+            <MappingStatsBar
+              totalAccounts={vm.stats.totalAccounts}
+              highConfidence={vm.stats.highConfidence}
+              mediumConfidence={vm.stats.mediumConfidence}
+              lowConfidence={vm.stats.lowConfidence}
+              confirmedHigh={vm.confirmedHigh}
+              confirmedMedium={vm.confirmedMedium}
+              confirmedLow={vm.confirmedLow}
+              activeFilter={vm.confidenceFilter}
+              onFilterPress={vm.handleFilterPress}
+              testID="mapping-stats-bar"
+            />
+          </View>
 
-        {vm.confidenceFilter !== null && (
-          <Card className={cn('mt-4', CONFIRMATION_CLASSES[vm.confidenceFilter])} testID="confirmation-card">
-            <Card.Content className="py-3">
-              <Checkbox
-                checked={
-                  vm.confidenceFilter === 'high' ? vm.confirmedHigh :
-                  vm.confidenceFilter === 'medium' ? vm.confirmedMedium :
-                  vm.confirmedLow
-                }
-                onCheckedChange={() => vm.handleConfirm(vm.confidenceFilter as ConfidenceLevel)}
-                label={CONFIRMATION_LABELS[vm.confidenceFilter]}
-                testID={`confirm-${vm.confidenceFilter}`}
-              />
-            </Card.Content>
-          </Card>
-        )}
+          {vm.confidenceFilter !== null && (
+            <View className="md:flex-1">
+              <Card className={cn(CONFIRMATION_CLASSES[vm.confidenceFilter])} testID="confirmation-card">
+                <Card.Content className="py-3">
+                  <Checkbox
+                    checked={
+                      vm.confidenceFilter === 'high' ? vm.confirmedHigh :
+                      vm.confidenceFilter === 'medium' ? vm.confirmedMedium :
+                      vm.confirmedLow
+                    }
+                    onCheckedChange={() => vm.handleConfirm(vm.confidenceFilter as ConfidenceLevel)}
+                    label={CONFIRMATION_LABELS[vm.confidenceFilter]}
+                    testID={`confirm-${vm.confidenceFilter}`}
+                  />
+                </Card.Content>
+              </Card>
+            </View>
+          )}
+        </View>
 
         {(vm.errors.length > 0 || vm.warnings.length > 0) && (
           <Card className="mt-4 border-yellow-200 bg-yellow-50" testID="validation-issues-card">
