@@ -1,0 +1,54 @@
+services:
+  frontend:
+    build:
+      context: ../..
+      dockerfile: services/frontend/Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-service
+
+  api-service:
+    build:
+      context: ../../services/api-service
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://coa_user:coa_password@postgres:5432/coa_db
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      CORS_ORIGINS: http://localhost:3000
+    depends_on:
+      - postgres
+      - rabbitmq
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: coa_user
+      POSTGRES_PASSWORD: coa_password
+      POSTGRES_DB: coa_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  ml-service:
+    build:
+      context: ../../services/ml-service
+      dockerfile: Dockerfile
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      - rabbitmq
+    profiles:
+      - ml
+
+volumes:
+  postgres_data:
