@@ -4,17 +4,11 @@ import { colors } from '@/config/theme';
 import { PlaceholderScreen } from '../screens/PlaceholderScreen';
 import { ERPSelectScreen } from '@/features/migration/screens/ERPSelectScreen';
 import { UploadScreen } from '@/features/migration/screens/UploadScreen';
+import { MappingScreen } from '@/features/migration/screens/MappingScreen';
+import { ValidationScreen } from '@/features/migration/screens/ValidationScreen';
 import type { MigrationStackParamList } from '../types';
 
 const Stack = createNativeStackNavigator<MigrationStackParamList>();
-
-const MappingScreen = (): React.JSX.Element => (
-  <PlaceholderScreen name="Review Mappings" testID="mapping-screen" />
-);
-
-const ValidationScreen = (): React.JSX.Element => (
-  <PlaceholderScreen name="Validation" testID="validation-screen" />
-);
 
 const PreviewScreen = (): React.JSX.Element => (
   <PlaceholderScreen name="Preview & Export" testID="preview-screen" />

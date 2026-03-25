@@ -34,6 +34,20 @@ export const selectUploadedFiles = (state: MigrationStore): UploadedFiles => ({
   mappingFile: state.mappingFile,
 });
 
+// ─── Type Mapping Summary ───────────────────────────────────────────────────
+
+interface TypeMappingSummary {
+  readonly total: number;
+  readonly matched: number;
+  readonly allMatched: boolean;
+}
+
+export const selectTypeMappingSummary = (state: MigrationStore): TypeMappingSummary => {
+  const total = state.typeMappingRows.length;
+  const matched = state.typeMappingRows.filter((r) => r.targetType.length > 0).length;
+  return { total, matched, allMatched: total > 0 && matched === total };
+};
+
 // ─── Mapping Stats ───────────────────────────────────────────────────────────
 
 interface MappingStats {
