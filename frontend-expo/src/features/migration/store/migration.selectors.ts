@@ -50,7 +50,7 @@ export const selectTypeMappingSummary = (state: MigrationStore): TypeMappingSumm
 
 // ─── Mapping Stats ───────────────────────────────────────────────────────────
 
-interface MappingStats {
+export interface MappingStats {
   readonly totalTypes: number;
   readonly totalAccounts: number;
   readonly highConfidence: number;

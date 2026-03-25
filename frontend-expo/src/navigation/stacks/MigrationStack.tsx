@@ -1,18 +1,14 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { colors } from '@/config/theme';
-import { PlaceholderScreen } from '../screens/PlaceholderScreen';
 import { ERPSelectScreen } from '@/features/migration/screens/ERPSelectScreen';
 import { UploadScreen } from '@/features/migration/screens/UploadScreen';
 import { MappingScreen } from '@/features/migration/screens/MappingScreen';
 import { ValidationScreen } from '@/features/migration/screens/ValidationScreen';
+import { PreviewScreen } from '@/features/migration/screens/PreviewScreen';
 import type { MigrationStackParamList } from '../types';
 
 const Stack = createNativeStackNavigator<MigrationStackParamList>();
-
-const PreviewScreen = (): React.JSX.Element => (
-  <PlaceholderScreen name="Preview & Export" testID="preview-screen" />
-);
 
 const HEADER_STYLE = { backgroundColor: colors.background } as const;
 
