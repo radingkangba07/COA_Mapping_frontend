@@ -3,17 +3,17 @@ import type { AppError } from '@/shared/types/result.types';
 // ─── Domain Types (camelCase — used in store, hooks, components) ─────────────
 
 export interface ERPField {
-  readonly id: string;
-  readonly name: string;
-  readonly type: 'string' | 'number';
-  readonly required: boolean;
+  id: string;
+  name: string;
+  type: 'string' | 'number';
+  required: boolean;
 }
 
 export interface ERPSystem {
-  readonly id: string;
-  readonly name: string;
-  readonly description: string;
-  readonly fields: readonly ERPField[];
+  id: string;
+  name: string;
+  description: string;
+  fields: ERPField[];
 }
 
 export interface ERPSampleData {
