@@ -9,6 +9,41 @@ import type {
   MappingCreateDTO,
   BulkSaveResponseDTO,
 } from '@/features/migration/types/mapping.types';
+import type { TypeMappingRow } from '@/features/migration/types/migration.types';
+
+// ─── Pure Functions ─────────────────────────────────────────────────────────
+
+/**
+ * Build a record of source→target type overrides from user-edited type mapping rows.
+ */
+export function buildCustomTypeMappings(
+  rows: readonly TypeMappingRow[],
+): Record<string, string> {
+  const mappings: Record<string, string> = {};
+  for (const row of rows) {
+    if (row.sourceType && row.targetType) {
+      mappings[row.sourceType] = row.targetType;
+    }
+  }
+  return mappings;
+}
+
+/**
+ * Apply custom type overrides to grouped mappings from the API response.
+ * Sets confidence to 100 for any group whose type was user-overridden.
+ */
+export function applyCustomTypeMappings(
+  groupedMappings: readonly GroupedMapping[],
+  overrides: Record<string, string>,
+): GroupedMapping[] {
+  return groupedMappings.map((group): GroupedMapping => {
+    const customTarget = overrides[group.source_type];
+    if (customTarget) {
+      return { ...group, target_type: customTarget, confidence: 100 };
+    }
+    return group;
+  });
+}
 
 // ─── Service Functions ──────────────────────────────────────────────────────
 
