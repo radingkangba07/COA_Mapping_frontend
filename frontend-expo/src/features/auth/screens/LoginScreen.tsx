@@ -18,7 +18,7 @@ export const LoginScreen = (): React.JSX.Element => {
               <Building2 size={32} color={colors.accentForeground} />
             </View>
             <Text className="font-heading text-2xl font-bold text-foreground">
-              COA Migration
+              COA Migration System
             </Text>
             <Text className="mt-1 text-sm text-muted-foreground">
               Chart of Accounts Migration Tool
