@@ -3,14 +3,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { FolderOpen, ArrowRightLeft, Settings } from 'lucide-react-native';
 import { colors } from '@/config/theme';
 import { PlaceholderScreen } from '../screens/PlaceholderScreen';
+import { ProjectsStack } from '../stacks/ProjectsStack';
 import { MigrationStack } from '../stacks/MigrationStack';
 import type { AppTabsParamList } from '../types';
 
 const Tabs = createBottomTabNavigator<AppTabsParamList>();
-
-const ProjectsScreen = (): React.JSX.Element => (
-  <PlaceholderScreen name="Projects" testID="projects-screen" />
-);
 
 const SettingsScreen = (): React.JSX.Element => (
   <PlaceholderScreen name="Settings" testID="settings-screen" />
@@ -49,7 +46,7 @@ export const AppTabs = (): React.JSX.Element => (
   >
     <Tabs.Screen
       name="ProjectsTab"
-      component={ProjectsScreen}
+      component={ProjectsStack}
       options={{
         tabBarLabel: 'Projects',
         tabBarIcon: ProjectsIcon,
