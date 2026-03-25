@@ -1,6 +1,7 @@
 import axios, { AxiosError } from 'axios';
 import type { HttpClient, HttpClientConfig } from './http.types';
 import type { AppError } from '@/shared/types/result.types';
+import { isTransientError, showTransientErrorToast } from './http.error-handler';
 
 const DEFAULT_TIMEOUT = 30_000;
 
@@ -22,8 +23,16 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
   client.interceptors.response.use(
     (response) => response,
     (error: unknown) => {
-      if (error instanceof AxiosError && error.response?.status === 401) {
-        config.onUnauthorized?.();
+      if (error instanceof AxiosError) {
+        if (error.response?.status === 401) {
+          config.onUnauthorized?.();
+        }
+
+        if (isTransientError(error.response?.status)) {
+          showTransientErrorToast(
+            error.message ?? 'Something went wrong. Please try again.',
+          );
+        }
       }
       return Promise.reject(error);
     },

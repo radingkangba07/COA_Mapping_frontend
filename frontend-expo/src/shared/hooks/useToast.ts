@@ -24,10 +24,9 @@ export function useToast(): ToastMethods {
     });
   }, []);
 
-  // react-native-toast-message has no built-in 'warning' type; 'info' is the closest match
   const showWarning = useCallback((title: string, message?: string): void => {
     Toast.show({
-      type: 'info',
+      type: 'warning',
       text1: title,
       text2: message,
     });

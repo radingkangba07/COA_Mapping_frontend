@@ -29,6 +29,8 @@ export const Spinner = ({
   return (
     <View
       className={cn('items-center justify-center', className)}
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading"
       testID={testID}
     >
       <ActivityIndicator size={indicatorSize} color={color} />

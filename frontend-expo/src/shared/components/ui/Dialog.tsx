@@ -38,6 +38,7 @@ const DialogRoot = React.forwardRef<View, DialogRootProps>(
         <Pressable
           ref={ref}
           onPress={(e) => e.stopPropagation()}
+          accessibilityRole="none"
           className={cn(
             'rounded-lg border border-border bg-card shadow-lg',
             isWeb ? 'max-w-lg w-full' : 'mx-4 w-full',
