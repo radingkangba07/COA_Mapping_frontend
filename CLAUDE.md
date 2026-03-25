@@ -16,6 +16,8 @@ Three-service architecture orchestrated via Docker Compose:
 
 Infrastructure: PostgreSQL 15 (async via asyncpg + SQLAlchemy), RabbitMQ 3.12 for future async job processing.
 
+> **Legacy CRA app**: The original Create React App frontend is preserved at `frontend-legacy/` for rollback reference. Do not modify it.
+
 ### API Service Internals
 
 Two API surfaces coexist:
@@ -407,7 +409,7 @@ export function createHttpClient(getToken: () => string | null): AxiosInstance {
 
 #### What NOT To Do
 
-1. **No god components.** Max 200 lines per file. The old `App.js` (3100 lines) is the anti-pattern we are escaping.
+1. **No god components.** Max 200 lines per file. The legacy CRA `App.js` (3100 lines, preserved in `frontend-legacy/`) is the anti-pattern this architecture avoids.
 2. **No direct API calls in screens or components.** All HTTP goes through services. A screen must never import axios.
 3. **No business logic in the presentation layer.** Confidence scoring, type mapping, fuzzy matching, validation — these belong in services, not hooks or components.
 4. **No `any` types.** Use `unknown` + type guards when the type is genuinely dynamic. Comment `// TODO: type properly` if temporarily unavoidable.
@@ -470,7 +472,9 @@ python backend_test.py   # runs against a live API instance
 ```
 
 ### CI
-Each service has its own GitHub Actions workflow (`.github/workflows/`), triggered by changes to its directory. API service CI runs `pytest tests/ -v --tb=short` with a Postgres service container.
+Each service has its own GitHub Actions workflow (`.github/workflows/`), triggered by changes to its directory:
+- `frontend.yml` — triggered by `frontend/**` changes: runs TypeScript check + Jest tests
+- `api-service.yml` — triggered by `services/api-service/**` changes: runs `pytest tests/ -v --tb=short` with a Postgres service container
 
 ## Design Guidelines
 

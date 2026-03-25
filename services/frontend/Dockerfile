@@ -1,28 +1,28 @@
-# Frontend Dockerfile
+# Frontend Dockerfile (Expo Web)
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 # Copy package files
-COPY package.json yarn.lock ./
+COPY frontend/package.json frontend/package-lock.json ./
 
 # Install dependencies
-RUN yarn install --frozen-lockfile
+RUN npm ci
 
 # Copy source code
-COPY . .
+COPY frontend/ .
 
-# Build the application
-RUN yarn build
+# Build the Expo web application
+RUN npx expo export --platform web
 
 # Production stage
 FROM nginx:alpine
 
 # Copy built files
-COPY --from=builder /app/build /usr/share/nginx/html
+COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY services/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
