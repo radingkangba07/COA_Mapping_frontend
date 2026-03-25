@@ -85,3 +85,21 @@ export interface HierarchicalMappingRequestDTO {
   readonly source_erp?: string | undefined;
   readonly target_erp?: string | undefined;
 }
+
+export interface MappingResponseDTO {
+  readonly id: string;
+  readonly project_id: string;
+  readonly source_account_name: string;
+  readonly target_account_name: string | null;
+  readonly confidence_score: number | null;
+  readonly status: string;
+  readonly source_type: string | null;
+  readonly target_type: string | null;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+export interface BulkSaveResponseDTO {
+  readonly created: number;
+  readonly mappings: readonly MappingResponseDTO[];
+}
