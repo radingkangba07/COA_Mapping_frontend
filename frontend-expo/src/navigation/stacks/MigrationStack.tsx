@@ -2,17 +2,11 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { colors } from '@/config/theme';
 import { PlaceholderScreen } from '../screens/PlaceholderScreen';
+import { ERPSelectScreen } from '@/features/migration/screens/ERPSelectScreen';
+import { UploadScreen } from '@/features/migration/screens/UploadScreen';
 import type { MigrationStackParamList } from '../types';
 
 const Stack = createNativeStackNavigator<MigrationStackParamList>();
-
-const ERPSelectScreen = (): React.JSX.Element => (
-  <PlaceholderScreen name="Select ERP" testID="erp-select-screen" />
-);
-
-const UploadScreen = (): React.JSX.Element => (
-  <PlaceholderScreen name="Upload File" testID="upload-screen" />
-);
 
 const MappingScreen = (): React.JSX.Element => (
   <PlaceholderScreen name="Review Mappings" testID="mapping-screen" />

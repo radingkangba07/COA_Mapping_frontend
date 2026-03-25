@@ -77,6 +77,12 @@ interface MigrationActions {
   deleteAccount: (sourceType: string, accountIdx: number) => void;
   restoreAccount: (deletedIdx: number) => void;
 
+  clearTargetERP: () => void;
+  clearSourceFile: () => void;
+  clearTargetFile: () => void;
+  clearMappingFile: () => void;
+  setTargetTypes: (types: string[]) => void;
+
   setProjectId: (id: string) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: AppError | null) => void;
@@ -320,6 +326,39 @@ export const useMigrationStore = create<MigrationStore>()(
           };
           group.accounts.push(restoredAccount);
         }
+      });
+    },
+
+    clearTargetERP: (): void => {
+      set((state) => {
+        state.targetERP = null;
+      });
+    },
+
+    clearSourceFile: (): void => {
+      set((state) => {
+        state.sourceFile = null;
+        state.sourceData = [];
+      });
+    },
+
+    clearTargetFile: (): void => {
+      set((state) => {
+        state.targetFile = null;
+        state.targetData = [];
+      });
+    },
+
+    clearMappingFile: (): void => {
+      set((state) => {
+        state.mappingFile = null;
+        state.mappingData = [];
+      });
+    },
+
+    setTargetTypes: (types: string[]): void => {
+      set((state) => {
+        state.targetTypes = types;
       });
     },
 
