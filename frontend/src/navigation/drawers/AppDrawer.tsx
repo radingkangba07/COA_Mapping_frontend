@@ -112,23 +112,25 @@ const CustomDrawerContent = ({
   );
 };
 
-const DRAWER_STYLE = {
-  width: 260,
-  backgroundColor: colors.background,
-} as const;
+export const AppDrawer = (): React.JSX.Element => {
+  const drawerStyle = {
+    width: 260,
+    backgroundColor: colors.background,
+  } as const;
 
-export const AppDrawer = (): React.JSX.Element => (
-  <Drawer.Navigator
-    drawerContent={CustomDrawerContent}
-    screenOptions={{
-      headerShown: false,
-      drawerType: 'permanent',
-      drawerStyle: DRAWER_STYLE,
-      overlayColor: 'transparent',
-    }}
-  >
-    <Drawer.Screen name="ProjectsTab" component={ProjectsStack} />
-    <Drawer.Screen name="MigrationTab" component={MigrationStack} />
-    <Drawer.Screen name="SettingsTab" component={SettingsScreen} />
-  </Drawer.Navigator>
-);
+  return (
+    <Drawer.Navigator
+      drawerContent={CustomDrawerContent}
+      screenOptions={{
+        headerShown: false,
+        drawerType: 'permanent',
+        drawerStyle,
+        overlayColor: 'transparent',
+      }}
+    >
+      <Drawer.Screen name="ProjectsTab" component={ProjectsStack} />
+      <Drawer.Screen name="MigrationTab" component={MigrationStack} />
+      <Drawer.Screen name="SettingsTab" component={SettingsScreen} />
+    </Drawer.Navigator>
+  );
+};

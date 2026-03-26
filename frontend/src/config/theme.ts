@@ -1,4 +1,8 @@
-export const colors = {
+import { useAppStore } from '@/shared/store/app.store';
+
+// ─── Color Palettes ─────────────────────────────────────────────────────────
+
+export const lightColors = {
   background: '#FFFFFF',
   foreground: '#09090B',
   surface: '#F4F4F5',
@@ -22,7 +26,61 @@ export const colors = {
   warningForeground: '#FFFFFF',
   card: '#FFFFFF',
   cardForeground: '#09090B',
+  popover: '#FFFFFF',
+  popoverForeground: '#09090B',
 } as const;
+
+export const darkColors = {
+  background: '#0B1120',
+  foreground: '#F0F0F3',
+  surface: '#1E293B',
+  surfaceHighlight: '#263348',
+  border: '#334155',
+  input: '#334155',
+  ring: '#2563EB',
+  primary: '#F0F0F3',
+  primaryForeground: '#0B1120',
+  secondary: '#1E293B',
+  secondaryForeground: '#F0F0F3',
+  accent: '#2563EB',
+  accentForeground: '#FFFFFF',
+  muted: '#1E293B',
+  mutedForeground: '#94A3B8',
+  destructive: '#EF4444',
+  destructiveForeground: '#FAFAFA',
+  success: '#22C55E',
+  successForeground: '#FFFFFF',
+  warning: '#F59E0B',
+  warningForeground: '#FFFFFF',
+  card: '#161E30',
+  cardForeground: '#F0F0F3',
+  popover: '#161E30',
+  popoverForeground: '#F0F0F3',
+} as const;
+
+type ColorTokens = keyof typeof lightColors;
+type Colors = Record<ColorTokens, string>;
+
+// ─── Reactive Proxy ─────────────────────────────────────────────────────────
+
+function currentPalette(): Colors {
+  return useAppStore.getState().theme === 'dark' ? darkColors : lightColors;
+}
+
+// Proxy target is a spread of lightColors so that ownKeys/has/Object.keys work
+// without custom traps. The get trap overrides all reads to be theme-aware.
+export const colors: Colors = new Proxy({ ...lightColors }, {
+  get(_target, prop: string | symbol): unknown {
+    if (typeof prop === 'symbol') return undefined;
+    const palette = currentPalette();
+    if (prop in palette) {
+      return palette[prop as keyof Colors];
+    }
+    return undefined;
+  },
+});
+
+// ─── Typography ─────────────────────────────────────────────────────────────
 
 export const typography = {
   fonts: {
@@ -40,11 +98,15 @@ export const typography = {
   },
 } as const;
 
+// ─── Spacing ────────────────────────────────────────────────────────────────
+
 export const spacing = {
   sectionGap: 48,
   componentGap: 24,
   internalPadding: 24,
 } as const;
+
+// ─── Border Radius ──────────────────────────────────────────────────────────
 
 export const radius = {
   DEFAULT: 8,
@@ -54,6 +116,8 @@ export const radius = {
   xl: 16,
   full: 9999,
 } as const;
+
+// ─── Theme Bundle ───────────────────────────────────────────────────────────
 
 export const theme = {
   colors,
