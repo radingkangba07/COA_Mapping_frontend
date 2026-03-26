@@ -6,48 +6,48 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: '#FFFFFF',
-        foreground: '#09090B',
-        surface: '#F4F4F5',
-        'surface-highlight': '#FAFAFA',
-        border: '#E4E4E7',
-        input: '#E4E4E7',
-        ring: '#2563EB',
+        background: 'var(--color-background)',
+        foreground: 'var(--color-foreground)',
+        surface: 'var(--color-surface)',
+        'surface-highlight': 'var(--color-surface-highlight)',
+        border: 'var(--color-border)',
+        input: 'var(--color-input)',
+        ring: 'var(--color-ring)',
         primary: {
-          DEFAULT: '#18181B',
-          foreground: '#FAFAFA',
+          DEFAULT: 'var(--color-primary)',
+          foreground: 'var(--color-primary-foreground)',
         },
         secondary: {
-          DEFAULT: '#F4F4F5',
-          foreground: '#18181B',
+          DEFAULT: 'var(--color-secondary)',
+          foreground: 'var(--color-secondary-foreground)',
         },
         accent: {
-          DEFAULT: '#2563EB',
-          foreground: '#FFFFFF',
+          DEFAULT: 'var(--color-accent)',
+          foreground: 'var(--color-accent-foreground)',
         },
         muted: {
-          DEFAULT: '#F4F4F5',
-          foreground: '#6B6B73',
+          DEFAULT: 'var(--color-muted)',
+          foreground: 'var(--color-muted-foreground)',
         },
         destructive: {
-          DEFAULT: '#D72222',
-          foreground: '#FAFAFA',
+          DEFAULT: 'var(--color-destructive)',
+          foreground: 'var(--color-destructive-foreground)',
         },
         success: {
-          DEFAULT: '#15803D',
-          foreground: '#FFFFFF',
+          DEFAULT: 'var(--color-success)',
+          foreground: 'var(--color-success-foreground)',
         },
         warning: {
-          DEFAULT: '#B45309',
-          foreground: '#FFFFFF',
+          DEFAULT: 'var(--color-warning)',
+          foreground: 'var(--color-warning-foreground)',
         },
         card: {
-          DEFAULT: '#FFFFFF',
-          foreground: '#09090B',
+          DEFAULT: 'var(--color-card)',
+          foreground: 'var(--color-card-foreground)',
         },
         popover: {
-          DEFAULT: '#FFFFFF',
-          foreground: '#09090B',
+          DEFAULT: 'var(--color-popover)',
+          foreground: 'var(--color-popover-foreground)',
         },
       },
       fontFamily: {

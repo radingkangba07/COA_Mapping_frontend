@@ -15,12 +15,13 @@ const ForgotPasswordScreen = (): React.JSX.Element => (
   <PlaceholderScreen name="Forgot Password" testID="forgot-password-screen" />
 );
 
-const HEADER_STYLE = { backgroundColor: colors.background } as const;
+export const AuthStack = (): React.JSX.Element => {
+  const headerStyle = { backgroundColor: colors.background } as const;
 
-export const AuthStack = (): React.JSX.Element => (
+  return (
   <Stack.Navigator
     screenOptions={{
-      headerStyle: HEADER_STYLE,
+      headerStyle,
       headerTintColor: colors.foreground,
       headerShadowVisible: false,
     }}
@@ -41,4 +42,5 @@ export const AuthStack = (): React.JSX.Element => (
       options={{ title: 'Reset Password' }}
     />
   </Stack.Navigator>
-);
+  );
+};

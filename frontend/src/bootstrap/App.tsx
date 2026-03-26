@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { AppProviders } from './providers/AppProviders';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { useSessionGuard } from '@/features/auth/hooks/useSessionGuard';
+import { useAppStore } from '@/shared/store/app.store';
 import { Spinner } from '@/shared/components/ui/Spinner';
 
 import '../global.css';
@@ -14,6 +15,7 @@ SplashScreen.preventAutoHideAsync();
 
 function AppContent(): React.JSX.Element | null {
   const { isRestoring } = useSessionGuard();
+  const theme = useAppStore((s) => s.theme);
 
   if (isRestoring) {
     return (
@@ -29,7 +31,7 @@ function AppContent(): React.JSX.Element | null {
   return (
     <>
       <RootNavigator />
-      <StatusBar style="auto" />
+      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
     </>
   );
 }
@@ -58,7 +60,7 @@ export function App(): React.JSX.Element | null {
   }
 
   return (
-    <View className="flex-1" onLayout={onLayoutRootView}>
+    <View className="flex-1 bg-background" onLayout={onLayoutRootView}>
       <AppProviders>
         <AppContent />
       </AppProviders>

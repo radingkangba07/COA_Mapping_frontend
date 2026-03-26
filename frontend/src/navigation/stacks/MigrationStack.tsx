@@ -12,47 +12,50 @@ import type { MigrationStackParamList } from '../types';
 
 const Stack = createNativeStackNavigator<MigrationStackParamList>();
 
-const HEADER_STYLE = { backgroundColor: colors.background } as const;
+export const MigrationStack = (): React.JSX.Element => {
+  const headerStyle = { backgroundColor: colors.background } as const;
+  const headerTintColor = colors.foreground;
 
-export const MigrationStack = (): React.JSX.Element => (
-  <ErrorBoundary>
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: HEADER_STYLE,
-        headerTintColor: colors.foreground,
-        headerShadowVisible: false,
-      }}
-    >
-      <Stack.Screen
-        name="MigrationList"
-        component={MigrationListScreen}
-        options={{ title: 'Migrations' }}
-      />
-      <Stack.Screen
-        name="ERPSelect"
-        component={ERPSelectScreen}
-        options={{ title: 'Select ERP' }}
-      />
-      <Stack.Screen
-        name="Upload"
-        component={UploadScreen}
-        options={{ title: 'Upload File' }}
-      />
-      <Stack.Screen
-        name="Mapping"
-        component={MappingScreen}
-        options={{ title: 'Review Mappings' }}
-      />
-      <Stack.Screen
-        name="Validation"
-        component={ValidationScreen}
-        options={{ title: 'Validation' }}
-      />
-      <Stack.Screen
-        name="Preview"
-        component={PreviewScreen}
-        options={{ title: 'Preview & Export' }}
-      />
-    </Stack.Navigator>
-  </ErrorBoundary>
-);
+  return (
+    <ErrorBoundary>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle,
+          headerTintColor,
+          headerShadowVisible: false,
+        }}
+      >
+        <Stack.Screen
+          name="MigrationList"
+          component={MigrationListScreen}
+          options={{ title: 'Migrations' }}
+        />
+        <Stack.Screen
+          name="ERPSelect"
+          component={ERPSelectScreen}
+          options={{ title: 'Select ERP' }}
+        />
+        <Stack.Screen
+          name="Upload"
+          component={UploadScreen}
+          options={{ title: 'Upload File' }}
+        />
+        <Stack.Screen
+          name="Mapping"
+          component={MappingScreen}
+          options={{ title: 'Review Mappings' }}
+        />
+        <Stack.Screen
+          name="Validation"
+          component={ValidationScreen}
+          options={{ title: 'Validation' }}
+        />
+        <Stack.Screen
+          name="Preview"
+          component={PreviewScreen}
+          options={{ title: 'Preview & Export' }}
+        />
+      </Stack.Navigator>
+    </ErrorBoundary>
+  );
+};
