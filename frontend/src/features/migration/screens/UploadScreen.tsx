@@ -156,7 +156,7 @@ export function UploadScreen(): React.JSX.Element {
             mappingFile={mappingFileInfo}
           />
 
-          <View className="flex-row items-center justify-between pt-2">
+          <View className="flex-row items-center justify-center gap-3 pt-2">
             <Button
               variant="outline"
               onPress={handleBack}
@@ -165,14 +165,12 @@ export function UploadScreen(): React.JSX.Element {
               Back
             </Button>
             <Button
-              className="bg-accent"
-              textClassName="text-accent-foreground"
               onPress={() => void handleContinue()}
               disabled={!canProceedFromStep1}
               isLoading={isLoading}
               testID="upload-continue-button"
             >
-              Continue to Type Mapping
+              Continue to Type Mapping  →
             </Button>
           </View>
         </View>
@@ -201,30 +199,28 @@ function UploadStatusCard({ sourceFile, targetFile, mappingFile }: UploadStatusC
       <Text className="font-heading text-sm font-semibold text-foreground mb-2">
         Upload Status
       </Text>
-      <View className="flex-col gap-3 md:flex-row">
+      <View className="flex-row gap-3">
         {items.map((item) => (
           <View
             key={item.label}
-            className={`flex-1 rounded-lg border p-3 ${
+            className={`flex-1 flex-row items-center gap-1.5 rounded-lg border px-3 py-2.5 ${
               item.file !== null
                 ? 'border-green-200 bg-green-50'
                 : 'border-border bg-background'
             }`}
           >
-            <View className="flex-row items-center gap-1.5 mb-1">
-              {item.file !== null ? (
-                <CheckCircle size={14} color={colors.success} strokeWidth={2} />
-              ) : (
-                <Circle size={14} color={colors.mutedForeground} strokeWidth={2} />
-              )}
-              <Text
-                className={`font-body text-xs font-medium ${
-                  item.file !== null ? 'text-green-800' : 'text-muted-foreground'
-                }`}
-              >
-                {item.label}
-              </Text>
-            </View>
+            {item.file !== null ? (
+              <CheckCircle size={14} color={colors.success} strokeWidth={2} />
+            ) : (
+              <Circle size={14} color={colors.mutedForeground} strokeWidth={2} />
+            )}
+            <Text
+              className={`font-body text-xs font-medium ${
+                item.file !== null ? 'text-green-800' : 'text-muted-foreground'
+              }`}
+            >
+              {item.label}
+            </Text>
             {item.file !== null && (
               <Text className="font-mono text-xs text-green-700">
                 {item.file.rowCount} {item.unit}
