@@ -57,44 +57,45 @@ export const UploadedState = React.memo(function UploadedState({
   onPreview,
 }: UploadedStateProps) {
   return (
-    <View className="w-full flex-row items-center gap-3 px-1 py-4">
-      <FileSpreadsheet
-        size={24}
-        color={colors.success}
-        strokeWidth={1.5}
-      />
-      <View className="flex-1 gap-0.5">
+    <View className="w-full items-center gap-2 py-2">
+      <View className="flex-row items-center gap-2">
+        <FileSpreadsheet
+          size={20}
+          color={colors.success}
+          strokeWidth={1.5}
+        />
         <Text
           className="font-body text-sm font-medium text-foreground"
           numberOfLines={1}
         >
           {fileName}
         </Text>
-        <Badge variant="secondary" className="self-start">
-          {`${rowCount} rows`}
-        </Badge>
-      </View>
-      <View className="flex-row items-center gap-1">
-        {onPreview && (
-          <Pressable
-            onPress={onPreview}
-            className="rounded-md p-1.5"
-            accessibilityRole="button"
-            accessibilityLabel="Preview file"
-            testID="file-preview-button"
-          >
-            <Eye size={18} color={colors.mutedForeground} strokeWidth={1.5} />
-          </Pressable>
-        )}
         <Pressable
           onPress={onRemove}
-          className="rounded-md p-1.5"
+          className="rounded-md p-1"
           accessibilityRole="button"
           accessibilityLabel="Remove file"
           testID="file-remove-button"
         >
-          <X size={18} color={colors.destructive} strokeWidth={1.5} />
+          <X size={16} color={colors.destructive} strokeWidth={1.5} />
         </Pressable>
+      </View>
+      <Badge variant="secondary">
+        {`${rowCount} rows`}
+      </Badge>
+      <View className="flex-row items-center gap-2 mt-1">
+        {onPreview && (
+          <Pressable
+            onPress={onPreview}
+            className="flex-row items-center gap-1 rounded-md border border-border px-3 py-1.5"
+            accessibilityRole="button"
+            accessibilityLabel="Preview file"
+            testID="file-preview-button"
+          >
+            <Eye size={14} color={colors.mutedForeground} strokeWidth={1.5} />
+            <Text className="font-body text-xs text-muted-foreground">Preview</Text>
+          </Pressable>
+        )}
       </View>
     </View>
   );
