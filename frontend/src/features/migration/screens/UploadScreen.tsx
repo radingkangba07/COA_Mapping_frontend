@@ -54,7 +54,6 @@ export function UploadScreen(): React.JSX.Element {
     handleRemoveSourceFile,
     handleRemoveTargetFile,
     handleRemoveMappingFile,
-    handleDownloadSample,
     processFiles,
   } = useMigrationViewModel();
 
@@ -77,13 +76,6 @@ export function UploadScreen(): React.JSX.Element {
       void handleMappingFilePicked(toPickedFile(file));
     },
     [handleMappingFilePicked],
-  );
-
-  const handleDownload = useCallback(
-    (_erpId: string, _type: 'source' | 'target'): void => {
-      void handleDownloadSample(_erpId);
-    },
-    [handleDownloadSample],
   );
 
   const handleBack = useCallback((): void => {
@@ -130,9 +122,6 @@ export function UploadScreen(): React.JSX.Element {
           onSourceRemove={handleRemoveSourceFile}
           onTargetRemove={handleRemoveTargetFile}
           onMappingRemove={handleRemoveMappingFile}
-          sourceERP={sourceERP?.id}
-          targetERP={targetERP?.id}
-          onDownloadSample={handleDownload}
           isUploading={isLoading}
           testID="upload-file-uploader"
         />
