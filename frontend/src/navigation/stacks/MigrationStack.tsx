@@ -38,7 +38,7 @@ export const MigrationStack = (): React.JSX.Element => {
         <Stack.Screen
           name="Upload"
           component={UploadScreen}
-          options={{ title: 'Upload File' }}
+          options={{ title: 'Upload File', headerBackVisible: false }}
         />
         <Stack.Screen
           name="Mapping"

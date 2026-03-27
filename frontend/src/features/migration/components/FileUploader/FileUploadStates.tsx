@@ -57,7 +57,7 @@ export const UploadedState = React.memo(function UploadedState({
   onPreview,
 }: UploadedStateProps) {
   return (
-    <View className="w-full flex-row items-center gap-3 px-1">
+    <View className="w-full flex-row items-center gap-3 px-1 py-4">
       <FileSpreadsheet
         size={24}
         color={colors.success}
