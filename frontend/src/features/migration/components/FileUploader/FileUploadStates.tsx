@@ -57,7 +57,7 @@ export const UploadedState = React.memo(function UploadedState({
   onPreview,
 }: UploadedStateProps) {
   return (
-    <View className="w-full items-center gap-2 py-2">
+    <View className="w-full flex-1 items-center justify-center gap-2">
       <View className="flex-row items-center gap-2">
         <FileSpreadsheet
           size={20}
@@ -65,7 +65,7 @@ export const UploadedState = React.memo(function UploadedState({
           strokeWidth={1.5}
         />
         <Text
-          className="font-body text-sm font-medium text-foreground"
+          className="font-body text-xs font-medium text-foreground"
           numberOfLines={1}
         >
           {fileName}
@@ -77,13 +77,13 @@ export const UploadedState = React.memo(function UploadedState({
           accessibilityLabel="Remove file"
           testID="file-remove-button"
         >
-          <X size={16} color={colors.destructive} strokeWidth={1.5} />
+          <X size={14} color={colors.destructive} strokeWidth={1.5} />
         </Pressable>
       </View>
       <Badge variant="secondary">
         {`${rowCount} rows`}
       </Badge>
-      <View className="flex-row items-center gap-2 mt-1">
+      <View className="flex-row items-center gap-2">
         {onPreview && (
           <Pressable
             onPress={onPreview}
