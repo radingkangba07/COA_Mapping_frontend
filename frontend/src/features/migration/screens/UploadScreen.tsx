@@ -2,7 +2,7 @@ import React, { useCallback } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle, Circle } from 'lucide-react-native';
 import { Screen } from '@/shared/components/layout/Screen';
 import { Button } from '@/shared/components/ui/Button';
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
@@ -65,10 +65,19 @@ export function UploadScreen(): React.JSX.Element {
     navigation.getParent()?.navigate('ProjectsTab');
   }, [navigation]);
 
+  const handleBack = useCallback((): void => {
+    navigation.navigate('ERPSelect', { projectId });
+  }, [navigation, projectId]);
+
   const handleContinue = useCallback(async (): Promise<void> => {
     await processFiles();
     navigation.navigate('Mapping', { projectId });
   }, [processFiles, navigation, projectId]);
+
+  const handleLoadAllSamples = useCallback((): void => {
+    if (sourceERP?.id) void handleDownloadSample(sourceERP.id);
+    if (targetERP?.id) void handleDownloadSample(targetERP.id);
+  }, [sourceERP?.id, targetERP?.id, handleDownloadSample]);
 
   const onDownloadSample = useCallback(
     (erpId: string, _type: 'source' | 'target'): void => {
@@ -136,21 +145,83 @@ export function UploadScreen(): React.JSX.Element {
             targetErpId={targetERP?.id}
             targetErpName={targetERP?.name}
             onDownload={onDownloadSample}
+            onLoadAll={handleLoadAllSamples}
+            isLoading={isLoading}
             testID="sample-files-table"
           />
 
-          <View className="flex-row items-center justify-end pt-2">
+          <UploadStatusCard
+            sourceFile={sourceFileInfo}
+            targetFile={targetFileInfo}
+            mappingFile={mappingFileInfo}
+          />
+
+          <View className="flex-row items-center justify-between pt-2">
             <Button
+              variant="outline"
+              onPress={handleBack}
+              testID="upload-back-button"
+            >
+              Back
+            </Button>
+            <Button
+              className="bg-accent"
+              textClassName="text-accent-foreground"
               onPress={() => void handleContinue()}
               disabled={!canProceedFromStep1}
               isLoading={isLoading}
               testID="upload-continue-button"
             >
-              Process Files
+              Continue to Type Mapping
             </Button>
           </View>
         </View>
       </View>
     </Screen>
+  );
+}
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+interface UploadStatusCardProps {
+  sourceFile: { name: string; rowCount: number } | null;
+  targetFile: { name: string; rowCount: number } | null;
+  mappingFile: { name: string; rowCount: number } | null;
+}
+
+function UploadStatusCard({ sourceFile, targetFile, mappingFile }: UploadStatusCardProps) {
+  const items = [
+    { label: 'Source COA', uploaded: sourceFile !== null },
+    { label: 'Target COA', uploaded: targetFile !== null },
+    { label: 'Type Mapping', uploaded: mappingFile !== null },
+  ];
+
+  return (
+    <View
+      className="rounded-lg border border-green-200 bg-green-50 p-4"
+      testID="upload-status-card"
+    >
+      <Text className="font-heading text-sm font-semibold text-green-800 mb-2">
+        Upload Status
+      </Text>
+      <View className="flex-row gap-6">
+        {items.map((item) => (
+          <View key={item.label} className="flex-row items-center gap-1.5">
+            {item.uploaded ? (
+              <CheckCircle size={14} color={colors.success} strokeWidth={2} />
+            ) : (
+              <Circle size={14} color={colors.mutedForeground} strokeWidth={2} />
+            )}
+            <Text
+              className={`font-body text-xs ${
+                item.uploaded ? 'text-green-800 font-medium' : 'text-muted-foreground'
+              }`}
+            >
+              {item.label}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
   );
 }
