@@ -191,34 +191,45 @@ interface UploadStatusCardProps {
 
 function UploadStatusCard({ sourceFile, targetFile, mappingFile }: UploadStatusCardProps) {
   const items = [
-    { label: 'Source COA', uploaded: sourceFile !== null },
-    { label: 'Target COA', uploaded: targetFile !== null },
-    { label: 'Type Mapping', uploaded: mappingFile !== null },
+    { label: 'Source COA', file: sourceFile, unit: 'rows' },
+    { label: 'Target COA', file: targetFile, unit: 'rows' },
+    { label: 'Type Mapping', file: mappingFile, unit: 'mappings' },
   ];
 
   return (
-    <View
-      className="rounded-lg border border-green-200 bg-green-50 p-4"
-      testID="upload-status-card"
-    >
-      <Text className="font-heading text-sm font-semibold text-green-800 mb-2">
+    <View testID="upload-status-card">
+      <Text className="font-heading text-sm font-semibold text-foreground mb-2">
         Upload Status
       </Text>
-      <View className="flex-row gap-6">
+      <View className="flex-col gap-3 md:flex-row">
         {items.map((item) => (
-          <View key={item.label} className="flex-row items-center gap-1.5">
-            {item.uploaded ? (
-              <CheckCircle size={14} color={colors.success} strokeWidth={2} />
-            ) : (
-              <Circle size={14} color={colors.mutedForeground} strokeWidth={2} />
+          <View
+            key={item.label}
+            className={`flex-1 rounded-lg border p-3 ${
+              item.file !== null
+                ? 'border-green-200 bg-green-50'
+                : 'border-border bg-background'
+            }`}
+          >
+            <View className="flex-row items-center gap-1.5 mb-1">
+              {item.file !== null ? (
+                <CheckCircle size={14} color={colors.success} strokeWidth={2} />
+              ) : (
+                <Circle size={14} color={colors.mutedForeground} strokeWidth={2} />
+              )}
+              <Text
+                className={`font-body text-xs font-medium ${
+                  item.file !== null ? 'text-green-800' : 'text-muted-foreground'
+                }`}
+              >
+                {item.label}
+              </Text>
+            </View>
+            {item.file !== null && (
+              <Text className="font-mono text-xs text-green-700">
+                {item.file.rowCount} {item.unit}
+              </Text>
             )}
-            <Text
-              className={`font-body text-xs ${
-                item.uploaded ? 'text-green-800 font-medium' : 'text-muted-foreground'
-              }`}
-            >
-              {item.label}
-            </Text>
           </View>
         ))}
       </View>
