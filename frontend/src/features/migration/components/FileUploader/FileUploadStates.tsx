@@ -57,46 +57,46 @@ export const UploadedState = React.memo(function UploadedState({
   onPreview,
 }: UploadedStateProps) {
   return (
-    <View className="w-full flex-1 items-center justify-center gap-2">
-      <View className="flex-row items-center gap-2">
+    <View className="w-full" style={{ minHeight: 110 }}>
+      <Pressable
+        onPress={onRemove}
+        className="absolute right-0 top-0 rounded-md p-1 z-10"
+        accessibilityRole="button"
+        accessibilityLabel="Remove file"
+        testID="file-remove-button"
+      >
+        <X size={16} color={colors.mutedForeground} strokeWidth={2} />
+      </Pressable>
+
+      <View className="items-center justify-center gap-2 pt-2 pb-1">
         <FileSpreadsheet
-          size={20}
+          size={24}
           color={colors.success}
           strokeWidth={1.5}
         />
         <Text
-          className="font-body text-xs font-medium text-foreground"
-          numberOfLines={1}
+          className="font-body text-sm font-medium text-foreground text-center"
+          numberOfLines={2}
         >
           {fileName}
         </Text>
+        <Badge variant="secondary">
+          {`${rowCount} rows`}
+        </Badge>
+      </View>
+
+      {onPreview && (
         <Pressable
-          onPress={onRemove}
-          className="rounded-md p-1"
+          onPress={onPreview}
+          className="flex-row items-center justify-center gap-1.5 rounded-md border border-border bg-background px-4 py-2 mt-2 self-center"
           accessibilityRole="button"
-          accessibilityLabel="Remove file"
-          testID="file-remove-button"
+          accessibilityLabel="Preview file"
+          testID="file-preview-button"
         >
-          <X size={14} color={colors.destructive} strokeWidth={1.5} />
+          <Eye size={16} color={colors.foreground} strokeWidth={1.5} />
+          <Text className="font-body text-sm font-medium text-foreground">Preview</Text>
         </Pressable>
-      </View>
-      <Badge variant="secondary">
-        {`${rowCount} rows`}
-      </Badge>
-      <View className="flex-row items-center gap-2">
-        {onPreview && (
-          <Pressable
-            onPress={onPreview}
-            className="flex-row items-center gap-1 rounded-md border border-border px-3 py-1.5"
-            accessibilityRole="button"
-            accessibilityLabel="Preview file"
-            testID="file-preview-button"
-          >
-            <Eye size={14} color={colors.mutedForeground} strokeWidth={1.5} />
-            <Text className="font-body text-xs text-muted-foreground">Preview</Text>
-          </Pressable>
-        )}
-      </View>
+      )}
     </View>
   );
 });
