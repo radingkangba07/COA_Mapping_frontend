@@ -8,7 +8,6 @@ import { Button } from '@/shared/components/ui/Button';
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
 import { FileUploader } from '../components/FileUploader/FileUploader';
 import { ERPSummaryCard } from '../components/ERPSummaryCard';
-import { ProjectInfoPanel } from '../components/ProjectInfoPanel';
 import { SampleFilesTable } from '../components/SampleFilesTable';
 import { useMigrationViewModel } from '../hooks/useMigrationViewModel';
 import { useMigrationScreenRoute } from '@/navigation/types';
@@ -84,11 +83,7 @@ export function UploadScreen(): React.JSX.Element {
 
   return (
     <Screen scroll testID="upload-screen">
-      <View className="flex-1 lg:flex-row max-w-4xl lg:max-w-6xl self-center w-full px-4 py-6 gap-6 lg:gap-8">
-        <View className="hidden lg:flex">
-          <ProjectInfoPanel projectId={projectId} testID="project-info-panel" />
-        </View>
-
+      <View className="flex-1 max-w-4xl lg:max-w-6xl self-center w-full px-4 py-6 gap-6 lg:gap-8">
         <View className="flex-1 gap-6 lg:gap-8">
           <Pressable
             className="flex-row items-center gap-2"

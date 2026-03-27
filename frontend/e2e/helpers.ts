@@ -34,6 +34,7 @@ export const SELECTORS = {
   projectInfoPanel: '[data-testid="project-info-panel"]',
   breadcrumbDashboard: '[data-testid="breadcrumb-dashboard"]',
   loadAllBtn: '[data-testid="sample-load-all"]',
+  sampleFileRow: '[data-testid^="sample-file-row-"]',
 } as const;
 
 /**
