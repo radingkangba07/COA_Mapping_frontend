@@ -1,13 +1,15 @@
 import React, { useCallback } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowRight } from 'lucide-react-native';
+import { ArrowLeft } from 'lucide-react-native';
 import { Screen } from '@/shared/components/layout/Screen';
-import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
 import { FileUploader } from '../components/FileUploader/FileUploader';
+import { ERPSummaryCard } from '../components/ERPSummaryCard';
+import { ProjectInfoPanel } from '../components/ProjectInfoPanel';
+import { SampleFilesTable } from '../components/SampleFilesTable';
 import { useMigrationViewModel } from '../hooks/useMigrationViewModel';
 import { useMigrationScreenRoute } from '@/navigation/types';
 import { colors } from '@/config/theme';
@@ -16,10 +18,6 @@ import type { PickedFile } from '../hooks/useFileUpload';
 
 type MigrationNavigation = NativeStackNavigationProp<MigrationStackParamList>;
 
-/**
- * Adapts a raw file from FileUploadBox (File | NativePickedFile) into
- * the PickedFile shape the ViewModel handlers expect.
- */
 function toPickedFile(raw: File | { uri: string; name: string; mimeType: string }): PickedFile {
   if (raw instanceof File) {
     return {
@@ -38,23 +36,11 @@ export function UploadScreen(): React.JSX.Element {
   const { projectId } = route.params;
 
   const {
-    currentStep,
-    completedSteps,
-    sourceERP,
-    targetERP,
-    sourceFile,
-    targetFile,
-    mappingFile,
-    isLoading,
-    canProceedFromStep1,
-    goToStep,
-    handleSourceFilePicked,
-    handleTargetFilePicked,
-    handleMappingFilePicked,
-    handleRemoveSourceFile,
-    handleRemoveTargetFile,
-    handleRemoveMappingFile,
-    processFiles,
+    currentStep, completedSteps, sourceERP, targetERP,
+    sourceFile, targetFile, mappingFile, isLoading, canProceedFromStep1,
+    goToStep, handleSourceFilePicked, handleTargetFilePicked, handleMappingFilePicked,
+    handleRemoveSourceFile, handleRemoveTargetFile, handleRemoveMappingFile,
+    processFiles, handleDownloadSample,
   } = useMigrationViewModel();
 
   const onSourceFilePicked = useCallback(
@@ -63,14 +49,12 @@ export function UploadScreen(): React.JSX.Element {
     },
     [handleSourceFilePicked],
   );
-
   const onTargetFilePicked = useCallback(
     (file: File | { uri: string; name: string; mimeType: string }): void => {
       void handleTargetFilePicked(toPickedFile(file));
     },
     [handleTargetFilePicked],
   );
-
   const onMappingFilePicked = useCallback(
     (file: File | { uri: string; name: string; mimeType: string }): void => {
       void handleMappingFilePicked(toPickedFile(file));
@@ -78,107 +62,100 @@ export function UploadScreen(): React.JSX.Element {
     [handleMappingFilePicked],
   );
 
-  const handleBack = useCallback((): void => {
-    goToStep(0);
-    navigation.navigate('ERPSelect', { projectId });
-  }, [goToStep, navigation, projectId]);
+  const handleDashboard = useCallback((): void => {
+    navigation.getParent()?.navigate('ProjectsTab');
+  }, [navigation]);
 
   const handleContinue = useCallback(async (): Promise<void> => {
     await processFiles();
     navigation.navigate('Mapping', { projectId });
   }, [processFiles, navigation, projectId]);
 
-  const sourceFileInfo = sourceFile
-    ? { name: sourceFile.name, rowCount: sourceFile.rowCount }
-    : null;
-  const targetFileInfo = targetFile
-    ? { name: targetFile.name, rowCount: targetFile.rowCount }
-    : null;
-  const mappingFileInfo = mappingFile
-    ? { name: mappingFile.name, rowCount: mappingFile.rowCount }
-    : null;
+  const onDownloadSample = useCallback(
+    (erpId: string, _type: 'source' | 'target'): void => {
+      void handleDownloadSample(erpId);
+    },
+    [handleDownloadSample],
+  );
+
+  const sourceFileInfo = sourceFile ? { name: sourceFile.name, rowCount: sourceFile.rowCount } : null;
+  const targetFileInfo = targetFile ? { name: targetFile.name, rowCount: targetFile.rowCount } : null;
+  const mappingFileInfo = mappingFile ? { name: mappingFile.name, rowCount: mappingFile.rowCount } : null;
 
   return (
     <Screen scroll testID="upload-screen">
-      <View className="max-w-4xl lg:max-w-6xl flex-1 self-center w-full px-4 py-6 gap-6 lg:gap-8">
-        <MigrationStepper
-          currentStep={currentStep}
-          completedSteps={completedSteps}
-          onStepPress={goToStep}
-        />
+      <View className="flex-1 lg:flex-row max-w-4xl lg:max-w-6xl self-center w-full px-4 py-6 gap-6 lg:gap-8">
+        <View className="hidden lg:flex">
+          <ProjectInfoPanel projectId={projectId} testID="project-info-panel" />
+        </View>
 
-        <ERPSummaryCard
-          sourceName={sourceERP?.name ?? 'Not selected'}
-          targetName={targetERP?.name ?? 'Not selected'}
-        />
-
-        <FileUploader
-          sourceFile={sourceFileInfo}
-          targetFile={targetFileInfo}
-          mappingFile={mappingFileInfo}
-          onSourceFilePicked={onSourceFilePicked}
-          onTargetFilePicked={onTargetFilePicked}
-          onMappingFilePicked={onMappingFilePicked}
-          onSourceRemove={handleRemoveSourceFile}
-          onTargetRemove={handleRemoveTargetFile}
-          onMappingRemove={handleRemoveMappingFile}
-          isUploading={isLoading}
-          testID="upload-file-uploader"
-        />
-
-        <View className="flex-row items-center justify-between pt-2">
-          <Button
-            variant="outline"
-            onPress={handleBack}
-            testID="upload-back-button"
+        <View className="flex-1 gap-6 lg:gap-8">
+          <Pressable
+            className="flex-row items-center gap-2"
+            onPress={handleDashboard}
+            testID="breadcrumb-dashboard"
           >
-            Back
-          </Button>
+            <ArrowLeft size={16} color={colors.mutedForeground} strokeWidth={2} />
+            <Text className="font-body text-sm text-muted-foreground">Dashboard</Text>
+          </Pressable>
 
-          <Button
-            onPress={() => void handleContinue()}
-            disabled={!canProceedFromStep1}
-            isLoading={isLoading}
-            testID="upload-continue-button"
-          >
-            Process Files
-          </Button>
+          <MigrationStepper
+            currentStep={currentStep}
+            completedSteps={completedSteps}
+            onStepPress={goToStep}
+          />
+
+          <View className="items-center gap-1">
+            <Text className="font-heading text-xl font-bold text-foreground" testID="upload-screen-title">
+              Upload COA Files
+            </Text>
+            <Text className="font-body text-sm text-muted-foreground">
+              Upload your source COA, target COA, and optional account type mapping
+            </Text>
+          </View>
+
+          <ERPSummaryCard
+            sourceName={sourceERP?.name ?? 'Not selected'}
+            targetName={targetERP?.name ?? 'Not selected'}
+            sourceErpId={sourceERP?.id}
+            targetErpId={targetERP?.id}
+          />
+
+          <FileUploader
+            sourceFile={sourceFileInfo}
+            targetFile={targetFileInfo}
+            mappingFile={mappingFileInfo}
+            onSourceFilePicked={onSourceFilePicked}
+            onTargetFilePicked={onTargetFilePicked}
+            onMappingFilePicked={onMappingFilePicked}
+            onSourceRemove={handleRemoveSourceFile}
+            onTargetRemove={handleRemoveTargetFile}
+            onMappingRemove={handleRemoveMappingFile}
+            isUploading={isLoading}
+            testID="upload-file-uploader"
+          />
+
+          <SampleFilesTable
+            sourceErpId={sourceERP?.id}
+            sourceErpName={sourceERP?.name}
+            targetErpId={targetERP?.id}
+            targetErpName={targetERP?.name}
+            onDownload={onDownloadSample}
+            testID="sample-files-table"
+          />
+
+          <View className="flex-row items-center justify-end pt-2">
+            <Button
+              onPress={() => void handleContinue()}
+              disabled={!canProceedFromStep1}
+              isLoading={isLoading}
+              testID="upload-continue-button"
+            >
+              Process Files
+            </Button>
+          </View>
         </View>
       </View>
     </Screen>
   );
 }
-
-// ─── Sub-components ──────────────────────────────────────────────────────────
-
-interface ERPSummaryCardProps {
-  sourceName: string;
-  targetName: string;
-}
-
-const ERPSummaryCard = React.memo(function ERPSummaryCard({
-  sourceName,
-  targetName,
-}: ERPSummaryCardProps) {
-  return (
-    <Card testID="upload-erp-summary">
-      <Card.Content className="flex-row items-center gap-3">
-        <View className="flex-1 items-start">
-          <Text className="font-body text-xs text-muted-foreground">Source</Text>
-          <Text className="font-heading text-sm font-semibold text-foreground">
-            {sourceName}
-          </Text>
-        </View>
-
-        <ArrowRight size={20} color={colors.mutedForeground} strokeWidth={2} />
-
-        <View className="flex-1 items-end">
-          <Text className="font-body text-xs text-muted-foreground">Target</Text>
-          <Text className="font-heading text-sm font-semibold text-foreground">
-            {targetName}
-          </Text>
-        </View>
-      </Card.Content>
-    </Card>
-  );
-});
