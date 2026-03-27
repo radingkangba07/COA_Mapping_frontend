@@ -161,7 +161,7 @@ export const FileUploadBox = ({
       >
         <View
           className={cn(
-            'min-h-[120px] items-center justify-center rounded-lg p-4',
+            'items-center justify-center rounded-lg p-4',
             file
               ? 'border border-border bg-surface'
               : 'border-2 border-dashed bg-background',
@@ -171,6 +171,7 @@ export const FileUploadBox = ({
                 ? 'border-border'
                 : '',
           )}
+          style={{ minHeight: 140 }}
         >
           {isUploading ? (
             <UploadingState />
