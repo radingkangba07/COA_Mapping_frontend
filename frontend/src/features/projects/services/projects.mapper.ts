@@ -50,12 +50,22 @@ export function toCreatePayload(
 ): Record<string, unknown> {
   const payload: Record<string, unknown> = {
     name: data.name,
-    source_erp: data.sourceErp,
-    target_erp: data.targetErp,
   };
+
+  if (data.sourceErp !== undefined) {
+    payload.source_erp = data.sourceErp;
+  }
+
+  if (data.targetErp !== undefined) {
+    payload.target_erp = data.targetErp;
+  }
 
   if (data.companyId !== undefined) {
     payload.company_id = data.companyId;
+  }
+
+  if (data.companyName !== undefined) {
+    payload.company_name = data.companyName;
   }
 
   if (data.description !== undefined) {

@@ -42,9 +42,10 @@ export interface ProjectGroup {
 
 export interface ProjectCreate {
   readonly name: string;
-  readonly sourceErp: string;
-  readonly targetErp: string;
+  readonly sourceErp?: string | undefined;
+  readonly targetErp?: string | undefined;
   readonly companyId?: string | undefined;
+  readonly companyName?: string | undefined;
   readonly description?: string | undefined;
 }
 

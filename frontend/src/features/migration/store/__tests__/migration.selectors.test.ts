@@ -3,7 +3,6 @@ import {
   selectCanProceed,
   selectSourceERP,
   selectTargetERP,
-  selectUploadedFiles,
   selectTypeMappingSummary,
   selectMappingStats,
   selectFilteredMappings,
@@ -11,7 +10,6 @@ import {
 } from '@/features/migration/store/migration.selectors';
 import type { MigrationStore } from '@/features/migration/store/migration.store';
 import type { GroupedMapping, AccountMapping } from '@/features/migration/types/mapping.types';
-import { createFileId } from '@/shared/types/common.types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -145,29 +143,6 @@ describe('selectTargetERP', () => {
     const erp = { id: 'xero', name: 'Xero', vendor: 'Xero Ltd', description: 'Xero Accounting', fields: [] };
     const state = createMockState({ targetERP: erp as MigrationStore['targetERP'] });
     expect(selectTargetERP(state)).toBe(erp);
-  });
-});
-
-// ─── selectUploadedFiles ────────────────────────────────────────────────────
-
-describe('selectUploadedFiles', () => {
-  it('returns all null when no files uploaded', () => {
-    const state = createMockState();
-    expect(selectUploadedFiles(state)).toEqual({
-      sourceFile: null,
-      targetFile: null,
-      mappingFile: null,
-    });
-  });
-
-  it('returns uploaded files from state', () => {
-    const sourceFile = { name: 'source.xlsx', rowCount: 50, fileId: createFileId('f1') };
-    const targetFile = { name: 'target.xlsx', rowCount: 30, fileId: createFileId('f2') };
-    const state = createMockState({ sourceFile, targetFile });
-    const result = selectUploadedFiles(state);
-    expect(result.sourceFile).toBe(sourceFile);
-    expect(result.targetFile).toBe(targetFile);
-    expect(result.mappingFile).toBeNull();
   });
 });
 

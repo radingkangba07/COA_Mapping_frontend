@@ -18,6 +18,16 @@ export const SELECTORS = {
   uploadScreen: '[data-testid="upload-screen"]',
   fileUploader: '[data-testid="upload-file-uploader"]',
   projectCard: '[data-testid="project-card"]',
+  createProjectBtn: '[data-testid="create-project-btn"]',
+  newProjectCompanyId: '[data-testid="new-project-company-id"]',
+  newProjectCompanyName: '[data-testid="new-project-company-name"]',
+  newProjectNameInput: '[data-testid="new-project-name-input"]',
+  newProjectDescription: '[data-testid="new-project-description"]',
+  newProjectSourceErp: '[data-testid="new-project-source-erp"]',
+  newProjectTargetErp: '[data-testid="new-project-target-erp"]',
+  migrationStepper: '[data-testid="migration-stepper"]',
+  sourceErpCombobox: '[data-testid="source-erp-combobox"]',
+  targetErpCombobox: '[data-testid="target-erp-combobox"]',
 } as const;
 
 /**
