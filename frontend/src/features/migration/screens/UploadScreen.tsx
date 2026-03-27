@@ -173,8 +173,8 @@ const ERPSummaryCard = React.memo(function ERPSummaryCard({
 }: ERPSummaryCardProps) {
   return (
     <Card testID="upload-erp-summary">
-      <Card.Content className="flex-row items-center justify-center gap-3">
-        <View className="items-center">
+      <Card.Content className="flex-row items-center gap-3">
+        <View className="flex-1 items-start">
           <Text className="font-body text-xs text-muted-foreground">Source</Text>
           <Text className="font-heading text-sm font-semibold text-foreground">
             {sourceName}
@@ -183,7 +183,7 @@ const ERPSummaryCard = React.memo(function ERPSummaryCard({
 
         <ArrowRight size={20} color={colors.mutedForeground} strokeWidth={2} />
 
-        <View className="items-center">
+        <View className="flex-1 items-end">
           <Text className="font-body text-xs text-muted-foreground">Target</Text>
           <Text className="font-heading text-sm font-semibold text-foreground">
             {targetName}

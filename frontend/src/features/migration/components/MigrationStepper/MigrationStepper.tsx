@@ -56,7 +56,7 @@ export const MigrationStepper = ({
     <View testID="migration-stepper">
       {/* Desktop: full horizontal stepper */}
       <View
-        className="hidden items-start justify-center px-4 py-3 md:flex-row"
+        className="hidden items-start justify-center px-4 py-3 md:flex md:flex-row"
         testID="stepper-desktop"
       >
         {STEPS.map((label, index) => {

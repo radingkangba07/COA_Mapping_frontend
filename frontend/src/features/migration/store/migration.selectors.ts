@@ -1,7 +1,6 @@
 import type { MigrationStore } from './migration.store';
 import type { ERPSystem } from '@/features/migration/types/erp.types';
 import type { ConfidenceLevel, GroupedMapping } from '@/features/migration/types/mapping.types';
-import type { UploadedFile } from '@/features/migration/types/migration.types';
 import { CONFIDENCE_THRESHOLDS } from '@/shared/constants/mapping-confidence';
 
 // ─── Step Selectors ──────────────────────────────────────────────────────────
@@ -19,20 +18,6 @@ export const selectSourceERP = (state: MigrationStore): ERPSystem | null =>
 
 export const selectTargetERP = (state: MigrationStore): ERPSystem | null =>
   state.targetERP;
-
-// ─── File Selectors ──────────────────────────────────────────────────────────
-
-interface UploadedFiles {
-  readonly sourceFile: UploadedFile | null;
-  readonly targetFile: UploadedFile | null;
-  readonly mappingFile: UploadedFile | null;
-}
-
-export const selectUploadedFiles = (state: MigrationStore): UploadedFiles => ({
-  sourceFile: state.sourceFile,
-  targetFile: state.targetFile,
-  mappingFile: state.mappingFile,
-});
 
 // ─── Type Mapping Summary ───────────────────────────────────────────────────
 

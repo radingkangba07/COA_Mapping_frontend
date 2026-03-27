@@ -83,7 +83,13 @@ export const ProjectsScreen = (): React.JSX.Element => {
 
   const handleProjectPress = useCallback(
     (project: Project) => {
-      navigation.navigate('ProjectDetail', { projectId: project.projectId });
+      const parent = navigation.getParent();
+      if (parent !== undefined) {
+        parent.navigate('MigrationTab', {
+          screen: 'ERPSelect',
+          params: { projectId: project.projectId },
+        });
+      }
     },
     [navigation],
   );

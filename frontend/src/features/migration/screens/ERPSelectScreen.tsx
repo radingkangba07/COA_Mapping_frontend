@@ -117,7 +117,7 @@ export const ERPSelectScreen = (): React.JSX.Element => {
         </Card>
 
         {hasBothSelected && (
-          <Card className="mt-4 border-success bg-green-50" testID="erp-summary-card">
+          <Card className="mt-4 border-green-200 bg-green-50" testID="erp-summary-card">
             <Card.Content>
               <Text className="font-body text-sm font-medium text-green-800">
                 Migrating from {sourceERP.name} → {targetERP.name}
@@ -131,6 +131,8 @@ export const ERPSelectScreen = (): React.JSX.Element => {
             onPress={handleContinue}
             disabled={!canProceedFromStep0}
             size="lg"
+            className="bg-accent"
+            textClassName="text-accent-foreground"
             testID="continue-button"
           >
             Continue to Upload
