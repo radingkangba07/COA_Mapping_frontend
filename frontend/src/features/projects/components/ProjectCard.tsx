@@ -1,9 +1,7 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { ArrowRight, Clock } from 'lucide-react-native';
 import { Card } from '@/shared/components/ui/Card';
-import { colors } from '@/config/theme';
-import { formatRelative } from '@/shared/utils/date.utils';
+import { formatDate } from '@/shared/utils/date.utils';
 import { getERPById } from '@/shared/constants/erp-systems';
 import { StatusBadge } from './StatusBadge';
 import { MemberBadge } from './MemberBadge';
@@ -25,39 +23,37 @@ export const ProjectCard = React.memo(({
 
   return (
     <Pressable onPress={() => onPress(project)} testID={testID}>
-      <Card className="mb-3">
+      <Card className="w-full mb-2">
         <Card.Content>
-          <View className="flex-row items-start justify-between">
-            <View className="flex-1 mr-3">
-              <View className="flex-row items-center gap-2 mb-1">
-                <Text
-                  className="font-heading text-base font-semibold text-card-foreground"
-                  numberOfLines={1}
-                >
-                  {project.name}
-                </Text>
-                <StatusBadge status={project.status} />
-              </View>
-
-              <Text className="font-body text-sm text-muted-foreground mb-2">
-                {sourceErpName} → {targetErpName}
-              </Text>
-
-              <View className="flex-row items-center gap-3">
-                {project.createdBy !== undefined && (
-                  <MemberBadge name={project.createdBy} size="sm" />
-                )}
-                <View className="flex-row items-center gap-1">
-                  <Clock size={12} color={colors.mutedForeground} />
-                  <Text className="font-body text-xs text-muted-foreground">
-                    {formatRelative(project.updatedAt)}
-                  </Text>
-                </View>
-              </View>
+          {/* Row 1: Project name + status badge */}
+          <View className="flex-row items-center justify-between mb-1">
+            <Text
+              className="font-heading text-base font-semibold text-card-foreground flex-1 mr-2"
+              numberOfLines={1}
+            >
+              {project.name}
+            </Text>
+            <View className="flex-row gap-1.5">
+              <StatusBadge status={project.status} />
             </View>
-
-            <ArrowRight size={18} color={colors.mutedForeground} />
           </View>
+
+          {/* Row 2: ERP migration path + date */}
+          <Text className="font-body text-sm text-muted-foreground mb-1" numberOfLines={1}>
+            {sourceErpName} {'>'} {targetErpName}
+            {'  \u00B7  '}
+            {formatDate(project.updatedAt)}
+          </Text>
+
+          {/* Row 3: Creator */}
+          {project.createdBy !== undefined && (
+            <View className="flex-row items-center gap-2 mt-1">
+              <MemberBadge name={project.createdBy} size="sm" />
+              <Text className="font-body text-sm text-muted-foreground">
+                {project.createdBy}
+              </Text>
+            </View>
+          )}
         </Card.Content>
       </Card>
     </Pressable>

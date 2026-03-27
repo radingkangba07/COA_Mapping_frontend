@@ -32,6 +32,12 @@ export interface ProjectMember {
   readonly role: ProjectRole;
 }
 
+export interface ProjectGroup {
+  readonly companyId: CompanyId | null;
+  readonly companyName: string;
+  readonly projects: readonly Project[];
+}
+
 // ─── DTO Contracts ──────────────────────────────────────────────────────────
 
 export interface ProjectCreate {

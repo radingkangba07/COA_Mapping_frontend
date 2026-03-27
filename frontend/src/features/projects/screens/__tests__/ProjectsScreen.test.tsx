@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { render, screen } from '@testing-library/react-native';
 import type { AppError } from '@/shared/types/result.types';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
@@ -78,6 +78,13 @@ jest.mock('../../components/ProjectListSkeleton', () => ({
   },
 }));
 
+jest.mock('../../components/DashboardStats', () => ({
+  DashboardStats: (props: Record<string, unknown>) => {
+    const { View } = require('react-native');
+    return <View testID={props.testID as string} />;
+  },
+}));
+
 jest.mock('../../components/NewProjectDialog', () => ({
   NewProjectDialog: ({
     visible,
@@ -131,26 +138,14 @@ describe('ProjectsScreen', () => {
     expect(screen.getByTestId('projects-screen')).toBeTruthy();
   });
 
-  it('shows "Your Projects" heading when projects are loaded', () => {
+  it('shows "Dashboard" heading when projects are loaded', () => {
     render(<ProjectsScreen />);
-    expect(screen.getByText('Your Projects')).toBeTruthy();
+    expect(screen.getByText('Dashboard')).toBeTruthy();
   });
 
-  it('renders "New Project" button', () => {
+  it('renders the dashboard stats', () => {
     render(<ProjectsScreen />);
-    expect(screen.getByTestId('new-project-btn')).toBeTruthy();
-    expect(screen.getByText('New Project')).toBeTruthy();
-  });
-
-  it('opens dialog when "New Project" button is pressed', () => {
-    render(<ProjectsScreen />);
-
-    expect(screen.queryByTestId('dialog-content')).toBeNull();
-
-    fireEvent.press(screen.getByTestId('new-project-btn'));
-
-    expect(screen.getByTestId('dialog-content')).toBeTruthy();
-    expect(screen.getByText('Dialog Open')).toBeTruthy();
+    expect(screen.getByTestId('dashboard-stats')).toBeTruthy();
   });
 
   it('renders the project list', () => {
@@ -173,7 +168,7 @@ describe('ProjectsScreen', () => {
     render(<ProjectsScreen />);
     expect(screen.getByTestId('projects-screen')).toBeTruthy();
     expect(screen.getByTestId('projects-skeleton')).toBeTruthy();
-    expect(screen.queryByText('Your Projects')).toBeNull();
+    expect(screen.queryByText('Dashboard')).toBeNull();
   });
 
   it('shows error fallback when error exists and no projects', () => {
@@ -187,7 +182,7 @@ describe('ProjectsScreen', () => {
     expect(screen.getByTestId('projects-screen')).toBeTruthy();
     expect(screen.getByTestId('projects-error')).toBeTruthy();
     expect(screen.getByText('Network Error')).toBeTruthy();
-    expect(screen.queryByText('Your Projects')).toBeNull();
+    expect(screen.queryByText('Dashboard')).toBeNull();
   });
 
   it('shows normal view when projects exist even with error', () => {
@@ -199,7 +194,7 @@ describe('ProjectsScreen', () => {
     });
 
     render(<ProjectsScreen />);
-    expect(screen.getByText('Your Projects')).toBeTruthy();
+    expect(screen.getByText('Dashboard')).toBeTruthy();
     expect(screen.getByTestId('projects-list')).toBeTruthy();
   });
 
@@ -212,7 +207,7 @@ describe('ProjectsScreen', () => {
     });
 
     render(<ProjectsScreen />);
-    expect(screen.getByText('Your Projects')).toBeTruthy();
+    expect(screen.getByText('Dashboard')).toBeTruthy();
     expect(screen.queryByTestId('projects-skeleton')).toBeNull();
   });
 });

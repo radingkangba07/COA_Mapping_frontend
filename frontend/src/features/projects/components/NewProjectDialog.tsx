@@ -3,16 +3,19 @@ import { Dialog } from '@/shared/components/ui/Dialog';
 import { useCreateProject } from '../hooks/useCreateProject';
 import { ProjectForm } from './ProjectForm';
 import type { ProjectCreate } from '../types/projects.types';
+import type { CompanyId } from '@/shared/types/common.types';
 
 interface NewProjectDialogProps {
   visible: boolean;
   onClose: () => void;
+  companyId?: CompanyId;
   testID?: string;
 }
 
 export const NewProjectDialog = ({
   visible,
   onClose,
+  companyId,
   testID,
 }: NewProjectDialogProps): React.JSX.Element => {
   const mutation = useCreateProject(onClose);
@@ -36,6 +39,7 @@ export const NewProjectDialog = ({
           onSubmit={handleSubmit}
           isPending={mutation.isPending}
           onCancel={onClose}
+          defaultCompanyId={companyId}
           testID="new-project-form"
         />
       </Dialog.Content>
