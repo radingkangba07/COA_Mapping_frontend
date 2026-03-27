@@ -1,7 +1,9 @@
+import type { ERPSystemId } from './erp-systems';
+
 export interface ERPBrandConfig {
-  abbreviation: string;
-  bgColor: string;
-  textColor: string;
+  readonly abbreviation: string;
+  readonly bgColor: string;
+  readonly textColor: string;
 }
 
 const DEFAULT_BRAND: ERPBrandConfig = {
@@ -10,7 +12,7 @@ const DEFAULT_BRAND: ERPBrandConfig = {
   textColor: '#FFFFFF',
 };
 
-export const ERP_BRAND_MAP: Record<string, ERPBrandConfig> = {
+export const ERP_BRAND_MAP: Record<ERPSystemId, ERPBrandConfig> = {
   sap: { abbreviation: 'S', bgColor: '#0070F2', textColor: '#FFFFFF' },
   oracle_netsuite: { abbreviation: 'N', bgColor: '#E87722', textColor: '#FFFFFF' },
   dynamics365: { abbreviation: 'D', bgColor: '#00A4EF', textColor: '#FFFFFF' },
@@ -23,5 +25,8 @@ export const ERP_BRAND_MAP: Record<string, ERPBrandConfig> = {
 };
 
 export function getERPBrand(erpId: string): ERPBrandConfig {
-  return ERP_BRAND_MAP[erpId] ?? DEFAULT_BRAND;
+  if (erpId in ERP_BRAND_MAP) {
+    return ERP_BRAND_MAP[erpId as ERPSystemId];
+  }
+  return DEFAULT_BRAND;
 }
