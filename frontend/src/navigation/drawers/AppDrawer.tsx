@@ -11,6 +11,7 @@ import {
   LogOut,
 } from 'lucide-react-native';
 import { colors } from '@/config/theme';
+import { useAppStore } from '@/shared/store/app.store';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { ProjectsStack } from '../stacks/ProjectsStack';
 import { MigrationStack } from '../stacks/MigrationStack';
@@ -113,9 +114,13 @@ const CustomDrawerContent = ({
 };
 
 export const AppDrawer = (): React.JSX.Element => {
+  // Subscribe to theme so drawer styles re-render on theme change
+  useAppStore((s) => s.theme);
+
   const drawerStyle = {
     width: 260,
     backgroundColor: colors.background,
+    borderRightColor: colors.border,
   } as const;
 
   return (

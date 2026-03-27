@@ -1,28 +1,85 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text } from 'react-native';
-import { Plus } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen } from '@/shared/components/layout/Screen';
-import { Button } from '@/shared/components/ui/Button';
-import { Skeleton } from '@/shared/components/ui/Skeleton';
-import { colors } from '@/config/theme';
 import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorFallback';
 import { useProjectsViewModel } from '../hooks/useProjectsViewModel';
-import { useOnlineGuard } from '@/shared/hooks/useOnlineGuard';
 import { ProjectList } from '../components/ProjectList';
 import { ProjectListSkeleton } from '../components/ProjectListSkeleton';
+import { DashboardStats } from '../components/DashboardStats';
 import { NewProjectDialog } from '../components/NewProjectDialog';
-import type { Project } from '../types/projects.types';
+import type { Project, ProjectGroup } from '../types/projects.types';
+import type { CompanyId } from '@/shared/types/common.types';
 import type { ProjectsStackParamList } from '@/navigation/types';
 
+// ─── Types ──────────────────────────────────────────────────────────────────
+
 type ProjectsNav = NativeStackNavigationProp<ProjectsStackParamList, 'ProjectsList'>;
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function groupProjectsByCompany(projects: readonly Project[]): ProjectGroup[] {
+  const map = new Map<string, { companyId: CompanyId | null; projects: Project[] }>();
+
+  for (const project of projects) {
+    const key = project.companyId ?? '__unassigned__';
+    const existing = map.get(key);
+
+    if (existing !== undefined) {
+      existing.projects.push(project);
+    } else {
+      map.set(key, {
+        companyId: project.companyId ?? null,
+        projects: [project],
+      });
+    }
+  }
+
+  const groups: ProjectGroup[] = [];
+
+  for (const [, entry] of map) {
+    const sorted = [...entry.projects].sort(
+      (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
+    );
+
+    groups.push({
+      companyId: entry.companyId,
+      companyName: entry.companyId ?? 'Unassigned',
+      projects: sorted,
+    });
+  }
+
+  groups.sort((a, b) => {
+    if (a.companyId === null) return 1;
+    if (b.companyId === null) return -1;
+    return a.companyName.localeCompare(b.companyName);
+  });
+
+  return groups;
+}
+
+// ─── Screen ─────────────────────────────────────────────────────────────────
 
 export const ProjectsScreen = (): React.JSX.Element => {
   const navigation = useNavigation<ProjectsNav>();
   const { projects, isLoading, error, refetch } = useProjectsViewModel();
-  const { isOnline } = useOnlineGuard();
   const [dialogVisible, setDialogVisible] = useState(false);
+  const [dialogCompanyId, setDialogCompanyId] = useState<CompanyId | undefined>(
+    undefined,
+  );
+
+  const groups = useMemo(() => groupProjectsByCompany(projects), [projects]);
+
+  const totalProjects = projects.length;
+  const totalCompanies = useMemo(
+    () => new Set(projects.filter((p) => p.companyId !== undefined).map((p) => p.companyId)).size,
+    [projects],
+  );
+  const completedProjects = useMemo(
+    () => projects.filter((p) => p.status === 'completed').length,
+    [projects],
+  );
 
   const handleProjectPress = useCallback(
     (project: Project) => {
@@ -31,12 +88,14 @@ export const ProjectsScreen = (): React.JSX.Element => {
     [navigation],
   );
 
-  const handleOpenDialog = useCallback(() => {
+  const handleCreateForCompany = useCallback((companyId: CompanyId | null) => {
+    setDialogCompanyId(companyId ?? undefined);
     setDialogVisible(true);
   }, []);
 
   const handleCloseDialog = useCallback(() => {
     setDialogVisible(false);
+    setDialogCompanyId(undefined);
   }, []);
 
   if (error !== null && projects.length === 0) {
@@ -54,10 +113,6 @@ export const ProjectsScreen = (): React.JSX.Element => {
   if (isLoading && projects.length === 0) {
     return (
       <Screen testID="projects-screen">
-        <View className="flex-row items-center justify-between px-4 py-4 md:px-0 md:py-6">
-          <Skeleton height={28} className="w-40 rounded" />
-          <Skeleton height={40} className="w-32 rounded-md" />
-        </View>
         <ProjectListSkeleton testID="projects-skeleton" />
       </Screen>
     );
@@ -65,32 +120,34 @@ export const ProjectsScreen = (): React.JSX.Element => {
 
   return (
     <Screen testID="projects-screen">
-      <View className="flex-row items-center justify-between px-4 py-4 md:px-0 md:py-6">
+      <View className="px-4 py-4 md:px-0 md:py-6">
         <Text className="font-heading text-2xl font-bold text-foreground">
-          Your Projects
+          Dashboard
         </Text>
-        <Button onPress={handleOpenDialog} disabled={!isOnline} accessibilityLabel="Create new project" testID="new-project-btn">
-          <View className="flex-row items-center gap-1.5">
-            <Plus size={16} color={colors.primaryForeground} />
-            <Text className="text-sm font-medium text-primary-foreground">
-              New Project
-            </Text>
-          </View>
-        </Button>
+      </View>
+
+      <View className="px-4 mb-4">
+        <DashboardStats
+          totalProjects={totalProjects}
+          totalCompanies={totalCompanies}
+          completedProjects={completedProjects}
+          testID="dashboard-stats"
+        />
       </View>
 
       <ProjectList
-        projects={projects}
+        groups={groups}
         isRefreshing={isLoading}
         onRefresh={refetch}
         onProjectPress={handleProjectPress}
-        onCreatePress={handleOpenDialog}
+        onCreatePress={handleCreateForCompany}
         testID="projects-list"
       />
 
       <NewProjectDialog
         visible={dialogVisible}
         onClose={handleCloseDialog}
+        companyId={dialogCompanyId}
         testID="new-project-dialog"
       />
     </Screen>

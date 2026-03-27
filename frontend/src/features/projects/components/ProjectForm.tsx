@@ -14,6 +14,7 @@ const newProjectSchema = z.object({
   name: z.string().min(1, 'Project name is required'),
   sourceErp: z.string().min(1, 'Source ERP is required'),
   targetErp: z.string().min(1, 'Target ERP is required'),
+  companyId: z.string().optional(),
   description: z.string().optional(),
 });
 
@@ -23,6 +24,7 @@ interface ProjectFormProps {
   onSubmit: (data: ProjectCreate) => void;
   isPending: boolean;
   onCancel?: () => void;
+  defaultCompanyId?: string;
   testID?: string;
 }
 
@@ -35,6 +37,7 @@ export const ProjectForm = ({
   onSubmit,
   isPending,
   onCancel,
+  defaultCompanyId,
   testID,
 }: ProjectFormProps): React.JSX.Element => {
   const { control, handleSubmit, formState: { errors } } = useForm<NewProjectFormData>({
@@ -43,6 +46,7 @@ export const ProjectForm = ({
       name: '',
       sourceErp: '',
       targetErp: '',
+      companyId: defaultCompanyId ?? '',
       description: '',
     },
   });
@@ -53,6 +57,7 @@ export const ProjectForm = ({
         name: data.name,
         sourceErp: data.sourceErp,
         targetErp: data.targetErp,
+        companyId: data.companyId || undefined,
         description: data.description || undefined,
       });
     },

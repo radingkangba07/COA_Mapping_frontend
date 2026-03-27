@@ -11,9 +11,9 @@ const Stack = createNativeStackNavigator<ProjectsStackParamList>();
 export const ProjectsStack = (): React.JSX.Element => (
   <ErrorBoundary>
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="ProjectsList" component={ProjectsScreen} />
-      <Stack.Screen name="ProjectDetail" component={ProjectDetailScreen} />
-      <Stack.Screen name="NewProject" component={NewProjectScreen} />
+      <Stack.Screen name="ProjectsList" component={ProjectsScreen} options={{ title: 'Dashboard' }} />
+      <Stack.Screen name="ProjectDetail" component={ProjectDetailScreen} options={{ title: 'Project Detail' }} />
+      <Stack.Screen name="NewProject" component={NewProjectScreen} options={{ title: 'New Project' }} />
     </Stack.Navigator>
   </ErrorBoundary>
 );
