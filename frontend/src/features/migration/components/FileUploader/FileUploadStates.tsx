@@ -57,38 +57,28 @@ export const UploadedState = React.memo(function UploadedState({
   onPreview,
 }: UploadedStateProps) {
   return (
-    <View className="w-full" style={{ minHeight: 110 }}>
-      <Pressable
-        onPress={onRemove}
-        className="absolute right-0 top-0 rounded-md p-1 z-10"
-        accessibilityRole="button"
-        accessibilityLabel="Remove file"
-        testID="file-remove-button"
-      >
-        <X size={16} color={colors.mutedForeground} strokeWidth={2} />
-      </Pressable>
-
-      <View className="items-center justify-center gap-2 pt-2 pb-1">
-        <FileSpreadsheet
-          size={24}
-          color={colors.success}
-          strokeWidth={1.5}
-        />
-        <Text
-          className="font-body text-sm font-medium text-foreground text-center"
-          numberOfLines={2}
-        >
-          {fileName}
-        </Text>
-        <Badge variant="secondary">
-          {`${rowCount} rows`}
-        </Badge>
+    <View className="w-full gap-3">
+      <View className="flex-row items-start gap-2">
+        <View className="mt-0.5">
+          <FileSpreadsheet size={20} color={colors.success} strokeWidth={2} />
+        </View>
+        <View className="flex-1">
+          <Text
+            className="font-body text-sm font-medium text-green-800"
+            numberOfLines={1}
+          >
+            {fileName}
+          </Text>
+          <Text className="font-body text-xs text-green-700 mt-0.5">
+            {`${rowCount} rows loaded`}
+          </Text>
+        </View>
       </View>
 
-      {onPreview && (
+      <View className="flex-row items-center gap-3">
         <Pressable
           onPress={onPreview}
-          className="flex-row items-center justify-center gap-1.5 rounded-md border border-border bg-background px-4 py-2 mt-2 self-center"
+          className="flex-1 flex-row items-center justify-center gap-2 rounded-lg border border-border bg-background py-2.5"
           accessibilityRole="button"
           accessibilityLabel="Preview file"
           testID="file-preview-button"
@@ -96,7 +86,16 @@ export const UploadedState = React.memo(function UploadedState({
           <Eye size={16} color={colors.foreground} strokeWidth={1.5} />
           <Text className="font-body text-sm font-medium text-foreground">Preview</Text>
         </Pressable>
-      )}
+        <Pressable
+          onPress={onRemove}
+          className="p-1"
+          accessibilityRole="button"
+          accessibilityLabel="Remove file"
+          testID="file-remove-button"
+        >
+          <X size={20} color={colors.destructive} strokeWidth={1.5} />
+        </Pressable>
+      </View>
     </View>
   );
 });
