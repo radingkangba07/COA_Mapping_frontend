@@ -59,6 +59,7 @@ export const FileUploader = ({
             file={sourceFile}
             onFilePicked={onSourceFilePicked}
             onRemove={onSourceRemove}
+            onPreview={sourceFile !== null ? () => {} : undefined}
             isUploading={isUploading}
             testID={`${testID}-source`}
           />
@@ -70,6 +71,7 @@ export const FileUploader = ({
             file={targetFile}
             onFilePicked={onTargetFilePicked}
             onRemove={onTargetRemove}
+            onPreview={targetFile !== null ? () => {} : undefined}
             isUploading={isUploading}
             testID={`${testID}-target`}
           />
@@ -81,6 +83,7 @@ export const FileUploader = ({
             file={mappingFile}
             onFilePicked={onMappingFilePicked}
             onRemove={onMappingRemove}
+            onPreview={mappingFile !== null ? () => {} : undefined}
             isUploading={isUploading}
             testID={`${testID}-mapping`}
           />
