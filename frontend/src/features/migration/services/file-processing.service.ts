@@ -63,21 +63,31 @@ export function buildUploadedFile(
   return { name: fileName, fileId: createFileId(fileId), rowCount };
 }
 
-export function extractTargetTypes(data: Record<string, unknown>[]): string[] {
-  const typeKeys = ['type', 'account_type', 'accounttype', 'account type'];
-  const types = new Set<string>();
+export function extractAccountTypes(data: Record<string, unknown>[]): string[] {
+  if (data.length === 0) return [];
 
+  // Find the type column dynamically (matches "type", "account_type", etc. but not "detail_type")
+  const firstRow = data[0]!;
+  const typeKey = Object.keys(firstRow).find((k: string) => {
+    const lower = k.toLowerCase();
+    return (lower.includes('type') && !lower.includes('detail')) || lower === 'type';
+  });
+
+  if (!typeKey) return [];
+
+  const types = new Set<string>();
   for (const row of data) {
-    for (const key of typeKeys) {
-      const value = row[key];
-      if (typeof value === 'string' && value.length > 0) {
-        types.add(value);
-        break;
-      }
+    const value = row[typeKey];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      types.add(value.trim());
     }
   }
-
   return Array.from(types);
+}
+
+/** @deprecated Use extractAccountTypes instead */
+export function extractTargetTypes(data: Record<string, unknown>[]): string[] {
+  return extractAccountTypes(data);
 }
 
 export function buildTypeMappingRows(

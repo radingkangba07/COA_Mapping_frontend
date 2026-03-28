@@ -2,12 +2,22 @@ import React, { useCallback } from 'react';
 import { View, Text } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  ArrowRight,
+  RotateCcw,
+  FileSpreadsheet,
+  FolderTree,
+  Save,
+  AlertTriangle,
+  CheckCircle2,
+  Edit3,
+} from 'lucide-react-native';
 import { Screen } from '@/shared/components/layout/Screen';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
+import { Badge } from '@/shared/components/ui/Badge';
 import { Skeleton } from '@/shared/components/ui/Skeleton';
-import { Checkbox } from '@/shared/components/ui/Checkbox';
 import { Collapsible } from '@/shared/components/ui/Collapsible';
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
 import { MappingStatsBar } from '../components/MappingStatsBar/MappingStatsBar';
@@ -23,10 +33,28 @@ import { colors } from '@/config/theme';
 type MigrationNavProp = NativeStackNavigationProp<MigrationStackParamList>;
 const ICON_SIZE = 16;
 
-const CONFIRMATION_LABELS: Record<ConfidenceLevel, string> = {
-  high: 'I confirm all High confidence mappings are correct',
-  medium: 'I confirm all Medium confidence mappings are correct',
-  low: 'I confirm all Low confidence mappings are correct',
+const CONFIRMATION_TITLES: Record<ConfidenceLevel, string> = {
+  high: 'High Score Accounts',
+  medium: 'Medium Score Accounts',
+  low: 'Low Score Accounts',
+};
+
+const CONFIRMATION_DESCRIPTIONS: Record<ConfidenceLevel, (count: number) => string> = {
+  high: (count) => `Review the ${count} accounts with 90%+ confidence scores. These are the most reliable matches.`,
+  medium: (count) => `Review the ${count} accounts with 70-89% confidence scores. These may need attention.`,
+  low: (count) => `Review the ${count} accounts with <70% confidence scores. These likely need manual review.`,
+};
+
+const CONFIRMATION_BUTTON_CLASSES: Record<ConfidenceLevel, string> = {
+  high: 'bg-green-600',
+  medium: 'bg-yellow-600',
+  low: 'bg-red-600',
+};
+
+const CONFIRMATION_ICON_COLORS: Record<ConfidenceLevel, string> = {
+  high: '#16A34A',
+  medium: '#D97706',
+  low: '#DC2626',
 };
 
 const CONFIRMATION_CLASSES: Record<ConfidenceLevel, string> = {
@@ -51,6 +79,8 @@ export const ValidationScreen = (): React.JSX.Element => {
 
   const vm = useValidationScreenViewModel(projectId, navigateBack, navigateForward);
 
+  const sourceERPName = vm.sourceERP?.name ?? 'Source';
+  const targetERPName = vm.targetERP?.name ?? 'Target';
   const isLoadingData = vm.stats.totalAccounts === 0 && vm.filteredMappings.length === 0;
 
   if (isLoadingData) {
@@ -81,20 +111,50 @@ export const ValidationScreen = (): React.JSX.Element => {
           onStepPress={vm.handleStepPress}
         />
 
-        <View className="mt-8 mb-4">
-          <Text className="font-heading text-2xl font-bold text-foreground">Account Mapping</Text>
-          {vm.sourceFile !== null && (
-            <Text className="mt-1 font-body text-sm text-muted-foreground">
-              {vm.sourceFile.name} — {vm.stats.totalAccounts} accounts in {vm.stats.totalTypes} groups
-            </Text>
-          )}
+        {/* Header: Title + file info + progress + action button */}
+        <View className="mt-8 mb-4 flex-row items-start justify-between">
+          <View>
+            <Text className="font-heading text-2xl font-bold text-foreground">COA Mapping</Text>
+            {vm.sourceFile !== null && (
+              <View className="mt-1 flex-row items-center gap-1.5">
+                <FileSpreadsheet size={14} color={colors.mutedForeground} />
+                <Text className="font-body text-sm text-muted-foreground">
+                  {vm.sourceFile.name} &bull; {vm.stats.totalAccounts} rows
+                </Text>
+              </View>
+            )}
+          </View>
+          <View className="flex-row items-center gap-4">
+            <View className="items-end gap-1.5">
+              <Text className="font-body text-sm font-medium text-foreground">
+                {vm.stats.totalTypes} / {vm.stats.totalTypes} types mapped
+              </Text>
+              <View className="h-2 w-32 rounded-full bg-gray-200 overflow-hidden">
+                <View className="h-full rounded-full bg-green-500" style={{ width: '100%' }} />
+              </View>
+            </View>
+            <Button
+              onPress={() => navigation.navigate('FinalPreview', { projectId })}
+              disabled={!vm.allConfirmed}
+              className="bg-green-600"
+              accessibilityLabel="Review and save"
+              testID="review-save-button"
+            >
+              <View className="flex-row items-center gap-1.5">
+                <Save size={ICON_SIZE} color="#FFFFFF" />
+                <Text className="text-sm font-medium text-white">Review &amp; Save</Text>
+              </View>
+            </Button>
+          </View>
         </View>
 
+        {/* Stats filter cards */}
         <MappingStatsBar
           totalAccounts={vm.stats.totalAccounts}
           highConfidence={vm.stats.highConfidence}
           mediumConfidence={vm.stats.mediumConfidence}
           lowConfidence={vm.stats.lowConfidence}
+          confirmedCount={vm.stats.confirmedCount}
           confirmedHigh={vm.confirmedHigh}
           confirmedMedium={vm.confirmedMedium}
           confirmedLow={vm.confirmedLow}
@@ -103,23 +163,73 @@ export const ValidationScreen = (): React.JSX.Element => {
           testID="mapping-stats-bar"
         />
 
-        {vm.confidenceFilter !== null && (
-          <Card className={cn('mt-4', CONFIRMATION_CLASSES[vm.confidenceFilter])} testID="confirmation-card">
-            <Card.Content className="py-3 md:flex-row md:items-center md:gap-3">
-              <Checkbox
-                checked={
-                  vm.confidenceFilter === 'high' ? vm.confirmedHigh :
-                  vm.confidenceFilter === 'medium' ? vm.confirmedMedium :
-                  vm.confirmedLow
-                }
-                onCheckedChange={() => vm.handleConfirm(vm.confidenceFilter as ConfidenceLevel)}
-                label={CONFIRMATION_LABELS[vm.confidenceFilter]}
-                testID={`confirm-${vm.confidenceFilter}`}
-              />
-            </Card.Content>
-          </Card>
-        )}
+        {/* Confirmation banner */}
+        {vm.confidenceFilter !== null && (() => {
+          const level = vm.confidenceFilter;
+          const isConfirmed =
+            level === 'high' ? vm.confirmedHigh :
+            level === 'medium' ? vm.confirmedMedium :
+            vm.confirmedLow;
+          const accountCount =
+            level === 'high' ? vm.stats.highConfidence :
+            level === 'medium' ? vm.stats.mediumConfidence :
+            vm.stats.lowConfidence;
+          const iconColor = CONFIRMATION_ICON_COLORS[level];
 
+          return (
+            <Card className={cn('mt-4', CONFIRMATION_CLASSES[level])} testID="confirmation-card">
+              <Card.Content className="py-3 flex-row items-center justify-between gap-3">
+                <View className="flex-row items-center gap-3 flex-1">
+                  {isConfirmed ? (
+                    <CheckCircle2 size={20} color="#16A34A" />
+                  ) : (
+                    <AlertTriangle size={20} color={iconColor} />
+                  )}
+                  <View className="flex-1">
+                    <Text className="font-heading text-sm font-semibold text-foreground">
+                      {isConfirmed
+                        ? `${CONFIRMATION_TITLES[level]} Confirmed`
+                        : CONFIRMATION_TITLES[level]}
+                    </Text>
+                    <Text className="font-body text-xs text-muted-foreground mt-0.5">
+                      {isConfirmed
+                        ? 'You can still make edits if needed'
+                        : CONFIRMATION_DESCRIPTIONS[level](accountCount)}
+                    </Text>
+                  </View>
+                </View>
+                {isConfirmed ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onPress={() => vm.handleConfirm(level)}
+                    accessibilityLabel={`Edit and reconfirm ${level} score`}
+                    testID={`confirm-${level}`}
+                  >
+                    <View className="flex-row items-center gap-1.5">
+                      <Edit3 size={14} color={colors.foreground} />
+                      <Text className="text-xs font-medium text-foreground">Edit &amp; Reconfirm</Text>
+                    </View>
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    className={CONFIRMATION_BUTTON_CLASSES[level]}
+                    onPress={() => vm.handleConfirm(level)}
+                    accessibilityLabel={`Confirm ${level} score`}
+                    testID={`confirm-${level}`}
+                  >
+                    <Text className="text-xs font-medium text-white">
+                      Confirm {level.charAt(0).toUpperCase() + level.slice(1)} Score
+                    </Text>
+                  </Button>
+                )}
+              </Card.Content>
+            </Card>
+          );
+        })()}
+
+        {/* Validation issues */}
         {(vm.errors.length > 0 || vm.warnings.length > 0) && (
           <Card className="mt-4 border-yellow-200 bg-yellow-50" testID="validation-issues-card">
             <Card.Content className="py-3 gap-1">
@@ -137,6 +247,7 @@ export const ValidationScreen = (): React.JSX.Element => {
           </Card>
         )}
 
+        {/* Deleted accounts */}
         {vm.deletedAccounts.length > 0 && (
           <View className="mt-4">
             <Collapsible
@@ -168,32 +279,88 @@ export const ValidationScreen = (): React.JSX.Element => {
           </View>
         )}
 
-        <View className="mt-4 gap-3 lg:flex-row lg:flex-wrap">
+        {/* Account Type Mappings section title + legend */}
+        <View className="mt-6 mb-3 flex-row items-center justify-between">
+          <View className="flex-row items-center gap-2">
+            <FolderTree size={18} color={colors.primary} />
+            <Text className="font-heading text-base font-semibold text-foreground">
+              Account Type Mappings
+            </Text>
+          </View>
+          <View className="flex-row items-center gap-2">
+            <Badge variant="outline" className="bg-green-50 border-green-200">
+              <Text className="text-xs text-green-700">90%+ High</Text>
+            </Badge>
+            <Badge variant="outline" className="bg-yellow-50 border-yellow-200">
+              <Text className="text-xs text-yellow-700">70-89% Med</Text>
+            </Badge>
+            <Badge variant="outline" className="bg-red-50 border-red-200">
+              <Text className="text-xs text-red-700">&lt;70% Low</Text>
+            </Badge>
+          </View>
+        </View>
+
+        {/* Table header */}
+        <View className="flex-row rounded-t-lg bg-gray-100 border border-border px-4 py-2">
+          <View className="w-[8%]">
+            <Text className="text-xs font-semibold text-muted-foreground">Account #</Text>
+          </View>
+          <View className="w-[25%]">
+            <Text className="text-xs font-semibold text-muted-foreground">
+              Source Account ({sourceERPName})
+            </Text>
+          </View>
+          <View className="w-[5%] items-center" />
+          <View className="w-[22%]">
+            <Text className="text-xs font-semibold text-muted-foreground">
+              Target Account ({targetERPName})
+            </Text>
+          </View>
+          <View className="w-[10%] items-center">
+            <Text className="text-xs font-semibold text-muted-foreground">Score</Text>
+          </View>
+          <View className="w-[20%] items-center">
+            <Text className="text-xs font-semibold text-muted-foreground">Remark</Text>
+          </View>
+          <View className="w-[10%] items-center">
+            <Text className="text-xs font-semibold text-muted-foreground">Action</Text>
+          </View>
+        </View>
+
+        {/* Account type groups */}
+        <View className="gap-0">
           {vm.filteredMappings.map((group) => (
-            <View key={group.source_type} className="w-full lg:w-[calc(50%-6px)]">
-              <AccountTypeGroup
-                sourceType={group.source_type}
-                targetType={group.target_type}
-                confidence={group.confidence}
-                accounts={group.accounts}
-                targetTypes={vm.targetTypes}
-                onTypeChange={vm.handleTypeChange}
-                onAccountNameChange={vm.handleAccountNameChange}
-                onDeleteAccount={vm.handleDeleteAccount}
-                testID={`group-${group.source_type}`}
-              />
-            </View>
+            <AccountTypeGroup
+              key={group.source_type}
+              sourceType={group.source_type}
+              targetType={group.target_type}
+              confidence={group.confidence}
+              accounts={group.accounts}
+              targetTypes={vm.targetTypes}
+              targetAccountNames={vm.targetAccountNames}
+              onTypeChange={vm.handleTypeChange}
+              onAccountNameChange={vm.handleAccountNameChange}
+              onDeleteAccount={vm.handleDeleteAccount}
+              testID={`group-${group.source_type}`}
+            />
           ))}
         </View>
 
-        <View className="mt-6 flex-row gap-3">
-          <Button variant="outline" size="lg" onPress={vm.handleBack} accessibilityLabel="Back to mapping" className="flex-1" testID="back-button">
+        {/* Footer buttons */}
+        <View className="mt-6 flex-row items-center justify-center gap-3">
+          <Button variant="outline" onPress={vm.handleBack} accessibilityLabel="Back to mapping" testID="back-button">
             <View className="flex-row items-center gap-2">
               <ArrowLeft size={ICON_SIZE} color={colors.foreground} />
               <Text className="text-sm font-medium text-foreground">Back</Text>
             </View>
           </Button>
-          <Button size="lg" onPress={vm.handleContinue} disabled={!vm.allConfirmed} accessibilityLabel="Continue to export" className="flex-1" testID="continue-button">
+          <Button variant="outline" onPress={vm.handleContinue} accessibilityLabel="Review and save" testID="save-button">
+            <View className="flex-row items-center gap-2">
+              <Save size={ICON_SIZE} color={colors.foreground} />
+              <Text className="text-sm font-medium text-foreground">Save Mapping</Text>
+            </View>
+          </Button>
+          <Button onPress={vm.handleContinue} disabled={!vm.allConfirmed} accessibilityLabel="Continue to export" testID="continue-button">
             <View className="flex-row items-center gap-2">
               <Text className="text-sm font-medium text-primary-foreground">Continue to Export</Text>
               <ArrowRight size={ICON_SIZE} color={colors.primaryForeground} />

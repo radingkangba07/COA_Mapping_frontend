@@ -265,11 +265,11 @@ export const useMigrationStore = create<MigrationStore>()(
     confirmConfidenceLevel: (level: ConfidenceLevel): void => {
       set((state) => {
         if (level === 'high') {
-          state.confirmedHigh = true;
+          state.confirmedHigh = !state.confirmedHigh;
         } else if (level === 'medium') {
-          state.confirmedMedium = true;
+          state.confirmedMedium = !state.confirmedMedium;
         } else if (level === 'low') {
-          state.confirmedLow = true;
+          state.confirmedLow = !state.confirmedLow;
         }
       });
     },

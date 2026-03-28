@@ -35,6 +35,7 @@ export type MigrationStackParamList = {
   Upload: { projectId: string };
   Mapping: { projectId: string };
   Validation: { projectId: string };
+  FinalPreview: { projectId: string };
   Preview: { projectId: string };
 };
 
