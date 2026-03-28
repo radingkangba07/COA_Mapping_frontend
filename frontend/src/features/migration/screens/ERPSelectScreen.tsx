@@ -81,8 +81,8 @@ export const ERPSelectScreen = (): React.JSX.Element => {
           </Text>
         </View>
 
-        <Card testID="erp-selection-card">
-          <Card.Content className="flex-col lg:flex-row lg:gap-6 gap-4">
+        <Card className="overflow-visible z-10" testID="erp-selection-card">
+          <Card.Content className="flex-col lg:flex-row lg:gap-6 gap-4 overflow-visible">
             <View className="flex-1">
               <Text className="mb-2 font-body text-sm font-medium text-foreground">
                 Source ERP
