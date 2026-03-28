@@ -57,43 +57,43 @@ export const UploadedState = React.memo(function UploadedState({
   onPreview,
 }: UploadedStateProps) {
   return (
-    <View className="w-full flex-row items-center gap-3 px-1">
-      <FileSpreadsheet
-        size={24}
-        color={colors.success}
-        strokeWidth={1.5}
-      />
-      <View className="flex-1 gap-0.5">
-        <Text
-          className="font-body text-sm font-medium text-foreground"
-          numberOfLines={1}
-        >
-          {fileName}
-        </Text>
-        <Badge variant="secondary" className="self-start">
-          {`${rowCount} rows`}
-        </Badge>
-      </View>
-      <View className="flex-row items-center gap-1">
-        {onPreview && (
-          <Pressable
-            onPress={onPreview}
-            className="rounded-md p-1.5"
-            accessibilityRole="button"
-            accessibilityLabel="Preview file"
-            testID="file-preview-button"
+    <View className="w-full gap-3">
+      <View className="flex-row items-start gap-2">
+        <View className="mt-0.5">
+          <FileSpreadsheet size={20} color={colors.success} strokeWidth={2} />
+        </View>
+        <View className="flex-1">
+          <Text
+            className="font-body text-sm font-medium text-green-800"
+            numberOfLines={1}
           >
-            <Eye size={18} color={colors.mutedForeground} strokeWidth={1.5} />
-          </Pressable>
-        )}
+            {fileName}
+          </Text>
+          <Text className="font-body text-xs text-green-700 mt-0.5">
+            {`${rowCount} rows loaded`}
+          </Text>
+        </View>
+      </View>
+
+      <View className="flex-row items-center gap-3">
+        <Pressable
+          onPress={onPreview}
+          className="flex-1 flex-row items-center justify-center gap-2 rounded-lg border border-border bg-background py-2.5"
+          accessibilityRole="button"
+          accessibilityLabel="Preview file"
+          testID="file-preview-button"
+        >
+          <Eye size={16} color={colors.foreground} strokeWidth={1.5} />
+          <Text className="font-body text-sm font-medium text-foreground">Preview</Text>
+        </Pressable>
         <Pressable
           onPress={onRemove}
-          className="rounded-md p-1.5"
+          className="p-1"
           accessibilityRole="button"
           accessibilityLabel="Remove file"
           testID="file-remove-button"
         >
-          <X size={18} color={colors.destructive} strokeWidth={1.5} />
+          <X size={20} color={colors.destructive} strokeWidth={1.5} />
         </Pressable>
       </View>
     </View>

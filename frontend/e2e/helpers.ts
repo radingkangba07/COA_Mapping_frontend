@@ -28,6 +28,13 @@ export const SELECTORS = {
   migrationStepper: '[data-testid="migration-stepper"]',
   sourceErpCombobox: '[data-testid="source-erp-combobox"]',
   targetErpCombobox: '[data-testid="target-erp-combobox"]',
+  uploadScreenTitle: '[data-testid="upload-screen-title"]',
+  erpSummaryBanner: '[data-testid="upload-erp-summary"]',
+  sampleFilesTable: '[data-testid="sample-files-table"]',
+  projectInfoPanel: '[data-testid="project-info-panel"]',
+  breadcrumbDashboard: '[data-testid="breadcrumb-dashboard"]',
+  loadAllBtn: '[data-testid="sample-load-all"]',
+  sampleFileRow: '[data-testid^="sample-file-row-"]',
 } as const;
 
 /**

@@ -1,19 +1,37 @@
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text } from 'react-native';
-import { ArrowRight, Trash2, UserPen } from 'lucide-react-native';
-import { Collapsible } from '@/shared/components/ui/Collapsible';
+import React, { memo, useCallback, useMemo, useState } from 'react';
+import { View, Text, Pressable } from 'react-native';
+import { ArrowRight, ChevronDown, ChevronRight, Edit3, FolderTree, Trash2, X } from 'lucide-react-native';
 import { Select, type SelectOption } from '@/shared/components/ui/Select';
-import { Input } from '@/shared/components/ui/Input';
 import { Button } from '@/shared/components/ui/Button';
 import { Badge } from '@/shared/components/ui/Badge';
-import { FuzzyMatchBadge } from '@/features/migration/components/FuzzyMatchBadge/FuzzyMatchBadge';
-import { EmptyState } from '@/shared/components/feedback/EmptyState';
-import { useDebounce } from '@/shared/hooks/useDebounce';
 import { colors } from '@/config/theme';
+import { cn } from '@/shared/utils/string.utils';
 import type { AccountMapping } from '@/features/migration/types/mapping.types';
 
-const DEBOUNCE_MS = 300;
-const ICON_SIZE = 16;
+// ─── Score & Remark Helpers ─────────────────────────────────────────────────
+
+function getScoreColor(score: number): string {
+  if (score >= 90) return 'text-green-600 bg-green-100';
+  if (score >= 70) return 'text-yellow-600 bg-yellow-100';
+  if (score >= 50) return 'text-orange-600 bg-orange-100';
+  return 'text-red-600 bg-red-100';
+}
+
+function getRemarkText(account: AccountMapping): string {
+  if (account.user_changed === true) {
+    return account.changed_by_name ? `Changed by ${account.changed_by_name}` : 'User Changed';
+  }
+  if (account.score >= 70) return 'AI Suggestion';
+  return 'Account Name Mapping';
+}
+
+function getRemarkColor(account: AccountMapping): string {
+  if (account.user_changed === true) return 'text-purple-600 bg-purple-100';
+  if (account.score >= 70) return 'text-blue-600 bg-blue-100';
+  return 'text-gray-600 bg-gray-100';
+}
+
+// ─── Props ──────────────────────────────────────────────────────────────────
 
 interface AccountTypeGroupProps {
   sourceType: string;
@@ -21,16 +39,22 @@ interface AccountTypeGroupProps {
   confidence: number;
   accounts: readonly AccountMapping[];
   targetTypes: readonly string[];
+  targetAccountNames: readonly string[];
   onTypeChange: (sourceType: string, newTargetType: string) => void;
   onAccountNameChange: (sourceType: string, accountIndex: number, newName: string) => void;
   onDeleteAccount: (sourceType: string, accountIndex: number, account: AccountMapping) => void;
   testID?: string;
 }
 
+// ─── Account Row ────────────────────────────────────────────────────────────
+
 interface AccountRowProps {
   account: AccountMapping;
   index: number;
   sourceType: string;
+  isEditing: boolean;
+  targetAccountOptions: readonly SelectOption[];
+  onEditClick: (index: number) => void;
   onNameChange: (sourceType: string, accountIndex: number, newName: string) => void;
   onDelete: (sourceType: string, accountIndex: number, account: AccountMapping) => void;
   testID?: string;
@@ -40,73 +64,139 @@ const AccountRow = memo(({
   account,
   index,
   sourceType,
+  isEditing,
+  targetAccountOptions,
+  onEditClick,
   onNameChange,
   onDelete,
   testID,
 }: AccountRowProps) => {
-  const [localName, setLocalName] = useState(account.target_name);
-  const debouncedName = useDebounce(localName, DEBOUNCE_MS);
-  const isInitialMount = useRef(true);
+  const handleSelectChange = useCallback(
+    (value: string) => {
+      onNameChange(sourceType, index, value === 'unmatched' ? '' : value);
+      onEditClick(index); // close editing
+    },
+    [onNameChange, onEditClick, sourceType, index],
+  );
 
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    if (debouncedName !== account.target_name) {
-      onNameChange(sourceType, index, debouncedName);
-    }
-  }, [debouncedName, sourceType, index, onNameChange, account.target_name]);
-
-  useEffect(() => {
-    setLocalName(account.target_name);
-  }, [account.target_name]);
+  const handleEdit = useCallback(() => {
+    onEditClick(index);
+  }, [onEditClick, index]);
 
   const handleDelete = useCallback(() => {
     onDelete(sourceType, index, account);
   }, [onDelete, sourceType, index, account]);
 
+  const score = Math.round(account.score);
+  const scoreColor = getScoreColor(account.score);
+  const remarkText = getRemarkText(account);
+  const remarkColor = getRemarkColor(account);
+
   return (
-    <View className="gap-1.5 border-b border-border/50 py-3 last:border-b-0" testID={testID}>
-      <View className="flex-col gap-2 md:flex-row md:items-center">
-        <View className="flex-row items-center gap-2 md:flex-1">
-          <Text className="font-mono text-xs text-muted-foreground">{account.source_number}</Text>
-          <Text className="flex-1 text-sm text-foreground" numberOfLines={1}>
-            {account.source_name}
-          </Text>
-        </View>
-        <ArrowRight size={ICON_SIZE} color={colors.mutedForeground} />
-        <View className="flex-row items-center gap-2 md:flex-1">
-          <View className="flex-1">
-            <Input
-              value={localName}
-              onChangeText={setLocalName}
-              inputClassName="h-8 text-xs"
-              testID={testID !== undefined ? `${testID}-input` : undefined}
-            />
-          </View>
-          <FuzzyMatchBadge score={account.score} size="sm" showLabel={false} />
-          <Button variant="ghost" size="icon" onPress={handleDelete} accessibilityLabel="Delete account" className="h-8 w-8">
-            <Trash2 size={ICON_SIZE} color={colors.destructive} />
-          </Button>
-        </View>
+    <View
+      className="flex-row items-center py-2 px-4 hover:bg-white"
+      testID={testID}
+    >
+      {/* Account # */}
+      <View className="w-[8%]">
+        <Text className="font-mono text-xs text-gray-500">
+          {account.source_number || '-'}
+        </Text>
       </View>
-      {account.remark.length > 0 && (
-        <Text className="pl-1 text-xs text-muted-foreground">{account.remark}</Text>
-      )}
-      {account.user_changed === true && (
-        <View className="flex-row items-center gap-1 pl-1">
-          <UserPen size={12} color={colors.mutedForeground} />
-          <Text className="text-xs text-muted-foreground">
-            Edited by {account.changed_by_name ?? 'Unknown'}
+
+      {/* Source Account */}
+      <View className="w-[25%]">
+        <Text className="text-sm text-foreground" numberOfLines={1}>
+          {account.source_name}
+        </Text>
+      </View>
+
+      {/* Arrow */}
+      <View className="w-[5%] items-center">
+        <ArrowRight size={18} color="#374151" strokeWidth={2.5} />
+      </View>
+
+      {/* Target Account */}
+      <View className="w-[22%]">
+        {isEditing ? (
+          <Select
+            options={[...targetAccountOptions]}
+            value={account.target_name || 'unmatched'}
+            onValueChange={handleSelectChange}
+            placeholder="Select target account"
+            testID={testID !== undefined ? `${testID}-select` : undefined}
+          />
+        ) : (
+          <Text
+            className={cn(
+              'text-sm',
+              account.target_name ? 'text-gray-900' : 'text-gray-400 italic',
+            )}
+            numberOfLines={1}
+          >
+            {account.target_name || 'Not mapped'}
           </Text>
-        </View>
-      )}
+        )}
+      </View>
+
+      {/* Score */}
+      <View className="w-[10%] items-center">
+        <Badge className={cn(scoreColor, 'px-1.5 py-0.5')}>
+          <Text className={cn('text-xs font-mono font-medium', scoreColor)}>
+            {score}%
+          </Text>
+        </Badge>
+      </View>
+
+      {/* Remark */}
+      <View className="w-[20%] items-center">
+        <Badge variant="outline" className={cn('px-1.5 py-0.5', remarkColor)}>
+          <Text className={cn('text-xs', remarkColor)}>
+            {remarkText}
+          </Text>
+        </Badge>
+      </View>
+
+      {/* Action */}
+      <View className="w-[10%] flex-row items-center justify-center gap-1">
+        <Button
+          size="sm"
+          variant={isEditing ? 'default' : 'outline'}
+          onPress={handleEdit}
+          className="h-7 px-2"
+          accessibilityLabel={isEditing ? 'Cancel editing' : 'Edit target account'}
+        >
+          <View className="flex-row items-center gap-1">
+            {isEditing ? (
+              <>
+                <X size={12} color={colors.primaryForeground} />
+                <Text className="text-xs font-medium text-primary-foreground">Cancel</Text>
+              </>
+            ) : (
+              <>
+                <Edit3 size={12} color={colors.foreground} />
+                <Text className="text-xs font-medium text-foreground">Edit</Text>
+              </>
+            )}
+          </View>
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onPress={handleDelete}
+          className="h-7 px-2 border-red-200"
+          accessibilityLabel="Delete account"
+        >
+          <Trash2 size={12} color={colors.destructive} />
+        </Button>
+      </View>
     </View>
   );
 });
 
 AccountRow.displayName = 'AccountRow';
+
+// ─── Account Type Group ─────────────────────────────────────────────────────
 
 export const AccountTypeGroup = ({
   sourceType,
@@ -114,77 +204,112 @@ export const AccountTypeGroup = ({
   confidence,
   accounts,
   targetTypes,
+  targetAccountNames,
   onTypeChange,
   onAccountNameChange,
   onDeleteAccount,
   testID,
 }: AccountTypeGroupProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
+  const [editingRow, setEditingRow] = useState<number | null>(null);
 
   const handleToggle = useCallback(() => {
     setIsOpen((prev) => !prev);
   }, []);
 
-  const handleTypeChange = useCallback(
-    (newType: string) => {
-      onTypeChange(sourceType, newType);
-    },
-    [onTypeChange, sourceType],
+  const handleEditClick = useCallback((idx: number) => {
+    setEditingRow((prev) => (prev === idx ? null : idx));
+  }, []);
+
+  const targetAccountOptions = useMemo<SelectOption[]>(
+    () => [
+      { label: '-- Select Account --', value: 'unmatched' },
+      ...targetAccountNames.map((n) => ({ label: n, value: n })),
+    ],
+    [targetAccountNames],
   );
 
-  const selectOptions = useMemo<SelectOption[]>(
-    () => targetTypes.map((t) => ({ label: t, value: t })),
-    [targetTypes],
-  );
-
-  const headerContent = (
-    <View className="flex-row flex-wrap items-center gap-2">
-      <Text className="font-heading text-sm font-bold text-card-foreground">{sourceType}</Text>
-      <ArrowRight size={ICON_SIZE} color={colors.mutedForeground} />
-      <View className="min-w-[140px]">
-        <Select
-          options={selectOptions}
-          value={targetType}
-          onValueChange={handleTypeChange}
-          testID={testID !== undefined ? `${testID}-type-select` : undefined}
-        />
-      </View>
-      <FuzzyMatchBadge score={confidence} size="sm" />
-      <Badge variant="secondary">
-        <Text className="text-xs font-medium text-secondary-foreground">
-          {accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}
-        </Text>
-      </Badge>
-    </View>
-  );
+  const isMapped = targetType.length > 0 && targetType !== 'unmatched';
 
   return (
-    <Collapsible
-      isOpen={isOpen}
-      onToggle={handleToggle}
-      title={headerContent}
-      testID={testID}
-    >
-      {accounts.length === 0 ? (
-        <EmptyState
-          title="No mappings"
-          description="No accounts mapped to this type group yet"
-          testID={testID !== undefined ? `${testID}-empty` : 'account-group-empty'}
-          className="py-6"
-        />
-      ) : (
-        accounts.map((account, index) => (
-          <AccountRow
-            key={`${account.source_number}-${account.source_name}`}
-            account={account}
-            index={index}
-            sourceType={sourceType}
-            onNameChange={onAccountNameChange}
-            onDelete={onDeleteAccount}
-            testID={testID !== undefined ? `${testID}-row-${index}` : undefined}
-          />
-        ))
+    <View className="mt-2" testID={testID}>
+      {/* Group header row — card with border */}
+      <Pressable
+        onPress={handleToggle}
+        className="flex-row items-center rounded-lg border border-border bg-white px-4 py-3 hover:bg-gray-50"
+        accessibilityRole="button"
+        accessibilityLabel={`${sourceType} group, ${accounts.length} accounts`}
+      >
+        {/* Left side: chevron + folder + source type + count (spans Account # + Source Account columns) */}
+        <View className="flex-row items-center gap-2 w-[33%]">
+          {isOpen ? (
+            <ChevronDown size={16} color="#6B7280" />
+          ) : (
+            <ChevronRight size={16} color="#6B7280" />
+          )}
+          <FolderTree size={16} color="#2563EB" />
+          <Text className="font-heading text-sm font-semibold text-gray-900">
+            {sourceType}
+          </Text>
+          <Badge variant="outline" className="px-1.5 py-0.5">
+            <Text className="text-xs text-muted-foreground">
+              {accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}
+            </Text>
+          </Badge>
+        </View>
+
+        {/* Middle: blank (Arrow + Target Account + Score + Remark columns) */}
+        <View className="w-[57%]" />
+
+        {/* Right side: target type badge + Mapped/Unmapped badge (Action column) */}
+        <View className="w-[10%] flex-row items-center justify-end gap-2">
+          {isMapped ? (
+            <Badge className="bg-blue-100 px-2 py-0.5">
+              <Text className="text-xs font-medium text-blue-800">{targetType}</Text>
+            </Badge>
+          ) : (
+            <Text className="text-xs text-gray-400 italic">Not mapped</Text>
+          )}
+          <Badge
+            variant="outline"
+            className={cn(
+              'px-2 py-0.5',
+              isMapped
+                ? 'bg-green-100 border-green-200'
+                : 'bg-red-100 border-red-200',
+            )}
+          >
+            <Text
+              className={cn(
+                'text-xs font-medium',
+                isMapped ? 'text-green-800' : 'text-red-600',
+              )}
+            >
+              {isMapped ? 'Mapped' : 'Unmapped'}
+            </Text>
+          </Badge>
+        </View>
+      </Pressable>
+
+      {/* Expanded account rows */}
+      {isOpen && accounts.length > 0 && (
+        <View>
+          {accounts.map((account, index) => (
+            <AccountRow
+              key={`${account.source_number}-${account.source_name}`}
+              account={account}
+              index={index}
+              sourceType={sourceType}
+              isEditing={editingRow === index}
+              targetAccountOptions={targetAccountOptions}
+              onEditClick={handleEditClick}
+              onNameChange={onAccountNameChange}
+              onDelete={onDeleteAccount}
+              testID={testID !== undefined ? `${testID}-row-${index}` : undefined}
+            />
+          ))}
+        </View>
       )}
-    </Collapsible>
+    </View>
   );
 };
