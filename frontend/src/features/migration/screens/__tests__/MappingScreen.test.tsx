@@ -5,15 +5,19 @@ import { render, screen, fireEvent } from '@testing-library/react-native';
 jest.mock('lucide-react-native', () => {
   const RN = require('react-native');
   const R = require('react');
-  const icon = (name: string) => (props: Record<string, unknown>) =>
-    R.createElement(RN.View, { testID: `${name}-icon`, ...props });
-  return {
-    CheckCircle2: icon('CheckCircle2'),
-    AlertTriangle: icon('AlertTriangle'),
-    ArrowLeft: icon('ArrowLeft'),
-    ArrowRight: icon('ArrowRight'),
-    __esModule: true,
+  const icon = (name: string) => {
+    const Icon = (props: Record<string, unknown>) =>
+      R.createElement(RN.View, { testID: `${name}-icon`, ...props });
+    Icon.displayName = name;
+    return Icon;
   };
+  return new Proxy(
+    { __esModule: true },
+    {
+      get: (target: Record<string, unknown>, prop: string) =>
+        prop in target ? target[prop] : icon(prop),
+    },
+  );
 });
 
 // ─── Platform mocks ─────────────────────────────────────────────────────────
@@ -55,10 +59,12 @@ const mockStoreState = {
   completeStep: jest.fn(),
 };
 
-jest.mock('../../store/migration.store', () => ({
-  useMigrationStore: (selector: (state: typeof mockStoreState) => unknown) =>
-    typeof selector === 'function' ? selector(mockStoreState) : mockStoreState,
-}));
+jest.mock('../../store/migration.store', () => {
+  const hook = (selector: (state: typeof mockStoreState) => unknown) =>
+    typeof selector === 'function' ? selector(mockStoreState) : mockStoreState;
+  hook.getState = () => mockStoreState;
+  return { useMigrationStore: hook };
+});
 
 let mockAllMatched = true;
 jest.mock('../../store/migration.selectors', () => ({
@@ -130,14 +136,14 @@ describe('MappingScreen', () => {
     expect(screen.getByTestId('mapping-screen')).toBeTruthy();
   });
 
-  it('shows "Type Mapping" heading', () => {
+  it('shows "Review Account Type Mapping" heading', () => {
     render(<MappingScreen />);
-    expect(screen.getByText('Type Mapping')).toBeTruthy();
+    expect(screen.getByText('Review Account Type Mapping')).toBeTruthy();
   });
 
-  it('renders FieldMappingTable', () => {
+  it('renders account type mapping card', () => {
     render(<MappingScreen />);
-    expect(screen.getByTestId('mapping-field-table')).toBeTruthy();
+    expect(screen.getByTestId('account-type-mapping-card')).toBeTruthy();
   });
 
   it('renders Proceed button disabled when not all types matched', () => {
@@ -154,9 +160,9 @@ describe('MappingScreen', () => {
     expect(button.props.accessibilityState?.disabled).not.toBe(true);
   });
 
-  it('shows mapping summary card', () => {
+  it('shows mapping preview card', () => {
     render(<MappingScreen />);
-    expect(screen.getByTestId('mapping-summary-card')).toBeTruthy();
+    expect(screen.getByTestId('mapping-preview-card')).toBeTruthy();
   });
 
   it('shows skeleton when loading and no rows', () => {
@@ -166,10 +172,11 @@ describe('MappingScreen', () => {
     expect(screen.getByTestId('mapping-skeleton')).toBeTruthy();
   });
 
-  it('calls runMapping when Proceed button is pressed', () => {
+  it('calls runMapping when Proceed button is pressed', async () => {
+    mockRunMapping.mockResolvedValue(undefined);
     render(<MappingScreen />);
     const button = screen.getByTestId('mapping-proceed-button');
-    fireEvent.press(button);
+    await fireEvent.press(button);
     expect(mockRunMapping).toHaveBeenCalled();
   });
 });
