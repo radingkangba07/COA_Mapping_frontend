@@ -1,0 +1,65 @@
+Account Number,Account Name,Account Type,Parent Account,Currency,Cost Center,Profit Center,Company Code
+1000,Cash and Cash Equivalents,Asset,,USD,CC001,PC001,1000
+1010,Petty Cash,Asset,1000,USD,CC001,PC001,1000
+1020,Bank - Current Account,Asset,1000,USD,CC002,PC001,1000
+1030,Bank - Savings Account,Asset,1000,USD,CC002,PC001,1000
+1100,Accounts Receivable - Trade,Asset,,USD,CC003,PC002,1000
+1110,Accounts Receivable - Intercompany,Asset,1100,USD,CC003,PC002,1000
+1200,Inventory - Raw Materials,Asset,,USD,CC004,PC003,1000
+1210,Inventory - Finished Goods,Asset,1200,USD,CC004,PC003,1000
+1300,Prepaid Expenses,Asset,,USD,CC005,PC001,1000
+1310,Prepaid Insurance,Asset,1300,USD,CC005,PC001,1000
+1400,Fixed Assets - Land,Asset,,USD,CC006,PC004,1000
+1410,Fixed Assets - Buildings,Asset,1400,USD,CC006,PC004,1000
+1420,Fixed Assets - Machinery,Asset,1400,USD,CC006,PC004,1000
+1430,Fixed Assets - Vehicles,Asset,1400,USD,CC006,PC004,1000
+1440,Fixed Assets - Office Equipment,Asset,1400,USD,CC006,PC004,1000
+1500,Accumulated Depreciation - Buildings,Asset,1410,USD,CC006,PC004,1000
+1510,Accumulated Depreciation - Machinery,Asset,1420,USD,CC006,PC004,1000
+1520,Accumulated Depreciation - Vehicles,Asset,1430,USD,CC006,PC004,1000
+2000,Accounts Payable - Trade,Liability,,USD,CC007,PC005,1000
+2010,Accounts Payable - Intercompany,Liability,2000,USD,CC007,PC005,1000
+2100,Accrued Liabilities,Liability,,USD,CC008,PC005,1000
+2110,Accrued Salaries and Wages,Liability,2100,USD,CC008,PC005,1000
+2120,Accrued Interest Payable,Liability,2100,USD,CC008,PC005,1000
+2200,Short-Term Loans Payable,Liability,,USD,CC009,PC006,1000
+2300,VAT Payable,Liability,,USD,CC010,PC005,1000
+2310,Income Tax Payable,Liability,,USD,CC010,PC005,1000
+2400,Long-Term Loans Payable,Liability,,USD,CC009,PC006,1000
+2410,Mortgage Payable,Liability,2400,USD,CC009,PC006,1000
+2500,Deferred Revenue,Liability,,USD,CC011,PC005,1000
+3000,Share Capital,Equity,,USD,,PC007,1000
+3010,Additional Paid-in Capital,Equity,3000,USD,,PC007,1000
+3100,Retained Earnings,Equity,,USD,,PC007,1000
+3200,Current Year Earnings,Equity,,USD,,PC007,1000
+3300,Treasury Stock,Equity,,USD,,PC007,1000
+3400,Other Comprehensive Income,Equity,,USD,,PC007,1000
+4000,Sales Revenue - Domestic,Revenue,,USD,CC012,PC008,1000
+4010,Sales Revenue - Export,Revenue,4000,USD,CC012,PC008,1000
+4100,Service Revenue,Revenue,,USD,CC013,PC008,1000
+4200,Interest Income,Revenue,,USD,CC014,PC009,1000
+4300,Rental Income,Revenue,,USD,CC015,PC009,1000
+4400,Gain on Sale of Assets,Revenue,,USD,CC016,PC009,1000
+4500,Foreign Exchange Gains,Revenue,,USD,CC017,PC009,1000
+5000,Cost of Goods Sold,Expense,,USD,CC018,PC010,1000
+5010,Direct Materials,Expense,5000,USD,CC018,PC010,1000
+5020,Direct Labor,Expense,5000,USD,CC018,PC010,1000
+5030,Manufacturing Overhead,Expense,5000,USD,CC018,PC010,1000
+5100,Freight and Shipping Costs,Expense,,USD,CC019,PC010,1000
+6000,Salaries and Wages,Expense,,USD,CC020,PC011,1000
+6010,Employee Benefits,Expense,6000,USD,CC020,PC011,1000
+6020,Payroll Taxes,Expense,6000,USD,CC020,PC011,1000
+6100,Rent Expense,Expense,,USD,CC021,PC011,1000
+6110,Utilities Expense,Expense,,USD,CC021,PC011,1000
+6120,Insurance Expense,Expense,,USD,CC022,PC011,1000
+6200,Office Supplies,Expense,,USD,CC023,PC011,1000
+6210,Telephone and Internet,Expense,,USD,CC023,PC011,1000
+6300,Travel and Entertainment,Expense,,USD,CC024,PC011,1000
+6400,Professional Fees,Expense,,USD,CC025,PC011,1000
+6410,Legal Fees,Expense,6400,USD,CC025,PC011,1000
+6420,Audit Fees,Expense,6400,USD,CC025,PC011,1000
+6500,Depreciation Expense,Expense,,USD,CC026,PC011,1000
+6600,Bad Debt Expense,Expense,,USD,CC027,PC011,1000
+6700,Interest Expense,Expense,,USD,CC028,PC012,1000
+6800,Foreign Exchange Losses,Expense,,USD,CC029,PC012,1000
+6900,Miscellaneous Expense,Expense,,USD,CC030,PC011,1000

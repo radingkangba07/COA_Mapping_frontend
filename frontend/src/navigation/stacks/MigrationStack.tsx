@@ -7,6 +7,7 @@ import { ERPSelectScreen } from '@/features/migration/screens/ERPSelectScreen';
 import { UploadScreen } from '@/features/migration/screens/UploadScreen';
 import { MappingScreen } from '@/features/migration/screens/MappingScreen';
 import { ValidationScreen } from '@/features/migration/screens/ValidationScreen';
+import { FinalPreviewScreen } from '@/features/migration/screens/FinalPreviewScreen';
 import { PreviewScreen } from '@/features/migration/screens/PreviewScreen';
 import type { MigrationStackParamList } from '../types';
 
@@ -49,6 +50,11 @@ export const MigrationStack = (): React.JSX.Element => {
           name="Validation"
           component={ValidationScreen}
           options={{ title: 'Validation' }}
+        />
+        <Stack.Screen
+          name="FinalPreview"
+          component={FinalPreviewScreen}
+          options={{ title: 'Final Preview' }}
         />
         <Stack.Screen
           name="Preview"

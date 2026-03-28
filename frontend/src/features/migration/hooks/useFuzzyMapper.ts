@@ -5,6 +5,7 @@ import {
   getHierarchicalMapping,
   buildCustomTypeMappings,
   applyCustomTypeMappings,
+  normalizeGroupedMappings,
 } from '../services/mapping.service';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { useToast } from '@/shared/hooks/useToast';
@@ -65,8 +66,9 @@ export function useFuzzyMapper(): UseFuzzyMapperReturn {
       }
 
       const response = result.data;
+      const normalized = normalizeGroupedMappings(response.grouped_mappings);
       const finalMappings = applyCustomTypeMappings(
-        response.grouped_mappings,
+        normalized,
         customTypeMappings,
       );
 
