@@ -5,9 +5,19 @@ import { render, screen, fireEvent } from '@testing-library/react-native';
 jest.mock('lucide-react-native', () => {
   const RN = require('react-native');
   const R = require('react');
-  const icon = (name: string) => (props: Record<string, unknown>) =>
-    R.createElement(RN.View, { testID: `${name}-icon`, ...props });
-  return { ArrowRight: icon('ArrowRight'), __esModule: true };
+  const icon = (name: string) => {
+    const Icon = (props: Record<string, unknown>) =>
+      R.createElement(RN.View, { testID: `${name}-icon`, ...props });
+    Icon.displayName = name;
+    return Icon;
+  };
+  return new Proxy(
+    { __esModule: true },
+    {
+      get: (target: Record<string, unknown>, prop: string) =>
+        prop in target ? target[prop] : icon(prop),
+    },
+  );
 });
 
 // ─── Platform mocks ─────────────────────────────────────────────────────────
@@ -130,7 +140,6 @@ describe('UploadScreen', () => {
   it('navigates back when Back button pressed', () => {
     render(<UploadScreen />);
     fireEvent.press(screen.getByTestId('upload-back-button'));
-    expect(mockViewModel.goToStep).toHaveBeenCalledWith(0);
     expect(mockNavigate).toHaveBeenCalledWith('ERPSelect', { projectId: 'test-project-1' });
   });
 

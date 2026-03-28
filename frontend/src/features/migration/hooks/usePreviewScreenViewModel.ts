@@ -26,7 +26,7 @@ export function usePreviewScreenViewModel(
 ): PreviewScreenViewModel {
   const currentStep = useMigrationStore(selectCurrentStep);
   const completedSteps = useMigrationStore((s) => s.completedSteps);
-  const stats = useMigrationStore(selectMappingStats);
+  const stats = useMigrationStore(useShallow(selectMappingStats));
   const groupedMappings = useMigrationStore((s) => s.groupedMappings);
   const storeProjectId = useMigrationStore((s) => s.projectId);
 

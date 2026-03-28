@@ -1,0 +1,76 @@
+Account Number,Account Name,Type,Subaccount Of,Currency,Department,Class,Location
+1000,Checking Account,Bank,,USD,General,,Head Office
+1001,Savings Account,Bank,1000,USD,General,,Head Office
+1002,Petty Cash Fund,Bank,,USD,General,,Head Office
+1100,Trade Receivables,Accounts Receivable,,USD,Sales,,Head Office
+1101,Intercompany Receivables,Accounts Receivable,1100,USD,Sales,,Head Office
+1102,Employee Advances,Accounts Receivable,,USD,HR,,Head Office
+1200,Prepaid Expenses,Other Current Asset,,USD,General,,Head Office
+1201,Prepaid Insurance,Other Current Asset,1200,USD,General,,Head Office
+1202,Security Deposits,Other Current Asset,,USD,General,,Head Office
+1203,Inventory - Raw Materials,Other Current Asset,,USD,Operations,,Warehouse
+1204,Inventory - Finished Goods,Other Current Asset,1203,USD,Operations,,Warehouse
+1205,Short-Term Investments,Other Current Asset,,USD,Finance,,Head Office
+1300,Land,Fixed Asset,,USD,General,,Head Office
+1301,Buildings,Fixed Asset,1300,USD,General,,Head Office
+1302,Machinery and Equipment,Fixed Asset,,USD,Operations,,Factory
+1303,Motor Vehicles,Fixed Asset,,USD,Operations,,Head Office
+1304,Office Equipment,Fixed Asset,,USD,General,,Head Office
+1305,Computer Equipment,Fixed Asset,,USD,IT,,Head Office
+1306,Furniture and Fixtures,Fixed Asset,,USD,General,,Head Office
+1400,Accumulated Depreciation - Buildings,Other Asset,,USD,General,,Head Office
+1401,Accumulated Depreciation - Equipment,Other Asset,,USD,Operations,,Factory
+1402,Accumulated Depreciation - Vehicles,Other Asset,,USD,Operations,,Head Office
+1403,Goodwill,Other Asset,,USD,General,,Head Office
+1404,Intangible Assets,Other Asset,,USD,General,,Head Office
+2000,Trade Payables,Accounts Payable,,USD,General,,Head Office
+2001,Intercompany Payables,Accounts Payable,2000,USD,General,,Head Office
+2002,Employee Reimbursements,Accounts Payable,,USD,HR,,Head Office
+2100,Corporate Credit Card,Credit Card,,USD,Finance,,Head Office
+2200,Accrued Expenses,Other Current Liability,,USD,General,,Head Office
+2201,Accrued Salaries,Other Current Liability,2200,USD,HR,,Head Office
+2202,Accrued Interest,Other Current Liability,2200,USD,Finance,,Head Office
+2203,VAT Payable,Other Current Liability,,USD,Finance,,Head Office
+2204,Income Tax Payable,Other Current Liability,,USD,Finance,,Head Office
+2205,Short-Term Loans,Other Current Liability,,USD,Finance,,Head Office
+2206,Deferred Revenue,Other Current Liability,,USD,Sales,,Head Office
+2300,Long-Term Bank Loans,Long Term Liability,,USD,Finance,,Head Office
+2301,Mortgage Payable,Long Term Liability,2300,USD,Finance,,Head Office
+2302,Lease Obligations,Long Term Liability,,USD,Finance,,Head Office
+3000,Share Capital,Equity,,USD,,,Head Office
+3001,Additional Paid-in Capital,Equity,3000,USD,,,Head Office
+3100,Retained Earnings,Equity,,USD,,,Head Office
+3200,Current Year Net Income,Equity,,USD,,,Head Office
+3300,Treasury Stock,Equity,,USD,,,Head Office
+3400,Other Comprehensive Income,Equity,,USD,,,Head Office
+4000,Product Sales - Domestic,Income,,USD,Sales,,Head Office
+4001,Product Sales - Export,Income,4000,USD,Sales,,Head Office
+4100,Service Revenue,Income,,USD,Sales,,Head Office
+4200,Interest Income,Other Income,,USD,Finance,,Head Office
+4201,Rental Income,Other Income,,USD,General,,Head Office
+4202,Gain on Sale of Assets,Other Income,,USD,General,,Head Office
+4203,Foreign Exchange Gains,Other Income,,USD,Finance,,Head Office
+5000,Cost of Goods Sold,Cost of Goods Sold,,USD,Operations,,Warehouse
+5001,Direct Materials Cost,Cost of Goods Sold,5000,USD,Operations,,Warehouse
+5002,Direct Labor Cost,Cost of Goods Sold,5000,USD,Operations,,Factory
+5003,Manufacturing Overhead,Cost of Goods Sold,5000,USD,Operations,,Factory
+5004,Freight and Shipping,Cost of Goods Sold,,USD,Operations,,Warehouse
+6000,Salaries and Wages,Expense,,USD,HR,,Head Office
+6001,Employee Benefits,Expense,6000,USD,HR,,Head Office
+6002,Payroll Taxes,Expense,6000,USD,HR,,Head Office
+6100,Rent Expense,Expense,,USD,General,,Head Office
+6101,Utilities,Expense,,USD,General,,Head Office
+6102,Insurance,Expense,,USD,General,,Head Office
+6200,Office Supplies,Expense,,USD,General,,Head Office
+6201,Telephone and Internet,Expense,,USD,IT,,Head Office
+6300,Travel Expense,Expense,,USD,General,,Head Office
+6301,Entertainment Expense,Expense,,USD,General,,Head Office
+6400,Legal Fees,Expense,,USD,General,,Head Office
+6401,Accounting and Audit Fees,Expense,,USD,Finance,,Head Office
+6402,Consulting Fees,Expense,,USD,General,,Head Office
+6500,Depreciation Expense,Expense,,USD,General,,Head Office
+6600,Bad Debt Expense,Expense,,USD,Finance,,Head Office
+6700,Interest Expense,Other Expense,,USD,Finance,,Head Office
+6701,Bank Charges,Other Expense,,USD,Finance,,Head Office
+6702,Foreign Exchange Losses,Other Expense,,USD,Finance,,Head Office
+6800,Miscellaneous Expense,Other Expense,,USD,General,,Head Office

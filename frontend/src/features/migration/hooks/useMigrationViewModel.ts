@@ -8,10 +8,11 @@ import {
 } from '../store/migration.selectors';
 import {
   handleFileUpload,
-  extractTargetTypes,
+  extractAccountTypes,
   buildTypeMappingRows,
   triggerBlobDownload,
 } from '../services/file-processing.service';
+import { matchTypesToTargets } from '../services/fuzzy.service';
 import { downloadSampleData } from '@/features/erp-config/services/erp-config.service';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { useToast } from '@/shared/hooks/useToast';
@@ -56,6 +57,7 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
   const mappingFile = useMigrationStore((s) => s.mappingFile);
   const isLoading = useMigrationStore((s) => s.isLoading);
   const error = useMigrationStore((s) => s.error);
+  const sourceData = useMigrationStore((s) => s.sourceData);
   const targetData = useMigrationStore((s) => s.targetData);
   const mappingData = useMigrationStore((s) => s.mappingData);
 
@@ -151,18 +153,29 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
     }
     actions.setLoading(true);
     try {
-      if (targetData.length > 0) {
-        actions.setTargetTypes(extractTargetTypes(targetData));
+      const extractedTargetTypes = targetData.length > 0
+        ? extractAccountTypes(targetData)
+        : [];
+      if (extractedTargetTypes.length > 0) {
+        actions.setTargetTypes(extractedTargetTypes);
       }
+
       if (mappingData.length > 0) {
         actions.setTypeMappingRows(buildTypeMappingRows(mappingData));
+      } else {
+        const sourceTypes = extractAccountTypes(sourceData);
+        if (sourceTypes.length > 0) {
+          const rows = matchTypesToTargets(sourceTypes, extractedTargetTypes);
+          actions.setTypeMappingRows(rows);
+        }
       }
+
       actions.completeStep(1);
       actions.setStep(2);
     } finally {
       actions.setLoading(false);
     }
-  }, [sourceFile, targetData, mappingData, actions, showError]);
+  }, [sourceFile, sourceData, targetData, mappingData, actions, showError]);
 
   const handleDownloadSample = useCallback(
     async (erpId: string): Promise<void> => {

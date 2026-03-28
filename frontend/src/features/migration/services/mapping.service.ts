@@ -45,6 +45,31 @@ export function applyCustomTypeMappings(
   });
 }
 
+/**
+ * Normalize API account data: map `name_confidence` → `score`, default missing fields.
+ */
+export function normalizeGroupedMappings(
+  groups: readonly GroupedMapping[],
+): GroupedMapping[] {
+  return groups.map((group) => ({
+    ...group,
+    accounts: group.accounts.map((account) => {
+      const raw = account as unknown as Record<string, unknown>;
+      const score =
+        typeof account.score === 'number' && !Number.isNaN(account.score)
+          ? account.score
+          : typeof raw['name_confidence'] === 'number'
+            ? (raw['name_confidence'] as number)
+            : 0;
+      return {
+        ...account,
+        score,
+        remark: account.remark ?? '',
+      };
+    }),
+  }));
+}
+
 // ─── Service Functions ──────────────────────────────────────────────────────
 
 /**
