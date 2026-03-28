@@ -5,14 +5,19 @@ import { render, screen } from '@testing-library/react-native';
 jest.mock('lucide-react-native', () => {
   const RN = require('react-native');
   const R = require('react');
-  const icon = (name: string) => (props: Record<string, unknown>) =>
-    R.createElement(RN.View, { testID: `${name}-icon`, ...props });
-  return {
-    ArrowLeft: icon('ArrowLeft'),
-    ArrowRight: icon('ArrowRight'),
-    RotateCcw: icon('RotateCcw'),
-    __esModule: true,
+  const icon = (name: string) => {
+    const Icon = (props: Record<string, unknown>) =>
+      R.createElement(RN.View, { testID: `${name}-icon`, ...props });
+    Icon.displayName = name;
+    return Icon;
   };
+  return new Proxy(
+    { __esModule: true },
+    {
+      get: (target: Record<string, unknown>, prop: string) =>
+        prop in target ? target[prop] : icon(prop),
+    },
+  );
 });
 
 // ─── Platform mocks ─────────────────────────────────────────────────────────
@@ -206,9 +211,9 @@ describe('ValidationScreen', () => {
     expect(screen.getByTestId('validation-screen')).toBeTruthy();
   });
 
-  it('shows "Account Mapping" heading', () => {
+  it('shows "COA Mapping" heading', () => {
     render(<ValidationScreen />);
-    expect(screen.getByText('Account Mapping')).toBeTruthy();
+    expect(screen.getByText('COA Mapping')).toBeTruthy();
   });
 
   it('renders MappingStatsBar', () => {

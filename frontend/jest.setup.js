@@ -54,6 +54,27 @@ jest.mock('react-native-toast-message', () => {
 });
 
 // ---------------------------------------------------------------------------
+// lucide-react-native — return simple View stubs for all icon components
+// ---------------------------------------------------------------------------
+jest.mock('lucide-react-native', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return new Proxy(
+    {},
+    {
+      get: (_target, name) => {
+        if (typeof name !== 'string') return undefined;
+        const Icon = React.forwardRef(function LucideIcon(props, ref) {
+          return React.createElement(View, { ...props, ref, testID: props.testID || `icon-${name}` });
+        });
+        Icon.displayName = name;
+        return Icon;
+      },
+    },
+  );
+});
+
+// ---------------------------------------------------------------------------
 // NativeWind — stub the styled wrapper as an identity passthrough
 // ---------------------------------------------------------------------------
 jest.mock('nativewind', () => ({
