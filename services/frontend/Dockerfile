@@ -1,6 +1,8 @@
 # Frontend Dockerfile (Expo Web)
 FROM node:20-alpine AS builder
 
+ARG BASE_URL=""
+
 WORKDIR /app
 
 # Copy package files
@@ -11,6 +13,13 @@ RUN npm ci
 
 # Copy source code
 COPY frontend/ .
+
+# Set Expo baseUrl for sub-path deployments (e.g. /test/, /staging/)
+RUN if [ -n "$BASE_URL" ]; then \
+      apk add --no-cache jq && \
+      jq --arg url "$BASE_URL" '.expo.experiments.baseUrl = $url' app.json > app.tmp.json && \
+      mv app.tmp.json app.json; \
+    fi
 
 # Build the Expo web application
 RUN npx expo export --platform web
