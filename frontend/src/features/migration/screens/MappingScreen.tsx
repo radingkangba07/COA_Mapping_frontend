@@ -21,12 +21,16 @@ import { Button } from '@/shared/components/ui/Button';
 import { Select, type SelectOption } from '@/shared/components/ui/Select';
 import { Input } from '@/shared/components/ui/Input';
 import { Skeleton } from '@/shared/components/ui/Skeleton';
+import { Spinner } from '@/shared/components/ui/Spinner';
+import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorFallback';
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
 import { MappingTableSkeleton } from '../components/MappingTableSkeleton';
+import { useHydrateProject } from '../hooks/useHydrateProject';
 import { useFuzzyMapper } from '../hooks/useFuzzyMapper';
 import { useMigrationStore } from '../store/migration.store';
 import { selectTypeMappingSummary } from '../store/migration.selectors';
 import { useMigrationScreenRoute } from '@/navigation/types';
+import { createProjectId } from '@/shared/types/common.types';
 import { colors } from '@/config/theme';
 import { cn } from '@/shared/utils/string.utils';
 import type { MigrationStackParamList } from '@/navigation/types';
@@ -38,6 +42,8 @@ export const MappingScreen = (): React.JSX.Element => {
   const navigation = useNavigation<MigrationNavProp>();
   const route = useMigrationScreenRoute<'Mapping'>();
   const { projectId } = route.params;
+
+  const { isHydrating, error, retry } = useHydrateProject(createProjectId(projectId));
 
   const currentStep = useMigrationStore((s) => s.currentStep);
   const completedSteps = useMigrationStore((s) => s.completedSteps);
@@ -130,6 +136,31 @@ export const MappingScreen = (): React.JSX.Element => {
 
   const sourceERPName = sourceERP?.name ?? 'Source';
   const targetERPName = targetERP?.name ?? 'Target';
+
+  if (isHydrating) {
+    return (
+      <Screen testID="mapping-screen">
+        <View className="flex-1 items-center justify-center">
+          <Spinner size="lg" />
+          <Text className="mt-4 font-body text-sm text-muted-foreground">
+            Loading project data...
+          </Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (error) {
+    return (
+      <Screen testID="mapping-screen">
+        <NetworkErrorFallback
+          error={new Error(error.message)}
+          onRetry={retry}
+          testID="mapping-error"
+        />
+      </Screen>
+    );
+  }
 
   if (isLoading && typeMappingRows.length === 0) {
     return (
