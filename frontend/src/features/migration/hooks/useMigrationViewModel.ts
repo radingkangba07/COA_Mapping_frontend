@@ -15,6 +15,7 @@ import {
 import { matchTypesToTargets } from '../services/fuzzy.service';
 import { downloadSampleData } from '@/features/erp-config/services/erp-config.service';
 import { httpClient } from '@/shared/services/http/http.instance';
+import { useSyncStep } from './useSyncStep';
 import { useToast } from '@/shared/hooks/useToast';
 import { isWeb } from '@/shared/utils/platform.utils';
 import type { ERPSystem } from '../types/erp.types';
@@ -78,11 +79,13 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
     setLoading: s.setLoading,
     setError: s.setError,
   })));
+  const syncStep = useSyncStep();
   const { showSuccess, showError } = useToast();
 
   const goToStep = useCallback((step: number): void => {
     actions.setStep(step);
-  }, [actions]);
+    syncStep(step);
+  }, [actions, syncStep]);
 
   const handleSourceSelect = useCallback(
     (erpId: string, erpSystems: ERPSystem[]): void => {
@@ -172,10 +175,11 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
 
       actions.completeStep(1);
       actions.setStep(2);
+      syncStep(2);
     } finally {
       actions.setLoading(false);
     }
-  }, [sourceFile, sourceData, targetData, mappingData, actions, showError]);
+  }, [sourceFile, sourceData, targetData, mappingData, actions, syncStep, showError]);
 
   const handleDownloadSample = useCallback(
     async (erpId: string): Promise<void> => {
