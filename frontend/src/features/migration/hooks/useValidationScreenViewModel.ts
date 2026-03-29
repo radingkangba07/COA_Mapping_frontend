@@ -6,6 +6,7 @@ import {
   selectAllConfirmed,
 } from '../store/migration.selectors';
 import { CONFIDENCE_THRESHOLDS } from '@/shared/constants/mapping-confidence';
+import { useSyncStep } from './useSyncStep';
 import { useValidation } from './useValidation';
 import type { ConfidenceLevel, AccountMapping, GroupedMapping } from '../types/mapping.types';
 import type { UploadedFile } from '../types/migration.types';
@@ -102,6 +103,7 @@ export function useValidationScreenViewModel(
     restoreAccount: s.restoreAccount,
   })));
 
+  const syncStep = useSyncStep();
   const { errors, warnings } = useValidation();
   const [isDeletedOpen, setIsDeletedOpen] = useState(false);
 
@@ -144,8 +146,9 @@ export function useValidationScreenViewModel(
   const handleContinue = useCallback((): void => {
     actions.completeStep(3);
     actions.setStep(4);
+    syncStep(4);
     navigateForward(projectId);
-  }, [actions, navigateForward, projectId]);
+  }, [actions, syncStep, navigateForward, projectId]);
 
   return {
     currentStep, completedSteps, sourceFile, sourceERP, targetERP, confidenceFilter,
