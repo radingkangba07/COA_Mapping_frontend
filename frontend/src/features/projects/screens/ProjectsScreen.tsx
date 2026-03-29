@@ -12,6 +12,8 @@ import { NewProjectDialog } from '../components/NewProjectDialog';
 import type { Project, ProjectGroup } from '../types/projects.types';
 import type { CompanyId } from '@/shared/types/common.types';
 import type { ProjectsStackParamList } from '@/navigation/types';
+import { STEP_TO_SCREEN, MIGRATION_STEPS } from '@/shared/constants/migration-steps';
+import type { MigrationStepValue } from '@/shared/constants/migration-steps';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -85,8 +87,10 @@ export const ProjectsScreen = (): React.JSX.Element => {
     (project: Project) => {
       const parent = navigation.getParent();
       if (parent !== undefined) {
+        const step = (project.currentStep ?? MIGRATION_STEPS.ERP_SELECT) as MigrationStepValue;
+        const screen = STEP_TO_SCREEN[step] ?? 'ERPSelect';
         parent.navigate('MigrationTab', {
-          screen: 'ERPSelect',
+          screen,
           params: { projectId: project.projectId },
         });
       }
