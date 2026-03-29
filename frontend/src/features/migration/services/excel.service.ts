@@ -17,7 +17,28 @@ interface ApiFileDataResponse {
   data: Record<string, unknown>[];
 }
 
+interface ApiProjectFileDTO {
+  file_id: string;
+  file_name: string;
+  file_type: 'sourcecoa' | 'targetcoa' | 'typemapping';
+  row_count: number;
+  created_at: string;
+}
+
+interface ApiProjectFilesResponse {
+  files: ApiProjectFileDTO[];
+}
+
 // ─── Domain Interfaces ──────────────────────────────────────────────────────
+
+export type FileType = 'sourcecoa' | 'targetcoa' | 'typemapping';
+
+export interface ProjectFile {
+  readonly fileId: string;
+  fileName: string;
+  fileType: FileType;
+  rowCount: number;
+}
 
 interface FileUploadResponse {
   fileId: string;
@@ -38,6 +59,15 @@ interface UploadFileOptions {
 }
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
+
+function toProjectFile(dto: ApiProjectFileDTO): ProjectFile {
+  return {
+    fileId: dto.file_id,
+    fileName: dto.file_name,
+    fileType: dto.file_type,
+    rowCount: dto.row_count,
+  };
+}
 
 function toFileUploadResponse(api: ApiFileUploadResponse): FileUploadResponse {
   return {
@@ -95,6 +125,21 @@ export async function getFileData(
     );
 
     return ok(toFileDataResponse(response.data));
+  } catch (error: unknown) {
+    return err(toAppError(error));
+  }
+}
+
+export async function getProjectFiles(
+  client: HttpClient,
+  projectId: string,
+): Promise<Result<ProjectFile[], AppError>> {
+  try {
+    const response = await client.get<ApiProjectFilesResponse>(
+      `/api/v1/files/project/${projectId}`,
+    );
+
+    return ok(response.data.files.map(toProjectFile));
   } catch (error: unknown) {
     return err(toAppError(error));
   }
