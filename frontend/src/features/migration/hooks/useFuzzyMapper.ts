@@ -9,6 +9,7 @@ import {
 } from '../services/mapping.service';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { useToast } from '@/shared/hooks/useToast';
+import { useSyncStep } from './useSyncStep';
 import type { AppError } from '@/shared/types/result.types';
 
 // ─── Return Type ────────────────────────────────────────────────────────────
@@ -42,6 +43,7 @@ export function useFuzzyMapper(): UseFuzzyMapperReturn {
   );
 
   const { showSuccess, showError } = useToast();
+  const syncStep = useSyncStep();
 
   const runMapping = useCallback(async (): Promise<void> => {
     setIsMapping(true);
@@ -80,6 +82,7 @@ export function useFuzzyMapper(): UseFuzzyMapperReturn {
       actions.markChangesSaved();
       actions.completeStep(2);
       actions.setStep(3);
+      syncStep(3);
       showSuccess(
         'Mapping complete',
         `Ready to map ${response.total_accounts} accounts across ${response.total_types} types`,
@@ -95,7 +98,7 @@ export function useFuzzyMapper(): UseFuzzyMapperReturn {
       setIsMapping(false);
       actions.setLoading(false);
     }
-  }, [sourceData, targetData, sourceERP, targetERP, typeMappingRows, actions, showSuccess, showError]);
+  }, [sourceData, targetData, sourceERP, targetERP, typeMappingRows, actions, showSuccess, showError, syncStep]);
 
   return { runMapping, isMapping };
 }
