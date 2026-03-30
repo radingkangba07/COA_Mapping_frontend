@@ -215,7 +215,7 @@ export function UploadScreen(): React.JSX.Element {
     <Modal visible={isPreviewOpen} transparent animationType="fade" onRequestClose={closePreview}>
       <Pressable className="flex-1 bg-black/40 items-center justify-center p-4" onPress={closePreview}>
         <Pressable
-          className="bg-background rounded-xl border border-border w-full max-w-4xl max-h-[80%]"
+          className="bg-background rounded-xl border border-border w-full max-w-6xl max-h-[90%]"
           onPress={() => {}}
         >
           <View className="flex-row items-center justify-between px-4 py-3 border-b border-border">
@@ -232,7 +232,7 @@ export function UploadScreen(): React.JSX.Element {
           <Text className="px-4 py-1 text-xs text-muted-foreground">
             Showing {previewData?.length ?? 0} rows
           </Text>
-          <ScrollView style={{ maxHeight: 500 }} className="px-4 pb-4">
+          <ScrollView style={{ maxHeight: 700 }} className="px-4 pb-4">
             <ScrollView horizontal>
               <View>
                 {previewData && previewData.length > 0 && (
