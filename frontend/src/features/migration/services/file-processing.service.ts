@@ -2,6 +2,7 @@ import { createFileId } from '@/shared/types/common.types';
 import type { HttpClient } from '@/shared/services/http/http.types';
 import type { AppError } from '@/shared/types/result.types';
 import { uploadFile } from './excel.service';
+import type { FileType } from './excel.service';
 import type { UploadedFile, TypeMappingRow } from '../types/migration.types';
 import type { PickedFile } from '../hooks/useFileUpload';
 
@@ -19,6 +20,8 @@ interface UploadFileParams {
   readonly sourceErp?: string;
   readonly targetErp?: string;
   readonly fileName?: string;
+  readonly projectId?: string;
+  readonly fileType?: FileType;
 }
 
 export async function handleFileUpload(
