@@ -81,6 +81,10 @@ jest.mock('../../hooks/useMigrationViewModel', () => ({
   useMigrationViewModel: () => mockUseMigrationViewModel(),
 }));
 
+jest.mock('../../hooks/useHydrateProject', () => ({
+  useHydrateProject: () => ({ isHydrating: false, error: null, retry: jest.fn() }),
+}));
+
 const erpSystems = [
   { id: 'sap', name: 'SAP' },
   { id: 'netsuite', name: 'NetSuite' },
