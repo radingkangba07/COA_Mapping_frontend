@@ -1,3 +1,4 @@
+import { AxiosError } from 'axios';
 import type { HttpClient } from '@/shared/services/http/http.types';
 import { toAppError } from '@/shared/services/http/http.client';
 import { ok, err } from '@/shared/types/result.types';
@@ -70,6 +71,28 @@ export function normalizeGroupedMappings(
   }));
 }
 
+/**
+ * Flat-map grouped mappings into an array of MappingCreateDTO for bulk save.
+ */
+export function toMappingCreateDTOs(
+  projectId: string,
+  groupedMappings: readonly GroupedMapping[],
+): MappingCreateDTO[] {
+  return groupedMappings.flatMap((group) =>
+    group.accounts.map(
+      (account): MappingCreateDTO => ({
+        project_id: projectId,
+        source_account_name: account.source_name,
+        target_account_name: account.target_name,
+        confidence_score: account.score,
+        status: 'pending',
+        source_type: group.source_type,
+        target_type: group.target_type,
+      }),
+    ),
+  );
+}
+
 // ─── Service Functions ──────────────────────────────────────────────────────
 
 /**
@@ -132,6 +155,9 @@ export async function getMappings(
     );
     return ok(response.data);
   } catch (error: unknown) {
+    if (error instanceof AxiosError && error.response?.status === 404) {
+      return ok([]);
+    }
     return err(toAppError(error));
   }
 }

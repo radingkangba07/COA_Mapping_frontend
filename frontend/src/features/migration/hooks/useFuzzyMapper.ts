@@ -6,6 +6,8 @@ import {
   buildCustomTypeMappings,
   applyCustomTypeMappings,
   normalizeGroupedMappings,
+  saveMappings,
+  toMappingCreateDTOs,
 } from '../services/mapping.service';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { useToast } from '@/shared/hooks/useToast';
@@ -24,6 +26,7 @@ interface UseFuzzyMapperReturn {
 export function useFuzzyMapper(): UseFuzzyMapperReturn {
   const [isMapping, setIsMapping] = useState(false);
 
+  const projectId = useMigrationStore((s) => s.projectId);
   const sourceData = useMigrationStore((s) => s.sourceData);
   const targetData = useMigrationStore((s) => s.targetData);
   const sourceERP = useMigrationStore((s) => s.sourceERP);
@@ -79,6 +82,17 @@ export function useFuzzyMapper(): UseFuzzyMapperReturn {
       }
 
       actions.setGroupedMappings(finalMappings);
+
+      if (projectId) {
+        const dtos = toMappingCreateDTOs(projectId, finalMappings);
+        const saveResult = await saveMappings(httpClient, dtos);
+        if (!saveResult.ok) {
+          actions.setError(saveResult.error);
+          showError('Failed to save mappings', saveResult.error.message);
+          return;
+        }
+      }
+
       actions.markChangesSaved();
       actions.completeStep(2);
       actions.setStep(3);
@@ -98,7 +112,7 @@ export function useFuzzyMapper(): UseFuzzyMapperReturn {
       setIsMapping(false);
       actions.setLoading(false);
     }
-  }, [sourceData, targetData, sourceERP, targetERP, typeMappingRows, actions, showSuccess, showError, syncStep]);
+  }, [projectId, sourceData, targetData, sourceERP, targetERP, typeMappingRows, actions, showSuccess, showError, syncStep]);
 
   return { runMapping, isMapping };
 }
