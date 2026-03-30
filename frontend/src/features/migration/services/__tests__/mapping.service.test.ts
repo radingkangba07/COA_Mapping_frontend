@@ -370,10 +370,11 @@ describe('saveMappings', () => {
 
     const result = await saveMappings(
       mockClient as unknown as AxiosInstance,
+      'p-001',
       mappings,
     );
 
-    expect(mockClient.post).toHaveBeenCalledWith('/api/v1/mappings/bulk', { mappings });
+    expect(mockClient.post).toHaveBeenCalledWith('/api/v1/mappings/bulk', mappings, { params: { project_id: 'p-001' } });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.data.created).toBe(2);
@@ -395,6 +396,7 @@ describe('saveMappings', () => {
 
     const result = await saveMappings(
       mockClient as unknown as AxiosInstance,
+      'p-001',
       [],
     );
 
@@ -411,6 +413,7 @@ describe('saveMappings', () => {
 
     const result = await saveMappings(
       mockClient as unknown as AxiosInstance,
+      'p-001',
       [],
     );
 
