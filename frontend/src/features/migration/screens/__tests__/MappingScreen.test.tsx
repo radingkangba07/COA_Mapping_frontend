@@ -85,6 +85,10 @@ jest.mock('../../hooks/useFuzzyMapper', () => ({
   useFuzzyMapper: () => ({ runMapping: mockRunMapping, isMapping: false }),
 }));
 
+jest.mock('../../hooks/useHydrateProject', () => ({
+  useHydrateProject: () => ({ isHydrating: false, error: null, retry: jest.fn() }),
+}));
+
 // ─── Child component stubs ──────────────────────────────────────────────────
 jest.mock('../../components/MigrationStepper/MigrationStepper', () => {
   const RN = require('react-native');

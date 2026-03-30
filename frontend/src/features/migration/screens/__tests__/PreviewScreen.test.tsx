@@ -81,6 +81,10 @@ jest.mock('../../hooks/usePreviewScreenViewModel', () => ({
   usePreviewScreenViewModel: jest.fn(() => mockPreviewVM),
 }));
 
+jest.mock('../../hooks/useHydrateProject', () => ({
+  useHydrateProject: () => ({ isHydrating: false, error: null, retry: jest.fn() }),
+}));
+
 // ─── Export ViewModel mock ──────────────────────────────────────────────────
 const mockPerformExport = jest.fn();
 const mockExportVM = {
