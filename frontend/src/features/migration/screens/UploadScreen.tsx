@@ -245,7 +245,7 @@ export function UploadScreen(): React.JSX.Element {
                       ))}
                     </View>
                     {previewData.map((row, i) => (
-                      <View key={i} className="flex-row border-b border-border/50 py-1.5">
+                      <View key={i} className="flex-row border-b border-border/20 py-1.5">
                         {Object.values(row).map((val, j) => (
                           <Text key={j} className="w-40 px-2 font-mono text-xs text-muted-foreground">
                             {String(val ?? '')}
