@@ -200,8 +200,8 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
       try {
         const result = await getSampleData(httpClient, erpId);
         if (result.ok) {
-          setPreviewData(result.data.sampleData);
-          setPreviewTitle(`${erpId} Sample Data`);
+          setPreviewData([...result.data.data]);
+          setPreviewTitle(`${result.data.erpName} Sample Data`);
           setIsPreviewOpen(true);
         } else {
           showError('Preview failed', result.error.message);
