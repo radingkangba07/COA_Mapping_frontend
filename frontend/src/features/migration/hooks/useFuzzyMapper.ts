@@ -85,7 +85,7 @@ export function useFuzzyMapper(): UseFuzzyMapperReturn {
 
       if (projectId) {
         const dtos = toMappingCreateDTOs(projectId, finalMappings);
-        const saveResult = await saveMappings(httpClient, dtos);
+        const saveResult = await saveMappings(httpClient, projectId, dtos);
         if (!saveResult.ok) {
           actions.setError(saveResult.error);
           showError('Failed to save mappings', saveResult.error.message);

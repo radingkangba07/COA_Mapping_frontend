@@ -14,14 +14,16 @@ interface ApiFileUploadResponse {
 
 interface ApiFileDataResponse {
   file_id: string;
-  data: Record<string, unknown>[];
+  file_name: string;
+  row_count: number;
+  sample_data: Record<string, unknown>[];
 }
 
 interface ApiProjectFileDTO {
-  file_id: string;
-  file_name: string;
+  id: string;
+  original_filename: string;
   file_type: 'sourcecoa' | 'targetcoa' | 'typemapping';
-  row_count: number;
+  size_bytes: number;
   created_at: string;
 }
 
@@ -64,10 +66,10 @@ interface UploadFileOptions {
 
 function toProjectFile(dto: ApiProjectFileDTO): ProjectFile {
   return {
-    fileId: dto.file_id,
-    fileName: dto.file_name,
+    fileId: dto.id,
+    fileName: dto.original_filename,
     fileType: dto.file_type,
-    rowCount: dto.row_count,
+    rowCount: 0,
   };
 }
 
@@ -83,7 +85,7 @@ function toFileUploadResponse(api: ApiFileUploadResponse): FileUploadResponse {
 function toFileDataResponse(api: ApiFileDataResponse): FileDataResponse {
   return {
     fileId: api.file_id,
-    data: api.data,
+    data: api.sample_data,
   };
 }
 
@@ -98,23 +100,16 @@ export async function uploadFile(
     const formData = new FormData();
     formData.append('file', file);
 
-    if (options?.sourceErp) {
-      formData.append('source_erp', options.sourceErp);
-    }
-    if (options?.targetErp) {
-      formData.append('target_erp', options.targetErp);
-    }
-    if (options?.projectId) {
-      formData.append('project_id', options.projectId);
-    }
-    if (options?.fileType) {
-      formData.append('file_type', options.fileType);
-    }
+    const params: Record<string, string> = {};
+    if (options?.sourceErp) params.source_erp = options.sourceErp;
+    if (options?.targetErp) params.target_erp = options.targetErp;
+    if (options?.projectId) params.project_id = options.projectId;
+    if (options?.fileType) params.file_type = options.fileType;
 
     const response = await client.post<ApiFileUploadResponse>(
       '/api/v1/files/upload',
       formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } },
+      { headers: { 'Content-Type': 'multipart/form-data' }, params },
     );
 
     return ok(toFileUploadResponse(response.data));

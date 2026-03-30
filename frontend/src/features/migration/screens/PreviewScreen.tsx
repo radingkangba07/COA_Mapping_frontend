@@ -69,7 +69,7 @@ export const PreviewScreen = (): React.JSX.Element => {
 
   const { performExport, changeFormat, isExporting, exportFormat } = useExportViewModel({
     groupedMappings: vm.groupedMappings,
-    projectId: vm.projectId,
+    projectId,
   });
 
   const tableRows = useMemo((): readonly TableRowData[] =>
