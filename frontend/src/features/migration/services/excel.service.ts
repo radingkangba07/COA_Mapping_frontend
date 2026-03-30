@@ -56,6 +56,8 @@ interface UploadFileOptions {
   sourceErp?: string;
   targetErp?: string;
   fileName?: string;
+  projectId?: string;
+  fileType?: FileType;
 }
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
@@ -101,6 +103,12 @@ export async function uploadFile(
     }
     if (options?.targetErp) {
       formData.append('target_erp', options.targetErp);
+    }
+    if (options?.projectId) {
+      formData.append('project_id', options.projectId);
+    }
+    if (options?.fileType) {
+      formData.append('file_type', options.fileType);
     }
 
     const response = await client.post<ApiFileUploadResponse>(

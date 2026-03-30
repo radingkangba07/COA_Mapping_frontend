@@ -58,6 +58,7 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
   const mappingFile = useMigrationStore((s) => s.mappingFile);
   const isLoading = useMigrationStore((s) => s.isLoading);
   const error = useMigrationStore((s) => s.error);
+  const projectId = useMigrationStore((s) => s.projectId);
   const sourceData = useMigrationStore((s) => s.sourceData);
   const targetData = useMigrationStore((s) => s.targetData);
   const mappingData = useMigrationStore((s) => s.mappingData);
@@ -87,67 +88,46 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
     syncStep(step);
   }, [actions, syncStep]);
 
-  const handleSourceSelect = useCallback(
-    (erpId: string, erpSystems: ERPSystem[]): void => {
-      const erp = erpSystems.find((e) => e.id === erpId);
-      if (!erp) return;
-      actions.setSourceERP(erp);
-      if (targetERP?.id === erpId) {
-        actions.clearTargetERP();
-      }
-    },
-    [actions, targetERP?.id],
-  );
-  const handleTargetSelect = useCallback(
-    (erpId: string, erpSystems: ERPSystem[]): void => {
-      const erp = erpSystems.find((e) => e.id === erpId);
-      if (!erp) return;
-      actions.setTargetERP(erp);
-    },
-    [actions],
-  );
+  const handleSourceSelect = useCallback((erpId: string, erpSystems: ERPSystem[]): void => {
+    const erp = erpSystems.find((e) => e.id === erpId);
+    if (!erp) return;
+    actions.setSourceERP(erp);
+    if (targetERP?.id === erpId) actions.clearTargetERP();
+  }, [actions, targetERP?.id]);
+  const handleTargetSelect = useCallback((erpId: string, erpSystems: ERPSystem[]): void => {
+    const erp = erpSystems.find((e) => e.id === erpId);
+    if (!erp) return;
+    actions.setTargetERP(erp);
+  }, [actions]);
+  const pid = projectId ?? undefined;
+  const cbs = { setLoading: actions.setLoading, setError: actions.setError, showSuccess, showError };
   const handleSourceFilePicked = useCallback(
     async (file: PickedFile): Promise<void> => {
       await handleFileUpload(httpClient, file,
-        { sourceErp: sourceERP?.id, fileName: file.name },
-        { setLoading: actions.setLoading, setError: actions.setError,
-          setData: actions.setSourceData, showSuccess, showError },
-        'Source file',
-      );
+        { sourceErp: sourceERP?.id, fileName: file.name, projectId: pid, fileType: 'sourcecoa' },
+        { ...cbs, setData: actions.setSourceData }, 'Source file');
     },
-    [actions, sourceERP?.id, showSuccess, showError],
+    [actions, sourceERP?.id, pid, showSuccess, showError],
   );
   const handleTargetFilePicked = useCallback(
     async (file: PickedFile): Promise<void> => {
       await handleFileUpload(httpClient, file,
-        { targetErp: targetERP?.id, fileName: file.name },
-        { setLoading: actions.setLoading, setError: actions.setError,
-          setData: actions.setTargetData, showSuccess, showError },
-        'Target file',
-      );
+        { targetErp: targetERP?.id, fileName: file.name, projectId: pid, fileType: 'targetcoa' },
+        { ...cbs, setData: actions.setTargetData }, 'Target file');
     },
-    [actions, targetERP?.id, showSuccess, showError],
+    [actions, targetERP?.id, pid, showSuccess, showError],
   );
   const handleMappingFilePicked = useCallback(
     async (file: PickedFile): Promise<void> => {
       await handleFileUpload(httpClient, file,
-        { fileName: file.name },
-        { setLoading: actions.setLoading, setError: actions.setError,
-          setData: actions.setMappingData, showSuccess, showError },
-        'Mapping file',
-      );
+        { fileName: file.name, projectId: pid, fileType: 'typemapping' },
+        { ...cbs, setData: actions.setMappingData }, 'Mapping file');
     },
-    [actions, showSuccess, showError],
+    [actions, pid, showSuccess, showError],
   );
-  const handleRemoveSourceFile = useCallback((): void => {
-    actions.clearSourceFile();
-  }, [actions]);
-  const handleRemoveTargetFile = useCallback((): void => {
-    actions.clearTargetFile();
-  }, [actions]);
-  const handleRemoveMappingFile = useCallback((): void => {
-    actions.clearMappingFile();
-  }, [actions]);
+  const handleRemoveSourceFile = useCallback((): void => actions.clearSourceFile(), [actions]);
+  const handleRemoveTargetFile = useCallback((): void => actions.clearTargetFile(), [actions]);
+  const handleRemoveMappingFile = useCallback((): void => actions.clearMappingFile(), [actions]);
 
   const processFiles = useCallback(async (): Promise<void> => {
     if (!sourceFile) {
@@ -201,11 +181,8 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
     [actions, showSuccess, showError],
   );
 
-  const canProceedFromStep0 = useMemo(
-    (): boolean => sourceERP !== null && targetERP !== null,
-    [sourceERP, targetERP],
-  );
-  const canProceedFromStep1 = useMemo((): boolean => sourceFile !== null, [sourceFile]);
+  const canProceedFromStep0 = useMemo(() => sourceERP !== null && targetERP !== null, [sourceERP, targetERP]);
+  const canProceedFromStep1 = useMemo(() => sourceFile !== null, [sourceFile]);
 
   return {
     currentStep, completedSteps, sourceERP, targetERP,
