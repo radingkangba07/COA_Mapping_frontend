@@ -41,7 +41,7 @@ interface AccountTypeGroupProps {
   targetTypes: readonly string[];
   targetAccountNames: readonly string[];
   onTypeChange: (sourceType: string, newTargetType: string) => void;
-  onAccountNameChange: (sourceType: string, accountIndex: number, newName: string) => void;
+  onAccountNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string) => void;
   onDeleteAccount: (sourceType: string, accountIndex: number, account: AccountMapping) => void;
   testID?: string;
 }
@@ -55,7 +55,7 @@ interface AccountRowProps {
   isEditing: boolean;
   targetAccountOptions: readonly SelectOption[];
   onEditClick: (index: number) => void;
-  onNameChange: (sourceType: string, accountIndex: number, newName: string) => void;
+  onNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string) => void;
   onDelete: (sourceType: string, accountIndex: number, account: AccountMapping) => void;
   testID?: string;
 }
@@ -73,10 +73,10 @@ const AccountRow = memo(({
 }: AccountRowProps) => {
   const handleSelectChange = useCallback(
     (value: string) => {
-      onNameChange(sourceType, index, value === 'unmatched' ? '' : value);
+      onNameChange(sourceType, index, value === 'unmatched' ? '' : value, account.source_name);
       onEditClick(index); // close editing
     },
-    [onNameChange, onEditClick, sourceType, index],
+    [onNameChange, onEditClick, sourceType, index, account.source_name],
   );
 
   const handleEdit = useCallback(() => {

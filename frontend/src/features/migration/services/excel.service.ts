@@ -14,10 +14,33 @@ interface ApiFileUploadResponse {
 
 interface ApiFileDataResponse {
   file_id: string;
-  data: Record<string, unknown>[];
+  file_name: string;
+  row_count: number;
+  sample_data: Record<string, unknown>[];
+}
+
+interface ApiProjectFileDTO {
+  id: string;
+  original_filename: string;
+  file_type: 'sourcecoa' | 'targetcoa' | 'typemapping';
+  size_bytes: number;
+  created_at: string;
+}
+
+interface ApiProjectFilesResponse {
+  files: ApiProjectFileDTO[];
 }
 
 // ─── Domain Interfaces ──────────────────────────────────────────────────────
+
+export type FileType = 'sourcecoa' | 'targetcoa' | 'typemapping';
+
+export interface ProjectFile {
+  readonly fileId: string;
+  fileName: string;
+  fileType: FileType;
+  rowCount: number;
+}
 
 interface FileUploadResponse {
   fileId: string;
@@ -35,9 +58,20 @@ interface UploadFileOptions {
   sourceErp?: string;
   targetErp?: string;
   fileName?: string;
+  projectId?: string;
+  fileType?: FileType;
 }
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
+
+function toProjectFile(dto: ApiProjectFileDTO): ProjectFile {
+  return {
+    fileId: dto.id,
+    fileName: dto.original_filename,
+    fileType: dto.file_type,
+    rowCount: 0,
+  };
+}
 
 function toFileUploadResponse(api: ApiFileUploadResponse): FileUploadResponse {
   return {
@@ -51,7 +85,7 @@ function toFileUploadResponse(api: ApiFileUploadResponse): FileUploadResponse {
 function toFileDataResponse(api: ApiFileDataResponse): FileDataResponse {
   return {
     fileId: api.file_id,
-    data: api.data,
+    data: api.sample_data,
   };
 }
 
@@ -66,17 +100,16 @@ export async function uploadFile(
     const formData = new FormData();
     formData.append('file', file);
 
-    if (options?.sourceErp) {
-      formData.append('source_erp', options.sourceErp);
-    }
-    if (options?.targetErp) {
-      formData.append('target_erp', options.targetErp);
-    }
+    const params: Record<string, string> = {};
+    if (options?.sourceErp) params.source_erp = options.sourceErp;
+    if (options?.targetErp) params.target_erp = options.targetErp;
+    if (options?.projectId) params.project_id = options.projectId;
+    if (options?.fileType) params.file_type = options.fileType;
 
     const response = await client.post<ApiFileUploadResponse>(
       '/api/v1/files/upload',
       formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } },
+      { headers: { 'Content-Type': 'multipart/form-data' }, params },
     );
 
     return ok(toFileUploadResponse(response.data));
@@ -95,6 +128,21 @@ export async function getFileData(
     );
 
     return ok(toFileDataResponse(response.data));
+  } catch (error: unknown) {
+    return err(toAppError(error));
+  }
+}
+
+export async function getProjectFiles(
+  client: HttpClient,
+  projectId: string,
+): Promise<Result<ProjectFile[], AppError>> {
+  try {
+    const response = await client.get<ApiProjectFilesResponse>(
+      `/api/v1/files/project/${projectId}`,
+    );
+
+    return ok(response.data.files.map(toProjectFile));
   } catch (error: unknown) {
     return err(toAppError(error));
   }
