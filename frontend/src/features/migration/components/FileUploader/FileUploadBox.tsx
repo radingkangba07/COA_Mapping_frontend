@@ -147,46 +147,51 @@ export const FileUploadBox = ({
         )}
       </View>
 
-      <Pressable
-        onPress={handlePress}
-        disabled={isUploading}
-        accessibilityRole="button"
-        accessibilityLabel={
-          file
-            ? `${label}: ${file.name} uploaded`
-            : `${label}: tap to select a file`
-        }
-        testID={`${testID}-zone`}
-        {...webDragProps}
-      >
+      {file ? (
         <View
-          className={cn(
-            'rounded-lg p-4 items-center justify-center',
-            file
-              ? 'border border-green-200 bg-green-50'
-              : 'border-2 border-dashed bg-background',
-            !file && isDragOver
-              ? 'border-accent bg-accent/5'
-              : !file
-                ? 'border-border'
-                : '',
-          )}
-          style={{ minHeight: 150 }}
+          accessibilityLabel={`${label}: ${file.name} uploaded`}
+          testID={`${testID}-zone`}
         >
-          {isUploading ? (
-            <UploadingState />
-          ) : file ? (
-            <UploadedState
-              fileName={file.name}
-              rowCount={file.rowCount}
-              onRemove={handleRemove}
-              onPreview={onPreview ? handlePreview : undefined}
-            />
-          ) : (
-            <EmptyState isDragOver={isDragOver} />
-          )}
+          <View
+            className="rounded-lg p-4 items-center justify-center border border-green-200 bg-green-50"
+            style={{ minHeight: 150 }}
+          >
+            {isUploading ? (
+              <UploadingState />
+            ) : (
+              <UploadedState
+                fileName={file.name}
+                rowCount={file.rowCount}
+                onRemove={handleRemove}
+                onPreview={onPreview ? handlePreview : undefined}
+              />
+            )}
+          </View>
         </View>
-      </Pressable>
+      ) : (
+        <Pressable
+          onPress={handlePress}
+          disabled={isUploading}
+          accessibilityRole="button"
+          accessibilityLabel={`${label}: tap to select a file`}
+          testID={`${testID}-zone`}
+          {...webDragProps}
+        >
+          <View
+            className={cn(
+              'rounded-lg p-4 items-center justify-center border-2 border-dashed bg-background',
+              isDragOver ? 'border-accent bg-accent/5' : 'border-border',
+            )}
+            style={{ minHeight: 150 }}
+          >
+            {isUploading ? (
+              <UploadingState />
+            ) : (
+              <EmptyState isDragOver={isDragOver} />
+            )}
+          </View>
+        </Pressable>
+      )}
     </View>
   );
 };

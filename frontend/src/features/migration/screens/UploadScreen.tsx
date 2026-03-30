@@ -39,25 +39,6 @@ export function UploadScreen(): React.JSX.Element {
   const { projectId } = route.params;
   const { isHydrating, error, retry } = useHydrateProject(createProjectId(projectId));
 
-  if (isHydrating) {
-    return (
-      <Screen testID="upload-screen">
-        <View className="flex-1 items-center justify-center">
-          <Spinner size="lg" />
-          <Text className="mt-4 font-body text-sm text-muted-foreground">Loading project data...</Text>
-        </View>
-      </Screen>
-    );
-  }
-
-  if (error) {
-    return (
-      <Screen testID="upload-screen">
-        <NetworkErrorFallback error={new Error(error.message)} onRetry={retry} testID="upload-error" />
-      </Screen>
-    );
-  }
-
   const {
     currentStep, completedSteps, sourceERP, targetERP,
     sourceFile, targetFile, mappingFile, isLoading, canProceedFromStep1,
@@ -109,6 +90,25 @@ export function UploadScreen(): React.JSX.Element {
     },
     [handleDownloadSample],
   );
+
+  if (isHydrating) {
+    return (
+      <Screen testID="upload-screen">
+        <View className="flex-1 items-center justify-center">
+          <Spinner size="lg" />
+          <Text className="mt-4 font-body text-sm text-muted-foreground">Loading project data...</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (error) {
+    return (
+      <Screen testID="upload-screen">
+        <NetworkErrorFallback error={new Error(error.message)} onRetry={retry} testID="upload-error" />
+      </Screen>
+    );
+  }
 
   const sourceFileInfo = sourceFile ? { name: sourceFile.name, rowCount: sourceFile.rowCount } : null;
   const targetFileInfo = targetFile ? { name: targetFile.name, rowCount: targetFile.rowCount } : null;
