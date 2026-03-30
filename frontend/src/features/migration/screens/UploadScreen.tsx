@@ -123,6 +123,7 @@ export function UploadScreen(): React.JSX.Element {
   const mappingFileInfo = mappingFile ? { name: mappingFile.name, rowCount: mappingFile.rowCount } : null;
 
   return (
+    <>
     <Screen scroll testID="upload-screen">
       <View className="flex-1 max-w-4xl lg:max-w-6xl self-center w-full px-4 py-6 gap-6 lg:gap-8">
         <View className="flex-1 gap-6 lg:gap-8">
@@ -208,63 +209,64 @@ export function UploadScreen(): React.JSX.Element {
           </View>
         </View>
       </View>
-
-      {/* Preview Modal */}
-      <Modal visible={isPreviewOpen} transparent animationType="fade" onRequestClose={closePreview}>
-        <Pressable className="flex-1 bg-black/40 items-center justify-center p-4" onPress={closePreview}>
-          <Pressable
-            className="bg-background rounded-xl border border-border w-full max-w-4xl max-h-[80%]"
-            onPress={() => {}}
-          >
-            <View className="flex-row items-center justify-between px-4 py-3 border-b border-border">
-              <View className="flex-row items-center gap-2">
-                <Eye size={18} color={colors.foreground} />
-                <Text className="font-heading text-base font-semibold text-foreground">
-                  {previewTitle}
-                </Text>
-              </View>
-              <Pressable onPress={closePreview} accessibilityLabel="Close preview" testID="preview-close">
-                <X size={18} color={colors.mutedForeground} />
-              </Pressable>
-            </View>
-            <Text className="px-4 py-1 text-xs text-muted-foreground">
-              Showing {previewData?.length ?? 0} rows
-            </Text>
-            <ScrollView horizontal className="flex-1 px-4 pb-4">
-              <View>
-                {previewData && previewData.length > 0 && (
-                  <>
-                    <View className="flex-row border-b border-border py-2">
-                      {Object.keys(previewData[0]!).map((col) => (
-                        <Text key={col} className="w-40 px-2 font-mono text-xs font-semibold text-foreground">
-                          {col}
-                        </Text>
-                      ))}
-                    </View>
-                    <ScrollView style={{ maxHeight: 400 }}>
-                      {previewData.map((row, i) => (
-                        <View key={i} className="flex-row border-b border-border/50 py-1.5">
-                          {Object.values(row).map((val, j) => (
-                            <Text key={j} className="w-40 px-2 font-mono text-xs text-muted-foreground">
-                              {String(val ?? '')}
-                            </Text>
-                          ))}
-                        </View>
-                      ))}
-                    </ScrollView>
-                  </>
-                )}
-                {(!previewData || previewData.length === 0) && (
-                  <View className="py-8 items-center">
-                    <Text className="text-sm text-muted-foreground">No data to preview</Text>
-                  </View>
-                )}
-              </View>
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </Screen>
+
+    {/* Preview Modal — outside Screen to avoid ScrollView nesting issues */}
+    <Modal visible={isPreviewOpen} transparent animationType="fade" onRequestClose={closePreview}>
+      <Pressable className="flex-1 bg-black/40 items-center justify-center p-4" onPress={closePreview}>
+        <Pressable
+          className="bg-background rounded-xl border border-border w-full max-w-4xl max-h-[80%]"
+          onPress={() => {}}
+        >
+          <View className="flex-row items-center justify-between px-4 py-3 border-b border-border">
+            <View className="flex-row items-center gap-2">
+              <Eye size={18} color={colors.foreground} />
+              <Text className="font-heading text-base font-semibold text-foreground">
+                {previewTitle}
+              </Text>
+            </View>
+            <Pressable onPress={closePreview} accessibilityLabel="Close preview" testID="preview-close">
+              <X size={18} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
+          <Text className="px-4 py-1 text-xs text-muted-foreground">
+            Showing {previewData?.length ?? 0} rows
+          </Text>
+          <ScrollView horizontal className="flex-1 px-4 pb-4">
+            <View>
+              {previewData && previewData.length > 0 && (
+                <>
+                  <View className="flex-row border-b border-border py-2">
+                    {Object.keys(previewData[0]!).map((col) => (
+                      <Text key={col} className="w-40 px-2 font-mono text-xs font-semibold text-foreground">
+                        {col}
+                      </Text>
+                    ))}
+                  </View>
+                  <ScrollView style={{ maxHeight: 400 }}>
+                    {previewData.map((row, i) => (
+                      <View key={i} className="flex-row border-b border-border/50 py-1.5">
+                        {Object.values(row).map((val, j) => (
+                          <Text key={j} className="w-40 px-2 font-mono text-xs text-muted-foreground">
+                            {String(val ?? '')}
+                          </Text>
+                        ))}
+                      </View>
+                    ))}
+                  </ScrollView>
+                </>
+              )}
+              {(!previewData || previewData.length === 0) && (
+                <View className="py-8 items-center">
+                  <Text className="text-sm text-muted-foreground">No data to preview</Text>
+                </View>
+              )}
+            </View>
+          </ScrollView>
+        </Pressable>
+      </Pressable>
+    </Modal>
+    </>
   );
 }
 
