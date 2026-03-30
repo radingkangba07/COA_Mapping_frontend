@@ -12,6 +12,7 @@ import { MigrationStepper } from '../components/MigrationStepper/MigrationSteppe
 import { ERPCombobox } from '../components/ERPCombobox/ERPCombobox';
 import { useMigrationViewModel } from '../hooks/useMigrationViewModel';
 import { useHydrateProject } from '../hooks/useHydrateProject';
+import { useMigrationStore } from '../store/migration.store';
 import { useERPConfig } from '@/features/erp-config/hooks/useERPConfig';
 import { useMigrationScreenRoute } from '@/navigation/types';
 import type { MigrationStackParamList } from '@/navigation/types';
@@ -54,10 +55,13 @@ export const ERPSelectScreen = (): React.JSX.Element => {
     [handleTargetSelect, erpSystems],
   );
 
+  const completeStep = useMigrationStore((s) => s.completeStep);
+
   const handleContinue = useCallback((): void => {
+    completeStep(0);
     goToStep(1);
     navigation.navigate('Upload', { projectId });
-  }, [goToStep, navigation, projectId]);
+  }, [completeStep, goToStep, navigation, projectId]);
 
   const handleStepPress = useCallback(
     (step: number): void => {
