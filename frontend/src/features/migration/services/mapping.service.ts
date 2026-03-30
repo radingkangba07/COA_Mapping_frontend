@@ -1,3 +1,4 @@
+import { AxiosError } from 'axios';
 import type { HttpClient } from '@/shared/services/http/http.types';
 import { toAppError } from '@/shared/services/http/http.client';
 import { ok, err } from '@/shared/types/result.types';
@@ -71,7 +72,7 @@ export function normalizeGroupedMappings(
 }
 
 /**
- * Flatten grouped mappings into DTOs for bulk-save to the API.
+ * Flat-map grouped mappings into an array of MappingCreateDTO for bulk save.
  */
 export function toMappingCreateDTOs(
   projectId: string,
@@ -154,10 +155,9 @@ export async function getMappings(
     );
     return ok(response.data);
   } catch (error: unknown) {
-    const appError = toAppError(error);
-    if (appError.code === 'HTTP_404') {
+    if (error instanceof AxiosError && error.response?.status === 404) {
       return ok([]);
     }
-    return err(appError);
+    return err(toAppError(error));
   }
 }
