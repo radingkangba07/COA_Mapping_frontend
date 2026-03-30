@@ -70,6 +70,28 @@ export function normalizeGroupedMappings(
   }));
 }
 
+/**
+ * Flatten grouped mappings into DTOs for bulk-save to the API.
+ */
+export function toMappingCreateDTOs(
+  projectId: string,
+  groupedMappings: readonly GroupedMapping[],
+): MappingCreateDTO[] {
+  return groupedMappings.flatMap((group) =>
+    group.accounts.map(
+      (account): MappingCreateDTO => ({
+        project_id: projectId,
+        source_account_name: account.source_name,
+        target_account_name: account.target_name,
+        confidence_score: account.score,
+        status: 'pending',
+        source_type: group.source_type,
+        target_type: group.target_type,
+      }),
+    ),
+  );
+}
+
 // ─── Service Functions ──────────────────────────────────────────────────────
 
 /**
@@ -132,6 +154,10 @@ export async function getMappings(
     );
     return ok(response.data);
   } catch (error: unknown) {
-    return err(toAppError(error));
+    const appError = toAppError(error);
+    if (appError.code === 'HTTP_404') {
+      return ok([]);
+    }
+    return err(appError);
   }
 }
