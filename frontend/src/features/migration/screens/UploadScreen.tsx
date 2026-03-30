@@ -1,8 +1,8 @@
 import React, { useCallback } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, ScrollView, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, CheckCircle, Circle } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle, Circle, Eye, X } from 'lucide-react-native';
 import { Screen } from '@/shared/components/layout/Screen';
 import { Button } from '@/shared/components/ui/Button';
 import { Spinner } from '@/shared/components/ui/Spinner';
@@ -45,6 +45,7 @@ export function UploadScreen(): React.JSX.Element {
     goToStep, handleSourceFilePicked, handleTargetFilePicked, handleMappingFilePicked,
     handleRemoveSourceFile, handleRemoveTargetFile, handleRemoveMappingFile,
     processFiles, handleDownloadSample,
+    handlePreviewSample, previewData, previewTitle, isPreviewOpen, closePreview,
   } = useMigrationViewModel();
 
   const onSourceFilePicked = useCallback(
@@ -91,6 +92,13 @@ export function UploadScreen(): React.JSX.Element {
     [handleDownloadSample],
   );
 
+  const onPreviewSample = useCallback(
+    (erpId: string, _type: 'source' | 'target'): void => {
+      void handlePreviewSample(erpId);
+    },
+    [handlePreviewSample],
+  );
+
   if (isHydrating) {
     return (
       <Screen testID="upload-screen">
@@ -115,6 +123,7 @@ export function UploadScreen(): React.JSX.Element {
   const mappingFileInfo = mappingFile ? { name: mappingFile.name, rowCount: mappingFile.rowCount } : null;
 
   return (
+    <View style={{ flex: 1 }}>
     <Screen scroll testID="upload-screen">
       <View className="flex-1 max-w-4xl lg:max-w-6xl self-center w-full px-4 py-6 gap-6 lg:gap-8">
         <View className="flex-1 gap-6 lg:gap-8">
@@ -169,6 +178,7 @@ export function UploadScreen(): React.JSX.Element {
             targetErpId={targetERP?.id}
             targetErpName={targetERP?.name}
             onDownload={onDownloadSample}
+            onPreview={onPreviewSample}
             onLoadAll={handleLoadAllSamples}
             isLoading={isLoading}
             testID="sample-files-table"
@@ -200,6 +210,63 @@ export function UploadScreen(): React.JSX.Element {
         </View>
       </View>
     </Screen>
+
+    {/* Preview Modal — outside Screen to avoid ScrollView nesting issues */}
+    <Modal visible={isPreviewOpen} transparent animationType="fade" onRequestClose={closePreview}>
+      <Pressable className="flex-1 bg-black/40 items-center justify-center p-4" onPress={closePreview}>
+        <Pressable
+          className="bg-background rounded-xl border border-border w-full max-w-6xl max-h-[90%]"
+          onPress={() => {}}
+        >
+          <View className="flex-row items-center justify-between px-4 py-3 border-b border-border">
+            <View className="flex-row items-center gap-2">
+              <Eye size={18} color={colors.foreground} />
+              <Text className="font-heading text-base font-semibold text-foreground">
+                {previewTitle}
+              </Text>
+            </View>
+            <Pressable onPress={closePreview} accessibilityLabel="Close preview" testID="preview-close">
+              <X size={18} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
+          <Text className="px-4 py-1 text-xs text-muted-foreground">
+            Showing {previewData?.length ?? 0} rows
+          </Text>
+          <ScrollView style={{ maxHeight: 700 }} className="px-4 pb-4">
+            <ScrollView horizontal>
+              <View>
+                {previewData && previewData.length > 0 && (
+                  <>
+                    <View className="flex-row border-b border-border py-2">
+                      {Object.keys(previewData[0]!).map((col) => (
+                        <Text key={col} className="w-40 px-2 font-mono text-xs font-semibold text-foreground">
+                          {col}
+                        </Text>
+                      ))}
+                    </View>
+                    {previewData.map((row, i) => (
+                      <View key={i} className="flex-row border-b border-border/20 py-1.5">
+                        {Object.values(row).map((val, j) => (
+                          <Text key={j} className="w-40 px-2 font-mono text-xs text-muted-foreground">
+                            {String(val ?? '')}
+                          </Text>
+                        ))}
+                      </View>
+                    ))}
+                  </>
+                )}
+                {(!previewData || previewData.length === 0) && (
+                  <View className="py-8 items-center">
+                    <Text className="text-sm text-muted-foreground">No data to preview</Text>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+          </ScrollView>
+        </Pressable>
+      </Pressable>
+    </Modal>
+    </View>
   );
 }
 
