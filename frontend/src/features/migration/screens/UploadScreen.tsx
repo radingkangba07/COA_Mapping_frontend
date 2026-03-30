@@ -123,7 +123,7 @@ export function UploadScreen(): React.JSX.Element {
   const mappingFileInfo = mappingFile ? { name: mappingFile.name, rowCount: mappingFile.rowCount } : null;
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
     <Screen scroll testID="upload-screen">
       <View className="flex-1 max-w-4xl lg:max-w-6xl self-center w-full px-4 py-6 gap-6 lg:gap-8">
         <View className="flex-1 gap-6 lg:gap-8">
@@ -266,7 +266,7 @@ export function UploadScreen(): React.JSX.Element {
         </Pressable>
       </Pressable>
     </Modal>
-    </>
+    </View>
   );
 }
 
