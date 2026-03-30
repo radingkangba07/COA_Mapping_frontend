@@ -378,7 +378,14 @@ export const ValidationScreen = (): React.JSX.Element => {
               <Text className="text-sm font-medium text-foreground">Back</Text>
             </View>
           </Button>
-          <Button variant="outline" onPress={vm.handleContinue} accessibilityLabel="Review and save" testID="save-button">
+          <Button
+            variant="outline"
+            onPress={vm.handleSaveMappings}
+            disabled={vm.isSaving}
+            isLoading={vm.isSaving}
+            accessibilityLabel="Save mapping changes"
+            testID="save-button"
+          >
             <View className="flex-row items-center gap-2">
               <Save size={ICON_SIZE} color={colors.foreground} />
               <Text className="text-sm font-medium text-foreground">Save Mapping</Text>

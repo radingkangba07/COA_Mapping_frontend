@@ -11,6 +11,8 @@ import { getProject } from '@/features/projects/services/projects.service';
 import { getProjectFiles, getFileData } from './excel.service';
 import { getMappings } from './mapping.service';
 import { extractAccountTypes, buildTypeMappingRows } from './file-processing.service';
+import { CONFIDENCE_THRESHOLDS } from '@/shared/constants/mapping-confidence';
+import { matchTypesToTargets } from './fuzzy.service';
 
 export interface HydrationResult {
   readonly ok: true;
@@ -81,30 +83,42 @@ export async function hydrateProject(
   const targetFileDTO = files.find((f) => f.fileType === 'targetcoa');
   const mappingFileDTO = files.find((f) => f.fileType === 'typemapping');
 
+  // Attempt to fetch parsed data; fall back to empty rows if endpoint unavailable
+  const safeGetFileData = async (fileId: string) => {
+    try {
+      return await getFileData(client, fileId);
+    } catch {
+      return null;
+    }
+  };
+
   const [sourceDataResult, targetDataResult, mappingDataResult] = await Promise.all([
-    sourceFileDTO ? getFileData(client, sourceFileDTO.fileId) : null,
-    targetFileDTO ? getFileData(client, targetFileDTO.fileId) : null,
-    mappingFileDTO ? getFileData(client, mappingFileDTO.fileId) : null,
+    sourceFileDTO ? safeGetFileData(sourceFileDTO.fileId) : null,
+    targetFileDTO ? safeGetFileData(targetFileDTO.fileId) : null,
+    mappingFileDTO ? safeGetFileData(mappingFileDTO.fileId) : null,
   ]);
 
-  if (sourceFileDTO && sourceDataResult?.ok) {
+  if (sourceFileDTO) {
+    const rows = sourceDataResult?.ok ? sourceDataResult.data.data : [];
     store.setSourceData(
-      { name: sourceFileDTO.fileName, rowCount: sourceFileDTO.rowCount, fileId: createFileId(sourceFileDTO.fileId) },
-      sourceDataResult.data.data,
+      { name: sourceFileDTO.fileName, rowCount: rows.length, fileId: createFileId(sourceFileDTO.fileId) },
+      rows,
     );
   }
 
-  if (targetFileDTO && targetDataResult?.ok) {
+  if (targetFileDTO) {
+    const rows = targetDataResult?.ok ? targetDataResult.data.data : [];
     store.setTargetData(
-      { name: targetFileDTO.fileName, rowCount: targetFileDTO.rowCount, fileId: createFileId(targetFileDTO.fileId) },
-      targetDataResult.data.data,
+      { name: targetFileDTO.fileName, rowCount: rows.length, fileId: createFileId(targetFileDTO.fileId) },
+      rows,
     );
   }
 
-  if (mappingFileDTO && mappingDataResult?.ok) {
+  if (mappingFileDTO) {
+    const rows = mappingDataResult?.ok ? mappingDataResult.data.data : [];
     store.setMappingData(
-      { name: mappingFileDTO.fileName, rowCount: mappingFileDTO.rowCount, fileId: createFileId(mappingFileDTO.fileId) },
-      mappingDataResult.data.data,
+      { name: mappingFileDTO.fileName, rowCount: rows.length, fileId: createFileId(mappingFileDTO.fileId) },
+      rows,
     );
   }
 
@@ -123,6 +137,14 @@ export async function hydrateProject(
 
   if (mappingDataResult?.ok) {
     store.setTypeMappingRows(buildTypeMappingRows(mappingDataResult.data.data));
+  } else if (sourceDataResult?.ok) {
+    const sourceTypes = extractAccountTypes(sourceDataResult.data.data);
+    const targetTypes = targetDataResult?.ok
+      ? extractAccountTypes(targetDataResult.data.data)
+      : [];
+    if (sourceTypes.length > 0) {
+      store.setTypeMappingRows(matchTypesToTargets(sourceTypes, targetTypes));
+    }
   }
 
   // Step 2 (TypeMapping): needs target types + type mapping rows
@@ -136,16 +158,27 @@ export async function hydrateProject(
     store.setGroupedMappings(mappingsResult.data);
   }
 
-  // Step 3 (Validation): needs grouped mappings
-  if (targetStep <= MIGRATION_STEPS.VALIDATION) {
-    return { ok: true };
+  // Derive confirmation flags from account statuses
+  if (mappingsResult.ok && mappingsResult.data.length > 0) {
+    const allAccounts = mappingsResult.data.flatMap((g) => g.accounts);
+    const high = allAccounts.filter((a) => a.score >= CONFIDENCE_THRESHOLDS.HIGH);
+    const medium = allAccounts.filter((a) => a.score >= CONFIDENCE_THRESHOLDS.MEDIUM && a.score < CONFIDENCE_THRESHOLDS.HIGH);
+    const low = allAccounts.filter((a) => a.score < CONFIDENCE_THRESHOLDS.MEDIUM);
+
+    if (high.length > 0 && high.every((a) => a.status === 'confirmed')) {
+      store.confirmConfidenceLevel('high');
+    }
+    if (medium.length > 0 && medium.every((a) => a.status === 'confirmed')) {
+      store.confirmConfidenceLevel('medium');
+    }
+    if (low.length > 0 && low.every((a) => a.status === 'confirmed')) {
+      store.confirmConfidenceLevel('low');
+    }
   }
 
-  // Step >= 4: Set confirmation flags
-  if (mappingsResult.ok && mappingsResult.data.length > 0) {
-    store.confirmConfidenceLevel('high');
-    store.confirmConfidenceLevel('medium');
-    store.confirmConfidenceLevel('low');
+  // Step 3 (Validation): needs grouped mappings + confirmation state
+  if (targetStep <= MIGRATION_STEPS.VALIDATION) {
+    return { ok: true };
   }
 
   return { ok: true };

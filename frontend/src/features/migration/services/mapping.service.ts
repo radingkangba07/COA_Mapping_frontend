@@ -83,6 +83,7 @@ export function toMappingCreateDTOs(
       (account): MappingCreateDTO => ({
         project_id: projectId,
         source_account_name: account.source_name,
+        source_account_number: account.source_number || undefined,
         target_account_name: account.target_name,
         confidence_score: account.score,
         status: 'pending',
@@ -129,14 +130,39 @@ export async function getHierarchicalMapping(
  */
 export async function saveMappings(
   client: HttpClient,
+  projectId: string,
   mappings: readonly MappingCreateDTO[],
 ): Promise<Result<BulkSaveResponseDTO, AppError>> {
   try {
     const response = await client.post<BulkSaveResponseDTO>(
       '/api/v1/mappings/bulk',
-      { mappings },
+      mappings,
+      { params: { project_id: projectId } },
     );
     return ok(response.data);
+  } catch (error: unknown) {
+    return err(toAppError(error));
+  }
+}
+
+/**
+ * PATCH /api/v1/mappings/bulk-status — update status for mappings in a score range.
+ */
+export async function updateMappingStatus(
+  client: HttpClient,
+  projectId: string,
+  minScore: number,
+  status: 'confirmed' | 'pending',
+  maxScore = 100,
+): Promise<Result<void, AppError>> {
+  try {
+    await client.patch('/api/v1/mappings/bulk-status', {
+      project_id: projectId,
+      min_score: minScore,
+      max_score: maxScore,
+      status,
+    });
+    return ok(undefined);
   } catch (error: unknown) {
     return err(toAppError(error));
   }

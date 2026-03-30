@@ -11,8 +11,8 @@ import type { Project, ProjectCreate, ProjectUpdate } from '../types/projects.ty
 export const projectResponseSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  source_erp: z.string().min(1),
-  target_erp: z.string().min(1),
+  source_erp: z.string(),
+  target_erp: z.string(),
   status: z.enum(['draft', 'in_progress', 'pending_review', 'completed']),
   company_id: z.string().nullable().optional(),
   description: z.string().nullable().optional(),

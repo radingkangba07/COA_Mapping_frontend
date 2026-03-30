@@ -61,7 +61,12 @@ export const selectMappingStats = (state: MigrationStore): MappingStats => {
       lowConfidence += 1;
     }
 
-    if (account.user_changed === true) {
+    const isConfirmedByBand =
+      (account.score >= CONFIDENCE_THRESHOLDS.HIGH && state.confirmedHigh) ||
+      (account.score >= CONFIDENCE_THRESHOLDS.MEDIUM && account.score < CONFIDENCE_THRESHOLDS.HIGH && state.confirmedMedium) ||
+      (account.score < CONFIDENCE_THRESHOLDS.MEDIUM && state.confirmedLow);
+
+    if (account.user_changed === true || isConfirmedByBand) {
       confirmedCount += 1;
     }
   }

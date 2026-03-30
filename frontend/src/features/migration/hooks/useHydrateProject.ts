@@ -14,31 +14,34 @@ export interface UseHydrateProjectReturn {
 export function useHydrateProject(projectId: ProjectId): UseHydrateProjectReturn {
   const [isHydrating, setIsHydrating] = useState(true);
   const [error, setError] = useState<AppError | null>(null);
-  const hasHydrated = useRef(false);
-  const storeProjectId = useMigrationStore((s) => s.projectId);
+  const hydratedProjectRef = useRef<string | null>(null);
 
   const hydrate = useCallback(async (): Promise<void> => {
     setIsHydrating(true);
     setError(null);
-    const store = useMigrationStore.getState();
-    const result = await hydrateProject(httpClient, projectId, store);
-    if (!result.ok) {
-      setError(result.error);
+    try {
+      const store = useMigrationStore.getState();
+      const result = await hydrateProject(httpClient, projectId, store);
+      if (!result.ok) {
+        setError(result.error);
+      }
+    } catch {
+      setError({ code: 'HYDRATION_ERROR', message: 'Failed to load project data' });
     }
+    hydratedProjectRef.current = projectId as string;
     setIsHydrating(false);
   }, [projectId]);
 
   useEffect(() => {
-    if (hasHydrated.current && storeProjectId === (projectId as string)) {
+    if (hydratedProjectRef.current === (projectId as string)) {
       setIsHydrating(false);
       return;
     }
-    hasHydrated.current = true;
     void hydrate();
-  }, [projectId, hydrate, storeProjectId]);
+  }, [projectId, hydrate]);
 
   const retry = useCallback((): void => {
-    hasHydrated.current = false;
+    hydratedProjectRef.current = null;
     void hydrate();
   }, [hydrate]);
 
