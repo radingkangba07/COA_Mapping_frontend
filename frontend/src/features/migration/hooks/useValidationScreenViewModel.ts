@@ -6,7 +6,11 @@ import {
   selectAllConfirmed,
 } from '../store/migration.selectors';
 import { CONFIDENCE_THRESHOLDS } from '@/shared/constants/mapping-confidence';
+import { useSyncStep } from './useSyncStep';
 import { useValidation } from './useValidation';
+import { useToast } from '@/shared/hooks/useToast';
+import { updateMappingStatus, saveMappings, toMappingCreateDTOs } from '../services/mapping.service';
+import { httpClient } from '@/shared/services/http/http.instance';
 import type { ConfidenceLevel, AccountMapping, GroupedMapping } from '../types/mapping.types';
 import type { UploadedFile } from '../types/migration.types';
 import type { ERPSystem } from '../types/erp.types';
@@ -46,12 +50,15 @@ interface ValidationScreenViewModel {
   readonly handleFilterPress: (filter: ConfidenceLevel | null) => void;
   readonly handleConfirm: (level: ConfidenceLevel) => void;
   readonly handleTypeChange: (sourceType: string, newTargetType: string) => void;
-  readonly handleAccountNameChange: (sourceType: string, accountIndex: number, newName: string) => void;
+  readonly handleAccountNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string) => void;
   readonly handleDeleteAccount: (sourceType: string, accountIndex: number, account: AccountMapping) => void;
   readonly handleRestoreAccount: (deletedIndex: number) => void;
   readonly handleToggleDeleted: () => void;
   readonly handleBack: () => void;
   readonly handleContinue: () => void;
+  readonly handleSaveMappings: () => void;
+  readonly hasUnsavedChanges: boolean;
+  readonly isSaving: boolean;
 }
 
 // ─── Hook ───────────────────────────────────────────────────────────────────
@@ -73,6 +80,7 @@ export function useValidationScreenViewModel(
   const confirmedLow = useMigrationStore((s) => s.confirmedLow);
   const deletedAccounts = useMigrationStore((s) => s.deletedAccounts);
   const targetTypes = useMigrationStore((s) => s.targetTypes);
+  const hasUnsavedChanges = useMigrationStore((s) => s.hasUnsavedChanges);
   const stats = useMigrationStore(useShallow(selectMappingStats));
   const allConfirmed = useMigrationStore(selectAllConfirmed);
 
@@ -100,10 +108,14 @@ export function useValidationScreenViewModel(
     updateAccountName: s.updateAccountName,
     deleteAccount: s.deleteAccount,
     restoreAccount: s.restoreAccount,
+    markChangesSaved: s.markChangesSaved,
   })));
 
+  const syncStep = useSyncStep();
   const { errors, warnings } = useValidation();
+  const { showSuccess, showError } = useToast();
   const [isDeletedOpen, setIsDeletedOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const targetAccountNames = useMemo<string[]>(() => {
     const names = new Set<string>();
@@ -122,12 +134,27 @@ export function useValidationScreenViewModel(
   const handleFilterPress = useCallback(
     (filter: ConfidenceLevel | null): void => { actions.setConfidenceFilter(filter); }, [actions]);
   const handleConfirm = useCallback(
-    (level: ConfidenceLevel): void => { actions.confirmConfidenceLevel(level); }, [actions]);
+    (level: ConfidenceLevel): void => {
+      actions.confirmConfidenceLevel(level);
+      const state = useMigrationStore.getState();
+      const isNowConfirmed =
+        level === 'high' ? state.confirmedHigh :
+        level === 'medium' ? state.confirmedMedium :
+        state.confirmedLow;
+      const minScore = level === 'high' ? CONFIDENCE_THRESHOLDS.HIGH
+        : level === 'medium' ? CONFIDENCE_THRESHOLDS.MEDIUM : 0;
+      const maxScore = level === 'high' ? 100
+        : level === 'medium' ? CONFIDENCE_THRESHOLDS.HIGH : CONFIDENCE_THRESHOLDS.MEDIUM;
+      void updateMappingStatus(
+        httpClient, projectId, minScore,
+        isNowConfirmed ? 'confirmed' : 'pending', maxScore,
+      );
+    }, [actions, projectId]);
   const handleTypeChange = useCallback(
     (sourceType: string, newTargetType: string): void => { actions.updateTypeMapping(sourceType, newTargetType); }, [actions]);
   const handleAccountNameChange = useCallback(
-    (sourceType: string, accountIndex: number, newName: string): void => {
-      actions.updateAccountName(sourceType, accountIndex, newName, 'User');
+    (sourceType: string, accountIndex: number, newName: string, sourceName?: string): void => {
+      actions.updateAccountName(sourceType, accountIndex, newName, 'User', sourceName);
     }, [actions]);
   const handleDeleteAccount = useCallback(
     (sourceType: string, accountIndex: number, _account: AccountMapping): void => {
@@ -144,8 +171,25 @@ export function useValidationScreenViewModel(
   const handleContinue = useCallback((): void => {
     actions.completeStep(3);
     actions.setStep(4);
+    syncStep(4);
     navigateForward(projectId);
-  }, [actions, navigateForward, projectId]);
+  }, [actions, syncStep, navigateForward, projectId]);
+
+  const handleSaveMappings = useCallback((): void => {
+    if (!projectId) return;
+    setIsSaving(true);
+    const store = useMigrationStore.getState();
+    const dtos = toMappingCreateDTOs(projectId, store.groupedMappings);
+    void saveMappings(httpClient, projectId, dtos).then((result) => {
+      if (result.ok) {
+        actions.markChangesSaved();
+        showSuccess('Mappings saved', `${dtos.length} mappings saved successfully`);
+      } else {
+        showError('Save failed', result.error.message);
+      }
+      setIsSaving(false);
+    });
+  }, [projectId, actions, showSuccess, showError]);
 
   return {
     currentStep, completedSteps, sourceFile, sourceERP, targetERP, confidenceFilter,
@@ -153,6 +197,7 @@ export function useValidationScreenViewModel(
     targetAccountNames, stats, filteredMappings, allConfirmed, errors, warnings,
     isDeletedOpen, handleStepPress, handleFilterPress, handleConfirm, handleTypeChange,
     handleAccountNameChange, handleDeleteAccount, handleRestoreAccount,
-    handleToggleDeleted, handleBack, handleContinue,
+    handleToggleDeleted, handleBack, handleContinue, handleSaveMappings,
+    hasUnsavedChanges, isSaving,
   };
 }
