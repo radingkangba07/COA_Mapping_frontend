@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useMigrationStore } from '../store/migration.store';
 import {
@@ -13,7 +13,7 @@ import {
   triggerBlobDownload,
 } from '../services/file-processing.service';
 import { matchTypesToTargets } from '../services/fuzzy.service';
-import { downloadSampleData } from '@/features/erp-config/services/erp-config.service';
+import { downloadSampleData, getSampleData } from '@/features/erp-config/services/erp-config.service';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { useSyncStep } from './useSyncStep';
 import { useToast } from '@/shared/hooks/useToast';
@@ -46,6 +46,11 @@ interface UseMigrationViewModelReturn {
   readonly processFiles: () => Promise<void>;
   readonly canProceedFromStep1: boolean;
   readonly handleDownloadSample: (erpId: string) => Promise<void>;
+  readonly handlePreviewSample: (erpId: string) => Promise<void>;
+  readonly previewData: Record<string, unknown>[] | null;
+  readonly previewTitle: string;
+  readonly isPreviewOpen: boolean;
+  readonly closePreview: () => void;
 }
 
 export function useMigrationViewModel(): UseMigrationViewModelReturn {
@@ -167,8 +172,12 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
       try {
         const result = await downloadSampleData(httpClient, erpId);
         if (result.ok) {
-          if (isWeb) { triggerBlobDownload(result.data, `${erpId}-sample.xlsx`); }
-          showSuccess('Download complete', 'Sample file downloaded');
+          if (isWeb) {
+            triggerBlobDownload(result.data, `${erpId}-sample.xlsx`);
+            showSuccess('Download complete', 'Sample file downloaded');
+          } else {
+            showSuccess('Download unavailable', 'File download is only available on web');
+          }
         } else {
           showError('Download failed', result.error.message);
         }
@@ -181,6 +190,37 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
     [actions, showSuccess, showError],
   );
 
+  const [previewData, setPreviewData] = useState<Record<string, unknown>[] | null>(null);
+  const [previewTitle, setPreviewTitle] = useState('');
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  const handlePreviewSample = useCallback(
+    async (erpId: string): Promise<void> => {
+      actions.setLoading(true);
+      try {
+        const result = await getSampleData(httpClient, erpId);
+        if (result.ok) {
+          setPreviewData([...result.data.data]);
+          setPreviewTitle(`${result.data.erpName} Sample Data`);
+          setIsPreviewOpen(true);
+        } else {
+          showError('Preview failed', result.error.message);
+        }
+      } catch {
+        showError('Preview failed', 'An unexpected error occurred');
+      } finally {
+        actions.setLoading(false);
+      }
+    },
+    [actions, showError],
+  );
+
+  const closePreview = useCallback(() => {
+    setIsPreviewOpen(false);
+    setPreviewData(null);
+    setPreviewTitle('');
+  }, []);
+
   const canProceedFromStep0 = useMemo(() => sourceERP !== null && targetERP !== null, [sourceERP, targetERP]);
   const canProceedFromStep1 = useMemo(() => sourceFile !== null, [sourceFile]);
 
@@ -191,5 +231,6 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
     handleSourceFilePicked, handleTargetFilePicked, handleMappingFilePicked,
     handleRemoveSourceFile, handleRemoveTargetFile, handleRemoveMappingFile,
     processFiles, canProceedFromStep1, handleDownloadSample,
+    handlePreviewSample, previewData, previewTitle, isPreviewOpen, closePreview,
   };
 }
