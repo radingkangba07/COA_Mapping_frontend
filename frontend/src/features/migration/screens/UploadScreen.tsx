@@ -232,18 +232,18 @@ export function UploadScreen(): React.JSX.Element {
           <Text className="px-4 py-1 text-xs text-muted-foreground">
             Showing {previewData?.length ?? 0} rows
           </Text>
-          <ScrollView horizontal className="flex-1 px-4 pb-4">
-            <View>
-              {previewData && previewData.length > 0 && (
-                <>
-                  <View className="flex-row border-b border-border py-2">
-                    {Object.keys(previewData[0]!).map((col) => (
-                      <Text key={col} className="w-40 px-2 font-mono text-xs font-semibold text-foreground">
-                        {col}
-                      </Text>
-                    ))}
-                  </View>
-                  <ScrollView style={{ maxHeight: 400 }}>
+          <ScrollView style={{ maxHeight: 500 }} className="px-4 pb-4">
+            <ScrollView horizontal>
+              <View>
+                {previewData && previewData.length > 0 && (
+                  <>
+                    <View className="flex-row border-b border-border py-2">
+                      {Object.keys(previewData[0]!).map((col) => (
+                        <Text key={col} className="w-40 px-2 font-mono text-xs font-semibold text-foreground">
+                          {col}
+                        </Text>
+                      ))}
+                    </View>
                     {previewData.map((row, i) => (
                       <View key={i} className="flex-row border-b border-border/50 py-1.5">
                         {Object.values(row).map((val, j) => (
@@ -253,15 +253,15 @@ export function UploadScreen(): React.JSX.Element {
                         ))}
                       </View>
                     ))}
-                  </ScrollView>
-                </>
-              )}
-              {(!previewData || previewData.length === 0) && (
-                <View className="py-8 items-center">
-                  <Text className="text-sm text-muted-foreground">No data to preview</Text>
-                </View>
-              )}
-            </View>
+                  </>
+                )}
+                {(!previewData || previewData.length === 0) && (
+                  <View className="py-8 items-center">
+                    <Text className="text-sm text-muted-foreground">No data to preview</Text>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
           </ScrollView>
         </Pressable>
       </Pressable>
