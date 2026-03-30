@@ -8,12 +8,16 @@ import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { Badge } from '@/shared/components/ui/Badge';
+import { Spinner } from '@/shared/components/ui/Spinner';
+import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorFallback';
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
 import { ExportFormatPicker } from '@/features/export/components/ExportFormatPicker';
 import { useExportViewModel } from '@/features/export/hooks/useExportViewModel';
 import { usePreviewScreenViewModel } from '../hooks/usePreviewScreenViewModel';
+import { useHydrateProject } from '../hooks/useHydrateProject';
 import { useOnlineGuard } from '@/shared/hooks/useOnlineGuard';
 import { useMigrationScreenRoute } from '@/navigation/types';
+import { createProjectId } from '@/shared/types/common.types';
 import { cn } from '@/shared/utils/string.utils';
 import { colors } from '@/config/theme';
 import { getConfidenceBgClass, getConfidenceTextClass } from '@/shared/constants/mapping-confidence';
@@ -53,6 +57,7 @@ export const PreviewScreen = (): React.JSX.Element => {
   const navigation = useNavigation<MigrationNavProp>();
   const route = useMigrationScreenRoute<'Preview'>();
   const { projectId } = route.params;
+  const { isHydrating, error, retry } = useHydrateProject(createProjectId(projectId));
 
   const navigateBack = useCallback(
     (id: string) => navigation.navigate('Validation', { projectId: id }),
@@ -90,6 +95,25 @@ export const PreviewScreen = (): React.JSX.Element => {
   const handleExport = useCallback(async (): Promise<void> => {
     await performExport();
   }, [performExport]);
+
+  if (isHydrating) {
+    return (
+      <Screen testID="preview-screen">
+        <View className="flex-1 items-center justify-center">
+          <Spinner size="lg" />
+          <Text className="mt-4 font-body text-sm text-muted-foreground">Loading project data...</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (error) {
+    return (
+      <Screen testID="preview-screen">
+        <NetworkErrorFallback error={new Error(error.message)} onRetry={retry} testID="preview-error" />
+      </Screen>
+    );
+  }
 
   return (
     <Screen scroll testID="preview-screen">
