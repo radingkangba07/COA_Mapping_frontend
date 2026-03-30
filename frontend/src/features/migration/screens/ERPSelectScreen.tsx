@@ -6,12 +6,16 @@ import { ArrowRight } from 'lucide-react-native';
 import { Screen } from '@/shared/components/layout/Screen';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
+import { Spinner } from '@/shared/components/ui/Spinner';
+import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorFallback';
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
 import { ERPCombobox } from '../components/ERPCombobox/ERPCombobox';
 import { useMigrationViewModel } from '../hooks/useMigrationViewModel';
+import { useHydrateProject } from '../hooks/useHydrateProject';
 import { useERPConfig } from '@/features/erp-config/hooks/useERPConfig';
 import { useMigrationScreenRoute } from '@/navigation/types';
 import type { MigrationStackParamList } from '@/navigation/types';
+import { createProjectId } from '@/shared/types/common.types';
 import { colors } from '@/config/theme';
 
 type MigrationNavProp = NativeStackNavigationProp<MigrationStackParamList>;
@@ -20,6 +24,8 @@ export const ERPSelectScreen = (): React.JSX.Element => {
   const navigation = useNavigation<MigrationNavProp>();
   const route = useMigrationScreenRoute<'ERPSelect'>();
   const projectId = route.params.projectId;
+
+  const { isHydrating, error, retry } = useHydrateProject(createProjectId(projectId));
 
   const {
     currentStep,
@@ -61,6 +67,31 @@ export const ERPSelectScreen = (): React.JSX.Element => {
   );
 
   const hasBothSelected = sourceERP !== null && targetERP !== null;
+
+  if (isHydrating) {
+    return (
+      <Screen testID="erp-select-screen">
+        <View className="flex-1 items-center justify-center">
+          <Spinner size="lg" />
+          <Text className="mt-4 font-body text-sm text-muted-foreground">
+            Loading project data...
+          </Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (error) {
+    return (
+      <Screen testID="erp-select-screen">
+        <NetworkErrorFallback
+          error={new Error(error.message)}
+          onRetry={retry}
+          testID="erp-select-error"
+        />
+      </Screen>
+    );
+  }
 
   return (
     <Screen scroll testID="erp-select-screen">
