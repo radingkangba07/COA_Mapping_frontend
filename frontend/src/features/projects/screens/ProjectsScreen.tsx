@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen } from '@/shared/components/layout/Screen';
 import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorFallback';
+import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { useProjectsViewModel } from '../hooks/useProjectsViewModel';
 import { ProjectList } from '../components/ProjectList';
 import { ProjectListSkeleton } from '../components/ProjectListSkeleton';
@@ -124,6 +125,28 @@ export const ProjectsScreen = (): React.JSX.Element => {
     return (
       <Screen testID="projects-screen">
         <ProjectListSkeleton testID="projects-skeleton" />
+      </Screen>
+    );
+  }
+
+  if (!isLoading && projects.length === 0) {
+    return (
+      <Screen testID="projects-screen">
+        <EmptyState
+          title="No projects yet"
+          description="Create your first project to start migrating your chart of accounts."
+          action={{
+            label: 'New Project',
+            onPress: () => setDialogVisible(true),
+          }}
+          testID="projects-empty"
+        />
+        <NewProjectDialog
+          visible={dialogVisible}
+          onClose={handleCloseDialog}
+          companyId={dialogCompanyId}
+          testID="new-project-dialog"
+        />
       </Screen>
     );
   }
