@@ -22,6 +22,8 @@ import { cn } from '@/shared/utils/string.utils';
 import { colors } from '@/config/theme';
 import { getConfidenceBgClass, getConfidenceTextClass } from '@/shared/constants/mapping-confidence';
 import type { MigrationStackParamList } from '@/navigation/types';
+import { STEP_TO_SCREEN } from '@/shared/constants/migration-steps';
+import type { MigrationStepValue } from '@/shared/constants/migration-steps';
 
 type MigrationNavProp = NativeStackNavigationProp<MigrationStackParamList>;
 const ICON_SIZE = 16;
@@ -66,6 +68,15 @@ export const PreviewScreen = (): React.JSX.Element => {
 
   const { isOnline } = useOnlineGuard();
   const vm = usePreviewScreenViewModel(projectId, navigateBack);
+
+  const handleStepPress = useCallback(
+    (step: number): void => {
+      vm.handleStepPress(step);
+      const screen = STEP_TO_SCREEN[step as MigrationStepValue];
+      navigation.navigate(screen as 'ERPSelect', { projectId });
+    },
+    [vm, navigation, projectId],
+  );
 
   const { performExport, changeFormat, isExporting, exportFormat } = useExportViewModel({
     groupedMappings: vm.groupedMappings,
@@ -121,7 +132,7 @@ export const PreviewScreen = (): React.JSX.Element => {
         <MigrationStepper
           currentStep={4}
           completedSteps={vm.completedSteps}
-          onStepPress={vm.handleStepPress}
+          onStepPress={handleStepPress}
         />
 
         <View className="mt-8 mb-4">

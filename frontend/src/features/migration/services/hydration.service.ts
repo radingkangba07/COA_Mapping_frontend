@@ -46,12 +46,23 @@ export async function hydrateProject(
   }
   const project = projectResult.data;
 
+  console.log('[hydrateProject] project from API', {
+    currentStep: project.currentStep,
+    sourceErp: project.sourceErp,
+    targetErp: project.targetErp,
+  });
+
   if (!isValidStep(project.currentStep)) {
     return { ok: false, error: { code: 'INVALID_STEP', message: `Unknown migration step: ${String(project.currentStep)}` } };
   }
   const targetStep = project.currentStep;
 
+  // Preserve in-memory ERPs before reset — backend may return empty strings
+  const prevSourceERP = store.sourceERP;
+  const prevTargetERP = store.targetERP;
+
   // Populate project basics
+  console.log('[hydrateProject] calling store.reset()');
   store.reset();
   store.setProjectId(projectId);
   store.setStep(targetStep);
@@ -60,15 +71,32 @@ export async function hydrateProject(
     store.completeStep(step);
   }
 
-  // Resolve ERP IDs to ERPSystem objects
-  const sourceERPInfo = ERP_SYSTEMS.find((e) => e.id === project.sourceErp);
-  const targetERPInfo = ERP_SYSTEMS.find((e) => e.id === project.targetErp);
+  // Resolve ERP IDs to ERPSystem objects — fall back to in-memory values
+  const sourceERPInfo = project.sourceErp
+    ? ERP_SYSTEMS.find((e) => e.id === project.sourceErp)
+    : undefined;
+  const targetERPInfo = project.targetErp
+    ? ERP_SYSTEMS.find((e) => e.id === project.targetErp)
+    : undefined;
+
+  console.log('[hydrateProject] ERP resolution', {
+    sourceErpId: project.sourceErp,
+    targetErpId: project.targetErp,
+    sourceFound: !!sourceERPInfo,
+    targetFound: !!targetERPInfo,
+    prevSourceERP: prevSourceERP?.id ?? null,
+    prevTargetERP: prevTargetERP?.id ?? null,
+  });
 
   if (sourceERPInfo) store.setSourceERP(toERPSystem(sourceERPInfo));
+  else if (prevSourceERP) store.setSourceERP(prevSourceERP);
+
   if (targetERPInfo) store.setTargetERP(toERPSystem(targetERPInfo));
+  else if (prevTargetERP) store.setTargetERP(prevTargetERP);
 
   // Step 0 (ERPSelect): only needs project metadata + ERPs
   if (targetStep <= MIGRATION_STEPS.ERP_SELECT) {
+    console.log('[hydrateProject] early return at step 0');
     return { ok: true };
   }
 
