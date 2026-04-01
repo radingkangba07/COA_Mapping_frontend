@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
@@ -93,6 +93,14 @@ const erpSystems = [
 
 jest.mock('@/features/erp-config/hooks/useERPConfig', () => ({
   useERPConfig: () => ({ erpSystems }),
+}));
+
+jest.mock('@/features/projects/services/projects.service', () => ({
+  updateProject: jest.fn().mockResolvedValue({ ok: true, data: {} }),
+}));
+
+jest.mock('@/shared/services/http/http.instance', () => ({
+  httpClient: {},
 }));
 
 // Mock complex child components
@@ -238,7 +246,7 @@ describe('ERPSelectScreen', () => {
     }
   });
 
-  it('navigates to Upload on continue press', () => {
+  it('navigates to Upload on continue press', async () => {
     mockUseMigrationViewModel.mockReturnValue({
       ...defaultMigrationViewModel,
       sourceERP: { id: 'sap', name: 'SAP' },
@@ -249,9 +257,10 @@ describe('ERPSelectScreen', () => {
     render(<ERPSelectScreen />);
     fireEvent.press(screen.getByTestId('continue-button'));
 
-    expect(mockGoToStep).toHaveBeenCalledWith(1);
-    expect(mockNavigate).toHaveBeenCalledWith('Upload', {
-      projectId: 'test-project-1',
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('Upload', {
+        projectId: 'test-project-1',
+      });
     });
   });
 

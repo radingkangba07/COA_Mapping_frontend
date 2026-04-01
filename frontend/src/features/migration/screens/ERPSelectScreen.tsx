@@ -18,6 +18,10 @@ import { useMigrationScreenRoute } from '@/navigation/types';
 import type { MigrationStackParamList } from '@/navigation/types';
 import { createProjectId } from '@/shared/types/common.types';
 import { colors } from '@/config/theme';
+import { updateProject } from '@/features/projects/services/projects.service';
+import { httpClient } from '@/shared/services/http/http.instance';
+import { STEP_TO_SCREEN } from '@/shared/constants/migration-steps';
+import type { MigrationStepValue } from '@/shared/constants/migration-steps';
 
 type MigrationNavProp = NativeStackNavigationProp<MigrationStackParamList>;
 
@@ -25,6 +29,8 @@ export const ERPSelectScreen = (): React.JSX.Element => {
   const navigation = useNavigation<MigrationNavProp>();
   const route = useMigrationScreenRoute<'ERPSelect'>();
   const projectId = route.params.projectId;
+
+  console.log('[ERPSelectScreen] RENDER', { projectId });
 
   const { isHydrating, error, retry } = useHydrateProject(createProjectId(projectId));
 
@@ -38,6 +44,14 @@ export const ERPSelectScreen = (): React.JSX.Element => {
     handleTargetSelect,
     goToStep,
   } = useMigrationViewModel();
+
+  console.log('[ERPSelectScreen] state', {
+    isHydrating,
+    sourceERP: sourceERP?.id ?? null,
+    targetERP: targetERP?.id ?? null,
+    currentStep,
+    completedSteps,
+  });
 
   const { erpSystems } = useERPConfig();
 
@@ -56,18 +70,28 @@ export const ERPSelectScreen = (): React.JSX.Element => {
   );
 
   const completeStep = useMigrationStore((s) => s.completeStep);
+  const setStep = useMigrationStore((s) => s.setStep);
 
-  const handleContinue = useCallback((): void => {
+  const handleContinue = useCallback(async (): Promise<void> => {
     completeStep(0);
-    goToStep(1);
+    setStep(1);
+    if (sourceERP && targetERP) {
+      await updateProject(httpClient, createProjectId(projectId), {
+        currentStep: 1,
+        sourceErp: sourceERP.id,
+        targetErp: targetERP.id,
+      });
+    }
     navigation.navigate('Upload', { projectId });
-  }, [completeStep, goToStep, navigation, projectId]);
+  }, [completeStep, setStep, navigation, projectId, sourceERP, targetERP]);
 
   const handleStepPress = useCallback(
     (step: number): void => {
-      goToStep(step);
+      setStep(step);
+      const screen = STEP_TO_SCREEN[step as MigrationStepValue];
+      navigation.navigate(screen as 'ERPSelect', { projectId });
     },
-    [goToStep],
+    [setStep, navigation, projectId],
   );
 
   const hasBothSelected = sourceERP !== null && targetERP !== null;
@@ -163,7 +187,7 @@ export const ERPSelectScreen = (): React.JSX.Element => {
 
         <View className="mt-6">
           <Button
-            onPress={handleContinue}
+            onPress={() => void handleContinue()}
             disabled={!canProceedFromStep0}
             size="lg"
             className="bg-accent"
