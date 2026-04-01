@@ -27,12 +27,15 @@ import { AccountTypeGroup } from '../components/AccountTypeGroup/AccountTypeGrou
 import { ValidationSkeleton } from '../components/ValidationSkeleton';
 import { useHydrateProject } from '../hooks/useHydrateProject';
 import { useValidationScreenViewModel } from '../hooks/useValidationScreenViewModel';
+import { useMigrationStore } from '../store/migration.store';
 import { useMigrationScreenRoute } from '@/navigation/types';
 import { createProjectId } from '@/shared/types/common.types';
 import { cn } from '@/shared/utils/string.utils';
 import type { MigrationStackParamList } from '@/navigation/types';
 import type { ConfidenceLevel } from '../types/mapping.types';
 import { colors } from '@/config/theme';
+import { STEP_TO_SCREEN } from '@/shared/constants/migration-steps';
+import type { MigrationStepValue } from '@/shared/constants/migration-steps';
 
 type MigrationNavProp = NativeStackNavigationProp<MigrationStackParamList>;
 const ICON_SIZE = 16;
@@ -84,6 +87,23 @@ export const ValidationScreen = (): React.JSX.Element => {
 
   const vm = useValidationScreenViewModel(projectId, navigateBack, navigateForward);
 
+  const handleStepPress = useCallback(
+    (step: number): void => {
+      const storeBefore = useMigrationStore.getState();
+      console.log('[ValidationScreen] handleStepPress', {
+        step,
+        sourceERP: storeBefore.sourceERP?.id ?? null,
+        targetERP: storeBefore.targetERP?.id ?? null,
+        currentStep: storeBefore.currentStep,
+      });
+      vm.handleStepPress(step);
+      const screen = STEP_TO_SCREEN[step as MigrationStepValue];
+      console.log('[ValidationScreen] navigating to', screen);
+      navigation.navigate(screen as 'ERPSelect', { projectId });
+    },
+    [vm, navigation, projectId],
+  );
+
   if (isHydrating) {
     return (
       <Screen testID="validation-screen">
@@ -114,7 +134,7 @@ export const ValidationScreen = (): React.JSX.Element => {
           <MigrationStepper
             currentStep={vm.currentStep}
             completedSteps={vm.completedSteps}
-            onStepPress={vm.handleStepPress}
+            onStepPress={handleStepPress}
           />
           <View className="mt-8 mb-4">
             <Skeleton height={28} className="w-48 rounded" />
@@ -132,7 +152,7 @@ export const ValidationScreen = (): React.JSX.Element => {
         <MigrationStepper
           currentStep={vm.currentStep}
           completedSteps={vm.completedSteps}
-          onStepPress={vm.handleStepPress}
+          onStepPress={handleStepPress}
         />
 
         {/* Header: Title + file info + progress + action button */}
