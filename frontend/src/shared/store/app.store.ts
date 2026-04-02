@@ -11,12 +11,15 @@ interface AppState {
   theme: Theme;
   locale: Locale;
   isOnline: boolean;
+  isDrawerCollapsed: boolean;
 }
 
 interface AppActions {
   setTheme: (theme: Theme) => void;
   setLocale: (locale: Locale) => void;
   setOnline: (isOnline: boolean) => void;
+  setDrawerCollapsed: (collapsed: boolean) => void;
+  toggleDrawerCollapsed: () => void;
   toggleTheme: () => void;
   reset: () => void;
 }
@@ -29,6 +32,7 @@ const initialState: AppState = {
   theme: 'light',
   locale: 'en',
   isOnline: true,
+  isDrawerCollapsed: false,
 };
 
 // ─── Store ───────────────────────────────────────────────────────────────────
@@ -52,6 +56,18 @@ export const useAppStore = create<AppStore>()(
     setOnline: (isOnline: boolean) => {
       set((state) => {
         state.isOnline = isOnline;
+      });
+    },
+
+    setDrawerCollapsed: (collapsed: boolean) => {
+      set((state) => {
+        state.isDrawerCollapsed = collapsed;
+      });
+    },
+
+    toggleDrawerCollapsed: () => {
+      set((state) => {
+        state.isDrawerCollapsed = !state.isDrawerCollapsed;
       });
     },
 
