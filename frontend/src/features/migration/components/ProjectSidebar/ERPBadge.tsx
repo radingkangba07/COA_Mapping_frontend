@@ -38,17 +38,18 @@ interface ERPBadgeProps {
   readonly erp: ERPInfo | null;
   readonly label: string;
   readonly className?: string;
+  readonly labelClassName?: string;
   readonly testID?: string;
 }
 
-export const ERPBadge = ({ erp, label, className, testID }: ERPBadgeProps) => (
+export const ERPBadge = ({ erp, label, className, labelClassName, testID }: ERPBadgeProps) => (
   <View className={`rounded-lg border border-border ${className ?? ''} p-3`} testID={testID}>
-    <Text className="font-body mb-1 text-xs font-medium text-muted-foreground">
+    <Text className={`mb-1 font-body text-[10px] font-semibold uppercase tracking-wide ${labelClassName ?? 'text-muted-foreground'}`}>
       {label}
     </Text>
     {erp ? (
       <View className="flex-row items-center gap-2">
-        <View className={`h-7 w-7 items-center justify-center rounded-md ${getERPBadgeColor(erp.id)}`}>
+        <View className={`h-7 w-7 items-center justify-center rounded-full ${getERPBadgeColor(erp.id)}`}>
           <Text className="font-body text-xs font-bold text-white">
             {getERPInitial(erp.id)}
           </Text>
