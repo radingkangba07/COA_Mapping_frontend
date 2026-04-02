@@ -13,7 +13,7 @@ import {
   CheckCircle2,
   Edit3,
 } from 'lucide-react-native';
-import { Screen } from '@/shared/components/layout/Screen';
+import { MigrationLayout } from '../components/MigrationLayout';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { Badge } from '@/shared/components/ui/Badge';
@@ -68,6 +68,8 @@ export const ValidationScreen = (): React.JSX.Element => {
   const route = useMigrationScreenRoute<'Validation'>();
   const { projectId } = route.params;
 
+  const handleGoBack = useCallback(() => navigation.goBack(), [navigation]);
+
   const navigateBack = useCallback(
     (id: string) => navigation.navigate('Mapping', { projectId: id }),
     [navigation],
@@ -85,8 +87,15 @@ export const ValidationScreen = (): React.JSX.Element => {
 
   if (isLoadingData) {
     return (
-      <Screen scroll testID="validation-screen">
-        <View className="max-w-4xl lg:max-w-6xl mx-auto w-full px-4 py-6">
+      <MigrationLayout
+        title="COA Migration"
+        subtitle="Review validation results"
+        projectId={projectId}
+        onBack={handleGoBack}
+        scroll
+        testID="validation-screen"
+      >
+        <View className="max-w-4xl lg:max-w-6xl mx-auto w-full py-6">
           <MigrationStepper
             currentStep={vm.currentStep}
             completedSteps={vm.completedSteps}
@@ -98,13 +107,20 @@ export const ValidationScreen = (): React.JSX.Element => {
           </View>
           <ValidationSkeleton testID="validation-skeleton" />
         </View>
-      </Screen>
+      </MigrationLayout>
     );
   }
 
   return (
-    <Screen scroll testID="validation-screen">
-      <View className="max-w-4xl lg:max-w-6xl mx-auto w-full px-4 py-6">
+    <MigrationLayout
+      title="COA Migration"
+      subtitle="Review validation results"
+      projectId={projectId}
+      onBack={handleGoBack}
+      scroll
+      testID="validation-screen"
+    >
+      <View className="max-w-4xl lg:max-w-6xl mx-auto w-full py-6">
         <MigrationStepper
           currentStep={vm.currentStep}
           completedSteps={vm.completedSteps}
@@ -368,6 +384,6 @@ export const ValidationScreen = (): React.JSX.Element => {
           </Button>
         </View>
       </View>
-    </Screen>
+    </MigrationLayout>
   );
 };
