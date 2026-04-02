@@ -11,7 +11,7 @@ import {
   Save,
   X,
 } from 'lucide-react-native';
-import { Screen } from '@/shared/components/layout/Screen';
+import { MigrationLayout } from '../components/MigrationLayout';
 import { Card } from '@/shared/components/ui/Card';
 import { Badge } from '@/shared/components/ui/Badge';
 import { Button } from '@/shared/components/ui/Button';
@@ -101,8 +101,15 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
   );
 
   return (
-    <Screen scroll testID="final-preview-screen">
-      <View className="max-w-4xl lg:max-w-6xl mx-auto w-full px-4 py-6">
+    <MigrationLayout
+      title="COA Migration"
+      subtitle="Final review before export"
+      projectId={projectId}
+      onBack={() => navigation.goBack()}
+      scroll
+      testID="final-preview-screen"
+    >
+      <View className="max-w-4xl lg:max-w-6xl mx-auto w-full py-6">
         <MigrationStepper
           currentStep={currentStep}
           completedSteps={completedSteps}
@@ -285,6 +292,6 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
               </ScrollView>
         </Card>
       </View>
-    </Screen>
+    </MigrationLayout>
   );
 };
