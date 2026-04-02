@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ErrorBoundary } from '@/shared/components/feedback/ErrorBoundary';
 import { colors } from '@/config/theme';
+import { useMigrationFlowDetector } from '../hooks/useMigrationFlowDetector';
 import { MigrationListScreen } from '@/features/migration/screens/MigrationListScreen';
 import { ERPSelectScreen } from '@/features/migration/screens/ERPSelectScreen';
 import { UploadScreen } from '@/features/migration/screens/UploadScreen';
@@ -14,6 +15,8 @@ import type { MigrationStackParamList } from '../types';
 const Stack = createNativeStackNavigator<MigrationStackParamList>();
 
 export const MigrationStack = (): React.JSX.Element => {
+  useMigrationFlowDetector();
+
   const headerStyle = { backgroundColor: colors.background } as const;
   const headerTintColor = colors.foreground;
 
@@ -34,7 +37,7 @@ export const MigrationStack = (): React.JSX.Element => {
         <Stack.Screen
           name="ERPSelect"
           component={ERPSelectScreen}
-          options={{ title: 'Select ERP' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="Upload"
@@ -44,22 +47,22 @@ export const MigrationStack = (): React.JSX.Element => {
         <Stack.Screen
           name="Mapping"
           component={MappingScreen}
-          options={{ title: 'Review Mappings' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="Validation"
           component={ValidationScreen}
-          options={{ title: 'Validation' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="FinalPreview"
           component={FinalPreviewScreen}
-          options={{ title: 'Final Preview' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="Preview"
           component={PreviewScreen}
-          options={{ title: 'Preview & Export' }}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </ErrorBoundary>
