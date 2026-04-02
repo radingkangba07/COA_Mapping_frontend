@@ -15,7 +15,7 @@ import {
   Save,
   Trash2,
 } from 'lucide-react-native';
-import { Screen } from '@/shared/components/layout/Screen';
+import { MigrationLayout } from '../components/MigrationLayout';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { Select, type SelectOption } from '@/shared/components/ui/Select';
@@ -133,8 +133,15 @@ export const MappingScreen = (): React.JSX.Element => {
 
   if (isLoading && typeMappingRows.length === 0) {
     return (
-      <Screen scroll testID="mapping-screen">
-        <View className="max-w-4xl lg:max-w-6xl flex-1 self-center w-full px-4 py-6 gap-6">
+      <MigrationLayout
+        title="COA Migration"
+        subtitle="Review and edit field mappings"
+        projectId={projectId}
+        onBack={() => navigation.goBack()}
+        scroll
+        testID="mapping-screen"
+      >
+        <View className="max-w-4xl lg:max-w-6xl flex-1 self-center w-full py-6 gap-6">
           <MigrationStepper
             currentStep={currentStep}
             completedSteps={completedSteps}
@@ -146,13 +153,20 @@ export const MappingScreen = (): React.JSX.Element => {
           </View>
           <MappingTableSkeleton testID="mapping-skeleton" />
         </View>
-      </Screen>
+      </MigrationLayout>
     );
   }
 
   return (
-    <Screen scroll testID="mapping-screen">
-      <View className="max-w-4xl lg:max-w-6xl flex-1 self-center w-full px-4 py-6 gap-6">
+    <MigrationLayout
+      title="COA Migration"
+      subtitle="Review and edit field mappings"
+      projectId={projectId}
+      onBack={() => navigation.goBack()}
+      scroll
+      testID="mapping-screen"
+    >
+      <View className="max-w-4xl lg:max-w-6xl flex-1 self-center w-full py-6 gap-6">
         <MigrationStepper
           currentStep={currentStep}
           completedSteps={completedSteps}
@@ -238,7 +252,7 @@ export const MappingScreen = (): React.JSX.Element => {
           </Button>
         </View>
       </View>
-    </Screen>
+    </MigrationLayout>
   );
 };
 
