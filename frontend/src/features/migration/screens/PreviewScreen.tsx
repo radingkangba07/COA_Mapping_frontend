@@ -3,7 +3,7 @@ import { View, Text, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Download, RefreshCw, ArrowLeft } from 'lucide-react-native';
-import { Screen } from '@/shared/components/layout/Screen';
+import { MigrationLayout } from '../components/MigrationLayout';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
@@ -92,8 +92,14 @@ export const PreviewScreen = (): React.JSX.Element => {
   }, [performExport]);
 
   return (
-    <Screen scroll testID="preview-screen">
-      <View className="max-w-4xl lg:max-w-6xl mx-auto w-full px-4 py-6">
+    <MigrationLayout
+      title="COA Migration"
+      subtitle="Preview and export mapped data"
+      projectId={projectId}
+      onBack={() => navigation.goBack()}
+      scroll
+      testID="preview-screen"
+    >
         <MigrationStepper
           currentStep={4}
           completedSteps={vm.completedSteps}
@@ -204,7 +210,6 @@ export const PreviewScreen = (): React.JSX.Element => {
             <Text className="text-sm font-medium text-foreground">Start New Migration</Text>
           </View>
         </Button>
-      </View>
-    </Screen>
+    </MigrationLayout>
   );
 };
