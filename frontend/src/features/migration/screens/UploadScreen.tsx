@@ -1,17 +1,16 @@
 import React, { useCallback } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, CheckCircle, Circle } from 'lucide-react-native';
-import { Screen } from '@/shared/components/layout/Screen';
 import { Button } from '@/shared/components/ui/Button';
+import { MigrationLayout } from '../components/MigrationLayout';
+import { UploadStatusCard } from '../components/UploadStatusCard';
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
 import { FileUploader } from '../components/FileUploader/FileUploader';
 import { ERPSummaryCard } from '../components/ERPSummaryCard';
 import { SampleFilesTable } from '../components/SampleFilesTable';
 import { useMigrationViewModel } from '../hooks/useMigrationViewModel';
 import { useMigrationScreenRoute } from '@/navigation/types';
-import { colors } from '@/config/theme';
 import type { MigrationStackParamList } from '@/navigation/types';
 import type { PickedFile } from '../hooks/useFileUpload';
 
@@ -61,8 +60,8 @@ export function UploadScreen(): React.JSX.Element {
     [handleMappingFilePicked],
   );
 
-  const handleDashboard = useCallback((): void => {
-    navigation.getParent()?.navigate('ProjectsTab');
+  const handleGoBack = useCallback((): void => {
+    navigation.goBack();
   }, [navigation]);
 
   const handleBack = useCallback((): void => {
@@ -91,18 +90,16 @@ export function UploadScreen(): React.JSX.Element {
   const mappingFileInfo = mappingFile ? { name: mappingFile.name, rowCount: mappingFile.rowCount } : null;
 
   return (
-    <Screen scroll testID="upload-screen">
-      <View className="flex-1 max-w-4xl lg:max-w-6xl self-center w-full px-4 py-6 gap-6 lg:gap-8">
+    <MigrationLayout
+      title="COA Migration"
+      subtitle="Upload your chart of accounts files"
+      projectId={projectId}
+      onBack={handleGoBack}
+      scroll
+      testID="upload-screen"
+    >
+      <View className="flex-1 max-w-4xl lg:max-w-6xl self-center w-full gap-6 lg:gap-8">
         <View className="flex-1 gap-6 lg:gap-8">
-          <Pressable
-            className="flex-row items-center gap-2"
-            onPress={handleDashboard}
-            testID="breadcrumb-dashboard"
-          >
-            <ArrowLeft size={16} color={colors.mutedForeground} strokeWidth={2} />
-            <Text className="font-body text-sm text-muted-foreground">Dashboard</Text>
-          </Pressable>
-
           <MigrationStepper
             currentStep={currentStep}
             completedSteps={completedSteps}
@@ -175,60 +172,6 @@ export function UploadScreen(): React.JSX.Element {
           </View>
         </View>
       </View>
-    </Screen>
-  );
-}
-
-// ─── Sub-components ──────────────────────────────────────────────────────────
-
-interface UploadStatusCardProps {
-  sourceFile: { name: string; rowCount: number } | null;
-  targetFile: { name: string; rowCount: number } | null;
-  mappingFile: { name: string; rowCount: number } | null;
-}
-
-function UploadStatusCard({ sourceFile, targetFile, mappingFile }: UploadStatusCardProps) {
-  const items = [
-    { label: 'Source COA', file: sourceFile, unit: 'rows' },
-    { label: 'Target COA', file: targetFile, unit: 'rows' },
-    { label: 'Type Mapping', file: mappingFile, unit: 'mappings' },
-  ];
-
-  return (
-    <View testID="upload-status-card">
-      <Text className="font-heading text-sm font-semibold text-foreground mb-2">
-        Upload Status
-      </Text>
-      <View className="flex-row gap-3">
-        {items.map((item) => (
-          <View
-            key={item.label}
-            className={`flex-1 flex-row items-center gap-1.5 rounded-lg border px-3 py-2.5 ${
-              item.file !== null
-                ? 'border-green-200 bg-green-50'
-                : 'border-border bg-background'
-            }`}
-          >
-            {item.file !== null ? (
-              <CheckCircle size={14} color={colors.success} strokeWidth={2} />
-            ) : (
-              <Circle size={14} color={colors.mutedForeground} strokeWidth={2} />
-            )}
-            <Text
-              className={`font-body text-xs font-medium ${
-                item.file !== null ? 'text-green-800' : 'text-muted-foreground'
-              }`}
-            >
-              {item.label}
-            </Text>
-            {item.file !== null && (
-              <Text className="font-mono text-xs text-green-700">
-                {item.file.rowCount} {item.unit}
-              </Text>
-            )}
-          </View>
-        ))}
-      </View>
-    </View>
+    </MigrationLayout>
   );
 }
