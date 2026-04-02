@@ -3,7 +3,7 @@ import { View, Text } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowRight } from 'lucide-react-native';
-import { Screen } from '@/shared/components/layout/Screen';
+import { MigrationLayout } from '../components/MigrationLayout';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
@@ -63,8 +63,15 @@ export const ERPSelectScreen = (): React.JSX.Element => {
   const hasBothSelected = sourceERP !== null && targetERP !== null;
 
   return (
-    <Screen scroll testID="erp-select-screen">
-      <View className="max-w-2xl lg:max-w-4xl mx-auto w-full px-4 py-6">
+    <MigrationLayout
+      title="COA Migration"
+      subtitle="Select source and target ERP systems"
+      projectId={projectId}
+      onBack={() => navigation.goBack()}
+      scroll
+      testID="erp-select-screen"
+    >
+      <View className="mx-auto w-full py-6">
         <MigrationStepper
           currentStep={currentStep}
           completedSteps={completedSteps}
@@ -139,6 +146,6 @@ export const ERPSelectScreen = (): React.JSX.Element => {
           </Button>
         </View>
       </View>
-    </Screen>
+    </MigrationLayout>
   );
 };
