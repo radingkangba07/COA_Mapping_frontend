@@ -18,16 +18,6 @@ export const MigrationTopBar = React.memo(
         className="h-14 flex-row items-center border-b border-border bg-background px-4"
         testID={testID}
       >
-        {/* Left: Back button */}
-        <Pressable
-          onPress={onBack}
-          className="flex-row items-center"
-          testID={testID ? `${testID}-back` : undefined}
-        >
-          <ArrowLeft size={16} color={colors.primary} />
-          <Text className="ml-1 font-body text-sm text-primary">Dashboard</Text>
-        </Pressable>
-
         {/* Center: Title + subtitle */}
         <View className="flex-1 items-center">
           <Text className="font-heading text-base font-semibold text-foreground">{title}</Text>
