@@ -24,6 +24,7 @@ export interface Project {
   readonly createdBy: UserId | undefined;
   readonly createdAt: Date;
   readonly updatedAt: Date;
+  readonly updatedBy: UserId | undefined;
   readonly currentStep: number;
 }
 

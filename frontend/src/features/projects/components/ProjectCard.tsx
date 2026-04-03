@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { Calendar, Clock } from 'lucide-react-native';
 import { Card } from '@/shared/components/ui/Card';
 import { formatDate } from '@/shared/utils/date.utils';
 import { getERPById } from '@/shared/constants/erp-systems';
@@ -38,22 +39,35 @@ export const ProjectCard = React.memo(({
             </View>
           </View>
 
-          {/* Row 2: ERP migration path + date */}
-          <Text className="font-body text-sm text-muted-foreground mb-1" numberOfLines={1}>
-            {sourceErpName} {'>'} {targetErpName}
-            {'  \u00B7  '}
-            {formatDate(project.updatedAt)}
-          </Text>
+          {/* Row 2: ERP path + created date */}
+          <View className="flex-row items-center gap-1 mb-1 flex-wrap">
+            <Text className="font-body text-xs text-muted-foreground">
+              {sourceErpName} {'\u2192'} {targetErpName}
+            </Text>
+            <Text className="font-body text-xs text-muted-foreground">{'\u00B7'}</Text>
+            <Calendar size={12} className="text-muted-foreground" />
+            <Text className="font-body text-xs text-muted-foreground">
+              {formatDate(project.createdAt)}
+            </Text>
+          </View>
 
           {/* Row 3: Creator */}
           {project.createdBy !== undefined && (
-            <View className="flex-row items-center gap-2 mt-1">
+            <View className="flex-row items-center gap-2 mb-1">
               <MemberBadge name={project.createdBy} size="sm" />
-              <Text className="font-body text-sm text-muted-foreground">
+              <Text className="font-body text-xs text-muted-foreground">
                 {project.createdBy}
               </Text>
             </View>
           )}
+
+          {/* Row 4: Last edited by */}
+          <View className="flex-row items-center gap-1 mt-0.5">
+            <Clock size={12} className="text-muted-foreground" />
+            <Text className="font-body text-xs text-muted-foreground">
+              Last edited by:{project.updatedBy ? ` ${project.updatedBy}` : ` ${project.createdBy ?? 'unknown'}`}
+            </Text>
+          </View>
         </Card.Content>
       </Card>
     </Pressable>
