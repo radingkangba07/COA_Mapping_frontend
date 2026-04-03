@@ -33,6 +33,15 @@ jest.mock('react-native-safe-area-context', () => {
 
 jest.mock('@/shared/utils/platform.utils', () => ({ isWeb: true, isNative: false }));
 
+jest.mock('../../components/MigrationLayout', () => {
+  const { View } = require('react-native');
+  return {
+    MigrationLayout: ({ children, testID }: { children: React.ReactNode; testID?: string }) => (
+      <View testID={testID}>{children}</View>
+    ),
+  };
+});
+
 // ─── Navigation mocks ──────────────────────────────────────────────────────
 const mockNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({

@@ -103,6 +103,22 @@ jest.mock('../../components/NewProjectDialog', () => ({
   },
 }));
 
+jest.mock('@/shared/components/feedback/EmptyState', () => ({
+  EmptyState: (props: Record<string, unknown>) => {
+    const { View, Text } = require('react-native');
+    return (
+      <View testID={props.testID as string}>
+        <Text>{props.title as string}</Text>
+      </View>
+    );
+  },
+}));
+
+jest.mock('@/shared/constants/migration-steps', () => ({
+  STEP_TO_SCREEN: {},
+  MIGRATION_STEPS: { ERP_SELECT: 0 },
+}));
+
 jest.mock('@/shared/components/feedback/NetworkErrorFallback', () => ({
   NetworkErrorFallback: (props: Record<string, unknown>) => {
     const { View, Text } = require('react-native');
@@ -138,22 +154,48 @@ describe('ProjectsScreen', () => {
     expect(screen.getByTestId('projects-screen')).toBeTruthy();
   });
 
-  it('shows "Dashboard" heading when projects are loaded', () => {
+  it('shows empty state when no projects exist', () => {
+    render(<ProjectsScreen />);
+    expect(screen.getByTestId('projects-empty')).toBeTruthy();
+    expect(screen.getByText('No projects yet')).toBeTruthy();
+  });
+
+  it('shows "Dashboard" heading when projects exist', () => {
+    mockUseProjectsViewModel.mockReturnValue({
+      ...defaultViewModel,
+      projects: [{ projectId: 'p1', name: 'Test', status: 'draft' }],
+      total: 1,
+    });
     render(<ProjectsScreen />);
     expect(screen.getByText('Dashboard')).toBeTruthy();
   });
 
-  it('renders the dashboard stats', () => {
+  it('renders the dashboard stats when projects exist', () => {
+    mockUseProjectsViewModel.mockReturnValue({
+      ...defaultViewModel,
+      projects: [{ projectId: 'p1', name: 'Test', status: 'draft' }],
+      total: 1,
+    });
     render(<ProjectsScreen />);
     expect(screen.getByTestId('dashboard-stats')).toBeTruthy();
   });
 
-  it('renders the project list', () => {
+  it('renders the project list when projects exist', () => {
+    mockUseProjectsViewModel.mockReturnValue({
+      ...defaultViewModel,
+      projects: [{ projectId: 'p1', name: 'Test', status: 'draft' }],
+      total: 1,
+    });
     render(<ProjectsScreen />);
     expect(screen.getByTestId('projects-list')).toBeTruthy();
   });
 
-  it('renders the new project dialog container', () => {
+  it('renders the new project dialog container when projects exist', () => {
+    mockUseProjectsViewModel.mockReturnValue({
+      ...defaultViewModel,
+      projects: [{ projectId: 'p1', name: 'Test', status: 'draft' }],
+      total: 1,
+    });
     render(<ProjectsScreen />);
     expect(screen.getByTestId('new-project-dialog')).toBeTruthy();
   });
