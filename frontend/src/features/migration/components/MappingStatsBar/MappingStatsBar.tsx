@@ -53,8 +53,8 @@ export const MappingStatsBar = ({
       <Pressable
         onPress={() => handlePress('all')}
         className={cn(
-          'min-w-[80px] flex-1 items-center rounded-lg border p-3 bg-white',
-          isAllActive ? 'border-blue-400' : 'border-gray-200',
+          'min-w-[80px] flex-1 items-center rounded-lg border p-3 bg-card',
+          isAllActive ? 'border-blue-400 dark:border-blue-600' : 'border-gray-200 dark:border-[#3E3E42]',
         )}
         accessibilityRole="button"
         accessibilityState={{ selected: isAllActive }}
@@ -63,8 +63,8 @@ export const MappingStatsBar = ({
         <Text className="font-mono text-xl font-bold text-foreground">{totalAccounts}</Text>
         <Text className="text-xs text-muted-foreground">All Account Names</Text>
         {isAllActive && (
-          <Badge className="mt-1 bg-blue-100 px-2 py-0.5">
-            <Text className="text-xs font-medium text-blue-700">Active</Text>
+          <Badge className="mt-1 bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5">
+            <Text className="text-xs font-medium text-blue-700 dark:text-blue-400">Active</Text>
           </Badge>
         )}
       </Pressable>
@@ -73,9 +73,8 @@ export const MappingStatsBar = ({
       <StatCard
         count={highConfidence}
         label="High (90%+)"
-        bgClass="bg-green-50"
-        textClass="text-green-700"
-        borderClass="border-green-400"
+        textClass="text-green-700 dark:text-green-400"
+        borderClass="border-green-400 dark:border-green-600"
         confirmedBadgeClass="bg-green-600"
         confirmed={confirmedHigh}
         isActive={activeFilter === 'high'}
@@ -87,9 +86,8 @@ export const MappingStatsBar = ({
       <StatCard
         count={mediumConfidence}
         label="Medium (70-89%)"
-        bgClass="bg-yellow-50"
-        textClass="text-yellow-700"
-        borderClass="border-yellow-400"
+        textClass="text-yellow-700 dark:text-yellow-400"
+        borderClass="border-yellow-400 dark:border-yellow-600"
         confirmedBadgeClass="bg-yellow-600"
         confirmed={confirmedMedium}
         isActive={activeFilter === 'medium'}
@@ -101,9 +99,8 @@ export const MappingStatsBar = ({
       <StatCard
         count={lowConfidence}
         label="Low (<70%)"
-        bgClass="bg-red-50"
-        textClass="text-red-700"
-        borderClass="border-red-400"
+        textClass="text-red-700 dark:text-red-400"
+        borderClass="border-red-400 dark:border-red-600"
         confirmedBadgeClass="bg-red-600"
         confirmed={confirmedLow}
         isActive={activeFilter === 'low'}
@@ -116,25 +113,25 @@ export const MappingStatsBar = ({
         onPress={onConfirmedPress}
         disabled={!allConfirmed}
         className={cn(
-          'min-w-[80px] flex-1 items-center rounded-lg border p-3',
-          allConfirmed ? 'bg-purple-50 border-purple-400' : 'bg-purple-50/50 border-gray-200',
+          'min-w-[80px] flex-1 items-center rounded-lg border p-3 bg-card',
+          allConfirmed ? 'border-purple-400 dark:border-purple-800' : 'border-gray-200 dark:border-[#3E3E42]',
         )}
         accessibilityRole="button"
         testID={testID !== undefined ? `${testID}-confirmed` : undefined}
       >
-        <Text className={cn('font-mono text-xl font-bold', allConfirmed ? 'text-purple-600' : 'text-purple-400')}>
+        <Text className={cn('font-mono text-xl font-bold', allConfirmed ? 'text-purple-600 dark:text-purple-300/70' : 'text-purple-400 dark:text-purple-500')}>
           {confirmedCount}
         </Text>
         <Text className="text-xs text-muted-foreground">Confirmed Names</Text>
         {allConfirmed ? (
-          <Badge className="mt-1 bg-purple-600 px-2 py-0.5">
+          <Badge className="mt-1 bg-purple-600 dark:bg-purple-900/50 px-2 py-0.5">
             <View className="flex-row items-center gap-1">
               <Eye size={10} color="#FFFFFF" />
-              <Text className="text-xs font-medium text-white">View Review</Text>
+              <Text className="text-xs font-medium text-white dark:text-purple-300">View Review</Text>
             </View>
           </Badge>
         ) : (
-          <Badge variant="outline" className="mt-1 px-2 py-0.5 border-gray-300">
+          <Badge variant="outline" className="mt-1 px-2 py-0.5 border-gray-300 dark:border-[#3E3E42]">
             <Text className="text-xs text-muted-foreground">Click to review</Text>
           </Badge>
         )}
@@ -148,7 +145,6 @@ export const MappingStatsBar = ({
 interface StatCardProps {
   count: number;
   label: string;
-  bgClass: string;
   textClass: string;
   borderClass: string;
   confirmedBadgeClass: string;
@@ -161,7 +157,6 @@ interface StatCardProps {
 const StatCard = ({
   count,
   label,
-  bgClass,
   textClass,
   borderClass,
   confirmedBadgeClass,
@@ -173,10 +168,8 @@ const StatCard = ({
   <Pressable
     onPress={onPress}
     className={cn(
-      'min-w-[80px] flex-1 items-center rounded-lg border p-3',
-      bgClass,
-      confirmed ? bgClass : bgClass,
-      isActive ? borderClass : 'border-transparent',
+      'min-w-[80px] flex-1 items-center rounded-lg border p-3 bg-card',
+      isActive ? borderClass : 'border-gray-200 dark:border-[#3E3E42]',
     )}
     accessibilityRole="button"
     accessibilityState={{ selected: isActive }}
@@ -192,8 +185,8 @@ const StatCard = ({
         </View>
       </Badge>
     ) : isActive ? (
-      <Badge className="mt-1 bg-gray-100 px-2 py-0.5">
-        <Text className="text-xs font-medium text-gray-600">Review</Text>
+      <Badge className="mt-1 bg-gray-100 dark:bg-[#2D2D2D] px-2 py-0.5">
+        <Text className="text-xs font-medium text-gray-600 dark:text-gray-400">Review</Text>
       </Badge>
     ) : null}
   </Pressable>

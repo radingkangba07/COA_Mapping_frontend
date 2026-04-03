@@ -34,9 +34,9 @@ type MigrationNavProp = NativeStackNavigationProp<MigrationStackParamList>;
 const ICON_SIZE = 16;
 
 function getScoreColor(score: number): string {
-  if (score >= 90) return 'text-green-600 bg-green-100';
-  if (score >= 70) return 'text-yellow-600 bg-yellow-100';
-  return 'text-red-600 bg-red-100';
+  if (score >= 90) return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30';
+  if (score >= 70) return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30';
+  return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30';
 }
 
 interface PreviewRow {
@@ -145,7 +145,7 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
       scroll
       testID="final-preview-screen"
     >
-      <View className="max-w-4xl lg:max-w-6xl mx-auto w-full py-6">
+      <View className="max-w-4xl lg:max-w-6xl flex-1 self-center w-full py-6 gap-6">
         <MigrationStepper
           currentStep={currentStep}
           completedSteps={completedSteps}
@@ -170,7 +170,7 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
               <Text className="font-body text-sm font-medium text-foreground">
                 {stats.totalTypes} / {stats.totalTypes} types mapped
               </Text>
-              <View className="h-2 w-32 rounded-full bg-gray-200 overflow-hidden">
+              <View className="h-2 w-32 rounded-full bg-gray-200 dark:bg-[#3E3E42] overflow-hidden">
                 <View className="h-full rounded-full bg-green-500" style={{ width: '100%' }} />
               </View>
             </View>
@@ -189,25 +189,25 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
         </View>
 
         {/* Final Mapping Preview card */}
-        <Card className="bg-gray-50" testID="final-preview-card">
+        <Card className="bg-card" testID="final-preview-card">
           <Card.Content>
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center gap-3">
                 <Text className="font-heading text-lg font-semibold text-foreground">
                   Final Mapping Preview
                 </Text>
-                <Badge variant="outline" className="border-green-300 bg-white px-2.5 py-1">
+                <Badge variant="outline" className="border-green-300 dark:border-green-800 bg-card px-2.5 py-1">
                   <View className="flex-row items-center gap-1.5">
                     <CheckCircle2 size={12} color="#16A34A" />
-                    <Text className="text-xs font-medium text-green-700">
+                    <Text className="text-xs font-medium text-green-700 dark:text-green-400">
                       {confirmedCount} Confirmed
                     </Text>
                   </View>
                 </Badge>
-                <Badge variant="outline" className="border-red-300 bg-white px-2.5 py-1">
+                <Badge variant="outline" className="border-red-300 dark:border-red-800 bg-card px-2.5 py-1">
                   <View className="flex-row items-center gap-1.5">
                     <X size={12} color="#DC2626" />
-                    <Text className="text-xs font-medium text-red-700">
+                    <Text className="text-xs font-medium text-red-700 dark:text-red-400">
                       {notConfirmedCount} Not Confirmed
                     </Text>
                   </View>
@@ -246,7 +246,7 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
         {/* Table card */}
         <Card className="mt-4" testID="final-preview-table">
               {/* Table header */}
-              <View className="flex-row bg-gray-100 border-b border-border px-4 py-2 rounded-t-lg">
+              <View className="flex-row bg-gray-100 dark:bg-[#2D2D2D] border-b border-border px-4 py-2 rounded-t-lg">
                 <View className="w-[8%]">
                   <Text className="text-xs font-semibold text-muted-foreground">Account #</Text>
                 </View>
@@ -278,8 +278,8 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
                     <View
                       key={row.key}
                       className={cn(
-                        'flex-row items-center px-4 py-2 border-b border-gray-100 last:border-b-0',
-                        idx % 2 === 0 ? 'bg-white' : 'bg-gray-50',
+                        'flex-row items-center px-4 py-2 border-b border-border last:border-b-0',
+                        idx % 2 === 0 ? 'bg-card' : 'bg-surface-highlight',
                       )}
                     >
                       <View className="w-[8%]">
@@ -308,14 +308,14 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
                         <Badge
                           variant="outline"
                           className={cn(
-                            'px-2 py-0.5 bg-white',
-                            row.isConfirmed ? 'border-green-300' : 'border-red-300',
+                            'px-2 py-0.5 bg-card',
+                            row.isConfirmed ? 'border-green-300 dark:border-green-800' : 'border-red-300 dark:border-red-800',
                           )}
                         >
                           <Text
                             className={cn(
                               'text-xs font-medium',
-                              row.isConfirmed ? 'text-green-700' : 'text-red-700',
+                              row.isConfirmed ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400',
                             )}
                           >
                             {row.isConfirmed ? 'Confirmed' : 'Not Confirmed'}

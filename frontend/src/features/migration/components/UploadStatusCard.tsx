@@ -27,7 +27,7 @@ export function UploadStatusCard({ sourceFile, targetFile, mappingFile }: Upload
             key={item.label}
             className={`flex-1 flex-row items-center gap-1.5 rounded-lg border px-3 py-2.5 ${
               item.file !== null
-                ? 'border-green-200 bg-green-50'
+                ? 'border-border bg-card'
                 : 'border-border bg-background'
             }`}
           >
@@ -38,13 +38,13 @@ export function UploadStatusCard({ sourceFile, targetFile, mappingFile }: Upload
             )}
             <Text
               className={`font-body text-xs font-medium ${
-                item.file !== null ? 'text-green-800' : 'text-muted-foreground'
+                item.file !== null ? 'text-green-800 dark:text-green-400' : 'text-muted-foreground'
               }`}
             >
               {item.label}
             </Text>
             {item.file !== null && (
-              <Text className="font-mono text-xs text-green-700">
+              <Text className="font-mono text-xs text-green-700 dark:text-green-500">
                 {item.file.rowCount} {item.unit}
               </Text>
             )}

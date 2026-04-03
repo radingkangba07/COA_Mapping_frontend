@@ -135,7 +135,7 @@ export function UploadScreen(): React.JSX.Element {
       scroll
       testID="upload-screen"
     >
-      <View className="flex-1 max-w-4xl lg:max-w-6xl self-center w-full gap-6 lg:gap-8">
+      <View className="flex-1 max-w-4xl lg:max-w-6xl self-center w-full py-6 gap-6 lg:gap-8">
         <View className="flex-1 gap-6 lg:gap-8">
           <MigrationStepper
             currentStep={currentStep}
@@ -301,7 +301,7 @@ function UploadStatusCard({ sourceFile, targetFile, mappingFile }: UploadStatusC
             key={item.label}
             className={`flex-1 flex-row items-center gap-1.5 rounded-lg border px-3 py-2.5 ${
               item.file !== null
-                ? 'border-green-200 bg-green-50'
+                ? 'border-border bg-card'
                 : 'border-border bg-background'
             }`}
           >
@@ -312,13 +312,13 @@ function UploadStatusCard({ sourceFile, targetFile, mappingFile }: UploadStatusC
             )}
             <Text
               className={`font-body text-xs font-medium ${
-                item.file !== null ? 'text-green-800' : 'text-muted-foreground'
+                item.file !== null ? 'text-green-800 dark:text-green-400' : 'text-muted-foreground'
               }`}
             >
               {item.label}
             </Text>
             {item.file !== null && (
-              <Text className="font-mono text-xs text-green-700">
+              <Text className="font-mono text-xs text-green-700 dark:text-green-500">
                 {item.file.rowCount} {item.unit}
               </Text>
             )}

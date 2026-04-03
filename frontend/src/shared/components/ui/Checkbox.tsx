@@ -44,7 +44,7 @@ export const Checkbox = React.forwardRef<View, CheckboxProps>(
         onPress={handlePress}
         disabled={isDisabled}
         className={cn(
-          'flex-row items-center focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm',
+          'flex-row items-center focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background rounded-sm',
           isDisabled && 'opacity-50',
           className,
         )}

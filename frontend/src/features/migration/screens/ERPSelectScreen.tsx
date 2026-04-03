@@ -130,7 +130,7 @@ export const ERPSelectScreen = (): React.JSX.Element => {
       scroll
       testID="erp-select-screen"
     >
-      <View className="mx-auto w-full py-6">
+      <View className="max-w-4xl lg:max-w-6xl flex-1 self-center w-full py-6 gap-6">
         <MigrationStepper
           currentStep={currentStep}
           completedSteps={completedSteps}
@@ -183,9 +183,9 @@ export const ERPSelectScreen = (): React.JSX.Element => {
         </Card>
 
         {hasBothSelected && (
-          <Card className="mt-4 border-green-200 bg-green-50" testID="erp-summary-card">
+          <Card className="mt-4 border-border bg-card" testID="erp-summary-card">
             <Card.Content>
-              <Text className="font-body text-sm font-medium text-green-800">
+              <Text className="font-body text-sm font-medium text-green-700 dark:text-green-400">
                 Migrating from {sourceERP.name} → {targetERP.name}
               </Text>
             </Card.Content>
@@ -197,8 +197,8 @@ export const ERPSelectScreen = (): React.JSX.Element => {
             onPress={() => void handleContinue()}
             disabled={!canProceedFromStep0}
             size="lg"
-            className="bg-accent"
-            textClassName="text-accent-foreground"
+            className=""
+            textClassName=""
             testID="continue-button"
           >
             Continue to Upload

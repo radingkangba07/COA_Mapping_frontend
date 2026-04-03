@@ -153,7 +153,7 @@ export const FileUploadBox = ({
           testID={`${testID}-zone`}
         >
           <View
-            className="rounded-lg p-4 items-center justify-center border border-green-200 bg-green-50"
+            className="rounded-lg p-4 items-center justify-center border border-border bg-card"
             style={{ minHeight: 150 }}
           >
             {isUploading ? (

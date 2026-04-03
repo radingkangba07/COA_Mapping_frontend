@@ -65,9 +65,9 @@ const CONFIRMATION_ICON_COLORS: Record<ConfidenceLevel, string> = {
 };
 
 const CONFIRMATION_CLASSES: Record<ConfidenceLevel, string> = {
-  high: 'border-green-200 bg-green-50',
-  medium: 'border-yellow-200 bg-yellow-50',
-  low: 'border-red-200 bg-red-50',
+  high: 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20',
+  medium: 'border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20',
+  low: 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20',
 };
 
 export const ValidationScreen = (): React.JSX.Element => {
@@ -139,7 +139,7 @@ export const ValidationScreen = (): React.JSX.Element => {
         scroll
         testID="validation-screen"
       >
-        <View className="max-w-4xl lg:max-w-6xl mx-auto w-full py-6">
+        <View className="max-w-4xl lg:max-w-6xl flex-1 self-center w-full py-6 gap-6">
           <MigrationStepper
             currentStep={vm.currentStep}
             completedSteps={vm.completedSteps}
@@ -164,7 +164,7 @@ export const ValidationScreen = (): React.JSX.Element => {
       scroll
       testID="validation-screen"
     >
-      <View className="max-w-4xl lg:max-w-6xl mx-auto w-full py-6">
+      <View className="max-w-4xl lg:max-w-6xl flex-1 self-center w-full py-6 gap-6">
         <MigrationStepper
           currentStep={vm.currentStep}
           completedSteps={vm.completedSteps}
@@ -189,7 +189,7 @@ export const ValidationScreen = (): React.JSX.Element => {
               <Text className="font-body text-sm font-medium text-foreground">
                 {vm.stats.totalTypes} / {vm.stats.totalTypes} types mapped
               </Text>
-              <View className="h-2 w-32 rounded-full bg-gray-200 overflow-hidden">
+              <View className="h-2 w-32 rounded-full bg-gray-200 dark:bg-[#3E3E42] overflow-hidden">
                 <View className="h-full rounded-full bg-green-500" style={{ width: '100%' }} />
               </View>
             </View>
@@ -289,23 +289,6 @@ export const ValidationScreen = (): React.JSX.Element => {
           );
         })()}
 
-        {/* Validation issues */}
-        {(vm.errors.length > 0 || vm.warnings.length > 0) && (
-          <Card className="mt-4 border-yellow-200 bg-yellow-50" testID="validation-issues-card">
-            <Card.Content className="py-3 gap-1">
-              {vm.errors.length > 0 && (
-                <Text className="text-sm font-medium text-red-700">
-                  {vm.errors.length} {vm.errors.length === 1 ? 'error' : 'errors'}
-                </Text>
-              )}
-              {vm.warnings.length > 0 && (
-                <Text className="text-sm font-medium text-yellow-700">
-                  {vm.warnings.length} {vm.warnings.length === 1 ? 'warning' : 'warnings'}
-                </Text>
-              )}
-            </Card.Content>
-          </Card>
-        )}
 
         {/* Deleted accounts */}
         {vm.deletedAccounts.length > 0 && (
@@ -314,13 +297,13 @@ export const ValidationScreen = (): React.JSX.Element => {
               isOpen={vm.isDeletedOpen}
               onToggle={vm.handleToggleDeleted}
               title={`Deleted Accounts (${vm.deletedAccounts.length})`}
-              className="border-red-200 bg-red-50"
+              className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20"
               testID="deleted-accounts"
             >
               {vm.deletedAccounts.map((account, index) => (
                 <View
                   key={`${account.sourceNumber}-${account.sourceName}`}
-                  className="flex-row items-center justify-between border-b border-red-100 py-2 last:border-b-0"
+                  className="flex-row items-center justify-between border-b border-red-100 dark:border-red-800 py-2 last:border-b-0"
                 >
                   <View className="flex-1">
                     <Text className="font-mono text-xs text-muted-foreground">{account.sourceNumber}</Text>
@@ -348,20 +331,20 @@ export const ValidationScreen = (): React.JSX.Element => {
             </Text>
           </View>
           <View className="flex-row items-center gap-2">
-            <Badge variant="outline" className="bg-green-50 border-green-200">
-              <Text className="text-xs text-green-700">90%+ High</Text>
+            <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+              <Text className="text-xs text-green-700 dark:text-green-400">90%+ High</Text>
             </Badge>
-            <Badge variant="outline" className="bg-yellow-50 border-yellow-200">
-              <Text className="text-xs text-yellow-700">70-89% Med</Text>
+            <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
+              <Text className="text-xs text-yellow-700 dark:text-yellow-400">70-89% Med</Text>
             </Badge>
-            <Badge variant="outline" className="bg-red-50 border-red-200">
-              <Text className="text-xs text-red-700">&lt;70% Low</Text>
+            <Badge variant="outline" className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
+              <Text className="text-xs text-red-700 dark:text-red-400">&lt;70% Low</Text>
             </Badge>
           </View>
         </View>
 
         {/* Table header */}
-        <View className="flex-row rounded-t-lg bg-gray-100 border border-border px-4 py-2">
+        <View className="flex-row rounded-t-lg bg-gray-100 dark:bg-[#2D2D2D] border border-border px-4 py-2">
           <View className="w-[8%]">
             <Text className="text-xs font-semibold text-muted-foreground">Account #</Text>
           </View>

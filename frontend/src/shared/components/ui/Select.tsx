@@ -114,7 +114,7 @@ export const Select = React.forwardRef<View, SelectProps>(
           onPress={handleOpen}
           disabled={disabled}
           className={cn(
-            'h-10 flex-row items-center justify-between rounded-md border bg-background px-3 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+            'h-10 flex-row items-center justify-between rounded-md border bg-background px-3 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background',
             hasError ? 'border-destructive' : 'border-input',
             disabled && 'opacity-50',
           )}
