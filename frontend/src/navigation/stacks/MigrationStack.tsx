@@ -34,7 +34,7 @@ export const MigrationStack = (): React.JSX.Element => {
         <Stack.Screen
           name="ERPSelect"
           component={ERPSelectScreen}
-          options={{ title: 'Select ERP' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="Upload"
@@ -44,22 +44,22 @@ export const MigrationStack = (): React.JSX.Element => {
         <Stack.Screen
           name="Mapping"
           component={MappingScreen}
-          options={{ title: 'Review Mappings' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="Validation"
           component={ValidationScreen}
-          options={{ title: 'Validation' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="FinalPreview"
           component={FinalPreviewScreen}
-          options={{ title: 'Final Preview' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="Preview"
           component={PreviewScreen}
-          options={{ title: 'Preview & Export' }}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </ErrorBoundary>

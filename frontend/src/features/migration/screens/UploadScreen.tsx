@@ -2,11 +2,11 @@ import React, { useCallback } from 'react';
 import { View, Text, Pressable, ScrollView, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, CheckCircle, Circle, Eye, X } from 'lucide-react-native';
-import { Screen } from '@/shared/components/layout/Screen';
+import { CheckCircle, Circle, Eye, X } from 'lucide-react-native';
 import { Button } from '@/shared/components/ui/Button';
 import { Spinner } from '@/shared/components/ui/Spinner';
 import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorFallback';
+import { MigrationLayout } from '../components/MigrationLayout';
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
 import { FileUploader } from '../components/FileUploader/FileUploader';
 import { ERPSummaryCard } from '../components/ERPSummaryCard';
@@ -70,8 +70,8 @@ export function UploadScreen(): React.JSX.Element {
     [handleMappingFilePicked],
   );
 
-  const handleDashboard = useCallback((): void => {
-    navigation.getParent()?.navigate('ProjectsTab');
+  const handleGoBack = useCallback((): void => {
+    navigation.goBack();
   }, [navigation]);
 
   const handleBack = useCallback((): void => {
@@ -104,20 +104,20 @@ export function UploadScreen(): React.JSX.Element {
 
   if (isHydrating) {
     return (
-      <Screen testID="upload-screen">
+      <MigrationLayout title="COA Migration" projectId={projectId} onBack={handleGoBack} testID="upload-screen">
         <View className="flex-1 items-center justify-center">
           <Spinner size="lg" />
           <Text className="mt-4 font-body text-sm text-muted-foreground">Loading project data...</Text>
         </View>
-      </Screen>
+      </MigrationLayout>
     );
   }
 
   if (error) {
     return (
-      <Screen testID="upload-screen">
+      <MigrationLayout title="COA Migration" projectId={projectId} onBack={handleGoBack} testID="upload-screen">
         <NetworkErrorFallback error={new Error(error.message)} onRetry={retry} testID="upload-error" />
-      </Screen>
+      </MigrationLayout>
     );
   }
 
@@ -127,18 +127,16 @@ export function UploadScreen(): React.JSX.Element {
 
   return (
     <View style={{ flex: 1 }}>
-    <Screen scroll testID="upload-screen">
-      <View className="flex-1 max-w-4xl lg:max-w-6xl self-center w-full px-4 py-6 gap-6 lg:gap-8">
+    <MigrationLayout
+      title="COA Migration"
+      subtitle="Upload your chart of accounts files"
+      projectId={projectId}
+      onBack={handleGoBack}
+      scroll
+      testID="upload-screen"
+    >
+      <View className="flex-1 max-w-4xl lg:max-w-6xl self-center w-full gap-6 lg:gap-8">
         <View className="flex-1 gap-6 lg:gap-8">
-          <Pressable
-            className="flex-row items-center gap-2"
-            onPress={handleDashboard}
-            testID="breadcrumb-dashboard"
-          >
-            <ArrowLeft size={16} color={colors.mutedForeground} strokeWidth={2} />
-            <Text className="font-body text-sm text-muted-foreground">Dashboard</Text>
-          </Pressable>
-
           <MigrationStepper
             currentStep={currentStep}
             completedSteps={completedSteps}
@@ -216,9 +214,9 @@ export function UploadScreen(): React.JSX.Element {
           </View>
         </View>
       </View>
-    </Screen>
+    </MigrationLayout>
 
-    {/* Preview Modal — outside Screen to avoid ScrollView nesting issues */}
+    {/* Preview Modal — outside MigrationLayout to avoid ScrollView nesting issues */}
     <Modal visible={isPreviewOpen} transparent animationType="fade" onRequestClose={closePreview}>
       <Pressable className="flex-1 bg-black/40 items-center justify-center p-4" onPress={closePreview}>
         <Pressable

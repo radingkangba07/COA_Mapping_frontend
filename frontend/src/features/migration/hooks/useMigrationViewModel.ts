@@ -1,4 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useShallow } from 'zustand/react/shallow';
 import { useMigrationStore } from '../store/migration.store';
 import {
@@ -18,6 +20,9 @@ import { httpClient } from '@/shared/services/http/http.instance';
 import { useSyncStep } from './useSyncStep';
 import { useToast } from '@/shared/hooks/useToast';
 import { isWeb } from '@/shared/utils/platform.utils';
+import { STEP_TO_SCREEN } from '@/shared/constants/migration-steps';
+import type { MigrationStepValue } from '@/shared/constants/migration-steps';
+import type { MigrationStackParamList } from '@/navigation/types';
 import type { ERPSystem } from '../types/erp.types';
 import type { UploadedFile } from '../types/migration.types';
 import type { AppError } from '@/shared/types/result.types';
@@ -54,6 +59,7 @@ interface UseMigrationViewModelReturn {
 }
 
 export function useMigrationViewModel(): UseMigrationViewModelReturn {
+  const navigation = useNavigation<NativeStackNavigationProp<MigrationStackParamList>>();
   const currentStep = useMigrationStore(selectCurrentStep);
   const completedSteps = useMigrationStore((s) => s.completedSteps);
   const sourceERP = useMigrationStore(selectSourceERP);
@@ -91,7 +97,16 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
   const goToStep = useCallback((step: number): void => {
     actions.setStep(step);
     syncStep(step);
-  }, [actions, syncStep]);
+    const screen = STEP_TO_SCREEN[step as MigrationStepValue];
+    if (screen && screen !== 'MigrationList') {
+      const navState = navigation.getState();
+      const currentRoute = navState?.routes[navState.index];
+      const pid = projectId ?? (currentRoute?.params as { projectId?: string } | undefined)?.projectId;
+      if (pid) {
+        navigation.navigate(screen as 'ERPSelect', { projectId: pid });
+      }
+    }
+  }, [actions, syncStep, navigation, projectId]);
 
   const handleSourceSelect = useCallback((erpId: string, erpSystems: ERPSystem[]): void => {
     const erp = erpSystems.find((e) => e.id === erpId);
