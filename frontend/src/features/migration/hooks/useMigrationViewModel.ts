@@ -98,12 +98,12 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
     actions.setStep(step);
     syncStep(step);
     const screen = STEP_TO_SCREEN[step as MigrationStepValue];
-    if (screen) {
+    if (screen && screen !== 'MigrationList') {
       const navState = navigation.getState();
       const currentRoute = navState?.routes[navState.index];
       const pid = projectId ?? (currentRoute?.params as { projectId?: string } | undefined)?.projectId;
       if (pid) {
-        navigation.navigate(screen, { projectId: pid });
+        navigation.navigate(screen as 'ERPSelect', { projectId: pid });
       }
     }
   }, [actions, syncStep, navigation, projectId]);
