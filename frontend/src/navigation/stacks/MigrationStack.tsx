@@ -2,7 +2,6 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ErrorBoundary } from '@/shared/components/feedback/ErrorBoundary';
 import { colors } from '@/config/theme';
-import { useMigrationFlowDetector } from '../hooks/useMigrationFlowDetector';
 import { MigrationListScreen } from '@/features/migration/screens/MigrationListScreen';
 import { ERPSelectScreen } from '@/features/migration/screens/ERPSelectScreen';
 import { UploadScreen } from '@/features/migration/screens/UploadScreen';
@@ -15,8 +14,6 @@ import type { MigrationStackParamList } from '../types';
 const Stack = createNativeStackNavigator<MigrationStackParamList>();
 
 export const MigrationStack = (): React.JSX.Element => {
-  useMigrationFlowDetector();
-
   const headerStyle = { backgroundColor: colors.background } as const;
   const headerTintColor = colors.foreground;
 

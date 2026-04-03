@@ -14,6 +14,7 @@ import { BREAKPOINTS } from '@/shared/utils/platform.utils';
 import { MigrationTopBar } from './MigrationTopBar';
 import { SidebarContent } from './ProjectSidebar/SidebarContent';
 import { useSidebarData } from '../hooks/useSidebarData';
+import { useMigrationFlowDetector } from '@/navigation/hooks/useMigrationFlowDetector';
 
 export interface MigrationLayoutProps {
   readonly title: string;
@@ -38,6 +39,7 @@ export const MigrationLayout = ({
   rightActions,
   testID,
 }: MigrationLayoutProps): React.JSX.Element => {
+  useMigrationFlowDetector();
   const sidebarProps = useSidebarData(projectId);
   const { width } = useWindowDimensions();
   const isDesktop = width >= BREAKPOINTS.md;
