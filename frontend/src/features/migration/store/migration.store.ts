@@ -132,6 +132,7 @@ export const useMigrationStore = create<MigrationStore>()(
     ...initialState,
 
     setStep: (step: number): void => {
+      console.log('[MigrationStore] setStep', step, new Error().stack?.split('\n').slice(1, 4).join(' <- '));
       set((state) => {
         state.currentStep = step;
       });
@@ -146,6 +147,7 @@ export const useMigrationStore = create<MigrationStore>()(
     },
 
     setSourceERP: (erp: ERPSystem): void => {
+      console.log('[MigrationStore] setSourceERP', erp.id);
       set((state) => {
         state.sourceERP = castDraft(erp);
       });
@@ -408,6 +410,7 @@ export const useMigrationStore = create<MigrationStore>()(
     },
 
     reset: (): void => {
+      console.log('[MigrationStore] reset() called', new Error().stack?.split('\n').slice(1, 4).join(' <- '));
       set(() => ({ ...initialState }));
     },
   })),

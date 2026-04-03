@@ -12,12 +12,15 @@ import { FileUploader } from '../components/FileUploader/FileUploader';
 import { ERPSummaryCard } from '../components/ERPSummaryCard';
 import { SampleFilesTable } from '../components/SampleFilesTable';
 import { useMigrationViewModel } from '../hooks/useMigrationViewModel';
+import { useMigrationStore } from '../store/migration.store';
 import { useHydrateProject } from '../hooks/useHydrateProject';
 import { useMigrationScreenRoute } from '@/navigation/types';
 import { createProjectId } from '@/shared/types/common.types';
 import { colors } from '@/config/theme';
 import type { MigrationStackParamList } from '@/navigation/types';
 import type { PickedFile } from '../hooks/useFileUpload';
+import { STEP_TO_SCREEN } from '@/shared/constants/migration-steps';
+import type { MigrationStepValue } from '@/shared/constants/migration-steps';
 
 type MigrationNavigation = NativeStackNavigationProp<MigrationStackParamList>;
 
@@ -137,7 +140,11 @@ export function UploadScreen(): React.JSX.Element {
           <MigrationStepper
             currentStep={currentStep}
             completedSteps={completedSteps}
-            onStepPress={goToStep}
+            onStepPress={(step: number) => {
+              useMigrationStore.getState().setStep(step);
+              const screen = STEP_TO_SCREEN[step as MigrationStepValue];
+              navigation.navigate(screen as 'ERPSelect', { projectId });
+            }}
           />
 
           <View className="items-center gap-1">
