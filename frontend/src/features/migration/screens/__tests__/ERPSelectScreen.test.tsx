@@ -31,6 +31,15 @@ jest.mock('@/shared/utils/platform.utils', () => ({
   isNative: false,
 }));
 
+jest.mock('../../components/MigrationLayout', () => {
+  const { View } = require('react-native');
+  return {
+    MigrationLayout: ({ children, testID }: { children: React.ReactNode; testID?: string }) => (
+      <View testID={testID}>{children}</View>
+    ),
+  };
+});
+
 jest.mock('@/config/theme', () => ({
   colors: { mutedForeground: '#6B6B73' },
 }));
