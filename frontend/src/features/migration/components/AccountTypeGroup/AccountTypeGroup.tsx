@@ -11,10 +11,10 @@ import type { AccountMapping } from '@/features/migration/types/mapping.types';
 // ─── Score & Remark Helpers ─────────────────────────────────────────────────
 
 function getScoreColor(score: number): string {
-  if (score >= 90) return 'text-green-600 bg-green-100';
-  if (score >= 70) return 'text-yellow-600 bg-yellow-100';
-  if (score >= 50) return 'text-orange-600 bg-orange-100';
-  return 'text-red-600 bg-red-100';
+  if (score >= 90) return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30';
+  if (score >= 70) return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30';
+  if (score >= 50) return 'text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30';
+  return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30';
 }
 
 function getRemarkText(account: AccountMapping): string {
@@ -26,9 +26,9 @@ function getRemarkText(account: AccountMapping): string {
 }
 
 function getRemarkColor(account: AccountMapping): string {
-  if (account.user_changed === true) return 'text-purple-600 bg-purple-100';
-  if (account.score >= 70) return 'text-blue-600 bg-blue-100';
-  return 'text-gray-600 bg-gray-100';
+  if (account.user_changed === true) return 'text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30';
+  if (account.score >= 70) return 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30';
+  return 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-[#2D2D2D]';
 }
 
 // ─── Props ──────────────────────────────────────────────────────────────────
@@ -94,12 +94,12 @@ const AccountRow = memo(({
 
   return (
     <View
-      className="flex-row items-center py-2 px-4 hover:bg-white"
+      className="flex-row items-center py-2 px-4 hover:bg-surface-highlight"
       testID={testID}
     >
       {/* Account # */}
       <View className="w-[8%]">
-        <Text className="font-mono text-xs text-gray-500">
+        <Text className="font-mono text-xs text-muted-foreground">
           {account.source_number || '-'}
         </Text>
       </View>
@@ -113,7 +113,7 @@ const AccountRow = memo(({
 
       {/* Arrow */}
       <View className="w-[5%] items-center">
-        <ArrowRight size={18} color="#374151" strokeWidth={2.5} />
+        <ArrowRight size={18} color={colors.mutedForeground} strokeWidth={2.5} />
       </View>
 
       {/* Target Account */}
@@ -130,7 +130,7 @@ const AccountRow = memo(({
           <Text
             className={cn(
               'text-sm',
-              account.target_name ? 'text-gray-900' : 'text-gray-400 italic',
+              account.target_name ? 'text-foreground' : 'text-muted-foreground italic',
             )}
             numberOfLines={1}
           >
@@ -184,7 +184,7 @@ const AccountRow = memo(({
           size="sm"
           variant="outline"
           onPress={handleDelete}
-          className="h-7 px-2 border-red-200"
+          className="h-7 px-2 border-red-200 dark:border-red-800"
           accessibilityLabel="Delete account"
         >
           <Trash2 size={12} color={colors.destructive} />
@@ -236,19 +236,19 @@ export const AccountTypeGroup = ({
       {/* Group header row — card with border */}
       <Pressable
         onPress={handleToggle}
-        className="flex-row items-center rounded-lg border border-border bg-white px-4 py-3 hover:bg-gray-50"
+        className="flex-row items-center rounded-lg border border-border bg-card px-4 py-3 hover:bg-surface-highlight"
         accessibilityRole="button"
         accessibilityLabel={`${sourceType} group, ${accounts.length} accounts`}
       >
         {/* Left side: chevron + folder + source type + count (spans Account # + Source Account columns) */}
         <View className="flex-row items-center gap-2 w-[33%]">
           {isOpen ? (
-            <ChevronDown size={16} color="#6B7280" />
+            <ChevronDown size={16} color={colors.mutedForeground} />
           ) : (
-            <ChevronRight size={16} color="#6B7280" />
+            <ChevronRight size={16} color={colors.mutedForeground} />
           )}
           <FolderTree size={16} color="#2563EB" />
-          <Text className="font-heading text-sm font-semibold text-gray-900">
+          <Text className="font-heading text-sm font-semibold text-foreground">
             {sourceType}
           </Text>
           <Badge variant="outline" className="px-1.5 py-0.5">
@@ -264,25 +264,25 @@ export const AccountTypeGroup = ({
         {/* Right side: target type badge + Mapped/Unmapped badge (Action column) */}
         <View className="w-[10%] flex-row items-center justify-end gap-2">
           {isMapped ? (
-            <Badge className="bg-blue-100 px-2 py-0.5">
-              <Text className="text-xs font-medium text-blue-800">{targetType}</Text>
+            <Badge className="bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5">
+              <Text className="text-xs font-medium text-blue-800 dark:text-blue-400">{targetType}</Text>
             </Badge>
           ) : (
-            <Text className="text-xs text-gray-400 italic">Not mapped</Text>
+            <Text className="text-xs text-muted-foreground italic">Not mapped</Text>
           )}
           <Badge
             variant="outline"
             className={cn(
               'px-2 py-0.5',
               isMapped
-                ? 'bg-green-100 border-green-200'
-                : 'bg-red-100 border-red-200',
+                ? 'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800'
+                : 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800',
             )}
           >
             <Text
               className={cn(
                 'text-xs font-medium',
-                isMapped ? 'text-green-800' : 'text-red-600',
+                isMapped ? 'text-green-800 dark:text-green-400' : 'text-red-600 dark:text-red-400',
               )}
             >
               {isMapped ? 'Mapped' : 'Unmapped'}

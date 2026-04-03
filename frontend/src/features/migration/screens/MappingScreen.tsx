@@ -370,7 +370,6 @@ const MappingPreviewCard = React.memo(function MappingPreviewCard({
                 key={row.id}
                 className={cn(
                   'flex-row items-center py-2 rounded',
-                  isMatched ? 'bg-green-50' : 'bg-red-50',
                 )}
               >
                 <View className="w-10 items-center">
@@ -395,7 +394,7 @@ const MappingPreviewCard = React.memo(function MappingPreviewCard({
                       {row.targetType}
                     </Text>
                   ) : (
-                    <Text className="font-body text-sm italic text-red-500">
+                    <Text className="font-body text-sm italic text-red-500 dark:text-red-400">
                       Not mapped
                     </Text>
                   )}
@@ -553,7 +552,6 @@ const AccountMappingRow = React.memo(function AccountMappingRow({
     <View
       className={cn(
         'flex-col gap-2 rounded-lg border border-border p-3 mb-2 md:flex-row md:items-center md:gap-0 md:rounded-none md:border-0 md:p-0 md:py-1 md:mb-0',
-        isMatched ? 'bg-green-50' : 'bg-red-50',
       )}
     >
       {/* Status icon */}

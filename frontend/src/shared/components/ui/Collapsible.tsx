@@ -90,7 +90,7 @@ export const Collapsible = React.forwardRef<View, CollapsibleProps>(
       >
         <Pressable
           onPress={onToggle}
-          className="flex-row items-center justify-between p-4 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-md"
+          className="flex-row items-center justify-between p-4 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background rounded-md"
           testID={triggerTestID}
           accessibilityRole="button"
           accessibilityState={{ expanded: isOpen }}

@@ -259,11 +259,11 @@ describe('ValidationScreen', () => {
     expect(button.props.accessibilityState?.disabled).not.toBe(true);
   });
 
-  it('shows validation issues card when errors or warnings exist', () => {
+  it('does not render validation issues banner (removed)', () => {
     mockVM.errors = ['Missing account number'];
     mockVM.warnings = ['Low confidence match'];
     render(<ValidationScreen />);
-    expect(screen.getByTestId('validation-issues-card')).toBeTruthy();
+    expect(screen.queryByTestId('validation-issues-card')).toBeNull();
   });
 
   it('shows skeleton when no data is loaded', () => {

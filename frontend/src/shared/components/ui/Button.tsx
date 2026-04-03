@@ -11,7 +11,7 @@ import { cn } from '@/shared/utils/string.utils';
 import { colors } from '@/config/theme';
 
 const buttonVariants = cva(
-  'flex-row items-center justify-center rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+  'flex-row items-center justify-center rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background',
   {
     variants: {
       variant: {

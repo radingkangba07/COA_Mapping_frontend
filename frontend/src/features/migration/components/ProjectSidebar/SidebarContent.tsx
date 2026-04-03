@@ -38,7 +38,7 @@ export const SidebarContent = ({
 
     {currentUser ? (
       <View className="mb-3 border-b border-border pb-3">
-        <Text className="mb-2 font-body text-[10px] font-semibold uppercase tracking-wide text-indigo-600">
+        <Text className="mb-2 font-body text-[10px] font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">
           CURRENT USER
         </Text>
         <View className="flex-row items-center gap-2">
@@ -48,10 +48,10 @@ export const SidebarContent = ({
             </Text>
           </View>
           <View>
-            <Text className="font-body text-sm font-semibold text-indigo-900">
+            <Text className="font-body text-sm font-semibold text-indigo-900 dark:text-indigo-300">
               {currentUser.name}
             </Text>
-            <Text className="font-mono text-xs text-indigo-600">
+            <Text className="font-mono text-xs text-indigo-600 dark:text-indigo-400">
               {currentUser.userId}
             </Text>
           </View>
@@ -83,22 +83,22 @@ export const SidebarContent = ({
     ) : null}
 
     {updatedAt ? (
-      <View className="mb-3 rounded-lg bg-amber-50 p-3">
-        <Text className="mb-1 font-body text-[10px] font-semibold uppercase tracking-wide text-amber-600">
+      <View className="mb-3 rounded-lg border border-dashed border-border bg-gray-50 dark:bg-[#2D2D2D] p-3">
+        <Text className="mb-1 font-body text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
           LAST EDITED
         </Text>
-        <Text className="font-body text-xs text-amber-900">
+        <Text className="font-body text-xs text-foreground">
           {formatDate(updatedAt)}
           {lastEditedBy ? ` by ${lastEditedBy}` : ''}
         </Text>
       </View>
     ) : null}
 
-    <ERPBadge erp={sourceERP} label="Source ERP" className="mb-3 bg-blue-50" labelClassName="text-blue-600" testID={`${testID}-source-erp`} />
-    <ERPBadge erp={targetERP} label="Target ERP" className="mb-3 bg-green-50" labelClassName="text-green-600" testID={`${testID}-target-erp`} />
+    <ERPBadge erp={sourceERP} label="Source ERP" className="mb-3 bg-gray-50 dark:bg-[#2D2D2D] border border-dashed border-border" labelClassName="text-blue-600 dark:text-blue-400" testID={`${testID}-source-erp`} />
+    <ERPBadge erp={targetERP} label="Target ERP" className="mb-3 bg-gray-50 dark:bg-[#2D2D2D] border border-dashed border-border" labelClassName="text-green-600 dark:text-green-400" testID={`${testID}-target-erp`} />
 
     {sourceERP && targetERP ? (
-      <View className="rounded-lg border border-dashed border-border bg-gray-50 p-3">
+      <View className="rounded-lg border border-dashed border-border bg-gray-50 dark:bg-[#2D2D2D] p-3">
         <Text className="mb-2 font-body text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
           MIGRATION PATH
         </Text>

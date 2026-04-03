@@ -135,13 +135,14 @@ export const PreviewScreen = (): React.JSX.Element => {
       scroll
       testID="preview-screen"
     >
+      <View className="max-w-4xl lg:max-w-6xl flex-1 self-center w-full py-6 gap-6">
         <MigrationStepper
           currentStep={4}
           completedSteps={vm.completedSteps}
           onStepPress={handleStepPress}
         />
 
-        <View className="mt-8 mb-4">
+        <View className="mb-4">
           <Text className="font-heading text-2xl font-bold text-foreground">Export Preview</Text>
           <Text className="mt-1 font-body text-sm text-muted-foreground">
             Review your mapped data before downloading
@@ -245,6 +246,7 @@ export const PreviewScreen = (): React.JSX.Element => {
             <Text className="text-sm font-medium text-foreground">Start New Migration</Text>
           </View>
         </Button>
+      </View>
     </MigrationLayout>
   );
 };
