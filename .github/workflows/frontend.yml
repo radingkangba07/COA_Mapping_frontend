@@ -46,7 +46,9 @@ jobs:
   deploy-testing:
     name: Deploy to Testing
     needs: test
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    if: >-
+      (github.ref == 'refs/heads/develop' && github.event_name == 'push') ||
+      (github.event_name == 'pull_request' && github.base_ref == 'develop')
     runs-on: ubuntu-latest
 
     steps:
@@ -58,13 +60,14 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
+            BRANCH="${{ github.head_ref || github.ref_name }}"
             cd /opt/coa-migration/environments/testing/frontend
             git config --global --add safe.directory /opt/coa-migration/environments/testing/frontend
-            git fetch origin develop
-            git checkout develop
-            git reset --hard origin/develop
+            git fetch origin "$BRANCH"
+            git checkout "$BRANCH"
+            git reset --hard "origin/$BRANCH"
             cd /opt/coa-migration/environments/testing
             docker compose -p coa-testing -f docker-compose.testing.yml build frontend
             docker compose -p coa-testing -f docker-compose.testing.yml up -d frontend
             docker restart coa-gateway-nginx
-            echo "Testing frontend deployed successfully"
+            echo "Testing frontend deployed from branch: $BRANCH"
