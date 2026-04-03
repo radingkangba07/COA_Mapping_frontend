@@ -13,6 +13,8 @@ export const useAppActions = (): AppActions =>
       setTheme: s.setTheme,
       setLocale: s.setLocale,
       setOnline: s.setOnline,
+      setDrawerCollapsed: s.setDrawerCollapsed,
+      toggleDrawerCollapsed: s.toggleDrawerCollapsed,
       toggleTheme: s.toggleTheme,
       reset: s.reset,
     })),

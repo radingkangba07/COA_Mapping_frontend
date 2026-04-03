@@ -3,7 +3,7 @@ import { View, Text } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowRight } from 'lucide-react-native';
-import { Screen } from '@/shared/components/layout/Screen';
+import { MigrationLayout } from '../components/MigrationLayout';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { Spinner } from '@/shared/components/ui/Spinner';
@@ -98,32 +98,39 @@ export const ERPSelectScreen = (): React.JSX.Element => {
 
   if (isHydrating) {
     return (
-      <Screen testID="erp-select-screen">
+      <MigrationLayout title="COA Migration" projectId={projectId} onBack={() => navigation.goBack()} testID="erp-select-screen">
         <View className="flex-1 items-center justify-center">
           <Spinner size="lg" />
           <Text className="mt-4 font-body text-sm text-muted-foreground">
             Loading project data...
           </Text>
         </View>
-      </Screen>
+      </MigrationLayout>
     );
   }
 
   if (error) {
     return (
-      <Screen testID="erp-select-screen">
+      <MigrationLayout title="COA Migration" projectId={projectId} onBack={() => navigation.goBack()} testID="erp-select-screen">
         <NetworkErrorFallback
           error={new Error(error.message)}
           onRetry={retry}
           testID="erp-select-error"
         />
-      </Screen>
+      </MigrationLayout>
     );
   }
 
   return (
-    <Screen scroll testID="erp-select-screen">
-      <View className="max-w-2xl lg:max-w-4xl mx-auto w-full px-4 py-6">
+    <MigrationLayout
+      title="COA Migration"
+      subtitle="Select source and target ERP systems"
+      projectId={projectId}
+      onBack={() => navigation.goBack()}
+      scroll
+      testID="erp-select-screen"
+    >
+      <View className="mx-auto w-full py-6">
         <MigrationStepper
           currentStep={currentStep}
           completedSteps={completedSteps}
@@ -198,6 +205,6 @@ export const ERPSelectScreen = (): React.JSX.Element => {
           </Button>
         </View>
       </View>
-    </Screen>
+    </MigrationLayout>
   );
 };

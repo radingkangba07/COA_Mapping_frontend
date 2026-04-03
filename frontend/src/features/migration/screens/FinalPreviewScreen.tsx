@@ -11,7 +11,7 @@ import {
   Save,
   X,
 } from 'lucide-react-native';
-import { Screen } from '@/shared/components/layout/Screen';
+import { MigrationLayout } from '../components/MigrationLayout';
 import { Card } from '@/shared/components/ui/Card';
 import { Badge } from '@/shared/components/ui/Badge';
 import { Button } from '@/shared/components/ui/Button';
@@ -113,32 +113,39 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
 
   if (isHydrating) {
     return (
-      <Screen testID="final-preview-screen">
+      <MigrationLayout title="COA Migration" projectId={projectId} onBack={handleBack} testID="final-preview-screen">
         <View className="flex-1 items-center justify-center">
           <Spinner size="lg" />
           <Text className="mt-4 font-body text-sm text-muted-foreground">
             Loading project data...
           </Text>
         </View>
-      </Screen>
+      </MigrationLayout>
     );
   }
 
   if (error) {
     return (
-      <Screen testID="final-preview-screen">
+      <MigrationLayout title="COA Migration" projectId={projectId} onBack={handleBack} testID="final-preview-screen">
         <NetworkErrorFallback
           error={new Error(error.message)}
           onRetry={retry}
           testID="final-preview-error"
         />
-      </Screen>
+      </MigrationLayout>
     );
   }
 
   return (
-    <Screen scroll testID="final-preview-screen">
-      <View className="max-w-4xl lg:max-w-6xl mx-auto w-full px-4 py-6">
+    <MigrationLayout
+      title="COA Migration"
+      subtitle="Final review before export"
+      projectId={projectId}
+      onBack={() => navigation.goBack()}
+      scroll
+      testID="final-preview-screen"
+    >
+      <View className="max-w-4xl lg:max-w-6xl mx-auto w-full py-6">
         <MigrationStepper
           currentStep={currentStep}
           completedSteps={completedSteps}
@@ -321,6 +328,6 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
               </ScrollView>
         </Card>
       </View>
-    </Screen>
+    </MigrationLayout>
   );
 };
