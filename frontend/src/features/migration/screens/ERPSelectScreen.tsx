@@ -74,26 +74,26 @@ export const ERPSelectScreen = (): React.JSX.Element => {
 
   if (isHydrating) {
     return (
-      <Screen testID="erp-select-screen">
+      <MigrationLayout title="COA Migration" projectId={projectId} onBack={() => navigation.goBack()} testID="erp-select-screen">
         <View className="flex-1 items-center justify-center">
           <Spinner size="lg" />
           <Text className="mt-4 font-body text-sm text-muted-foreground">
             Loading project data...
           </Text>
         </View>
-      </Screen>
+      </MigrationLayout>
     );
   }
 
   if (error) {
     return (
-      <Screen testID="erp-select-screen">
+      <MigrationLayout title="COA Migration" projectId={projectId} onBack={() => navigation.goBack()} testID="erp-select-screen">
         <NetworkErrorFallback
           error={new Error(error.message)}
           onRetry={retry}
           testID="erp-select-error"
         />
-      </Screen>
+      </MigrationLayout>
     );
   }
 

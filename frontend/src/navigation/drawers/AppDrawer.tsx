@@ -83,8 +83,6 @@ const CustomDrawerContent = ({
     void logout();
   }, [logout]);
 
-  const CollapseIcon = isCollapsed ? ChevronsRight : ChevronsLeft;
-
   return (
     <View
       className={`flex-1 border-r border-border bg-background pb-6 pt-8 ${
@@ -93,11 +91,20 @@ const CustomDrawerContent = ({
       testID="app-drawer-content"
     >
       {!isCollapsed ? (
-        <View className="mb-8 px-3">
+        <View className="mb-8 flex-row items-center justify-between px-3">
           <Text className="text-lg font-bold text-foreground">COA Migration</Text>
+          <Pressable onPress={toggleCollapse} hitSlop={8} testID="drawer-collapse-button">
+            <ChevronsLeft color={colors.mutedForeground} size={COLLAPSE_ICON_SIZE} />
+          </Pressable>
         </View>
       ) : (
-        <View className="mb-8" />
+        <View className="mb-8 items-center">
+          <MaybeTooltip show content="Expand" testID="tooltip-expand">
+            <Pressable onPress={toggleCollapse} hitSlop={8} testID="drawer-expand-button">
+              <ChevronsRight color={colors.mutedForeground} size={COLLAPSE_ICON_SIZE} />
+            </Pressable>
+          </MaybeTooltip>
+        </View>
       )}
 
       <View className="flex-1 gap-1">
@@ -116,19 +123,6 @@ const CustomDrawerContent = ({
           );
         })}
       </View>
-
-      <MaybeTooltip show={isCollapsed} content="Expand" testID="tooltip-collapse">
-        <Pressable
-          onPress={toggleCollapse}
-          className="flex-row items-center justify-center rounded-lg px-3 py-3"
-          testID="drawer-collapse-button"
-        >
-          <CollapseIcon color={colors.mutedForeground} size={COLLAPSE_ICON_SIZE} />
-          {!isCollapsed && (
-            <Text className="ml-3 text-sm font-medium text-muted-foreground">Collapse</Text>
-          )}
-        </Pressable>
-      </MaybeTooltip>
 
       <MaybeTooltip show={isCollapsed} content="Logout" testID="tooltip-logout">
         <Pressable

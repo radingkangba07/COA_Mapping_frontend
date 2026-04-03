@@ -88,20 +88,20 @@ export const ValidationScreen = (): React.JSX.Element => {
 
   if (isHydrating) {
     return (
-      <Screen testID="validation-screen">
+      <MigrationLayout title="COA Migration" projectId={projectId} onBack={navigateBack} testID="validation-screen">
         <View className="flex-1 items-center justify-center">
           <Spinner size="lg" />
           <Text className="mt-4 font-body text-sm text-muted-foreground">Loading project data...</Text>
         </View>
-      </Screen>
+      </MigrationLayout>
     );
   }
 
   if (error) {
     return (
-      <Screen testID="validation-screen">
+      <MigrationLayout title="COA Migration" projectId={projectId} onBack={navigateBack} testID="validation-screen">
         <NetworkErrorFallback error={new Error(error.message)} onRetry={retry} testID="validation-error" />
-      </Screen>
+      </MigrationLayout>
     );
   }
 
