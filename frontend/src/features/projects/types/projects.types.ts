@@ -24,6 +24,7 @@ export interface Project {
   readonly createdBy: UserId | undefined;
   readonly createdAt: Date;
   readonly updatedAt: Date;
+  readonly currentStep: number;
 }
 
 export interface ProjectMember {
@@ -55,6 +56,7 @@ export interface ProjectUpdate {
   readonly targetErp?: string | undefined;
   readonly description?: string | undefined;
   readonly status?: ProjectStatus | undefined;
+  readonly currentStep?: number | undefined;
 }
 
 // ─── Store Contracts ────────────────────────────────────────────────────────

@@ -6,12 +6,17 @@ import { ArrowRight } from 'lucide-react-native';
 import { MigrationLayout } from '../components/MigrationLayout';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
+import { Spinner } from '@/shared/components/ui/Spinner';
+import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorFallback';
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
 import { ERPCombobox } from '../components/ERPCombobox/ERPCombobox';
 import { useMigrationViewModel } from '../hooks/useMigrationViewModel';
+import { useHydrateProject } from '../hooks/useHydrateProject';
+import { useMigrationStore } from '../store/migration.store';
 import { useERPConfig } from '@/features/erp-config/hooks/useERPConfig';
 import { useMigrationScreenRoute } from '@/navigation/types';
 import type { MigrationStackParamList } from '@/navigation/types';
+import { createProjectId } from '@/shared/types/common.types';
 import { colors } from '@/config/theme';
 
 type MigrationNavProp = NativeStackNavigationProp<MigrationStackParamList>;
@@ -20,6 +25,8 @@ export const ERPSelectScreen = (): React.JSX.Element => {
   const navigation = useNavigation<MigrationNavProp>();
   const route = useMigrationScreenRoute<'ERPSelect'>();
   const projectId = route.params.projectId;
+
+  const { isHydrating, error, retry } = useHydrateProject(createProjectId(projectId));
 
   const {
     currentStep,
@@ -48,10 +55,13 @@ export const ERPSelectScreen = (): React.JSX.Element => {
     [handleTargetSelect, erpSystems],
   );
 
+  const completeStep = useMigrationStore((s) => s.completeStep);
+
   const handleContinue = useCallback((): void => {
+    completeStep(0);
     goToStep(1);
     navigation.navigate('Upload', { projectId });
-  }, [goToStep, navigation, projectId]);
+  }, [completeStep, goToStep, navigation, projectId]);
 
   const handleStepPress = useCallback(
     (step: number): void => {
@@ -61,6 +71,31 @@ export const ERPSelectScreen = (): React.JSX.Element => {
   );
 
   const hasBothSelected = sourceERP !== null && targetERP !== null;
+
+  if (isHydrating) {
+    return (
+      <Screen testID="erp-select-screen">
+        <View className="flex-1 items-center justify-center">
+          <Spinner size="lg" />
+          <Text className="mt-4 font-body text-sm text-muted-foreground">
+            Loading project data...
+          </Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (error) {
+    return (
+      <Screen testID="erp-select-screen">
+        <NetworkErrorFallback
+          error={new Error(error.message)}
+          onRetry={retry}
+          testID="erp-select-error"
+        />
+      </Screen>
+    );
+  }
 
   return (
     <MigrationLayout

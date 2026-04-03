@@ -370,10 +370,11 @@ describe('saveMappings', () => {
 
     const result = await saveMappings(
       mockClient as unknown as AxiosInstance,
+      'p-001',
       mappings,
     );
 
-    expect(mockClient.post).toHaveBeenCalledWith('/api/v1/mappings/bulk', { mappings });
+    expect(mockClient.post).toHaveBeenCalledWith('/api/v1/mappings/bulk', mappings, { params: { project_id: 'p-001' } });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.data.created).toBe(2);
@@ -395,6 +396,7 @@ describe('saveMappings', () => {
 
     const result = await saveMappings(
       mockClient as unknown as AxiosInstance,
+      'p-001',
       [],
     );
 
@@ -411,6 +413,7 @@ describe('saveMappings', () => {
 
     const result = await saveMappings(
       mockClient as unknown as AxiosInstance,
+      'p-001',
       [],
     );
 
@@ -447,7 +450,7 @@ describe('getMappings', () => {
     }
   });
 
-  it('returns err result on 404', async () => {
+  it('returns ok with empty array on 404', async () => {
     const mockClient = createMockClient();
     const axiosError = new AxiosError('Not found', 'ERR_BAD_REQUEST');
     axiosError.response = {
@@ -464,10 +467,9 @@ describe('getMappings', () => {
       'nonexistent',
     );
 
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('HTTP_404');
-      expect(result.error.message).toBe('Project not found');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data).toEqual([]);
     }
   });
 

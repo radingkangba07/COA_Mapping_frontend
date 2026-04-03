@@ -15,11 +15,15 @@ import { MigrationLayout } from '../components/MigrationLayout';
 import { Card } from '@/shared/components/ui/Card';
 import { Badge } from '@/shared/components/ui/Badge';
 import { Button } from '@/shared/components/ui/Button';
+import { Spinner } from '@/shared/components/ui/Spinner';
+import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorFallback';
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
+import { useHydrateProject } from '../hooks/useHydrateProject';
 import { useMigrationStore } from '../store/migration.store';
 import { useShallow } from 'zustand/react/shallow';
 import { selectMappingStats } from '../store/migration.selectors';
 import { useMigrationScreenRoute } from '@/navigation/types';
+import { createProjectId } from '@/shared/types/common.types';
 import { cn } from '@/shared/utils/string.utils';
 import { colors } from '@/config/theme';
 import type { MigrationStackParamList } from '@/navigation/types';
@@ -48,6 +52,7 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
   const navigation = useNavigation<MigrationNavProp>();
   const route = useMigrationScreenRoute<'FinalPreview'>();
   const { projectId } = route.params;
+  const { isHydrating, error, retry } = useHydrateProject(createProjectId(projectId));
 
   const currentStep = useMigrationStore((s) => s.currentStep);
   const completedSteps = useMigrationStore((s) => s.completedSteps);
@@ -99,6 +104,31 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
     (step: number): void => { setStep(step); },
     [setStep],
   );
+
+  if (isHydrating) {
+    return (
+      <Screen testID="final-preview-screen">
+        <View className="flex-1 items-center justify-center">
+          <Spinner size="lg" />
+          <Text className="mt-4 font-body text-sm text-muted-foreground">
+            Loading project data...
+          </Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (error) {
+    return (
+      <Screen testID="final-preview-screen">
+        <NetworkErrorFallback
+          error={new Error(error.message)}
+          onRetry={retry}
+          testID="final-preview-error"
+        />
+      </Screen>
+    );
+  }
 
   return (
     <MigrationLayout

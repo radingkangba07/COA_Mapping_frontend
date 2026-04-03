@@ -11,6 +11,7 @@ interface SampleFilesTableProps {
   targetErpId?: string;
   targetErpName?: string;
   onDownload: (erpId: string, type: 'source' | 'target') => void;
+  onPreview: (erpId: string, type: 'source' | 'target') => void;
   onLoadAll?: () => void;
   isLoading?: boolean;
   testID?: string;
@@ -29,6 +30,7 @@ export const SampleFilesTable = ({
   targetErpId,
   targetErpName,
   onDownload,
+  onPreview,
   onLoadAll,
   isLoading = false,
   testID,
@@ -61,6 +63,15 @@ export const SampleFilesTable = ({
       }
     },
     [onDownload],
+  );
+
+  const handlePreview = useCallback(
+    (row: SampleFileRow) => {
+      if (row.erpId) {
+        onPreview(row.erpId, row.type);
+      }
+    },
+    [onPreview],
   );
 
   return (
@@ -108,7 +119,14 @@ export const SampleFilesTable = ({
               </Text>
             </View>
             <View className="flex-row gap-2">
-              <Button variant="outline" size="sm" textClassName="text-xs">
+              <Button
+                variant="outline"
+                size="sm"
+                textClassName="text-xs"
+                onPress={() => handlePreview(row)}
+                disabled={!row.erpId}
+                testID={`sample-preview-${index}`}
+              >
                 Preview
               </Button>
               <Button
@@ -116,6 +134,8 @@ export const SampleFilesTable = ({
                 size="sm"
                 textClassName="text-xs"
                 onPress={() => handleDownload(row)}
+                disabled={!row.erpId}
+                testID={`sample-download-${index}`}
               >
                 Download
               </Button>
