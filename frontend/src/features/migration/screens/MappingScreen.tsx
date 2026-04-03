@@ -35,6 +35,8 @@ import { colors } from '@/config/theme';
 import { cn } from '@/shared/utils/string.utils';
 import type { MigrationStackParamList } from '@/navigation/types';
 import type { TypeMappingRow } from '../types/migration.types';
+import { STEP_TO_SCREEN } from '@/shared/constants/migration-steps';
+import type { MigrationStepValue } from '@/shared/constants/migration-steps';
 
 type MigrationNavProp = NativeStackNavigationProp<MigrationStackParamList>;
 
@@ -127,8 +129,10 @@ export const MappingScreen = (): React.JSX.Element => {
   const handleStepPress = useCallback(
     (step: number): void => {
       actions.setStep(step);
+      const screen = STEP_TO_SCREEN[step as MigrationStepValue];
+      navigation.navigate(screen as 'ERPSelect', { projectId });
     },
-    [actions],
+    [actions, navigation, projectId],
   );
 
   const hasCompleteMappings = mappingSummary.matched > 0;

@@ -27,6 +27,8 @@ import { createProjectId } from '@/shared/types/common.types';
 import { cn } from '@/shared/utils/string.utils';
 import { colors } from '@/config/theme';
 import type { MigrationStackParamList } from '@/navigation/types';
+import { STEP_TO_SCREEN } from '@/shared/constants/migration-steps';
+import type { MigrationStepValue } from '@/shared/constants/migration-steps';
 
 type MigrationNavProp = NativeStackNavigationProp<MigrationStackParamList>;
 const ICON_SIZE = 16;
@@ -101,8 +103,12 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
   }, [completeStep, setStep, navigation, projectId]);
 
   const handleStepPress = useCallback(
-    (step: number): void => { setStep(step); },
-    [setStep],
+    (step: number): void => {
+      setStep(step);
+      const screen = STEP_TO_SCREEN[step as MigrationStepValue];
+      navigation.navigate(screen as 'ERPSelect', { projectId });
+    },
+    [setStep, navigation, projectId],
   );
 
   if (isHydrating) {

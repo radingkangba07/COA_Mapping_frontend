@@ -23,9 +23,10 @@ RUN if [ -n "$BASE_URL" ]; then \
       mv app.tmp.json app.json; \
     fi
 
-# EXPO_PUBLIC_ vars are inlined by Metro at build time
-ENV EXPO_PUBLIC_API_BASE_URL=$API_BASE_URL
-ENV EXPO_PUBLIC_APP_ENV=$APP_ENV
+# EXPO_PUBLIC_ vars must be in .env.production — Metro uses this file during `expo export`
+# Remove all .env* files first so no stale values leak through
+RUN rm -f .env .env.development .env.staging .env.production && \
+    printf "EXPO_PUBLIC_API_BASE_URL=%s\nEXPO_PUBLIC_APP_ENV=%s\n" "$API_BASE_URL" "$APP_ENV" > .env.production
 
 # Build the Expo web application
 RUN npx expo export --platform web
