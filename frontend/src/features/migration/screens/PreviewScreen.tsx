@@ -89,7 +89,7 @@ export const PreviewScreen = (): React.JSX.Element => {
         sourceNumber: account.source_number,
         sourceName: account.source_name,
         targetName: account.target_name,
-        score: account.score,
+        score: Math.round(account.score),
         sourceType: group.source_type,
         targetType: group.target_type,
         key: `${group.source_type}-${account.source_number}-${idx}`,
