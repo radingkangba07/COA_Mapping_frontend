@@ -18,13 +18,17 @@ import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { Badge } from '@/shared/components/ui/Badge';
 import { Skeleton } from '@/shared/components/ui/Skeleton';
+import { Spinner } from '@/shared/components/ui/Spinner';
 import { Collapsible } from '@/shared/components/ui/Collapsible';
+import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorFallback';
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
 import { MappingStatsBar } from '../components/MappingStatsBar/MappingStatsBar';
 import { AccountTypeGroup } from '../components/AccountTypeGroup/AccountTypeGroup';
 import { ValidationSkeleton } from '../components/ValidationSkeleton';
+import { useHydrateProject } from '../hooks/useHydrateProject';
 import { useValidationScreenViewModel } from '../hooks/useValidationScreenViewModel';
 import { useMigrationScreenRoute } from '@/navigation/types';
+import { createProjectId } from '@/shared/types/common.types';
 import { cn } from '@/shared/utils/string.utils';
 import type { MigrationStackParamList } from '@/navigation/types';
 import type { ConfidenceLevel } from '../types/mapping.types';
@@ -67,6 +71,7 @@ export const ValidationScreen = (): React.JSX.Element => {
   const navigation = useNavigation<MigrationNavProp>();
   const route = useMigrationScreenRoute<'Validation'>();
   const { projectId } = route.params;
+  const { isHydrating, error, retry } = useHydrateProject(createProjectId(projectId));
 
   const handleGoBack = useCallback(() => navigation.goBack(), [navigation]);
 
@@ -80,6 +85,25 @@ export const ValidationScreen = (): React.JSX.Element => {
   );
 
   const vm = useValidationScreenViewModel(projectId, navigateBack, navigateForward);
+
+  if (isHydrating) {
+    return (
+      <Screen testID="validation-screen">
+        <View className="flex-1 items-center justify-center">
+          <Spinner size="lg" />
+          <Text className="mt-4 font-body text-sm text-muted-foreground">Loading project data...</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (error) {
+    return (
+      <Screen testID="validation-screen">
+        <NetworkErrorFallback error={new Error(error.message)} onRetry={retry} testID="validation-error" />
+      </Screen>
+    );
+  }
 
   const sourceERPName = vm.sourceERP?.name ?? 'Source';
   const targetERPName = vm.targetERP?.name ?? 'Target';
@@ -370,7 +394,14 @@ export const ValidationScreen = (): React.JSX.Element => {
               <Text className="text-sm font-medium text-foreground">Back</Text>
             </View>
           </Button>
-          <Button variant="outline" onPress={vm.handleContinue} accessibilityLabel="Review and save" testID="save-button">
+          <Button
+            variant="outline"
+            onPress={vm.handleSaveMappings}
+            disabled={vm.isSaving}
+            isLoading={vm.isSaving}
+            accessibilityLabel="Save mapping changes"
+            testID="save-button"
+          >
             <View className="flex-row items-center gap-2">
               <Save size={ICON_SIZE} color={colors.foreground} />
               <Text className="text-sm font-medium text-foreground">Save Mapping</Text>

@@ -11,14 +11,15 @@ import type { Project, ProjectCreate, ProjectUpdate } from '../types/projects.ty
 export const projectResponseSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  source_erp: z.string().min(1),
-  target_erp: z.string().min(1),
+  source_erp: z.string(),
+  target_erp: z.string(),
   status: z.enum(['draft', 'in_progress', 'pending_review', 'completed']),
   company_id: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   created_by: z.string().nullable().optional(),
   created_at: z.string(),
   updated_at: z.string(),
+  current_step: z.number().int().min(0).default(0),
 });
 
 export type ProjectResponseDTO = z.infer<typeof projectResponseSchema>;
@@ -42,6 +43,7 @@ export function toProject(dto: ProjectResponseDTO): Project {
     createdBy: dto.created_by ? createUserId(dto.created_by) : undefined,
     createdAt: new Date(dto.created_at),
     updatedAt: new Date(dto.updated_at),
+    currentStep: dto.current_step,
   };
 }
 
@@ -94,6 +96,9 @@ export function toUpdatePayload(
   }
   if (data.status !== undefined) {
     payload.status = data.status;
+  }
+  if (data.currentStep !== undefined) {
+    payload.current_step = data.currentStep;
   }
 
   return payload;

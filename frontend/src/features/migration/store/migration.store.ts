@@ -13,6 +13,7 @@ import type {
   ConfidenceLevel,
 } from '@/features/migration/types/mapping.types';
 import type { AppError } from '@/shared/types/result.types';
+import { CONFIDENCE_THRESHOLDS } from '@/shared/constants/mapping-confidence';
 
 // ─── State ──────────────────────────────────────────────────────────────────
 
@@ -232,6 +233,7 @@ export const useMigrationStore = create<MigrationStore>()(
         );
         if (group) {
           group.target_type = targetType;
+          state.hasUnsavedChanges = true;
         }
       });
     },
@@ -241,17 +243,22 @@ export const useMigrationStore = create<MigrationStore>()(
       accountIdx: number,
       newName: string,
       userName: string,
+      sourceName?: string,
     ): void => {
       set((state) => {
         const group = state.groupedMappings.find(
           (g) => g.source_type === sourceType,
         );
-        const account = group?.accounts[accountIdx];
+        if (!group) return;
+        const account = sourceName
+          ? group.accounts.find((a) => a.source_name === sourceName)
+          : group.accounts[accountIdx];
         if (account) {
           account.target_name = newName;
           account.user_changed = true;
           account.changed_by_name = userName;
           account.changed_at = new Date().toISOString();
+          state.hasUnsavedChanges = true;
         }
       });
     },
@@ -264,12 +271,30 @@ export const useMigrationStore = create<MigrationStore>()(
 
     confirmConfidenceLevel: (level: ConfidenceLevel): void => {
       set((state) => {
+        let isNowConfirmed = false;
         if (level === 'high') {
           state.confirmedHigh = !state.confirmedHigh;
+          isNowConfirmed = state.confirmedHigh;
         } else if (level === 'medium') {
           state.confirmedMedium = !state.confirmedMedium;
+          isNowConfirmed = state.confirmedMedium;
         } else if (level === 'low') {
           state.confirmedLow = !state.confirmedLow;
+          isNowConfirmed = state.confirmedLow;
+        }
+
+        const newStatus = isNowConfirmed ? 'confirmed' : 'pending';
+        const { HIGH, MEDIUM } = CONFIDENCE_THRESHOLDS;
+        for (const group of state.groupedMappings) {
+          for (const account of group.accounts) {
+            const inBand =
+              (level === 'high' && account.score >= HIGH) ||
+              (level === 'medium' && account.score >= MEDIUM && account.score < HIGH) ||
+              (level === 'low' && account.score < MEDIUM);
+            if (inBand) {
+              (account as { status: string }).status = newStatus;
+            }
+          }
         }
       });
     },
@@ -292,6 +317,7 @@ export const useMigrationStore = create<MigrationStore>()(
         };
         state.deletedAccounts.push(deleted);
         group.accounts.splice(accountIdx, 1);
+        state.hasUnsavedChanges = true;
       });
     },
 

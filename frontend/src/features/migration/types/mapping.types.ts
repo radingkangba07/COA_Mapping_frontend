@@ -17,6 +17,7 @@ export interface AccountMapping {
   readonly target_name: string;
   readonly score: number;
   readonly remark: string;
+  readonly status?: 'pending' | 'confirmed' | undefined;
   readonly user_changed?: boolean | undefined;
   readonly changed_by_name?: string | undefined;
   readonly changed_at?: string | undefined;
@@ -61,6 +62,7 @@ export interface MappingRule {
 export interface MappingCreateDTO {
   readonly project_id: string;
   readonly source_account_name: string;
+  readonly source_account_number?: string | undefined;
   readonly target_account_name?: string | undefined;
   readonly confidence_score?: number | undefined;
   readonly status?: string | undefined;
