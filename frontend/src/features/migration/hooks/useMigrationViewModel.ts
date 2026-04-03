@@ -237,7 +237,7 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
   }, []);
 
   const canProceedFromStep0 = useMemo(() => sourceERP !== null && targetERP !== null, [sourceERP, targetERP]);
-  const canProceedFromStep1 = useMemo(() => sourceFile !== null && targetFile !== null && mappingFile !== null, [sourceFile, targetFile, mappingFile]);
+  const canProceedFromStep1 = useMemo(() => sourceFile !== null, [sourceFile]);
 
   return {
     currentStep, completedSteps, sourceERP, targetERP,
