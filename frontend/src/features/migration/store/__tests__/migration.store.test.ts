@@ -308,6 +308,184 @@ describe('useMigrationStore', () => {
     });
   });
 
+  describe('downstream invalidation', () => {
+    function setupFullyCompletedStore() {
+      const store = useMigrationStore.getState();
+      // Set data before completing each step to avoid triggering invalidation
+      store.setSourceERP(mockERP);
+      store.setTargetERP(mockTargetERP);
+      store.completeStep(0);
+      store.setStep(1);
+      store.setSourceData(mockFile, mockSourceData);
+      store.setTargetData(mockFile, [{ account: '3000', name: 'Equity' }]);
+      store.setMappingData(
+        { name: 'mapping.csv', rowCount: 5, fileId: createFileId('mapping-1') },
+        [{ source: 'Asset', target: 'Assets' }],
+      );
+      store.completeStep(1);
+      store.setStep(2);
+      store.setTypeMappingRows(mockTypeMappingRows);
+      store.setTargetTypes(['Assets', 'Liabilities']);
+      store.completeStep(2);
+      store.setStep(3);
+      store.setGroupedMappings(mockGroupedMappings);
+      store.confirmConfidenceLevel('high');
+      store.completeStep(3);
+      return store;
+    }
+
+    it('changing source ERP invalidates steps 1+ and clears downstream data', () => {
+      setupFullyCompletedStore();
+      const newERP: ERPSystem = { id: 'quickbooks', name: 'QuickBooks', description: 'QB', fields: [] };
+
+      useMigrationStore.getState().setSourceERP(newERP);
+
+      const state = useMigrationStore.getState();
+      expect(state.currentStep).toBe(0);
+      expect(state.completedSteps).toEqual([0]);
+      expect(state.sourceERP).toEqual(newERP);
+      expect(state.sourceFile).toBeNull();
+      expect(state.sourceData).toEqual([]);
+      expect(state.targetFile).toBeNull();
+      expect(state.typeMappingRows).toEqual([]);
+      expect(state.targetTypes).toEqual([]);
+      expect(state.groupedMappings).toEqual([]);
+      expect(state.confirmedHigh).toBe(false);
+      expect(state.deletedAccounts).toEqual([]);
+    });
+
+    it('changing target ERP invalidates steps 1+ and clears downstream data', () => {
+      setupFullyCompletedStore();
+      const newERP: ERPSystem = { id: 'dynamics365', name: 'Dynamics 365', description: 'D365', fields: [] };
+
+      useMigrationStore.getState().setTargetERP(newERP);
+
+      const state = useMigrationStore.getState();
+      expect(state.currentStep).toBe(0);
+      expect(state.completedSteps).toEqual([0]);
+      expect(state.targetERP).toEqual(newERP);
+      expect(state.sourceFile).toBeNull();
+      expect(state.typeMappingRows).toEqual([]);
+      expect(state.groupedMappings).toEqual([]);
+    });
+
+    it('re-uploading source file invalidates steps 2+ and resets currentStep', () => {
+      setupFullyCompletedStore();
+      const newFile: UploadedFile = { name: 'new-source.xlsx', rowCount: 5, fileId: createFileId('file-2') };
+      const newData = [{ account: '9000', name: 'Revenue' }];
+
+      useMigrationStore.getState().setSourceData(newFile, newData);
+
+      const state = useMigrationStore.getState();
+      expect(state.currentStep).toBe(1);
+      expect(state.completedSteps).toEqual([0, 1]);
+      expect(state.sourceFile).toEqual(newFile);
+      expect(state.sourceData).toEqual(newData);
+      expect(state.typeMappingRows).toEqual([]);
+      expect(state.targetTypes).toEqual([]);
+      expect(state.groupedMappings).toEqual([]);
+      expect(state.confirmedHigh).toBe(false);
+    });
+
+    it('re-uploading target file invalidates steps 2+', () => {
+      setupFullyCompletedStore();
+      const newFile: UploadedFile = { name: 'new-target.xlsx', rowCount: 3, fileId: createFileId('file-3') };
+
+      useMigrationStore.getState().setTargetData(newFile, []);
+
+      const state = useMigrationStore.getState();
+      expect(state.currentStep).toBe(1);
+      expect(state.completedSteps).toEqual([0, 1]);
+      expect(state.typeMappingRows).toEqual([]);
+      expect(state.groupedMappings).toEqual([]);
+    });
+
+    it('re-uploading mapping file invalidates steps 2+', () => {
+      setupFullyCompletedStore();
+      const newFile: UploadedFile = { name: 'new-mapping.csv', rowCount: 2, fileId: createFileId('file-4') };
+
+      useMigrationStore.getState().setMappingData(newFile, []);
+
+      const state = useMigrationStore.getState();
+      expect(state.currentStep).toBe(1);
+      expect(state.completedSteps).toEqual([0, 1]);
+      expect(state.typeMappingRows).toEqual([]);
+    });
+
+    it('first-time upload does not invalidate any steps', () => {
+      const store = useMigrationStore.getState();
+      // No steps completed yet
+      store.setSourceData(mockFile, mockSourceData);
+
+      const state = useMigrationStore.getState();
+      expect(state.completedSteps).toEqual([]);
+      expect(state.sourceFile).toEqual(mockFile);
+      expect(state.sourceData).toEqual(mockSourceData);
+    });
+
+    it('first-time ERP selection does not invalidate any steps', () => {
+      const store = useMigrationStore.getState();
+      // No steps completed yet
+      store.setSourceERP(mockERP);
+
+      const state = useMigrationStore.getState();
+      expect(state.completedSteps).toEqual([]);
+      expect(state.sourceERP).toEqual(mockERP);
+    });
+
+    it('setting same ERP does not invalidate (hydration restore)', () => {
+      setupFullyCompletedStore();
+
+      // Re-set the same ERP (simulates hydration restoring the value)
+      useMigrationStore.getState().setSourceERP(mockERP);
+
+      const state = useMigrationStore.getState();
+      expect(state.completedSteps).toEqual([0, 1, 2, 3]);
+      expect(state.sourceFile).not.toBeNull();
+      expect(state.typeMappingRows).toEqual(mockTypeMappingRows);
+      expect(state.groupedMappings).toHaveLength(2);
+    });
+
+    it('setting same file does not invalidate (hydration restore)', () => {
+      setupFullyCompletedStore();
+
+      // Re-set the same file (simulates hydration restoring)
+      useMigrationStore.getState().setSourceData(mockFile, mockSourceData);
+
+      const state = useMigrationStore.getState();
+      expect(state.completedSteps).toEqual([0, 1, 2, 3]);
+      expect(state.typeMappingRows).toEqual(mockTypeMappingRows);
+      expect(state.groupedMappings).toHaveLength(2);
+    });
+
+    it('invalidateFromStep directly clears steps and data from given step', () => {
+      setupFullyCompletedStore();
+
+      useMigrationStore.getState().invalidateFromStep(2);
+
+      const state = useMigrationStore.getState();
+      expect(state.completedSteps).toEqual([0, 1]);
+      expect(state.sourceFile).not.toBeNull(); // step 1 data preserved
+      expect(state.typeMappingRows).toEqual([]);
+      expect(state.groupedMappings).toEqual([]);
+      expect(state.confirmedHigh).toBe(false);
+    });
+
+    it('invalidateFromStep(1) clears files and all downstream data', () => {
+      setupFullyCompletedStore();
+
+      useMigrationStore.getState().invalidateFromStep(1);
+
+      const state = useMigrationStore.getState();
+      expect(state.completedSteps).toEqual([0]);
+      expect(state.sourceFile).toBeNull();
+      expect(state.targetFile).toBeNull();
+      expect(state.mappingFile).toBeNull();
+      expect(state.typeMappingRows).toEqual([]);
+      expect(state.groupedMappings).toEqual([]);
+    });
+  });
+
   describe('reset', () => {
     it('returns to initial state', () => {
       const { setStep, setSourceERP, setSourceData, setGroupedMappings, reset } =
