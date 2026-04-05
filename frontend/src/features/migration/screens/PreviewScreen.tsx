@@ -14,6 +14,8 @@ import { MigrationStepper } from '../components/MigrationStepper/MigrationSteppe
 import { ExportFormatPicker } from '@/features/export/components/ExportFormatPicker';
 import { useExportViewModel } from '@/features/export/hooks/useExportViewModel';
 import { usePreviewScreenViewModel } from '../hooks/usePreviewScreenViewModel';
+import { useMigrationStore } from '../store/migration.store';
+import { MIGRATION_STEPS } from '@/shared/constants/migration-steps';
 import { useHydrateProject } from '../hooks/useHydrateProject';
 import { useOnlineGuard } from '@/shared/hooks/useOnlineGuard';
 import { useMigrationScreenRoute } from '@/navigation/types';
@@ -78,6 +80,8 @@ export const PreviewScreen = (): React.JSX.Element => {
     [vm, navigation, projectId],
   );
 
+  const completeStep = useMigrationStore((s) => s.completeStep);
+
   const { performExport, changeFormat, isExporting, exportFormat } = useExportViewModel({
     groupedMappings: vm.groupedMappings,
     projectId,
@@ -104,8 +108,11 @@ export const PreviewScreen = (): React.JSX.Element => {
   }, [vm, navigation, projectId]);
 
   const handleExport = useCallback(async (): Promise<void> => {
-    await performExport();
-  }, [performExport]);
+    const success = await performExport();
+    if (success) {
+      completeStep(MIGRATION_STEPS.FINAL_PREVIEW);
+    }
+  }, [performExport, completeStep]);
 
   if (isHydrating) {
     return (

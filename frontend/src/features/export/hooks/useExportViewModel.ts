@@ -5,8 +5,11 @@ import { httpClient } from '@/shared/services/http/http.instance';
 import { useToast } from '@/shared/hooks/useToast';
 import type { ExportFormat } from '@/features/export/types/export.types';
 import { exportMappings, exportMappingsAsCSV, flattenMappings } from '@/features/export/services/export.service';
+import { updateProject } from '@/features/projects/services/projects.service';
+import { createProjectId } from '@/shared/types/common.types';
 import { downloadBlob } from '@/shared/utils/download.utils';
 import { isOk } from '@/shared/types/result.types';
+import { MIGRATION_STEPS } from '@/shared/constants/migration-steps';
 
 // ─── Input Contract ─────────────────────────────────────────────────────────
 
@@ -37,10 +40,10 @@ export function useExportViewModel({ groupedMappings, projectId }: UseExportView
 
   const { showSuccess, showError } = useToast();
 
-  const performExport = useCallback(async () => {
+  const performExport = useCallback(async (): Promise<boolean> => {
     if (!projectId) {
       showError('No project selected');
-      return;
+      return false;
     }
 
     setExporting(true);
@@ -56,17 +59,24 @@ export function useExportViewModel({ groupedMappings, projectId }: UseExportView
       if (!isOk(result)) {
         setError(result.error);
         showError(result.error.message);
-        return;
+        return false;
       }
 
       const downloadResult = await downloadBlob(result.data.blob, result.data.filename);
       if (!isOk(downloadResult)) {
         setError(downloadResult.error);
         showError(downloadResult.error.message);
-        return;
+        return false;
       }
 
       showSuccess('Export completed successfully!');
+
+      await updateProject(httpClient, createProjectId(projectId), {
+        status: 'completed',
+        currentStep: MIGRATION_STEPS.PREVIEW,
+      });
+
+      return true;
     } finally {
       setExporting(false);
     }
