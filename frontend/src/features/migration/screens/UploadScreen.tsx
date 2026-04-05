@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable, ScrollView, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -41,6 +41,12 @@ export function UploadScreen(): React.JSX.Element {
   const route = useMigrationScreenRoute<'Upload'>();
   const { projectId } = route.params;
   const { isHydrating, error, retry } = useHydrateProject(createProjectId(projectId));
+
+  const clearPendingRemovals = useMigrationStore((s) => s.clearPendingRemovals);
+
+  useEffect(() => {
+    clearPendingRemovals();
+  }, [clearPendingRemovals]);
 
   const {
     currentStep, completedSteps, sourceERP, targetERP,

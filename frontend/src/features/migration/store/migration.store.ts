@@ -42,6 +42,10 @@ interface MigrationState {
   confirmedLow: boolean;
   deletedAccounts: DeletedAccount[];
 
+  pendingSourceRemoval: boolean;
+  pendingTargetRemoval: boolean;
+  pendingMappingRemoval: boolean;
+
   projectId: string | null;
   isLoading: boolean;
   error: AppError | null;
@@ -83,6 +87,7 @@ interface MigrationActions {
   clearSourceFile: () => void;
   clearTargetFile: () => void;
   clearMappingFile: () => void;
+  clearPendingRemovals: () => void;
   setTargetTypes: (types: string[]) => void;
 
   setProjectId: (id: string) => void;
@@ -119,6 +124,10 @@ const initialState: MigrationState = {
   confirmedMedium: false,
   confirmedLow: false,
   deletedAccounts: [],
+
+  pendingSourceRemoval: false,
+  pendingTargetRemoval: false,
+  pendingMappingRemoval: false,
 
   projectId: null,
   isLoading: false,
@@ -163,6 +172,7 @@ export const useMigrationStore = create<MigrationStore>()(
       set((state) => {
         state.sourceFile = file;
         state.sourceData = data;
+        state.pendingSourceRemoval = false;
       });
     },
 
@@ -170,6 +180,7 @@ export const useMigrationStore = create<MigrationStore>()(
       set((state) => {
         state.targetFile = file;
         state.targetData = data;
+        state.pendingTargetRemoval = false;
       });
     },
 
@@ -177,6 +188,7 @@ export const useMigrationStore = create<MigrationStore>()(
       set((state) => {
         state.mappingFile = file;
         state.mappingData = data;
+        state.pendingMappingRemoval = false;
       });
     },
 
@@ -366,22 +378,42 @@ export const useMigrationStore = create<MigrationStore>()(
 
     clearSourceFile: (): void => {
       set((state) => {
-        state.sourceFile = null;
-        state.sourceData = [];
+        if (state.completedSteps.includes(1)) {
+          state.pendingSourceRemoval = true;
+        } else {
+          state.sourceFile = null;
+          state.sourceData = [];
+        }
       });
     },
 
     clearTargetFile: (): void => {
       set((state) => {
-        state.targetFile = null;
-        state.targetData = [];
+        if (state.completedSteps.includes(1)) {
+          state.pendingTargetRemoval = true;
+        } else {
+          state.targetFile = null;
+          state.targetData = [];
+        }
       });
     },
 
     clearMappingFile: (): void => {
       set((state) => {
-        state.mappingFile = null;
-        state.mappingData = [];
+        if (state.completedSteps.includes(1)) {
+          state.pendingMappingRemoval = true;
+        } else {
+          state.mappingFile = null;
+          state.mappingData = [];
+        }
+      });
+    },
+
+    clearPendingRemovals: (): void => {
+      set((state) => {
+        state.pendingSourceRemoval = false;
+        state.pendingTargetRemoval = false;
+        state.pendingMappingRemoval = false;
       });
     },
 

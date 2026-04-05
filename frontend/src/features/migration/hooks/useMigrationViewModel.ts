@@ -7,6 +7,9 @@ import {
   selectCurrentStep,
   selectSourceERP,
   selectTargetERP,
+  selectEffectiveSourceFile,
+  selectEffectiveTargetFile,
+  selectEffectiveMappingFile,
 } from '../store/migration.selectors';
 import {
   handleFileUpload,
@@ -64,9 +67,9 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
   const completedSteps = useMigrationStore((s) => s.completedSteps);
   const sourceERP = useMigrationStore(selectSourceERP);
   const targetERP = useMigrationStore(selectTargetERP);
-  const sourceFile = useMigrationStore((s) => s.sourceFile);
-  const targetFile = useMigrationStore((s) => s.targetFile);
-  const mappingFile = useMigrationStore((s) => s.mappingFile);
+  const sourceFile = useMigrationStore(selectEffectiveSourceFile);
+  const targetFile = useMigrationStore(selectEffectiveTargetFile);
+  const mappingFile = useMigrationStore(selectEffectiveMappingFile);
   const isLoading = useMigrationStore((s) => s.isLoading);
   const error = useMigrationStore((s) => s.error);
   const projectId = useMigrationStore((s) => s.projectId);
