@@ -65,7 +65,7 @@ export const ProjectCard = React.memo(({
           <View className="flex-row items-center gap-1 mt-0.5">
             <Clock size={12} className="text-muted-foreground" />
             <Text className="font-body text-xs text-muted-foreground">
-              Last edited by:{project.updatedBy ? ` ${project.updatedBy}` : ` ${project.createdBy ?? 'unknown'}`}
+              Last edited by:{project.updatedBy ? ` ${project.updatedBy}` : ` ${project.createdBy ?? 'unknown'}`} {'\u00B7'} {formatDate(project.updatedAt)}
             </Text>
           </View>
         </Card.Content>
