@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, useWindowDimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Download, RefreshCw, ArrowLeft } from 'lucide-react-native';
@@ -68,6 +68,7 @@ export const PreviewScreen = (): React.JSX.Element => {
     [navigation],
   );
 
+  const { height: windowHeight } = useWindowDimensions();
   const { isOnline } = useOnlineGuard();
   const vm = usePreviewScreenViewModel(projectId, navigateBack);
 
@@ -183,41 +184,45 @@ export const PreviewScreen = (): React.JSX.Element => {
                 <Badge variant="outline">{String(tableRows.length)}</Badge>
               </View>
 
-              <ScrollView horizontal>
-                <View className="min-w-[700px] lg:min-w-[900px]">
-                  <View className="flex-row border-b border-border pb-2 mb-1">
-                    {['Source #', 'Source Name', 'Target Name', 'Score', 'Source Type', 'Target Type'].map(
-                      (label, i) => {
-                        const w = i === 0 ? 'w-[80px] lg:w-[100px]' : i === 3 ? 'w-[60px] lg:w-[100px]' : i >= 4 ? 'w-[100px] lg:w-[130px]' : 'flex-1';
-                        return <Text key={label} className={cn(w, 'text-xs font-semibold text-muted-foreground')}>{label}</Text>;
-                      },
-                    )}
-                  </View>
-
-                  {tableRows.map((row, idx) => (
-                    <View
-                      key={row.key}
-                      className={cn(
-                        'flex-row items-center py-2 px-1 rounded',
-                        idx % 2 === 0 ? 'bg-muted/50' : 'bg-background',
+              <View className="w-full" style={{ maxHeight: windowHeight * 0.5 }}>
+                <ScrollView horizontal contentContainerStyle={{ flexGrow: 1 }}>
+                  <View className="min-w-[700px] lg:min-w-[900px] flex-1">
+                    <View className="flex-row border-b border-border pb-2 mb-1">
+                      {['Source #', 'Source Name', 'Target Name', 'Score', 'Source Type', 'Target Type'].map(
+                        (label, i) => {
+                          const w = i === 0 ? 'w-[80px] lg:w-[100px]' : i === 3 ? 'w-[60px] lg:w-[100px]' : i >= 4 ? 'w-[100px] lg:w-[130px]' : 'flex-1';
+                          return <Text key={label} className={cn(w, 'text-xs font-semibold text-muted-foreground')}>{label}</Text>;
+                        },
                       )}
-                    >
-                      <Text className="w-[80px] lg:w-[100px] font-mono text-xs text-foreground">{row.sourceNumber}</Text>
-                      <Text className="flex-1 text-xs text-foreground" numberOfLines={1}>{row.sourceName}</Text>
-                      <Text className="flex-1 text-xs text-foreground" numberOfLines={1}>{row.targetName}</Text>
-                      <View className="w-[60px] lg:w-[100px]">
-                        <View className={cn('rounded-full px-1.5 py-0.5 self-start', getScoreClasses(row.score))}>
-                          <Text className={cn('font-mono text-xs font-medium', getScoreClasses(row.score))}>
-                            {row.score}%
-                          </Text>
-                        </View>
-                      </View>
-                      <Text className="w-[100px] lg:w-[130px] text-xs text-muted-foreground" numberOfLines={1}>{row.sourceType}</Text>
-                      <Text className="w-[100px] lg:w-[130px] text-xs text-muted-foreground" numberOfLines={1}>{row.targetType}</Text>
                     </View>
-                  ))}
-                </View>
-              </ScrollView>
+
+                    <ScrollView nestedScrollEnabled>
+                      {tableRows.map((row, idx) => (
+                        <View
+                          key={row.key}
+                          className={cn(
+                            'flex-row items-center py-2 px-1 rounded',
+                            idx % 2 === 0 ? 'bg-muted/50' : 'bg-background',
+                          )}
+                        >
+                          <Text className="w-[80px] lg:w-[100px] font-mono text-xs text-foreground">{row.sourceNumber}</Text>
+                          <Text className="flex-1 text-xs text-foreground" numberOfLines={1}>{row.sourceName}</Text>
+                          <Text className="flex-1 text-xs text-foreground" numberOfLines={1}>{row.targetName}</Text>
+                          <View className="w-[60px] lg:w-[100px]">
+                            <View className={cn('rounded-full px-1.5 py-0.5 self-start', getScoreClasses(row.score))}>
+                              <Text className={cn('font-mono text-xs font-medium', getScoreClasses(row.score))}>
+                                {row.score}%
+                              </Text>
+                            </View>
+                          </View>
+                          <Text className="w-[100px] lg:w-[130px] text-xs text-muted-foreground" numberOfLines={1}>{row.sourceType}</Text>
+                          <Text className="w-[100px] lg:w-[130px] text-xs text-muted-foreground" numberOfLines={1}>{row.targetType}</Text>
+                        </View>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </ScrollView>
+              </View>
             </Card.Content>
           </Card>
         )}
