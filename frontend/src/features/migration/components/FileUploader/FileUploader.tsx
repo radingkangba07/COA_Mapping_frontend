@@ -16,6 +16,9 @@ interface FileUploaderProps {
   onSourceRemove: () => void;
   onTargetRemove: () => void;
   onMappingRemove: () => void;
+  onSourcePreview?: () => void;
+  onTargetPreview?: () => void;
+  onMappingPreview?: () => void;
   isUploading?: boolean;
   testID?: string;
 }
@@ -30,6 +33,9 @@ export const FileUploader = ({
   onSourceRemove,
   onTargetRemove,
   onMappingRemove,
+  onSourcePreview,
+  onTargetPreview,
+  onMappingPreview,
   isUploading = false,
   testID = 'file-uploader',
 }: FileUploaderProps) => {
@@ -59,7 +65,7 @@ export const FileUploader = ({
             file={sourceFile}
             onFilePicked={onSourceFilePicked}
             onRemove={onSourceRemove}
-            onPreview={sourceFile !== null ? () => {} : undefined}
+            onPreview={sourceFile !== null ? onSourcePreview : undefined}
             isUploading={isUploading}
             testID={`${testID}-source`}
           />
@@ -71,7 +77,7 @@ export const FileUploader = ({
             file={targetFile}
             onFilePicked={onTargetFilePicked}
             onRemove={onTargetRemove}
-            onPreview={targetFile !== null ? () => {} : undefined}
+            onPreview={targetFile !== null ? onTargetPreview : undefined}
             isUploading={isUploading}
             testID={`${testID}-target`}
           />
@@ -83,7 +89,7 @@ export const FileUploader = ({
             file={mappingFile}
             onFilePicked={onMappingFilePicked}
             onRemove={onMappingRemove}
-            onPreview={mappingFile !== null ? () => {} : undefined}
+            onPreview={mappingFile !== null ? onMappingPreview : undefined}
             isUploading={isUploading}
             testID={`${testID}-mapping`}
           />

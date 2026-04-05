@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { cn } from '@/shared/utils/string.utils';
@@ -84,33 +84,44 @@ export const FileUploadBox = ({
     }
   }, [handleWebClick, handleNativePress]);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(true);
-  }, []);
+  const dropZoneRef = useRef<View>(null);
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
-  }, []);
+  useEffect(() => {
+    if (!isWeb || file || isUploading) return;
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
+    // Access the underlying DOM node for drag-and-drop events
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const node = (dropZoneRef.current as any)?._nativeTag ?? (dropZoneRef.current as any);
+    const el = node instanceof HTMLElement ? node : null;
+    if (!el) return;
+
+    const onDragOver = (e: DragEvent): void => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(true);
+    };
+    const onDragLeave = (e: DragEvent): void => {
       e.preventDefault();
       e.stopPropagation();
       setIsDragOver(false);
+    };
+    const onDrop = (e: DragEvent): void => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(false);
+      const droppedFile = e.dataTransfer?.files[0];
+      if (droppedFile) onFilePicked(droppedFile);
+    };
 
-      if (isUploading || file) return;
-
-      const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile) {
-        onFilePicked(droppedFile);
-      }
-    },
-    [isUploading, file, onFilePicked],
-  );
+    el.addEventListener('dragover', onDragOver);
+    el.addEventListener('dragleave', onDragLeave);
+    el.addEventListener('drop', onDrop);
+    return () => {
+      el.removeEventListener('dragover', onDragOver);
+      el.removeEventListener('dragleave', onDragLeave);
+      el.removeEventListener('drop', onDrop);
+    };
+  }, [isWeb, file, isUploading, onFilePicked]);
 
   const handleRemove = useCallback(
     (e: { stopPropagation?: () => void }) => {
@@ -127,14 +138,6 @@ export const FileUploadBox = ({
     },
     [onPreview],
   );
-
-  const webDragProps = isWeb
-    ? {
-        onDragOver: handleDragOver,
-        onDragLeave: handleDragLeave,
-        onDrop: handleDrop,
-      }
-    : {};
 
   return (
     <View testID={testID}>
@@ -175,9 +178,9 @@ export const FileUploadBox = ({
           accessibilityRole="button"
           accessibilityLabel={`${label}: tap to select a file`}
           testID={`${testID}-zone`}
-          {...webDragProps}
         >
           <View
+            ref={dropZoneRef}
             className={cn(
               'rounded-lg p-4 items-center justify-center border-2 border-dashed bg-background',
               isDragOver ? 'border-accent bg-accent/5' : 'border-border',
