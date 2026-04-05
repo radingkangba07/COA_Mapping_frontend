@@ -1,7 +1,19 @@
 import type { MigrationStore } from './migration.store';
 import type { ERPSystem } from '@/features/migration/types/erp.types';
+import type { UploadedFile } from '@/features/migration/types/migration.types';
 import type { ConfidenceLevel, GroupedMapping } from '@/features/migration/types/mapping.types';
 import { CONFIDENCE_THRESHOLDS } from '@/shared/constants/mapping-confidence';
+
+// ─── File Selectors (respect pending removals) ─────────────────────────────
+
+export const selectEffectiveSourceFile = (state: MigrationStore): UploadedFile | null =>
+  state.pendingSourceRemoval ? null : state.sourceFile;
+
+export const selectEffectiveTargetFile = (state: MigrationStore): UploadedFile | null =>
+  state.pendingTargetRemoval ? null : state.targetFile;
+
+export const selectEffectiveMappingFile = (state: MigrationStore): UploadedFile | null =>
+  state.pendingMappingRemoval ? null : state.mappingFile;
 
 // ─── Step Selectors ──────────────────────────────────────────────────────────
 
