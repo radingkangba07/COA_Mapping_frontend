@@ -90,6 +90,7 @@ interface MigrationActions {
   clearPendingRemovals: () => void;
   setTargetTypes: (types: string[]) => void;
 
+  invalidateFromStep: (step: number) => void;
   setProjectId: (id: string) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: AppError | null) => void;
@@ -134,6 +135,36 @@ const initialState: MigrationState = {
   error: null,
 };
 
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+function clearDownstreamState(state: MigrationState, fromStep: number): void {
+  state.completedSteps = state.completedSteps.filter((s) => s < fromStep);
+  if (state.currentStep >= fromStep) {
+    state.currentStep = fromStep - 1;
+  }
+  if (fromStep <= 1) {
+    state.sourceFile = null;
+    state.sourceData = [];
+    state.targetFile = null;
+    state.targetData = [];
+    state.mappingFile = null;
+    state.mappingData = [];
+  }
+  if (fromStep <= 2) {
+    state.typeMappingRows = [];
+    state.hasUnsavedChanges = false;
+    state.targetTypes = [];
+  }
+  if (fromStep <= 3) {
+    state.groupedMappings = [];
+    state.confidenceFilter = null;
+    state.confirmedHigh = false;
+    state.confirmedMedium = false;
+    state.confirmedLow = false;
+    state.deletedAccounts = [];
+  }
+}
+
 // ─── Store ──────────────────────────────────────────────────────────────────
 
 export const useMigrationStore = create<MigrationStore>()(
@@ -158,18 +189,30 @@ export const useMigrationStore = create<MigrationStore>()(
     setSourceERP: (erp: ERPSystem): void => {
       console.log('[MigrationStore] setSourceERP', erp.id);
       set((state) => {
+        const changed = state.sourceERP !== null && state.sourceERP.id !== erp.id;
+        if (changed && state.completedSteps.includes(0)) {
+          clearDownstreamState(state, 1);
+        }
         state.sourceERP = castDraft(erp);
       });
     },
 
     setTargetERP: (erp: ERPSystem): void => {
       set((state) => {
+        const changed = state.targetERP !== null && state.targetERP.id !== erp.id;
+        if (changed && state.completedSteps.includes(0)) {
+          clearDownstreamState(state, 1);
+        }
         state.targetERP = castDraft(erp);
       });
     },
 
     setSourceData: (file: UploadedFile, data: Record<string, unknown>[]): void => {
       set((state) => {
+        const changed = state.sourceFile !== null && state.sourceFile.fileId !== file.fileId;
+        if (changed && state.completedSteps.includes(1)) {
+          clearDownstreamState(state, 2);
+        }
         state.sourceFile = file;
         state.sourceData = data;
         state.pendingSourceRemoval = false;
@@ -178,6 +221,10 @@ export const useMigrationStore = create<MigrationStore>()(
 
     setTargetData: (file: UploadedFile, data: Record<string, unknown>[]): void => {
       set((state) => {
+        const changed = state.targetFile !== null && state.targetFile.fileId !== file.fileId;
+        if (changed && state.completedSteps.includes(1)) {
+          clearDownstreamState(state, 2);
+        }
         state.targetFile = file;
         state.targetData = data;
         state.pendingTargetRemoval = false;
@@ -186,6 +233,10 @@ export const useMigrationStore = create<MigrationStore>()(
 
     setMappingData: (file: UploadedFile, data: Record<string, unknown>[]): void => {
       set((state) => {
+        const changed = state.mappingFile !== null && state.mappingFile.fileId !== file.fileId;
+        if (changed && state.completedSteps.includes(1)) {
+          clearDownstreamState(state, 2);
+        }
         state.mappingFile = file;
         state.mappingData = data;
         state.pendingMappingRemoval = false;
@@ -420,6 +471,12 @@ export const useMigrationStore = create<MigrationStore>()(
     setTargetTypes: (types: string[]): void => {
       set((state) => {
         state.targetTypes = types;
+      });
+    },
+
+    invalidateFromStep: (step: number): void => {
+      set((state) => {
+        clearDownstreamState(state, step);
       });
     },
 
