@@ -1,0 +1,16 @@
+source_type,target_type
+Asset,Bank
+Asset,Accounts Receivable
+Asset,Other Current Asset
+Asset,Fixed Asset
+Asset,Other Asset
+Liability,Accounts Payable
+Liability,Credit Card
+Liability,Other Current Liability
+Liability,Long Term Liability
+Equity,Equity
+Revenue,Income
+Revenue,Other Income
+Expense,Cost of Goods Sold
+Expense,Expense
+Expense,Other Expense

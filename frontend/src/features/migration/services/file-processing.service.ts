@@ -93,13 +93,25 @@ export function extractTargetTypes(data: Record<string, unknown>[]): string[] {
   return extractAccountTypes(data);
 }
 
+function findColumnValue(row: Record<string, unknown>, search: string): string {
+  const normalise = (s: string): string => s.toLowerCase().replace(/[_\s]/g, '');
+  const target = normalise(search);
+  for (const key of Object.keys(row)) {
+    if (normalise(key) === target) {
+      const val = row[key];
+      return typeof val === 'string' ? val.trim() : '';
+    }
+  }
+  return '';
+}
+
 export function buildTypeMappingRows(
   mappingData: Record<string, unknown>[],
 ): TypeMappingRow[] {
   return mappingData.map((row, index) => ({
     id: String(index),
-    sourceType: typeof row['source_type'] === 'string' ? row['source_type'] : '',
-    targetType: typeof row['target_type'] === 'string' ? row['target_type'] : '',
+    sourceType: findColumnValue(row, 'source_type'),
+    targetType: findColumnValue(row, 'target_type'),
     isCustom: false,
   }));
 }
