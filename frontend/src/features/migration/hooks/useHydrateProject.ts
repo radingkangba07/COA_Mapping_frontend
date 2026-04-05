@@ -4,6 +4,7 @@ import type { AppError } from '@/shared/types/result.types';
 import { hydrateProject } from '../services/hydration.service';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { useMigrationStore } from '../store/migration.store';
+import { useERPConfigStore } from '@/features/erp-config/store/erp-config.store';
 
 export interface UseHydrateProjectReturn {
   readonly isHydrating: boolean;
@@ -27,13 +28,15 @@ export function useHydrateProject(projectId: ProjectId): UseHydrateProjectReturn
     setError(null);
     try {
       const store = useMigrationStore.getState();
+      const erpSystems = useERPConfigStore.getState().erpSystems;
       console.log('[useHydrateProject] store BEFORE hydration', {
         sourceERP: store.sourceERP?.id ?? null,
         targetERP: store.targetERP?.id ?? null,
         currentStep: store.currentStep,
         completedSteps: store.completedSteps,
+        erpSystemsCount: erpSystems.length,
       });
-      const result = await hydrateProject(httpClient, projectId, store);
+      const result = await hydrateProject(httpClient, projectId, store, erpSystems);
       if (!result.ok) {
         console.log('[useHydrateProject] hydration FAILED', result.error);
         setError(result.error);

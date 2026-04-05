@@ -43,6 +43,7 @@ export const ProjectInfoPanel = ({ projectId, testID }: ProjectInfoPanelProps) =
   const sourceErp = getERPById(project.sourceErp);
   const targetErp = getERPById(project.targetErp);
   const createdByName = project.createdBy ?? 'Unknown';
+  const updatedByName = project.updatedBy ?? createdByName;
   const sourceName = sourceErp?.name ?? project.sourceErp;
   const targetName = targetErp?.name ?? project.targetErp;
 
@@ -80,7 +81,7 @@ export const ProjectInfoPanel = ({ projectId, testID }: ProjectInfoPanelProps) =
       <View className="gap-1">
         <Text className={LABEL}>Last Edited</Text>
         <Text className={VALUE}>
-          {formatDate(project.updatedAt)} by {createdByName}
+          {formatDate(project.updatedAt)} by {updatedByName}
         </Text>
       </View>
 

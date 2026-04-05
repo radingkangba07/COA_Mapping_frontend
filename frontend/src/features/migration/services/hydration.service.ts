@@ -1,4 +1,3 @@
-import { ERP_SYSTEMS } from '@/shared/constants/erp-systems';
 import { MIGRATION_STEPS, completedStepsForStep } from '@/shared/constants/migration-steps';
 import type { MigrationStepValue } from '@/shared/constants/migration-steps';
 import { createFileId } from '@/shared/types/common.types';
@@ -30,14 +29,17 @@ function isValidStep(step: number): step is MigrationStepValue {
   return validSteps.includes(step);
 }
 
-function toERPSystem(erpInfo: (typeof ERP_SYSTEMS)[number]): ERPSystem {
-  return { id: erpInfo.id, name: erpInfo.name, description: erpInfo.description, fields: [] };
+function resolveERPSystem(erpValue: string, erpSystems: readonly ERPSystem[]): ERPSystem | undefined {
+  const lower = erpValue.toLowerCase();
+  return erpSystems.find((e) => e.id.toLowerCase() === lower)
+    ?? erpSystems.find((e) => e.name.toLowerCase() === lower);
 }
 
 export async function hydrateProject(
   client: HttpClient,
   projectId: ProjectId,
   store: MigrationStore,
+  erpSystems: readonly ERPSystem[],
 ): Promise<HydrationOutcome> {
   // Fetch project metadata
   const projectResult = await getProject(client, projectId);
@@ -71,12 +73,12 @@ export async function hydrateProject(
     store.completeStep(step);
   }
 
-  // Resolve ERP IDs to ERPSystem objects — fall back to in-memory values
+  // Resolve ERP IDs to ERPSystem objects from API — fall back to in-memory values
   const sourceERPInfo = project.sourceErp
-    ? ERP_SYSTEMS.find((e) => e.id === project.sourceErp)
+    ? resolveERPSystem(project.sourceErp, erpSystems)
     : undefined;
   const targetERPInfo = project.targetErp
-    ? ERP_SYSTEMS.find((e) => e.id === project.targetErp)
+    ? resolveERPSystem(project.targetErp, erpSystems)
     : undefined;
 
   console.log('[hydrateProject] ERP resolution', {
@@ -88,10 +90,10 @@ export async function hydrateProject(
     prevTargetERP: prevTargetERP?.id ?? null,
   });
 
-  if (sourceERPInfo) store.setSourceERP(toERPSystem(sourceERPInfo));
+  if (sourceERPInfo) store.setSourceERP(sourceERPInfo);
   else if (prevSourceERP) store.setSourceERP(prevSourceERP);
 
-  if (targetERPInfo) store.setTargetERP(toERPSystem(targetERPInfo));
+  if (targetERPInfo) store.setTargetERP(targetERPInfo);
   else if (prevTargetERP) store.setTargetERP(prevTargetERP);
 
   // Step 0 (ERPSelect): only needs project metadata + ERPs
