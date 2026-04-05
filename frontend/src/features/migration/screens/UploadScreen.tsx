@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, Pressable, ScrollView, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -69,6 +69,38 @@ export function UploadScreen(): React.JSX.Element {
     },
     [handleMappingFilePicked],
   );
+
+  const sourceData = useMigrationStore((s) => s.sourceData);
+  const targetData = useMigrationStore((s) => s.targetData);
+  const mappingData = useMigrationStore((s) => s.mappingData);
+
+  const [filePreviewData, setFilePreviewData] = useState<Record<string, unknown>[] | null>(null);
+  const [filePreviewTitle, setFilePreviewTitle] = useState('');
+  const [isFilePreviewOpen, setIsFilePreviewOpen] = useState(false);
+
+  const openFilePreview = useCallback((data: Record<string, unknown>[], title: string): void => {
+    setFilePreviewData(data);
+    setFilePreviewTitle(title);
+    setIsFilePreviewOpen(true);
+  }, []);
+
+  const closeFilePreview = useCallback((): void => {
+    setIsFilePreviewOpen(false);
+    setFilePreviewData(null);
+    setFilePreviewTitle('');
+  }, []);
+
+  const onSourcePreview = useCallback((): void => {
+    if (sourceData.length > 0) openFilePreview(sourceData, `Source COA — ${sourceFile?.name ?? ''}`);
+  }, [sourceData, sourceFile?.name, openFilePreview]);
+
+  const onTargetPreview = useCallback((): void => {
+    if (targetData.length > 0) openFilePreview(targetData, `Target COA — ${targetFile?.name ?? ''}`);
+  }, [targetData, targetFile?.name, openFilePreview]);
+
+  const onMappingPreview = useCallback((): void => {
+    if (mappingData.length > 0) openFilePreview(mappingData, `Type Mapping — ${mappingFile?.name ?? ''}`);
+  }, [mappingData, mappingFile?.name, openFilePreview]);
 
   const handleGoBack = useCallback((): void => {
     navigation.goBack();
@@ -173,6 +205,9 @@ export function UploadScreen(): React.JSX.Element {
             onSourceRemove={handleRemoveSourceFile}
             onTargetRemove={handleRemoveTargetFile}
             onMappingRemove={handleRemoveMappingFile}
+            onSourcePreview={onSourcePreview}
+            onTargetPreview={onTargetPreview}
+            onMappingPreview={onMappingPreview}
             isUploading={isLoading}
             testID="upload-file-uploader"
           />
@@ -261,6 +296,62 @@ export function UploadScreen(): React.JSX.Element {
                   </>
                 )}
                 {(!previewData || previewData.length === 0) && (
+                  <View className="py-8 items-center">
+                    <Text className="text-sm text-muted-foreground">No data to preview</Text>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+          </ScrollView>
+        </Pressable>
+      </Pressable>
+    </Modal>
+
+    {/* File Preview Modal — for uploaded file data */}
+    <Modal visible={isFilePreviewOpen} transparent animationType="fade" onRequestClose={closeFilePreview}>
+      <Pressable className="flex-1 bg-black/40 items-center justify-center p-4" onPress={closeFilePreview}>
+        <Pressable
+          className="bg-background rounded-xl border border-border w-full max-w-6xl max-h-[90%]"
+          onPress={() => {}}
+        >
+          <View className="flex-row items-center justify-between px-4 py-3 border-b border-border">
+            <View className="flex-row items-center gap-2">
+              <Eye size={18} color={colors.foreground} />
+              <Text className="font-heading text-base font-semibold text-foreground">
+                {filePreviewTitle}
+              </Text>
+            </View>
+            <Pressable onPress={closeFilePreview} accessibilityLabel="Close preview" testID="file-preview-close">
+              <X size={18} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
+          <Text className="px-4 py-1 text-xs text-muted-foreground">
+            Showing {filePreviewData?.length ?? 0} rows
+          </Text>
+          <ScrollView style={{ maxHeight: 700 }} className="px-4 pb-4">
+            <ScrollView horizontal>
+              <View>
+                {filePreviewData && filePreviewData.length > 0 && (
+                  <>
+                    <View className="flex-row border-b border-border py-2">
+                      {Object.keys(filePreviewData[0]!).map((col) => (
+                        <Text key={col} className="w-40 px-2 font-mono text-xs font-semibold text-foreground">
+                          {col}
+                        </Text>
+                      ))}
+                    </View>
+                    {filePreviewData.map((row, i) => (
+                      <View key={i} className="flex-row border-b border-border/20 py-1.5">
+                        {Object.values(row).map((val, j) => (
+                          <Text key={j} className="w-40 px-2 font-mono text-xs text-muted-foreground">
+                            {String(val ?? '')}
+                          </Text>
+                        ))}
+                      </View>
+                    ))}
+                  </>
+                )}
+                {(!filePreviewData || filePreviewData.length === 0) && (
                   <View className="py-8 items-center">
                     <Text className="text-sm text-muted-foreground">No data to preview</Text>
                   </View>
