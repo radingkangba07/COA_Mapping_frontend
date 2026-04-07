@@ -8,6 +8,7 @@ export type MappingId = Brand<string, 'MappingId'>;
 export type JobId = Brand<string, 'JobId'>;
 export type UserId = Brand<string, 'UserId'>;
 export type CompanyId = Brand<string, 'CompanyId'>;
+export type OrgId = Brand<string, 'OrgId'>;
 
 export function createProjectId(raw: string): ProjectId {
   return raw as ProjectId;
@@ -31,6 +32,10 @@ export function createUserId(raw: string): UserId {
 
 export function createCompanyId(raw: string): CompanyId {
   return raw as CompanyId;
+}
+
+export function createOrgId(raw: string): OrgId {
+  return raw as OrgId;
 }
 
 export type DeepReadonly<T> = T extends Date | RegExp | ((...args: unknown[]) => unknown)

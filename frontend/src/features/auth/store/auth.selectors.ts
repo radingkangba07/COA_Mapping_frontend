@@ -2,7 +2,7 @@ import type { User, AuthStore } from '../types/auth.types';
 import type { AppError } from '@/shared/types/result.types';
 
 export const selectIsAuthenticated = (state: AuthStore): boolean =>
-  state.user !== null && state.token !== null;
+  state.user !== null && state.accessToken !== null;
 
 export const selectUser = (state: AuthStore): User | null =>
   state.user;

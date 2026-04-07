@@ -45,6 +45,9 @@ export const SELECTORS = {
   checkEmailScreen: '[data-testid="check-email-screen"]',
   resendVerificationBtn: '[data-testid="resend-verification-btn"]',
   backToLoginLink: '[data-testid="back-to-login-link"]',
+  loginEmailInput: '[data-testid="login-email-input"]',
+  loginSubmitBtn: '[data-testid="login-submit-btn"]',
+  authCallbackScreen: '[data-testid="auth-callback-screen"]',
 } as const;
 
 /**
@@ -65,4 +68,22 @@ export async function waitForApp(page: Page): Promise<void> {
  */
 export async function isLoginVisible(page: Page): Promise<boolean> {
   return page.locator(SELECTORS.loginScreen).isVisible();
+}
+
+/**
+ * Seed localStorage with auth tokens so the app boots in an authenticated state.
+ * Call before navigating or reloading the page.
+ */
+export async function setAuthTokens(
+  page: Page,
+  accessToken = 'test-access',
+  refreshToken = 'test-refresh',
+): Promise<void> {
+  await page.evaluate(
+    ({ at, rt }) => {
+      localStorage.setItem('coa_access_token', at);
+      localStorage.setItem('coa_refresh_token', rt);
+    },
+    { at: accessToken, rt: refreshToken },
+  );
 }

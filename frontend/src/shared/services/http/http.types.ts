@@ -12,6 +12,7 @@ export interface HttpError {
 export interface HttpClientConfig {
   baseURL: string;
   timeout?: number;
-  getToken: () => Promise<string | null> | string | null;
-  onUnauthorized?: () => void;
+  getAccessToken: () => Promise<string | null> | string | null;
+  refresh?: () => Promise<boolean>;
+  onLogout?: () => void;
 }

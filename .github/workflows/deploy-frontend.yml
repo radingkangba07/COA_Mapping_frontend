@@ -1,4 +1,4 @@
-# Deploy frontend to testing/staging/production via SSH
+# Deploy frontend to testing/production via SSH
 # Only deploys after lint + tests pass
 # Requires GitHub secrets: SSH_USER, SSH_PRIVATE_KEY
 
@@ -8,7 +8,6 @@ on:
   push:
     branches:
       - main
-      - staging
       - develop
     paths:
       - 'frontend/**'
@@ -51,8 +50,6 @@ jobs:
         run: |
           if [ "${{ github.ref_name }}" = "main" ]; then
             echo "environment=production" >> $GITHUB_OUTPUT
-          elif [ "${{ github.ref_name }}" = "staging" ]; then
-            echo "environment=staging" >> $GITHUB_OUTPUT
           elif [ "${{ github.ref_name }}" = "develop" ]; then
             echo "environment=testing" >> $GITHUB_OUTPUT
           fi
@@ -65,4 +62,6 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /opt/coa-migration
+            # Remove untracked files that would block git checkout (e.g. frontend/app.config.js)
+            git -C environments/${{ steps.env.outputs.environment }}/frontend clean -fd frontend/ || true
             ./deploy.sh ${{ steps.env.outputs.environment }} frontend

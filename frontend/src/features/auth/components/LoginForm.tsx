@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { View, Text } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,7 +11,12 @@ import type { AppError } from '@/shared/types/result.types';
 // ─── Form Schema ───────────────────────────────────────────────────────────
 
 const loginSchema = z.object({
-  userId: z.string().min(1, 'Please enter your User ID').trim(),
+  email: z
+    .string()
+    .email('Please enter a valid email address')
+    .max(255)
+    .trim()
+    .toLowerCase(),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -21,8 +26,21 @@ type LoginFormData = z.infer<typeof loginSchema>;
 interface LoginFormProps {
   readonly isLoading: boolean;
   readonly error: AppError | null;
-  readonly onLogin: (userId: string) => Promise<void>;
+  readonly onLogin: (email: string) => Promise<void>;
   readonly onClearError: () => void;
+}
+
+// ─── Error Routing ─────────────────────────────────────────────────────────
+
+function getInlineErrorMessage(error: AppError): string | null {
+  switch (error.code) {
+    case 'HTTP_404':
+      return 'No account found. Register instead?';
+    case 'HTTP_403':
+      return 'Please verify your email first';
+    default:
+      return null;
+  }
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────
@@ -34,14 +52,22 @@ export const LoginForm = ({
   onClearError,
 }: LoginFormProps): React.JSX.Element => {
 
-  const { control, handleSubmit } = useForm<LoginFormData>({
+  const { control, handleSubmit, setError } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { userId: '' },
+    defaultValues: { email: '' },
   });
+
+  useEffect(() => {
+    if (error === null) return;
+    const inlineMessage = getInlineErrorMessage(error);
+    if (inlineMessage !== null) {
+      setError('email', { message: inlineMessage });
+    }
+  }, [error, setError]);
 
   const onSubmit = useCallback(
     async (data: LoginFormData): Promise<void> => {
-      await onLogin(data.userId);
+      await onLogin(data.email);
     },
     [onLogin],
   );
@@ -50,25 +76,27 @@ export const LoginForm = ({
     void handleSubmit(onSubmit)();
   }, [handleSubmit, onSubmit]);
 
+  const isGenericError = error !== null && getInlineErrorMessage(error) === null;
+
   return (
     <Card testID="login-form-card">
       <Card.Header>
         <Card.Title>Sign in</Card.Title>
         <Card.Description>
-          Enter your User ID to access your projects
+          Enter your email to receive a login link
         </Card.Description>
       </Card.Header>
       <Card.Content className="gap-4">
         <Controller
           control={control}
-          name="userId"
+          name="email"
           render={({
             field: { onChange, onBlur, value },
             fieldState: { error: fieldError },
           }) => (
             <Input
-              label="User ID"
-              placeholder="e.g., john.doe"
+              label="Email"
+              placeholder="e.g., jane@acme.com"
               value={value}
               onChangeText={(text: string) => {
                 onChange(text);
@@ -81,14 +109,16 @@ export const LoginForm = ({
               error={fieldError?.message}
               autoCapitalize="none"
               autoCorrect={false}
+              keyboardType="email-address"
+              textContentType="emailAddress"
               returnKeyType="go"
               onSubmitEditing={handlePress}
-              testID="login-user-id-input"
+              testID="login-email-input"
             />
           )}
         />
 
-        {error !== null && (
+        {isGenericError && (
           <View className="rounded-md bg-destructive/10 px-3 py-2">
             <Text className="text-sm text-destructive">{error.message}</Text>
           </View>
@@ -99,7 +129,7 @@ export const LoginForm = ({
           isLoading={isLoading}
           testID="login-submit-btn"
         >
-          Continue
+          Send login link
         </Button>
 
       </Card.Content>
