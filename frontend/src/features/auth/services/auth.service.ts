@@ -2,51 +2,51 @@ import { z } from 'zod';
 import type { HttpClient } from '@/shared/services/http/http.types';
 import type { StorageService } from '@/shared/services/storage/storage.types';
 import { STORAGE_KEYS } from '@/shared/services/storage/storage.types';
-import type { Result } from '@/shared/types/result.types';
-import type { AppError } from '@/shared/types/result.types';
+import type { Result, AppError } from '@/shared/types/result.types';
 import { ok, err } from '@/shared/types/result.types';
 import { toAppError } from '@/shared/services/http/http.client';
-import { createUserId } from '@/shared/types/common.types';
-import type { User, Session, RegisterData } from '../types/auth.types';
+import { createUserId, createOrgId } from '@/shared/types/common.types';
+import type { User, TokenPair, RegisterData } from '../types/auth.types';
 
 // ─── Zod Schemas ─────────────────────────────────────────────────────────────
 
-const loginResponseSchema = z.object({
-  user: z.object({
-    user_id: z.string(),
-    name: z.string(),
-    email: z.string().optional(),
-  }),
-  token: z.string(),
+const tokenPairSchema = z.object({
+  access_token: z.string(),
+  refresh_token: z.string(),
 });
 
-type LoginResponseDTO = z.infer<typeof loginResponseSchema>;
+const meResponseSchema = z.object({
+  user_id: z.string(),
+  name: z.string(),
+  email: z.string().email(),
+  is_verified: z.boolean(),
+  organizations: z.array(
+    z.object({
+      org_id: z.string(),
+      name: z.string(),
+      role: z.enum(['owner', 'admin', 'member']),
+    }),
+  ),
+});
 
 const registerResponseSchema = z.object({
   user_id: z.string(),
   message: z.string(),
 });
 
-const storedUserSchema = z.object({
-  userId: z.string(),
-  name: z.string(),
-  email: z.string().optional(),
-});
-
 // ─── Mappers ────────────────────────────────────────────────────────────────
 
-function toUser(dto: LoginResponseDTO['user']): User {
+function toUser(dto: z.infer<typeof meResponseSchema>): User {
   return {
     userId: createUserId(dto.user_id),
     name: dto.name,
     email: dto.email,
-  };
-}
-
-function toSession(dto: LoginResponseDTO): Session {
-  return {
-    token: dto.token,
-    user: toUser(dto.user),
+    isVerified: dto.is_verified,
+    organizations: dto.organizations.map((org) => ({
+      orgId: createOrgId(org.org_id),
+      name: org.name,
+      role: org.role,
+    })),
   };
 }
 
@@ -54,25 +54,62 @@ function toSession(dto: LoginResponseDTO): Session {
 
 export async function login(
   client: HttpClient,
-  userId: string,
-): Promise<Result<Session, AppError>> {
+  email: string,
+): Promise<Result<void, AppError>> {
   try {
-    const { data } = await client.post<unknown>(
-      '/api/v1/auth/login',
-      { user_id: userId },
-    );
+    await client.post('/api/v1/auth/login', { email });
+    return ok(undefined);
+  } catch (error: unknown) {
+    return err(toAppError(error));
+  }
+}
 
-    const parsed = loginResponseSchema.safeParse(data);
+export async function fetchUserProfile(
+  client: HttpClient,
+): Promise<Result<User, AppError>> {
+  try {
+    const { data } = await client.get<unknown>('/api/v1/auth/me');
+
+    const parsed = meResponseSchema.safeParse(data);
 
     if (!parsed.success) {
       return err({
         code: 'INVALID_RESPONSE',
-        message: 'Login response failed validation',
+        message: 'User profile response failed validation',
         details: { issues: parsed.error.issues },
       });
     }
 
-    return ok(toSession(parsed.data));
+    return ok(toUser(parsed.data));
+  } catch (error: unknown) {
+    return err(toAppError(error));
+  }
+}
+
+export async function refreshTokens(
+  client: HttpClient,
+  refreshToken: string,
+): Promise<Result<TokenPair, AppError>> {
+  try {
+    const { data } = await client.post<unknown>(
+      '/api/v1/auth/refresh',
+      { refresh_token: refreshToken },
+    );
+
+    const parsed = tokenPairSchema.safeParse(data);
+
+    if (!parsed.success) {
+      return err({
+        code: 'INVALID_RESPONSE',
+        message: 'Token refresh response failed validation',
+        details: { issues: parsed.error.issues },
+      });
+    }
+
+    return ok({
+      accessToken: parsed.data.access_token,
+      refreshToken: parsed.data.refresh_token,
+    });
   } catch (error: unknown) {
     return err(toAppError(error));
   }
@@ -80,86 +117,54 @@ export async function login(
 
 export async function logout(
   client: HttpClient,
+  refreshToken: string | null,
 ): Promise<Result<void, AppError>> {
   try {
-    await client.post('/api/v1/auth/logout');
-  } catch {
-    // Best-effort: ignore errors on logout
+    const body = refreshToken ? { refresh_token: refreshToken } : undefined;
+    await client.post('/api/v1/auth/logout', body);
+  } catch (_error: unknown) {
+    // Best-effort: server-side session cleanup is non-critical
   }
   return ok(undefined);
 }
 
-export async function restoreSession(
+// ─── Token Persistence ──────────────────────────────────────────────────────
+
+export async function persistTokens(
   storage: StorageService,
-): Promise<Result<Session | null, AppError>> {
-  try {
-    const [token, userData] = await Promise.all([
-      storage.get(STORAGE_KEYS.AUTH_TOKEN),
-      storage.get(STORAGE_KEYS.USER_DATA),
-    ]);
-
-    if (token === null || userData === null) {
-      return ok(null);
-    }
-
-    const parsed = storedUserSchema.safeParse(JSON.parse(userData));
-
-    if (!parsed.success) {
-      return ok(null);
-    }
-
-    const user: User = {
-      userId: createUserId(parsed.data.userId),
-      name: parsed.data.name,
-      email: parsed.data.email,
-    };
-
-    return ok({ token, user });
-  } catch (error: unknown) {
-    return err(toAppError(error));
-  }
+  tokens: TokenPair,
+): Promise<void> {
+  await Promise.all([
+    storage.set(STORAGE_KEYS.ACCESS_TOKEN, tokens.accessToken),
+    storage.set(STORAGE_KEYS.REFRESH_TOKEN, tokens.refreshToken),
+  ]);
 }
 
-export async function persistSession(
+export async function loadTokens(
   storage: StorageService,
-  session: Session,
-): Promise<Result<void, AppError>> {
-  try {
-    await Promise.all([
-      storage.set(STORAGE_KEYS.AUTH_TOKEN, session.token),
-      storage.set(STORAGE_KEYS.USER_DATA, JSON.stringify(session.user)),
-    ]);
-    return ok(undefined);
-  } catch (error: unknown) {
-    return err(toAppError(error));
+): Promise<TokenPair | null> {
+  const [accessToken, refreshToken] = await Promise.all([
+    storage.get(STORAGE_KEYS.ACCESS_TOKEN),
+    storage.get(STORAGE_KEYS.REFRESH_TOKEN),
+  ]);
+
+  if (accessToken === null || refreshToken === null) {
+    return null;
   }
+
+  return { accessToken, refreshToken };
 }
 
-export async function resendVerification(
-  client: HttpClient,
-  email: string,
-): Promise<Result<void, AppError>> {
-  try {
-    await client.post('/api/v1/auth/resend-verification', { email });
-    return ok(undefined);
-  } catch (error: unknown) {
-    return err(toAppError(error));
-  }
-}
-
-export async function clearSession(
+export async function clearTokens(
   storage: StorageService,
-): Promise<Result<void, AppError>> {
-  try {
-    await Promise.all([
-      storage.remove(STORAGE_KEYS.AUTH_TOKEN),
-      storage.remove(STORAGE_KEYS.USER_DATA),
-    ]);
-    return ok(undefined);
-  } catch (error: unknown) {
-    return err(toAppError(error));
-  }
+): Promise<void> {
+  await Promise.all([
+    storage.remove(STORAGE_KEYS.ACCESS_TOKEN),
+    storage.remove(STORAGE_KEYS.REFRESH_TOKEN),
+  ]);
 }
+
+// ─── Registration (unchanged from SCRUM-19) ─────────────────────────────────
 
 export async function register(
   client: HttpClient,
@@ -182,6 +187,18 @@ export async function register(
     }
 
     return ok({ userId: parsed.data.user_id, message: parsed.data.message });
+  } catch (error: unknown) {
+    return err(toAppError(error));
+  }
+}
+
+export async function resendVerification(
+  client: HttpClient,
+  email: string,
+): Promise<Result<void, AppError>> {
+  try {
+    await client.post('/api/v1/auth/resend-verification', { email });
+    return ok(undefined);
   } catch (error: unknown) {
     return err(toAppError(error));
   }

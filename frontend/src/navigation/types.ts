@@ -15,6 +15,7 @@ export type AuthStackParamList = {
   Login: undefined;
   Register: undefined;
   CheckEmail: { email: string };
+  AuthCallback: { accessToken?: string; refreshToken?: string; error?: string };
   ForgotPassword: undefined;
 };
 
