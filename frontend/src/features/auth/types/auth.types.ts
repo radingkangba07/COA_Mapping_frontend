@@ -16,6 +16,12 @@ export interface Session {
   readonly user: User;
 }
 
+export interface RegisterData {
+  readonly name: string;
+  readonly email: string;
+  readonly orgName: string;
+}
+
 // ─── Store Contracts ────────────────────────────────────────────────────────
 
 export interface AuthState {

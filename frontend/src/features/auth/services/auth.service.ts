@@ -7,7 +7,7 @@ import type { AppError } from '@/shared/types/result.types';
 import { ok, err } from '@/shared/types/result.types';
 import { toAppError } from '@/shared/services/http/http.client';
 import { createUserId } from '@/shared/types/common.types';
-import type { User, Session } from '../types/auth.types';
+import type { User, Session, RegisterData } from '../types/auth.types';
 
 // ─── Zod Schemas ─────────────────────────────────────────────────────────────
 
@@ -21,6 +21,11 @@ const loginResponseSchema = z.object({
 });
 
 type LoginResponseDTO = z.infer<typeof loginResponseSchema>;
+
+const registerResponseSchema = z.object({
+  user_id: z.string(),
+  message: z.string(),
+});
 
 const storedUserSchema = z.object({
   userId: z.string(),
@@ -130,6 +135,18 @@ export async function persistSession(
   }
 }
 
+export async function resendVerification(
+  client: HttpClient,
+  email: string,
+): Promise<Result<void, AppError>> {
+  try {
+    await client.post('/api/v1/auth/resend-verification', { email });
+    return ok(undefined);
+  } catch (error: unknown) {
+    return err(toAppError(error));
+  }
+}
+
 export async function clearSession(
   storage: StorageService,
 ): Promise<Result<void, AppError>> {
@@ -139,6 +156,32 @@ export async function clearSession(
       storage.remove(STORAGE_KEYS.USER_DATA),
     ]);
     return ok(undefined);
+  } catch (error: unknown) {
+    return err(toAppError(error));
+  }
+}
+
+export async function register(
+  client: HttpClient,
+  data: RegisterData,
+): Promise<Result<{ userId: string; message: string }, AppError>> {
+  try {
+    const { data: responseData } = await client.post<unknown>(
+      '/api/v1/auth/register',
+      { name: data.name, email: data.email, org_name: data.orgName },
+    );
+
+    const parsed = registerResponseSchema.safeParse(responseData);
+
+    if (!parsed.success) {
+      return err({
+        code: 'INVALID_RESPONSE',
+        message: 'Register response failed validation',
+        details: { issues: parsed.error.issues },
+      });
+    }
+
+    return ok({ userId: parsed.data.user_id, message: parsed.data.message });
   } catch (error: unknown) {
     return err(toAppError(error));
   }
