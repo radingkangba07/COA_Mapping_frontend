@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -25,10 +25,6 @@ interface LoginFormProps {
   readonly onClearError: () => void;
 }
 
-// ─── Constants ─────────────────────────────────────────────────────────────
-
-const DEMO_ACCOUNTS = ['admin', 'john.doe', 'jane.smith'] as const;
-
 // ─── Component ─────────────────────────────────────────────────────────────
 
 export const LoginForm = ({
@@ -38,7 +34,7 @@ export const LoginForm = ({
   onClearError,
 }: LoginFormProps): React.JSX.Element => {
 
-  const { control, handleSubmit, setValue } = useForm<LoginFormData>({
+  const { control, handleSubmit } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: { userId: '' },
   });
@@ -53,13 +49,6 @@ export const LoginForm = ({
   const handlePress = useCallback((): void => {
     void handleSubmit(onSubmit)();
   }, [handleSubmit, onSubmit]);
-
-  const handleDemoPress = useCallback(
-    (id: string): void => {
-      setValue('userId', id);
-    },
-    [setValue],
-  );
 
   return (
     <Card testID="login-form-card">
@@ -113,51 +102,7 @@ export const LoginForm = ({
           Continue
         </Button>
 
-        <View className="mt-2 border-t border-border pt-4">
-          <Text className="mb-2 text-center text-xs text-muted-foreground">
-            Demo accounts:
-          </Text>
-          <View className="flex-row justify-center gap-2">
-            {DEMO_ACCOUNTS.map((id) => (
-              <DemoAccountChip
-                key={id}
-                id={id}
-                isDisabled={isLoading}
-                onPress={handleDemoPress}
-              />
-            ))}
-          </View>
-        </View>
       </Card.Content>
     </Card>
   );
 };
-
-// ─── Sub-component ─────────────────────────────────────────────────────────
-
-interface DemoAccountChipProps {
-  readonly id: string;
-  readonly isDisabled: boolean;
-  readonly onPress: (id: string) => void;
-}
-
-const DemoAccountChip = React.memo(
-  ({ id, isDisabled, onPress }: DemoAccountChipProps): React.JSX.Element => {
-    const handlePress = useCallback((): void => {
-      onPress(id);
-    }, [id, onPress]);
-
-    return (
-      <Pressable
-        onPress={handlePress}
-        className="rounded bg-secondary px-2 py-1"
-        disabled={isDisabled}
-        testID={`demo-account-${id}`}
-      >
-        <Text className="text-xs text-secondary-foreground">{id}</Text>
-      </Pressable>
-    );
-  },
-);
-
-DemoAccountChip.displayName = 'DemoAccountChip';

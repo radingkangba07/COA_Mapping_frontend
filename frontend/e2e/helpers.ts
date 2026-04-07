@@ -35,6 +35,16 @@ export const SELECTORS = {
   breadcrumbDashboard: '[data-testid="breadcrumb-dashboard"]',
   loadAllBtn: '[data-testid="sample-load-all"]',
   sampleFileRow: '[data-testid^="sample-file-row-"]',
+  loginRegisterLink: '[data-testid="login-register-link"]',
+  registerScreen: '[data-testid="register-screen"]',
+  registerNameInput: '[data-testid="register-name-input"]',
+  registerEmailInput: '[data-testid="register-email-input"]',
+  registerOrgInput: '[data-testid="register-org-input"]',
+  registerSubmitBtn: '[data-testid="register-submit-btn"]',
+  registerLoginLink: '[data-testid="register-login-link"]',
+  checkEmailScreen: '[data-testid="check-email-screen"]',
+  resendVerificationBtn: '[data-testid="resend-verification-btn"]',
+  backToLoginLink: '[data-testid="back-to-login-link"]',
 } as const;
 
 /**

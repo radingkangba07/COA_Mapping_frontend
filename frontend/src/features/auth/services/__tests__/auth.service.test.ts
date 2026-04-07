@@ -9,6 +9,8 @@ import {
   restoreSession,
   persistSession,
   clearSession,
+  register,
+  resendVerification,
 } from '@/features/auth/services/auth.service';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -317,5 +319,106 @@ describe('clearSession', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.message).toBe('Permission denied');
+  });
+});
+
+// ─── register ──────────────────────────────────────────────────────────────
+
+describe('register', () => {
+  const validData = { name: 'Jane Doe', email: 'jane@acme.com', orgName: 'Acme Inc' };
+
+  it('returns ok with parsed user_id and message on 201', async () => {
+    const client = createMockHttpClient({
+      post: jest.fn().mockResolvedValue({
+        data: { user_id: 'u1', message: 'Verification email sent' },
+      }),
+    });
+
+    const result = await register(client, validData);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data).toEqual({ userId: 'u1', message: 'Verification email sent' });
+    expect(client.post).toHaveBeenCalledWith(
+      '/api/v1/auth/register',
+      { name: 'Jane Doe', email: 'jane@acme.com', org_name: 'Acme Inc' },
+    );
+  });
+
+  it('returns INVALID_RESPONSE error on schema mismatch', async () => {
+    const client = createMockHttpClient({
+      post: jest.fn().mockResolvedValue({ data: { foo: 'bar' } }),
+    });
+
+    const result = await register(client, validData);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('INVALID_RESPONSE');
+    expect(result.error.message).toBe('Register response failed validation');
+    expect(result.error.details).toHaveProperty('issues');
+  });
+
+  it('returns mapped AppError on 409 email duplicate', async () => {
+    const client = createMockHttpClient({
+      post: jest.fn().mockRejectedValue(
+        createAxiosError(409, 'Email already registered'),
+      ),
+    });
+
+    const result = await register(client, validData);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('HTTP_409');
+    expect(result.error.message).toBe('Email already registered');
+  });
+
+  it('returns mapped AppError on 409 org duplicate', async () => {
+    const client = createMockHttpClient({
+      post: jest.fn().mockRejectedValue(
+        createAxiosError(409, 'Organization name already taken'),
+      ),
+    });
+
+    const result = await register(client, validData);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('HTTP_409');
+    expect(result.error.message).toBe('Organization name already taken');
+  });
+});
+
+// ─── resendVerification ────────────────────────────────────────────────────
+
+describe('resendVerification', () => {
+  it('returns ok on 200', async () => {
+    const client = createMockHttpClient({
+      post: jest.fn().mockResolvedValue({ data: {} }),
+    });
+
+    const result = await resendVerification(client, 'jane@acme.com');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data).toBeUndefined();
+    expect(client.post).toHaveBeenCalledWith(
+      '/api/v1/auth/resend-verification',
+      { email: 'jane@acme.com' },
+    );
+  });
+
+  it('returns mapped AppError on network failure', async () => {
+    const client = createMockHttpClient({
+      post: jest.fn().mockRejectedValue(new Error('Network Error')),
+    });
+
+    const result = await resendVerification(client, 'jane@acme.com');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('UNKNOWN_ERROR');
+    expect(result.error.message).toBe('Network Error');
   });
 });

@@ -82,6 +82,42 @@ jest.mock('@/config/theme', () => ({
 import { useAuthViewModel } from '../../hooks/useAuthViewModel';
 import { LoginScreen } from '../LoginScreen';
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+const mockNavigate = jest.fn();
+
+function createMockProps() {
+  return {
+    navigation: {
+      navigate: mockNavigate,
+      navigateDeprecated: jest.fn(),
+      preload: jest.fn(),
+      goBack: jest.fn(),
+      reset: jest.fn(),
+      setOptions: jest.fn(),
+      dispatch: jest.fn(),
+      setParams: jest.fn(),
+      canGoBack: jest.fn().mockReturnValue(false),
+      getId: jest.fn(),
+      getParent: jest.fn(),
+      getState: jest.fn(),
+      isFocused: jest.fn().mockReturnValue(true),
+      addListener: jest.fn().mockReturnValue(jest.fn()),
+      removeListener: jest.fn(),
+      replace: jest.fn(),
+      push: jest.fn(),
+      pop: jest.fn(),
+      popToTop: jest.fn(),
+      popTo: jest.fn(),
+    },
+    route: {
+      key: 'Login-test',
+      name: 'Login' as const,
+      params: undefined,
+    },
+  } as unknown as React.ComponentProps<typeof LoginScreen>;
+}
+
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe('LoginScreen', () => {
@@ -93,40 +129,46 @@ describe('LoginScreen', () => {
   });
 
   it('renders the login screen with testID', () => {
-    render(<LoginScreen />);
+    render(<LoginScreen {...createMockProps()} />);
     expect(screen.getByTestId('login-screen')).toBeTruthy();
   });
 
   it('shows "COA Migration System" heading', () => {
-    render(<LoginScreen />);
+    render(<LoginScreen {...createMockProps()} />);
     expect(screen.getByText('COA Migration System')).toBeTruthy();
   });
 
   it('shows subtitle text', () => {
-    render(<LoginScreen />);
+    render(<LoginScreen {...createMockProps()} />);
     expect(screen.getByText('Chart of Accounts Migration Tool')).toBeTruthy();
   });
 
-  it('shows auto-registration notice', () => {
-    render(<LoginScreen />);
-    expect(
-      screen.getByText('New users are automatically registered on first login'),
-    ).toBeTruthy();
+  it('shows "Register" link instead of auto-registration notice', () => {
+    render(<LoginScreen {...createMockProps()} />);
+    expect(screen.queryByText('New users are automatically registered on first login')).toBeNull();
+    expect(screen.getByText('Register')).toBeTruthy();
+    expect(screen.getByTestId('login-register-link')).toBeTruthy();
+  });
+
+  it('navigates to Register when register link is pressed', () => {
+    render(<LoginScreen {...createMockProps()} />);
+    fireEvent.press(screen.getByTestId('login-register-link'));
+    expect(mockNavigate).toHaveBeenCalledWith('Register');
   });
 
   it('renders the Building2 icon', () => {
-    render(<LoginScreen />);
+    render(<LoginScreen {...createMockProps()} />);
     expect(screen.getByTestId('Building2-icon')).toBeTruthy();
   });
 
   it('renders the LoginForm component', () => {
-    render(<LoginScreen />);
+    render(<LoginScreen {...createMockProps()} />);
     expect(screen.getByTestId('login-form')).toBeTruthy();
     expect(screen.getByText('Sign in')).toBeTruthy();
   });
 
   it('calls login when form submit is pressed', async () => {
-    render(<LoginScreen />);
+    render(<LoginScreen {...createMockProps()} />);
     fireEvent.press(screen.getByTestId('login-form-submit'));
     await waitFor(() => {
       expect(mockLogin).toHaveBeenCalledWith('testuser');
@@ -140,7 +182,7 @@ describe('LoginScreen', () => {
       error: errorObj,
     });
 
-    render(<LoginScreen />);
+    render(<LoginScreen {...createMockProps()} />);
     expect(screen.getByTestId('login-form-error')).toBeTruthy();
     expect(screen.getByText('Invalid user ID')).toBeTruthy();
   });
@@ -151,12 +193,12 @@ describe('LoginScreen', () => {
       isLoading: true,
     });
 
-    render(<LoginScreen />);
+    render(<LoginScreen {...createMockProps()} />);
     expect(screen.getByTestId('login-form-loading')).toBeTruthy();
   });
 
   it('calls clearError when form clear-error is triggered', () => {
-    render(<LoginScreen />);
+    render(<LoginScreen {...createMockProps()} />);
     fireEvent.press(screen.getByTestId('login-form-clear-error'));
     expect(mockClearError).toHaveBeenCalledTimes(1);
   });
