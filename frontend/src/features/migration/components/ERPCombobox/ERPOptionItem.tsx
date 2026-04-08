@@ -1,7 +1,6 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Check } from 'lucide-react-native';
-import { colors } from '@/config/theme';
 
 interface ERPOptionItemProps {
   erpId: string;
@@ -14,16 +13,24 @@ interface ERPOptionItemProps {
 
 export const ERPOptionItem = React.memo(
   ({ erpId, erpName, fieldCount, isSelected, onSelect, testID }: ERPOptionItemProps) => {
+    const [hovered, setHovered] = useState(false);
     const handlePress = useCallback(() => {
       onSelect(erpId);
     }, [onSelect, erpId]);
 
+    const bg = isSelected
+      ? 'rgba(0,51,153,0.08)'
+      : hovered
+        ? 'rgba(0,51,153,0.04)'
+        : 'transparent';
+
     return (
       <Pressable
         onPress={handlePress}
-        className={`flex-row items-center justify-between px-4 py-3 ${
-          isSelected ? 'bg-accent' : ''
-        }`}
+        onHoverIn={() => setHovered(true)}
+        onHoverOut={() => setHovered(false)}
+        className="flex-row items-center justify-between px-4 py-3"
+        style={{ backgroundColor: bg, cursor: 'pointer' } as Record<string, unknown>}
         testID={testID}
       >
         <View className="flex-1">
@@ -42,7 +49,7 @@ export const ERPOptionItem = React.memo(
             </Text>
           )}
         </View>
-        {isSelected && <Check size={18} color={colors.accent} />}
+        {isSelected && <Check size={18} color="#003399" />}
       </Pressable>
     );
   },

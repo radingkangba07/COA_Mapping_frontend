@@ -53,20 +53,20 @@ const CONFIRMATION_DESCRIPTIONS: Record<ConfidenceLevel, (count: number) => stri
 };
 
 const CONFIRMATION_BUTTON_CLASSES: Record<ConfidenceLevel, string> = {
-  high: 'bg-green-600',
-  medium: 'bg-yellow-600',
-  low: 'bg-red-600',
+  high: '',
+  medium: '',
+  low: '',
 };
 
 const CONFIRMATION_ICON_COLORS: Record<ConfidenceLevel, string> = {
-  high: '#16A34A',
-  medium: '#D97706',
+  high: '#003399',
+  medium: '#003399',
   low: '#DC2626',
 };
 
 const CONFIRMATION_CLASSES: Record<ConfidenceLevel, string> = {
-  high: 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20',
-  medium: 'border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20',
+  high: 'border-border bg-card',
+  medium: 'border-border bg-card',
   low: 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20',
 };
 
@@ -172,9 +172,9 @@ export const ValidationScreen = (): React.JSX.Element => {
         />
 
         {/* Header: Title + file info + progress + action button */}
-        <View className="mt-8 mb-4 flex-row items-start justify-between">
+        <View className="mt-4 mb-4 flex-row items-start justify-between">
           <View>
-            <Text className="font-heading text-2xl font-bold text-foreground">COA Mapping</Text>
+            <Text className="font-heading text-lg font-bold text-foreground">COA Mapping</Text>
             {vm.sourceFile !== null && (
               <View className="mt-1 flex-row items-center gap-1.5">
                 <FileSpreadsheet size={14} color={colors.mutedForeground} />
@@ -190,13 +190,12 @@ export const ValidationScreen = (): React.JSX.Element => {
                 {vm.stats.totalTypes} / {vm.stats.totalTypes} types mapped
               </Text>
               <View className="h-2 w-32 rounded-full bg-gray-200 dark:bg-[#3E3E42] overflow-hidden">
-                <View className="h-full rounded-full bg-green-500" style={{ width: '100%' }} />
+                <View className="h-full rounded-full bg-primary" style={{ width: '100%' }} />
               </View>
             </View>
             <Button
               onPress={() => navigation.navigate('FinalPreview', { projectId })}
               disabled={!vm.allConfirmed}
-              className="bg-green-600"
               accessibilityLabel="Review and save"
               testID="review-save-button"
             >
@@ -241,7 +240,7 @@ export const ValidationScreen = (): React.JSX.Element => {
               <Card.Content className="py-3 flex-row items-center justify-between gap-3">
                 <View className="flex-row items-center gap-3 flex-1">
                   {isConfirmed ? (
-                    <CheckCircle2 size={20} color="#16A34A" />
+                    <CheckCircle2 size={20} color="#003399" />
                   ) : (
                     <AlertTriangle size={20} color={iconColor} />
                   )}
@@ -331,14 +330,14 @@ export const ValidationScreen = (): React.JSX.Element => {
             </Text>
           </View>
           <View className="flex-row items-center gap-2">
-            <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
-              <Text className="text-xs text-green-700 dark:text-green-400">90%+ High</Text>
+            <Badge variant="outline" className="bg-card border-border">
+              <Text className="text-xs text-muted-foreground">90%+ High</Text>
             </Badge>
-            <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
-              <Text className="text-xs text-yellow-700 dark:text-yellow-400">70-89% Med</Text>
+            <Badge variant="outline" className="bg-card border-border">
+              <Text className="text-xs text-muted-foreground">70-89% Med</Text>
             </Badge>
-            <Badge variant="outline" className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
-              <Text className="text-xs text-red-700 dark:text-red-400">&lt;70% Low</Text>
+            <Badge variant="outline" className="bg-card border-border">
+              <Text className="text-xs text-muted-foreground">&lt;70% Low</Text>
             </Badge>
           </View>
         </View>
@@ -390,7 +389,7 @@ export const ValidationScreen = (): React.JSX.Element => {
         </View>
 
         {/* Footer buttons */}
-        <View className="mt-6 flex-row items-center justify-center gap-3">
+        <View className="mt-6 flex-row items-center justify-end gap-3">
           <Button variant="outline" onPress={vm.handleBack} accessibilityLabel="Back to mapping" testID="back-button">
             <View className="flex-row items-center gap-2">
               <ArrowLeft size={ICON_SIZE} color={colors.foreground} />

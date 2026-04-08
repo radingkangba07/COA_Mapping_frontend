@@ -64,12 +64,12 @@ export const UploadedState = React.memo(function UploadedState({
         </View>
         <View className="flex-1">
           <Text
-            className="font-body text-sm font-medium text-green-800 dark:text-green-400"
+            className="font-body text-sm font-medium text-foreground"
             numberOfLines={1}
           >
             {fileName}
           </Text>
-          <Text className="font-body text-xs text-green-700 dark:text-green-500 mt-0.5">
+          <Text className="font-body text-xs text-muted-foreground mt-0.5">
             {`${rowCount} rows loaded`}
           </Text>
         </View>

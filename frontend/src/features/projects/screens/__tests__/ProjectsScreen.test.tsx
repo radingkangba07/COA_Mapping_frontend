@@ -20,10 +20,13 @@ jest.mock('lucide-react-native', () => {
   const icon =
     (name: string) =>
     (props: Record<string, unknown>) => <View testID={`${name}-icon`} {...props} />;
-  return {
-    Plus: icon('Plus'),
-    __esModule: true,
-  };
+  return new Proxy(
+    { __esModule: true },
+    {
+      get: (target: Record<string, unknown>, prop: string) =>
+        prop in target ? target[prop] : icon(prop),
+    },
+  );
 });
 
 jest.mock('@/shared/utils/platform.utils', () => ({
@@ -32,7 +35,7 @@ jest.mock('@/shared/utils/platform.utils', () => ({
 }));
 
 jest.mock('@/config/theme', () => ({
-  colors: { primaryForeground: '#FAFAFA' },
+  colors: { primaryForeground: '#FAFAFA', mutedForeground: '#71717A', foreground: '#09090B' },
 }));
 
 const mockNavigate = jest.fn();
