@@ -34,22 +34,6 @@ function getScoreClasses(score: number): string {
   return `${getConfidenceBgClass(score)} ${getConfidenceTextClass(score)}`;
 }
 
-const StatCard = React.memo(({ title, value, colorClass, testID }: {
-  readonly title: string; readonly value: number;
-  readonly colorClass?: string; readonly testID: string;
-}): React.JSX.Element => (
-  <Card className="flex-1 min-w-[140px]" testID={testID}>
-    <Card.Content className="py-3 px-4">
-      <Text className="text-xs font-body text-muted-foreground">{title}</Text>
-      <Text className={cn('text-2xl font-heading font-bold mt-1', colorClass ?? 'text-foreground')}>
-        {value}
-      </Text>
-    </Card.Content>
-  </Card>
-));
-
-StatCard.displayName = 'StatCard';
-
 interface TableRowData {
   readonly sourceNumber: string; readonly sourceName: string;
   readonly targetName: string; readonly score: number;
@@ -151,99 +135,124 @@ export const PreviewScreen = (): React.JSX.Element => {
         />
 
         <View className="mb-4">
-          <Text className="font-heading text-2xl font-bold text-foreground">Export Preview</Text>
+          <Text className="font-heading text-lg font-bold text-foreground">Export Preview</Text>
           <Text className="mt-1 font-body text-sm text-muted-foreground">
             Review your mapped data before downloading
           </Text>
         </View>
 
-        <View className="flex-row flex-wrap gap-3">
-          <StatCard title="Account Types" value={vm.stats.totalTypes} testID="stat-types" />
-          <StatCard title="Accounts Mapped" value={vm.stats.totalAccounts} testID="stat-accounts" />
-          <StatCard title="High Confidence" value={vm.stats.highConfidence} colorClass="text-green-600" testID="stat-high" />
-          <StatCard title="Review Needed" value={reviewCount} colorClass="text-yellow-600" testID="stat-review" />
-        </View>
+        {/* Single card: Stats + Table + Export format */}
+        <Card testID="export-preview-card">
+          <Card.Content>
+            {/* Stats row */}
+            <View className="flex-row flex-wrap gap-4 mb-4">
+              <View testID="stat-types" className="flex-1 min-w-[100px]">
+                <Text className="text-xs font-body text-muted-foreground">Account Types</Text>
+                <Text className="text-xl font-heading font-bold text-foreground mt-0.5">{vm.stats.totalTypes}</Text>
+              </View>
+              <View testID="stat-accounts" className="flex-1 min-w-[100px]">
+                <Text className="text-xs font-body text-muted-foreground">Accounts Mapped</Text>
+                <Text className="text-xl font-heading font-bold text-foreground mt-0.5">{vm.stats.totalAccounts}</Text>
+              </View>
+              <View testID="stat-high" className="flex-1 min-w-[100px]">
+                <Text className="text-xs font-body text-muted-foreground">High Confidence</Text>
+                <Text className="text-xl font-heading font-bold text-primary mt-0.5">{vm.stats.highConfidence}</Text>
+              </View>
+              <View testID="stat-review" className="flex-1 min-w-[100px]">
+                <Text className="text-xs font-body text-muted-foreground">Review Needed</Text>
+                <Text className="text-xl font-heading font-bold text-yellow-600 mt-0.5">{reviewCount}</Text>
+              </View>
+            </View>
 
-        {tableRows.length === 0 ? (
-          <Card className="mt-6" testID="preview-empty-state">
-            <Card.Content>
+            {/* Divider */}
+            <View className="border-t border-border my-4" />
+
+            {/* Preview table */}
+            {tableRows.length === 0 ? (
               <EmptyState
                 title="No mapping data"
                 description="Complete the mapping and validation steps to see your export preview"
-                testID="preview-empty"
+                testID="preview-empty-state"
               />
-            </Card.Content>
-          </Card>
-        ) : (
-          <Card className="mt-6" testID="mapping-preview-table">
-            <Card.Content className="py-4 px-4">
-              <View className="flex-row items-center gap-2 mb-4">
-                <Text className="font-heading text-lg font-semibold text-foreground">
-                  Mapping Preview
-                </Text>
-                <Badge variant="outline">{String(tableRows.length)}</Badge>
-              </View>
+            ) : (
+              <View testID="mapping-preview-table">
+                <View className="flex-row items-center gap-2 mb-3">
+                  <Text className="font-heading text-sm font-semibold text-foreground">
+                    Mapping Preview
+                  </Text>
+                  <Badge variant="outline">{String(tableRows.length)}</Badge>
+                </View>
 
-              <View className="w-full" style={{ maxHeight: windowHeight * 0.5 }}>
-                <ScrollView horizontal contentContainerStyle={{ flexGrow: 1 }}>
-                  <View className="min-w-[700px] lg:min-w-[900px] flex-1">
-                    <View className="flex-row border-b border-border pb-2 mb-1">
-                      {['Source #', 'Source Name', 'Target Name', 'Score', 'Source Type', 'Target Type'].map(
-                        (label, i) => {
-                          const w = i === 0 ? 'w-[80px] lg:w-[100px]' : i === 3 ? 'w-[60px] lg:w-[100px]' : i >= 4 ? 'w-[100px] lg:w-[130px]' : 'flex-1';
-                          return <Text key={label} className={cn(w, 'text-xs font-semibold text-muted-foreground')}>{label}</Text>;
-                        },
-                      )}
-                    </View>
+                <View className="w-full" style={{ maxHeight: windowHeight * 0.5 }}>
+                  <ScrollView horizontal contentContainerStyle={{ flexGrow: 1 }}>
+                    <View className="min-w-[700px] lg:min-w-[900px] flex-1">
+                      <View className="flex-row border-b border-border pb-2 mb-1">
+                        {['Source #', 'Source Name', 'Target Name', 'Score', 'Source Type', 'Target Type'].map(
+                          (label, i) => {
+                            const w = i === 0 ? 'w-[80px] lg:w-[100px]' : i === 3 ? 'w-[60px] lg:w-[100px]' : i >= 4 ? 'w-[100px] lg:w-[130px]' : 'flex-1';
+                            return <Text key={label} className={cn(w, 'text-xs font-semibold text-muted-foreground')}>{label}</Text>;
+                          },
+                        )}
+                      </View>
 
-                    <ScrollView nestedScrollEnabled>
-                      {tableRows.map((row, idx) => (
-                        <View
-                          key={row.key}
-                          className={cn(
-                            'flex-row items-center py-2 px-1 rounded',
-                            idx % 2 === 0 ? 'bg-muted/50' : 'bg-background',
-                          )}
-                        >
-                          <Text className="w-[80px] lg:w-[100px] font-mono text-xs text-foreground">{row.sourceNumber}</Text>
-                          <Text className="flex-1 text-xs text-foreground" numberOfLines={1}>{row.sourceName}</Text>
-                          <Text className="flex-1 text-xs text-foreground" numberOfLines={1}>{row.targetName}</Text>
-                          <View className="w-[60px] lg:w-[100px]">
-                            <View className={cn('rounded-full px-1.5 py-0.5 self-start', getScoreClasses(row.score))}>
-                              <Text className={cn('font-mono text-xs font-medium', getScoreClasses(row.score))}>
-                                {row.score}%
-                              </Text>
+                      <ScrollView nestedScrollEnabled>
+                        {tableRows.map((row, idx) => (
+                          <View
+                            key={row.key}
+                            className={cn(
+                              'flex-row items-center py-2 px-1 rounded',
+                              idx % 2 === 0 ? 'bg-muted/50' : 'bg-background',
+                            )}
+                          >
+                            <Text className="w-[80px] lg:w-[100px] font-mono text-xs text-foreground">{row.sourceNumber}</Text>
+                            <Text className="flex-1 text-xs text-foreground" numberOfLines={1}>{row.sourceName}</Text>
+                            <Text className="flex-1 text-xs text-foreground" numberOfLines={1}>{row.targetName}</Text>
+                            <View className="w-[60px] lg:w-[100px]">
+                              <View className={cn('rounded-full px-1.5 py-0.5 self-start', getScoreClasses(row.score))}>
+                                <Text className={cn('font-mono text-xs font-medium', getScoreClasses(row.score))}>
+                                  {row.score}%
+                                </Text>
+                              </View>
                             </View>
+                            <Text className="w-[100px] lg:w-[130px] text-xs text-muted-foreground" numberOfLines={1}>{row.sourceType}</Text>
+                            <Text className="w-[100px] lg:w-[130px] text-xs text-muted-foreground" numberOfLines={1}>{row.targetType}</Text>
                           </View>
-                          <Text className="w-[100px] lg:w-[130px] text-xs text-muted-foreground" numberOfLines={1}>{row.sourceType}</Text>
-                          <Text className="w-[100px] lg:w-[130px] text-xs text-muted-foreground" numberOfLines={1}>{row.targetType}</Text>
-                        </View>
-                      ))}
-                    </ScrollView>
-                  </View>
-                </ScrollView>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  </ScrollView>
+                </View>
               </View>
-            </Card.Content>
-          </Card>
-        )}
+            )}
 
-        <View className="mt-6">
-          <ExportFormatPicker
-            value={exportFormat}
-            onChange={changeFormat}
-            disabled={isExporting}
-            testID="export-format-picker"
-          />
-        </View>
+            {/* Divider */}
+            <View className="border-t border-border my-4" />
 
-        <View className="mt-4 flex-row gap-3">
-          <Button variant="outline" size="lg" onPress={vm.handleBack} accessibilityLabel="Back to validation" className="flex-1" testID="back-button">
+            {/* Export format */}
+            <ExportFormatPicker
+              value={exportFormat}
+              onChange={changeFormat}
+              disabled={isExporting}
+              testID="export-format-picker"
+            />
+          </Card.Content>
+        </Card>
+
+        {/* Footer buttons — right aligned */}
+        <View className="mt-4 flex-row items-center justify-end gap-3">
+          <Button variant="outline" onPress={vm.handleBack} accessibilityLabel="Back to validation" testID="back-button">
             <View className="flex-row items-center gap-2">
               <ArrowLeft size={ICON_SIZE} color={colors.foreground} />
               <Text className="text-sm font-medium text-foreground">Back</Text>
             </View>
           </Button>
-          <Button size="lg" onPress={handleExport} disabled={isExporting || !isOnline} accessibilityLabel="Download export" className="flex-1" testID="download-button">
+          <Button variant="outline" onPress={handleStartNew} accessibilityLabel="Start new migration" testID="start-new-button">
+            <View className="flex-row items-center gap-2">
+              <RefreshCw size={ICON_SIZE} color={colors.foreground} />
+              <Text className="text-sm font-medium text-foreground">Start New</Text>
+            </View>
+          </Button>
+          <Button onPress={handleExport} disabled={isExporting || !isOnline} accessibilityLabel="Download export" testID="download-button">
             <View className="flex-row items-center gap-2">
               <Download size={ICON_SIZE} color={colors.primaryForeground} />
               <Text className="text-sm font-medium text-primary-foreground">
@@ -252,12 +261,6 @@ export const PreviewScreen = (): React.JSX.Element => {
             </View>
           </Button>
         </View>
-        <Button variant="outline" size="lg" onPress={handleStartNew} accessibilityLabel="Start new migration" className="mt-3 w-full" testID="start-new-button">
-          <View className="flex-row items-center gap-2">
-            <RefreshCw size={ICON_SIZE} color={colors.foreground} />
-            <Text className="text-sm font-medium text-foreground">Start New Migration</Text>
-          </View>
-        </Button>
       </View>
     </MigrationLayout>
   );

@@ -76,6 +76,7 @@ export function toCreatePayload(
     payload.description = data.description;
   }
 
+  console.log('[toCreatePayload] Final API payload:', payload);
   return payload;
 }
 

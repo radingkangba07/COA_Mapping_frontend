@@ -11,7 +11,7 @@ import type { AccountMapping } from '@/features/migration/types/mapping.types';
 // ─── Score & Remark Helpers ─────────────────────────────────────────────────
 
 function getScoreColor(score: number): string {
-  if (score >= 90) return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30';
+  if (score >= 90) return 'text-primary dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30';
   if (score >= 70) return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30';
   if (score >= 50) return 'text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30';
   return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30';
@@ -275,14 +275,14 @@ export const AccountTypeGroup = ({
             className={cn(
               'px-2 py-0.5',
               isMapped
-                ? 'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800'
+                ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800'
                 : 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800',
             )}
           >
             <Text
               className={cn(
                 'text-xs font-medium',
-                isMapped ? 'text-green-800 dark:text-green-400' : 'text-red-600 dark:text-red-400',
+                isMapped ? 'text-primary dark:text-blue-400' : 'text-red-600 dark:text-red-400',
               )}
             >
               {isMapped ? 'Mapped' : 'Unmapped'}

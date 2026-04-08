@@ -8,7 +8,6 @@ import {
   X,
   ArrowLeft,
   ArrowRight,
-  Eye,
   Edit3,
   Plus,
   Download,
@@ -208,40 +207,118 @@ export const MappingScreen = (): React.JSX.Element => {
           onStepPress={handleStepPress}
         />
 
-        {/* Centered title */}
-        <View className="items-center">
-          <Text className="font-heading text-2xl font-bold text-foreground text-center">
+        <View className="mt-4 mb-2">
+          <Text className="font-heading text-lg font-bold text-foreground">
             Review Account Type Mapping
           </Text>
-          <Text className="mt-2 font-body text-sm text-muted-foreground text-center">
+          <Text className="mt-1 font-body text-sm text-muted-foreground">
             Map {sourceERPName} account types to {targetERPName} account types
             (multi-select supported)
           </Text>
         </View>
 
-        {/* Mapping Preview Card */}
-        <MappingPreviewCard
-          rows={typeMappingRows}
-          matched={mappingSummary.matched}
-          incomplete={mappingSummary.total - mappingSummary.matched}
-          sourceERPName={sourceERPName}
-          targetERPName={targetERPName}
-        />
+        {/* Single combined mapping card */}
+        <Card testID="account-type-mapping-card">
+          <Card.Header>
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-2">
+                <Edit3 size={18} color={colors.foreground} />
+                <Card.Title>Account Type Mapping</Card.Title>
+              </View>
+              <View className="flex-row items-center gap-4">
+                <View className="flex-row items-center gap-1.5">
+                  <View className="h-2.5 w-2.5 rounded-full bg-primary" />
+                  <Text className="font-body text-xs text-muted-foreground">
+                    {mappingSummary.matched} Complete
+                  </Text>
+                </View>
+                <View className="flex-row items-center gap-1.5">
+                  <View className="h-2.5 w-2.5 rounded-full bg-destructive" />
+                  <Text className="font-body text-xs text-muted-foreground">
+                    {mappingSummary.total - mappingSummary.matched} Incomplete
+                  </Text>
+                </View>
+              </View>
+            </View>
+            <Card.Description>
+              Map {sourceERPName} account types to {targetERPName} account types (multi-select supported)
+            </Card.Description>
+          </Card.Header>
 
-        {/* Account Type Mapping Card */}
-        <AccountTypeMappingCard
-          rows={typeMappingRows}
-          targetOptions={targetOptions}
-          sourceERPName={sourceERPName}
-          targetERPName={targetERPName}
-          onUpdateRow={handleUpdateRow}
-          onAddRow={handleAddRow}
-          onDeleteRow={handleDeleteRow}
-          onSaveCSV={handleSaveCSV}
-        />
+          <Card.Content testID="mapping-preview-card">
+            {/* Preview table */}
+            <MappingPreviewTable
+              rows={typeMappingRows}
+              sourceERPName={sourceERPName}
+              targetERPName={targetERPName}
+            />
+
+            {/* Divider */}
+            <View className="border-t border-border my-4" />
+
+            {/* Editable mapping table */}
+            <View className="flex-row items-center justify-between mb-2">
+              <Text className="font-heading text-sm font-semibold text-foreground">
+                Edit Mappings
+              </Text>
+              <View className="flex-row gap-2">
+                <Button variant="outline" size="sm" onPress={handleAddRow} testID="mapping-add-row">
+                  <View className="flex-row items-center gap-1.5">
+                    <Plus size={14} color={colors.foreground} />
+                    <Text className="font-body text-xs font-medium text-foreground">Add Row</Text>
+                  </View>
+                </Button>
+                <Button variant="outline" size="sm" onPress={handleSaveCSV} testID="mapping-download-csv">
+                  <View className="flex-row items-center gap-1.5">
+                    <Download size={14} color={colors.foreground} />
+                    <Text className="font-body text-xs font-medium text-foreground">Download CSV</Text>
+                  </View>
+                </Button>
+              </View>
+            </View>
+
+            {/* Editable rows header */}
+            <View className="hidden border-b border-border pb-2 mb-1 md:flex-row">
+              <View className="w-10" />
+              <View className="flex-1 px-2">
+                <Text className="text-xs font-semibold text-muted-foreground">
+                  Source Type ({sourceERPName})
+                </Text>
+              </View>
+              <View className="w-10" />
+              <View className="flex-1 px-2">
+                <Text className="text-xs font-semibold text-muted-foreground">
+                  Target Type(s) ({targetERPName})
+                </Text>
+              </View>
+              <View className="w-12 items-center">
+                <Text className="text-xs font-semibold text-muted-foreground">Actions</Text>
+              </View>
+            </View>
+
+            <ScrollView style={{ maxHeight: 350 }}>
+              {typeMappingRows.map((row) => (
+                <AccountMappingRow
+                  key={row.id}
+                  row={row}
+                  targetOptions={targetOptions}
+                  onUpdateRow={handleUpdateRow}
+                  onDeleteRow={handleDeleteRow}
+                />
+              ))}
+              {typeMappingRows.length === 0 && (
+                <View className="items-center py-8">
+                  <Text className="font-body text-sm text-muted-foreground">
+                    No type mappings. Press &quot;Add Row&quot; to create one.
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+          </Card.Content>
+        </Card>
 
         {/* Footer buttons */}
-        <View className="flex-row items-center justify-center gap-3 pt-2">
+        <View className="flex-row items-center justify-end gap-3 pt-2">
           <Button
             variant="outline"
             onPress={handleBack}
@@ -291,228 +368,82 @@ export const MappingScreen = (): React.JSX.Element => {
   );
 };
 
-// ─── Mapping Preview Card ───────────────────────────────────────────────────
+// ─── Mapping Preview Table (no card wrapper) ───────────────────────────────
 
-interface MappingPreviewCardProps {
+interface MappingPreviewTableProps {
   rows: readonly TypeMappingRow[];
-  matched: number;
-  incomplete: number;
   sourceERPName: string;
   targetERPName: string;
 }
 
-const MappingPreviewCard = React.memo(function MappingPreviewCard({
+const MappingPreviewTable = React.memo(function MappingPreviewTable({
   rows,
-  matched,
-  incomplete,
   sourceERPName,
   targetERPName,
-}: MappingPreviewCardProps) {
-  // Only show rows that have a source type (exclude empty custom rows)
+}: MappingPreviewTableProps) {
   const previewRows = useMemo(
     () => rows.filter((r) => r.sourceType.trim().length > 0),
     [rows],
   );
 
   return (
-    <Card testID="mapping-preview-card">
-      <Card.Header>
-        <View className="flex-row items-center justify-between">
-          <View className="flex-row items-center gap-2">
-            <Eye size={18} color={colors.foreground} />
-            <Card.Title>Mapping Preview</Card.Title>
-          </View>
-          <View className="flex-row items-center gap-4">
-            <View className="flex-row items-center gap-1.5">
-              <View className="h-2.5 w-2.5 rounded-full bg-green-500" />
-              <Text className="font-body text-xs text-muted-foreground">
-                {matched} Complete
-              </Text>
-            </View>
-            <View className="flex-row items-center gap-1.5">
-              <View className="h-2.5 w-2.5 rounded-full bg-red-500" />
-              <Text className="font-body text-xs text-muted-foreground">
-                {incomplete} Incomplete
-              </Text>
-            </View>
-          </View>
+    <View>
+      <Text className="font-heading text-sm font-semibold text-foreground mb-2">
+        Preview
+      </Text>
+      <View className="flex-row border-b border-border pb-2 mb-1">
+        <View className="w-10 items-center">
+          <Text className="text-xs font-semibold text-muted-foreground">#</Text>
         </View>
-      </Card.Header>
-
-      <Card.Content>
-        {/* Table header */}
-        <View className="flex-row border-b border-border pb-2 mb-1">
-          <View className="w-10 items-center">
-            <Text className="text-xs font-semibold text-muted-foreground">#</Text>
-          </View>
-          <View className="flex-1 px-2">
-            <Text className="text-xs font-semibold text-muted-foreground">
-              Source Type ({sourceERPName})
-            </Text>
-          </View>
-          <View className="w-10 items-center" />
-          <View className="flex-1 px-2">
-            <Text className="text-xs font-semibold text-muted-foreground">
-              Target Type(s) ({targetERPName})
-            </Text>
-          </View>
-          <View className="w-12 items-center">
-            <Text className="text-xs font-semibold text-muted-foreground">Status</Text>
-          </View>
+        <View className="flex-1 px-2">
+          <Text className="text-xs font-semibold text-muted-foreground">
+            Source Type ({sourceERPName})
+          </Text>
         </View>
+        <View className="w-10 items-center" />
+        <View className="flex-1 px-2">
+          <Text className="text-xs font-semibold text-muted-foreground">
+            Target Type(s) ({targetERPName})
+          </Text>
+        </View>
+        <View className="w-12 items-center">
+          <Text className="text-xs font-semibold text-muted-foreground">Status</Text>
+        </View>
+      </View>
 
-        {/* Scrollable rows */}
-        <ScrollView style={{ maxHeight: 200 }}>
-          {previewRows.map((row, idx) => {
-            const isMatched = row.targetType.length > 0;
-            return (
-              <View
-                key={row.id}
-                className={cn(
-                  'flex-row items-center py-2 rounded',
+      <ScrollView style={{ maxHeight: 200 }}>
+        {previewRows.map((row, idx) => {
+          const isMatched = row.targetType.length > 0;
+          return (
+            <View key={row.id} className="flex-row items-center py-2">
+              <View className="w-10 items-center">
+                <Text className="font-mono text-xs text-muted-foreground">{idx + 1}</Text>
+              </View>
+              <View className="flex-1 px-2">
+                <Text className="font-mono text-sm text-foreground">{row.sourceType}</Text>
+              </View>
+              <View className="w-10 items-center">
+                <ArrowRight size={14} color={colors.mutedForeground} />
+              </View>
+              <View className="flex-1 px-2">
+                {isMatched ? (
+                  <Text className="font-body text-sm text-foreground">{row.targetType}</Text>
+                ) : (
+                  <Text className="font-body text-sm italic text-muted-foreground">Not mapped</Text>
                 )}
-              >
-                <View className="w-10 items-center">
-                  <Text className="font-mono text-xs text-muted-foreground">
-                    {idx + 1}
-                  </Text>
-                </View>
-                <View className="flex-1 px-2">
-                  <Text className="font-mono text-sm text-foreground">
-                    {row.sourceType}
-                  </Text>
-                </View>
-                <View className="w-10 items-center">
-                  <ArrowRight
-                    size={14}
-                    color={isMatched ? colors.success : colors.destructive}
-                  />
-                </View>
-                <View className="flex-1 px-2">
-                  {isMatched ? (
-                    <Text className="font-body text-sm text-foreground">
-                      {row.targetType}
-                    </Text>
-                  ) : (
-                    <Text className="font-body text-sm italic text-red-500 dark:text-red-400">
-                      Not mapped
-                    </Text>
-                  )}
-                </View>
-                <View className="w-12 items-center">
-                  {isMatched ? (
-                    <CheckCircle2 size={16} color={colors.success} />
-                  ) : (
-                    <X size={16} color={colors.destructive} />
-                  )}
-                </View>
               </View>
-            );
-          })}
-        </ScrollView>
-      </Card.Content>
-    </Card>
-  );
-});
-
-// ─── Account Type Mapping Card ──────────────────────────────────────────────
-
-interface AccountTypeMappingCardProps {
-  rows: readonly TypeMappingRow[];
-  targetOptions: readonly SelectOption[];
-  sourceERPName: string;
-  targetERPName: string;
-  onUpdateRow: (id: string, field: 'sourceType' | 'targetType', value: string) => void;
-  onAddRow: () => void;
-  onDeleteRow: (id: string) => void;
-  onSaveCSV: () => void;
-}
-
-const AccountTypeMappingCard = React.memo(function AccountTypeMappingCard({
-  rows,
-  targetOptions,
-  sourceERPName,
-  targetERPName,
-  onUpdateRow,
-  onAddRow,
-  onDeleteRow,
-  onSaveCSV,
-}: AccountTypeMappingCardProps) {
-  return (
-    <Card testID="account-type-mapping-card">
-      <Card.Header>
-        <View className="flex-row items-center justify-between">
-          <View className="gap-1">
-            <View className="flex-row items-center gap-2">
-              <Edit3 size={18} color={colors.foreground} />
-              <Card.Title>Account Type Mapping</Card.Title>
+              <View className="w-12 items-center">
+                {isMatched ? (
+                  <CheckCircle2 size={16} color={colors.primary} />
+                ) : (
+                  <X size={16} color={colors.mutedForeground} />
+                )}
+              </View>
             </View>
-            <Card.Description>
-              Select one or more target types for each source type
-            </Card.Description>
-          </View>
-          <View className="flex-row gap-2">
-            <Button variant="outline" size="sm" onPress={onAddRow} testID="mapping-add-row">
-              <View className="flex-row items-center gap-1.5">
-                <Plus size={14} color={colors.foreground} />
-                <Text className="font-body text-xs font-medium text-foreground">
-                  Add Row
-                </Text>
-              </View>
-            </Button>
-            <Button variant="outline" size="sm" onPress={onSaveCSV} testID="mapping-download-csv">
-              <View className="flex-row items-center gap-1.5">
-                <Download size={14} color={colors.foreground} />
-                <Text className="font-body text-xs font-medium text-foreground">
-                  Download CSV
-                </Text>
-              </View>
-            </Button>
-          </View>
-        </View>
-      </Card.Header>
-
-      <Card.Content>
-        {/* Table header */}
-        <View className="hidden border-b border-border pb-2 mb-1 md:flex-row">
-          <View className="w-10" />
-          <View className="flex-1 px-2">
-            <Text className="text-xs font-semibold text-muted-foreground">
-              Source Type ({sourceERPName})
-            </Text>
-          </View>
-          <View className="w-10" />
-          <View className="flex-1 px-2">
-            <Text className="text-xs font-semibold text-muted-foreground">
-              Target Type(s) ({targetERPName})
-            </Text>
-          </View>
-          <View className="w-12 items-center">
-            <Text className="text-xs font-semibold text-muted-foreground">Actions</Text>
-          </View>
-        </View>
-
-        {/* Scrollable rows */}
-        <ScrollView style={{ maxHeight: 350 }}>
-          {rows.map((row) => (
-            <AccountMappingRow
-              key={row.id}
-              row={row}
-              targetOptions={targetOptions}
-              onUpdateRow={onUpdateRow}
-              onDeleteRow={onDeleteRow}
-            />
-          ))}
-          {rows.length === 0 && (
-            <View className="items-center py-8">
-              <Text className="font-body text-sm text-muted-foreground">
-                No type mappings. Press &quot;Add Row&quot; to create one.
-              </Text>
-            </View>
-          )}
-        </ScrollView>
-      </Card.Content>
-    </Card>
+          );
+        })}
+      </ScrollView>
+    </View>
   );
 });
 
@@ -557,7 +488,7 @@ const AccountMappingRow = React.memo(function AccountMappingRow({
       {/* Status icon */}
       <View className="flex-row items-center gap-2 md:w-10 md:justify-center">
         {isMatched ? (
-          <CheckCircle2 size={16} color={colors.success} />
+          <CheckCircle2 size={16} color={colors.primary} />
         ) : (
           <X size={16} color={colors.destructive} />
         )}
@@ -581,7 +512,7 @@ const AccountMappingRow = React.memo(function AccountMappingRow({
       <View className="w-10 items-center">
         <ArrowRight
           size={14}
-          color={isMatched ? colors.success : colors.destructive}
+          color={isMatched ? colors.primary : colors.destructive}
         />
       </View>
 

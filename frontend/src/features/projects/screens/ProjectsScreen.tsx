@@ -1,8 +1,11 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, TextInput } from 'react-native';
+import { Plus, Search } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { colors } from '@/config/theme';
 import { Screen } from '@/shared/components/layout/Screen';
+import { Button } from '@/shared/components/ui/Button';
 import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorFallback';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { useProjectsViewModel } from '../hooks/useProjectsViewModel';
@@ -22,6 +25,14 @@ type ProjectsNav = NativeStackNavigationProp<ProjectsStackParamList, 'ProjectsLi
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+function formatCompanyName(companyId: string, index: number): string {
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidPattern.test(companyId)) {
+    return `Company ${String(index + 1)}`;
+  }
+  return companyId;
+}
+
 function groupProjectsByCompany(projects: readonly Project[]): ProjectGroup[] {
   const map = new Map<string, { companyId: CompanyId | null; projects: Project[] }>();
 
@@ -39,27 +50,31 @@ function groupProjectsByCompany(projects: readonly Project[]): ProjectGroup[] {
     }
   }
 
-  const groups: ProjectGroup[] = [];
+  // Build groups without names first, then sort by companyId, then assign stable names
+  const unsorted: { companyId: CompanyId | null; projects: Project[] }[] = [];
 
   for (const [, entry] of map) {
     const sorted = [...entry.projects].sort(
       (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
     );
-
-    groups.push({
-      companyId: entry.companyId,
-      companyName: entry.companyId ?? 'Unassigned',
-      projects: sorted,
-    });
+    unsorted.push({ companyId: entry.companyId, projects: sorted });
   }
 
-  groups.sort((a, b) => {
+  // Sort: companies by ID (deterministic), unassigned last
+  unsorted.sort((a, b) => {
     if (a.companyId === null) return 1;
     if (b.companyId === null) return -1;
-    return a.companyName.localeCompare(b.companyName);
+    return (a.companyId as string).localeCompare(b.companyId as string);
   });
 
-  return groups;
+  // Assign names after sorting so "Company 1" is always the first visible group
+  return unsorted.map((entry, idx) => ({
+    companyId: entry.companyId,
+    companyName: entry.companyId !== null
+      ? formatCompanyName(entry.companyId as string, idx)
+      : 'Unassigned',
+    projects: entry.projects,
+  }));
 }
 
 // ─── Screen ─────────────────────────────────────────────────────────────────
@@ -68,9 +83,7 @@ export const ProjectsScreen = (): React.JSX.Element => {
   const navigation = useNavigation<ProjectsNav>();
   const { projects, isLoading, error, refetch } = useProjectsViewModel();
   const [dialogVisible, setDialogVisible] = useState(false);
-  const [dialogCompanyId, setDialogCompanyId] = useState<CompanyId | undefined>(
-    undefined,
-  );
+  const [searchQuery, setSearchQuery] = useState('');
 
   const groups = useMemo(() => groupProjectsByCompany(projects), [projects]);
 
@@ -99,14 +112,12 @@ export const ProjectsScreen = (): React.JSX.Element => {
     [navigation],
   );
 
-  const handleCreateForCompany = useCallback((companyId: CompanyId | null) => {
-    setDialogCompanyId(companyId ?? undefined);
+  const handleCreateForCompany = useCallback((_companyId: CompanyId | null) => {
     setDialogVisible(true);
   }, []);
 
   const handleCloseDialog = useCallback(() => {
     setDialogVisible(false);
-    setDialogCompanyId(undefined);
   }, []);
 
   if (error !== null && projects.length === 0) {
@@ -144,7 +155,6 @@ export const ProjectsScreen = (): React.JSX.Element => {
         <NewProjectDialog
           visible={dialogVisible}
           onClose={handleCloseDialog}
-          companyId={dialogCompanyId}
           testID="new-project-dialog"
         />
       </Screen>
@@ -153,21 +163,46 @@ export const ProjectsScreen = (): React.JSX.Element => {
 
   return (
     <Screen testID="projects-screen">
-      <View className="px-4 py-4 md:px-0 md:py-6">
-        <Text className="font-heading text-2xl font-bold text-foreground">
+      {/* Page header */}
+      <View className="pt-5 pb-2">
+        <Text className="font-heading text-xl font-bold text-foreground">
           Dashboard
+        </Text>
+        <Text className="font-body text-xs text-muted-foreground mt-0.5">
+          {totalProjects} total {'\u00B7'} {completedProjects} completed {'\u00B7'} {totalCompanies} {totalCompanies === 1 ? 'company' : 'companies'}
         </Text>
       </View>
 
-      <View className="px-4 mb-4">
-        <DashboardStats
-          totalProjects={totalProjects}
-          totalCompanies={totalCompanies}
-          completedProjects={completedProjects}
-          testID="dashboard-stats"
-        />
+      <DashboardStats totalProjects={totalProjects} totalCompanies={totalCompanies} completedProjects={completedProjects} testID="dashboard-stats" />
+
+      {/* Actions row: Search left, Create right */}
+      <View className="flex-row items-center justify-between pt-2 pb-4">
+        <View className="flex-row items-center rounded-md border border-border bg-background px-3" style={{ width: 240 }}>
+          <Search size={14} color={colors.mutedForeground} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search projects..."
+            placeholderTextColor={colors.mutedForeground}
+            className="flex-1 h-8 ml-2 font-body text-sm text-foreground focus:outline-none"
+            testID="projects-search-input"
+          />
+        </View>
+        <Button
+          onPress={() => setDialogVisible(true)}
+          size="sm"
+          testID="new-project-btn"
+        >
+          <View className="flex-row items-center gap-1.5">
+            <Plus size={14} color={colors.primaryForeground} />
+            <Text className="text-xs font-medium text-primary-foreground">
+              Create
+            </Text>
+          </View>
+        </Button>
       </View>
 
+      {/* Project table */}
       <ProjectList
         groups={groups}
         isRefreshing={isLoading}
@@ -180,7 +215,7 @@ export const ProjectsScreen = (): React.JSX.Element => {
       <NewProjectDialog
         visible={dialogVisible}
         onClose={handleCloseDialog}
-        companyId={dialogCompanyId}
+        companyOptions={groups}
         testID="new-project-dialog"
       />
     </Screen>

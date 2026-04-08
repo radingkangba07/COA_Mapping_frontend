@@ -34,7 +34,7 @@ type MigrationNavProp = NativeStackNavigationProp<MigrationStackParamList>;
 const ICON_SIZE = 16;
 
 function getScoreColor(score: number): string {
-  if (score >= 90) return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30';
+  if (score >= 90) return 'text-primary dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30';
   if (score >= 70) return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30';
   return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30';
 }
@@ -153,9 +153,9 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
         />
 
         {/* COA Mapping header — same as ValidationScreen */}
-        <View className="mt-8 mb-4 flex-row items-start justify-between">
+        <View className="mt-4 mb-4 flex-row items-start justify-between">
           <View>
-            <Text className="font-heading text-2xl font-bold text-foreground">COA Mapping</Text>
+            <Text className="font-heading text-lg font-bold text-foreground">COA Mapping</Text>
             {sourceFile !== null && (
               <View className="mt-1 flex-row items-center gap-1.5">
                 <FileSpreadsheet size={14} color={colors.mutedForeground} />
@@ -171,11 +171,10 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
                 {stats.totalTypes} / {stats.totalTypes} types mapped
               </Text>
               <View className="h-2 w-32 rounded-full bg-gray-200 dark:bg-[#3E3E42] overflow-hidden">
-                <View className="h-full rounded-full bg-green-500" style={{ width: '100%' }} />
+                <View className="h-full rounded-full bg-primary" style={{ width: '100%' }} />
               </View>
             </View>
             <Button
-              className="bg-green-600"
               onPress={handleContinueToExport}
               accessibilityLabel="Continue to export"
               testID="continue-to-export"
@@ -196,10 +195,10 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
                 <Text className="font-heading text-lg font-semibold text-foreground">
                   Final Mapping Preview
                 </Text>
-                <Badge variant="outline" className="border-green-300 dark:border-green-800 bg-card px-2.5 py-1">
+                <Badge variant="outline" className="border-blue-200 dark:border-blue-800 bg-card px-2.5 py-1">
                   <View className="flex-row items-center gap-1.5">
-                    <CheckCircle2 size={12} color="#16A34A" />
-                    <Text className="text-xs font-medium text-green-700 dark:text-green-400">
+                    <CheckCircle2 size={12} color="#003399" />
+                    <Text className="text-xs font-medium text-primary dark:text-blue-400">
                       {confirmedCount} Confirmed
                     </Text>
                   </View>
@@ -309,13 +308,13 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
                           variant="outline"
                           className={cn(
                             'px-2 py-0.5 bg-card',
-                            row.isConfirmed ? 'border-green-300 dark:border-green-800' : 'border-red-300 dark:border-red-800',
+                            row.isConfirmed ? 'border-blue-200 dark:border-blue-800' : 'border-red-300 dark:border-red-800',
                           )}
                         >
                           <Text
                             className={cn(
                               'text-xs font-medium',
-                              row.isConfirmed ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400',
+                              row.isConfirmed ? 'text-primary dark:text-blue-400' : 'text-red-700 dark:text-red-400',
                             )}
                           >
                             {row.isConfirmed ? 'Confirmed' : 'Not Confirmed'}

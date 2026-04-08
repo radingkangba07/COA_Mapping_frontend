@@ -1,27 +1,33 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import {
   createDrawerNavigator,
   type DrawerContentComponentProps,
 } from '@react-navigation/drawer';
 import {
-  FolderOpen, ArrowRightLeft, Settings, LogOut, ChevronsLeft, ChevronsRight,
+  FolderOpen, ArrowRightLeft, Settings, ChevronsLeft, ChevronsRight,
 } from 'lucide-react-native';
-import { colors } from '@/config/theme';
 import { useAppStore } from '@/shared/store/app.store';
 import { Tooltip } from '@/shared/components/ui/Tooltip';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { ProjectsStack } from '../stacks/ProjectsStack';
 import { MigrationStack } from '../stacks/MigrationStack';
-import { useAuthStore } from '@/features/auth/store/auth.store';
 import type { AppDrawerParamList } from '../types';
 
 const Drawer = createDrawerNavigator<AppDrawerParamList>();
 
 const ICON_SIZE = 20;
 const COLLAPSE_ICON_SIZE = 18;
-const DRAWER_WIDTH_EXPANDED = 260;
+const DRAWER_WIDTH_EXPANDED = 240;
 const DRAWER_WIDTH_COLLAPSED = 64;
+
+const DARK_BG = '#2D2D2D';
+const SIDEBAR_ITEM_ACTIVE = '#003399';
+const SIDEBAR_TEXT = 'rgba(255,255,255,0.65)';
+const SIDEBAR_TEXT_ACTIVE = '#FFFFFF';
+const SIDEBAR_ICON = 'rgba(255,255,255,0.5)';
+const SIDEBAR_ICON_ACTIVE = '#FFFFFF';
+const SIDEBAR_BORDER = 'rgba(255,255,255,0.08)';
 
 const DRAWER_ITEMS = [
   { key: 'ProjectsTab' as const, label: 'Projects', Icon: FolderOpen },
@@ -53,17 +59,17 @@ const NavItem = ({
   <MaybeTooltip show={isCollapsed} content={label} testID={`tooltip-${label.toLowerCase()}`}>
     <Pressable
       onPress={onPress}
-      className={`items-center rounded-lg py-3 ${
+      className={`items-center rounded-lg py-2.5 ${
         isCollapsed ? 'justify-center px-2' : 'flex-row px-3'
-      } ${isActive ? 'bg-surface' : ''}`}
+      }`}
+      style={{ backgroundColor: isActive ? SIDEBAR_ITEM_ACTIVE : 'transparent' }}
       testID={`drawer-nav-${label.toLowerCase()}`}
     >
       {icon}
       {!isCollapsed && (
         <Text
-          className={`ml-3 text-sm font-medium ${
-            isActive ? 'text-foreground' : 'text-muted-foreground'
-          }`}
+          className="ml-3 text-sm font-medium"
+          style={{ color: isActive ? SIDEBAR_TEXT_ACTIVE : SIDEBAR_TEXT }}
         >
           {label}
         </Text>
@@ -75,47 +81,24 @@ const NavItem = ({
 const CustomDrawerContent = ({
   state, navigation,
 }: DrawerContentComponentProps): React.JSX.Element => {
-  const logout = useAuthStore((s) => s.logout);
   const isCollapsed = useAppStore((s) => s.isDrawerCollapsed);
   const toggleCollapse = useAppStore((s) => s.toggleDrawerCollapsed);
 
-  const handleLogout = useCallback((): void => {
-    void logout();
-  }, [logout]);
-
   return (
     <View
-      className={`flex-1 border-r border-border bg-background pb-6 pt-8 ${
-        isCollapsed ? 'items-center px-2' : 'px-3'
-      }`}
+      className={`flex-1 pb-4 pt-5 ${isCollapsed ? 'items-center px-2' : 'px-3'}`}
+      style={{ backgroundColor: DARK_BG }}
       testID="app-drawer-content"
     >
-      {!isCollapsed ? (
-        <View className="mb-8 flex-row items-center justify-between px-3">
-          <Text className="text-lg font-bold text-foreground">COA Migration</Text>
-          <Pressable onPress={toggleCollapse} hitSlop={8} testID="drawer-collapse-button">
-            <ChevronsLeft color={colors.mutedForeground} size={COLLAPSE_ICON_SIZE} />
-          </Pressable>
-        </View>
-      ) : (
-        <View className="mb-8 items-center">
-          <MaybeTooltip show content="Expand" testID="tooltip-expand">
-            <Pressable onPress={toggleCollapse} hitSlop={8} testID="drawer-expand-button">
-              <ChevronsRight color={colors.mutedForeground} size={COLLAPSE_ICON_SIZE} />
-            </Pressable>
-          </MaybeTooltip>
-        </View>
-      )}
-
-      <View className="flex-1 gap-1">
+      {/* Nav items */}
+      <View className="flex-1 gap-0.5">
         {DRAWER_ITEMS.map((item, index) => {
           const isActive = state.index === index;
-          const iconColor = isActive ? colors.foreground : colors.mutedForeground;
           return (
             <NavItem
               key={item.key}
               label={item.label}
-              icon={<item.Icon color={iconColor} size={ICON_SIZE} />}
+              icon={<item.Icon color={isActive ? SIDEBAR_ICON_ACTIVE : SIDEBAR_ICON} size={ICON_SIZE} />}
               isActive={isActive}
               isCollapsed={isCollapsed}
               onPress={() => navigation.navigate(item.key)}
@@ -124,23 +107,33 @@ const CustomDrawerContent = ({
         })}
       </View>
 
-      <MaybeTooltip show={isCollapsed} content="Logout" testID="tooltip-logout">
-        <Pressable
-          onPress={handleLogout}
-          className={`items-center rounded-lg py-3 ${
-            isCollapsed ? 'justify-center px-2' : 'flex-row px-3'
-          }`}
-          testID="drawer-logout-button"
+      {/* Collapse toggle at bottom — icon only */}
+      <View
+        className="pt-3 items-center"
+        style={{ borderTopWidth: 1, borderTopColor: SIDEBAR_BORDER }}
+      >
+        <MaybeTooltip
+          show={isCollapsed}
+          content={isCollapsed ? 'Expand' : 'Collapse'}
+          testID={`tooltip-${isCollapsed ? 'expand' : 'collapse'}`}
         >
-          <LogOut color={colors.destructive} size={ICON_SIZE} />
-          {!isCollapsed && (
-            <Text className="ml-3 text-sm font-medium text-destructive">Logout</Text>
-          )}
-        </Pressable>
-      </MaybeTooltip>
+          <Pressable
+            onPress={toggleCollapse}
+            className="items-center justify-center rounded-lg p-2"
+            hitSlop={8}
+            testID={isCollapsed ? 'drawer-expand-button' : 'drawer-collapse-button'}
+          >
+            {isCollapsed
+              ? <ChevronsRight color={SIDEBAR_ICON} size={COLLAPSE_ICON_SIZE} />
+              : <ChevronsLeft color={SIDEBAR_ICON} size={COLLAPSE_ICON_SIZE} />}
+          </Pressable>
+        </MaybeTooltip>
+      </View>
     </View>
   );
 };
+
+// ─── Drawer Navigator ──────────────────────────────────────────────────────
 
 export const AppDrawer = (): React.JSX.Element => {
   useAppStore((s) => s.theme);
@@ -148,9 +141,8 @@ export const AppDrawer = (): React.JSX.Element => {
 
   const drawerStyle = useMemo(() => ({
     width: isCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH_EXPANDED,
-    backgroundColor: colors.background,
-    borderRightColor: colors.border,
-    // Web-only: CSS transition for smooth width animation. No-op on native.
+    backgroundColor: DARK_BG,
+    borderRightWidth: 0,
     transition: 'width 200ms ease',
   } as const), [isCollapsed]);
 

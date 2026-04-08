@@ -39,7 +39,7 @@ export const Input = React.forwardRef<TextInput, InputProps>(
           ref={ref}
           editable={editable}
           className={cn(
-            'h-10 rounded-md border bg-background px-3 font-body text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background',
+            'h-10 rounded-md border bg-background px-3 font-body text-sm text-foreground focus:outline-none',
             hasError
               ? 'border-destructive'
               : 'border-input focus:border-ring',
