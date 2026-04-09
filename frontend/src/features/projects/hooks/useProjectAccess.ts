@@ -5,17 +5,17 @@ import { useToast } from '@/shared/hooks/useToast';
 import type { ProjectId, UserId } from '@/shared/types/common.types';
 import type { AppError, Result } from '@/shared/types/result.types';
 import { toAppError } from '@/shared/services/http/http.client';
-import type { AccessResponse, AccessGrant, ProjectPermission } from '../types/project-access.types';
+import type { AccessResponse, AccessGrant } from '../types/project-access.types';
 import { canManageMembers } from '../types/project-access.types';
 import {
   getProjectMembers,
   grantProjectAccess,
-  revokeProjectAccess,
 } from '../services/project-access.service';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const QUERY_KEY_PREFIX = 'project-access' as const;
+const EMPTY_MEMBERS: readonly AccessResponse[] = [];
 
 // ─── Return Type ──────────────────────────────────────────────────────────────
 
@@ -27,9 +27,7 @@ interface ProjectAccessViewModel {
   readonly currentUserId: UserId | null;
   readonly grant: (grant: AccessGrant) => void;
   readonly grantAsync: (grant: AccessGrant) => Promise<Result<AccessResponse, AppError>>;
-  readonly revoke: (userId: UserId) => void;
   readonly isGranting: boolean;
-  readonly isRevoking: boolean;
 }
 
 // ─── Error Messages ───────────────────────────────────────────────────────────
@@ -44,16 +42,11 @@ function getGrantErrorMessage(error: AppError): string {
   return error.message;
 }
 
-function getRevokeErrorMessage(error: AppError): string {
-  if (error.code === 'FORBIDDEN') {
-    return 'You do not have permission to manage members';
-  }
-  return error.message;
-}
-
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useProjectAccess(projectId: ProjectId): ProjectAccessViewModel {
+export function useProjectAccess(
+  projectId: ProjectId | null,
+): ProjectAccessViewModel {
   const queryClient = useQueryClient();
   const currentUserId = useAuthStore((s) => s.user?.userId ?? null);
   const { showSuccess, showError } = useToast();
@@ -62,16 +55,25 @@ export function useProjectAccess(projectId: ProjectId): ProjectAccessViewModel {
 
   const query = useQuery({
     queryKey,
+    enabled: projectId !== null,
     queryFn: async (): Promise<AccessResponse[]> => {
-      const result = await getProjectMembers(httpClient, projectId);
+      // Safe: enabled guarantees projectId is non-null when queryFn runs
+      const id = projectId as ProjectId;
+      const result = await getProjectMembers(httpClient, id);
       if (!result.ok) throw result.error;
       return result.data;
     },
   });
 
   const grantMutation = useMutation({
-    mutationFn: (grant: AccessGrant) =>
-      grantProjectAccess(httpClient, projectId, grant),
+    mutationFn: (grant: AccessGrant) => {
+      if (projectId === null) {
+        return Promise.reject(
+          toAppError(new Error('Cannot grant access without a project')),
+        );
+      }
+      return grantProjectAccess(httpClient, projectId, grant);
+    },
     onSuccess: (result) => {
       if (!result.ok) {
         showError(getGrantErrorMessage(result.error));
@@ -85,22 +87,6 @@ export function useProjectAccess(projectId: ProjectId): ProjectAccessViewModel {
     },
   });
 
-  const revokeMutation = useMutation({
-    mutationFn: (userId: UserId) =>
-      revokeProjectAccess(httpClient, projectId, userId),
-    onSuccess: (result) => {
-      if (!result.ok) {
-        showError(getRevokeErrorMessage(result.error));
-        return;
-      }
-      showSuccess('Member removed');
-      void queryClient.invalidateQueries({ queryKey });
-    },
-    onError: () => {
-      showError('Failed to remove member');
-    },
-  });
-
   const myPermission =
     query.data?.find((m) => m.userId === currentUserId)?.permission ?? null;
 
@@ -108,15 +94,13 @@ export function useProjectAccess(projectId: ProjectId): ProjectAccessViewModel {
     query.error != null ? toAppError(query.error) : null;
 
   return {
-    members: query.data ?? [],
+    members: query.data ?? EMPTY_MEMBERS,
     isLoading: query.isLoading,
     error,
     canManage: canManageMembers(myPermission),
     currentUserId,
     grant: grantMutation.mutate,
     grantAsync: grantMutation.mutateAsync,
-    revoke: revokeMutation.mutate,
     isGranting: grantMutation.isPending,
-    isRevoking: revokeMutation.isPending,
   };
 }

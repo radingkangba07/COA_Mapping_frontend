@@ -4,7 +4,7 @@ import type { Result } from '@/shared/types/result.types';
 import type { AppError } from '@/shared/types/result.types';
 import { ok, err } from '@/shared/types/result.types';
 import { toAppError } from '@/shared/services/http/http.client';
-import type { ProjectId, UserId } from '@/shared/types/common.types';
+import type { ProjectId } from '@/shared/types/common.types';
 import { createUserId } from '@/shared/types/common.types';
 import type { AccessResponse, AccessGrant } from '../types/project-access.types';
 
@@ -81,22 +81,6 @@ export async function grantProjectAccess(
     }
 
     return ok(toAccessResponse(parsed.data));
-  } catch (error: unknown) {
-    return err(toAppError(error));
-  }
-}
-
-export async function revokeProjectAccess(
-  client: HttpClient,
-  projectId: ProjectId,
-  userId: UserId,
-): Promise<Result<void, AppError>> {
-  try {
-    await client.delete(
-      `/api/v1/projects/${projectId}/access/${userId}`,
-    );
-
-    return ok(undefined);
   } catch (error: unknown) {
     return err(toAppError(error));
   }

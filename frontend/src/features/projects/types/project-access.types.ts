@@ -19,6 +19,15 @@ export interface AccessGrant {
   readonly permission: ProjectPermission;
 }
 
+// ─── DTO (snake_case from backend) ────────────────────────────────────────
+
+export interface AccessResponseDTO {
+  user_id: string;
+  name: string;
+  email: string;
+  permission: ProjectPermission;
+}
+
 // ─── Permission Helpers ────────────────────────────────────────────────────
 
 const RANK: Record<ProjectPermission, number> = {

@@ -32,7 +32,6 @@ export type AppTabsParamList = {
 
 export type ProjectsStackParamList = {
   ProjectsList: undefined;
-  ProjectDetail: { projectId: string };
   NewProject: undefined;
 };
 
@@ -55,9 +54,6 @@ export const useAppNavigation = (): NativeStackNavigationProp<RootStackParamList
 
 export const useAppDrawerNavigation = (): DrawerNavigationProp<AppDrawerParamList> =>
   useNavigation<DrawerNavigationProp<AppDrawerParamList>>();
-
-export const useProjectDetailRoute = (): RouteProp<ProjectsStackParamList, 'ProjectDetail'> =>
-  useRoute<RouteProp<ProjectsStackParamList, 'ProjectDetail'>>();
 
 export const useSettingsNavigation = (): NativeStackNavigationProp<SettingsStackParamList> =>
   useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();

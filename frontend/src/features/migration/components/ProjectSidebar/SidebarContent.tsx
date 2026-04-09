@@ -1,7 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { ArrowRight, ClipboardList, Pencil } from 'lucide-react-native';
+import { ArrowRight, ClipboardList, Pencil, Users } from 'lucide-react-native';
 import { colors } from '@/config/theme';
+import { createProjectId } from '@/shared/types/common.types';
+import { Button } from '@/shared/components/ui/Button';
+import { AddMemberDialog } from '@/features/projects/components/AddMemberDialog';
+import { useProjectAccess } from '@/features/projects/hooks/useProjectAccess';
 import { getERPBadgeColor, getERPInitial } from './ERPBadge';
 import type { SidebarContentProps } from './sidebar.types';
 
@@ -24,7 +28,7 @@ function SidebarRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export const SidebarContent = ({
+export function SidebarContent({
   projectId,
   projectName,
   createdAt,
@@ -35,7 +39,12 @@ export const SidebarContent = ({
   targetERP,
   currentUser,
   testID,
-}: SidebarContentProps) => (
+}: SidebarContentProps) {
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const brandedId = projectId !== null ? createProjectId(projectId) : null;
+  const { canManage } = useProjectAccess(brandedId);
+
+  return (
   <ScrollView className="flex-1 px-4 pb-4 pt-3" testID={testID}>
     {/* Project title */}
     <View className="flex-row items-center gap-2 mb-4">
@@ -59,6 +68,22 @@ export const SidebarContent = ({
         </Text>
       </View>
     ) : null}
+
+    {/* Invite Member */}
+    {brandedId !== null && canManage && (
+      <Button
+        variant="outline"
+        size="sm"
+        onPress={() => setIsInviteOpen(true)}
+        className="mb-4"
+        testID="sidebar-invite-btn"
+      >
+        <View className="flex-row items-center justify-center gap-1.5">
+          <Users size={14} color={colors.foreground} />
+          <Text className="text-xs font-medium text-foreground">Members</Text>
+        </View>
+      </Button>
+    )}
 
     {/* Details */}
     <View className="border-t border-border pt-3 mb-4">
@@ -121,5 +146,16 @@ export const SidebarContent = ({
         </View>
       </View>
     ) : null}
+
+    {/* Add Member Dialog */}
+    {brandedId !== null && (
+      <AddMemberDialog
+        visible={isInviteOpen}
+        onClose={() => setIsInviteOpen(false)}
+        projectId={brandedId}
+        testID="sidebar-add-member-dialog"
+      />
+    )}
   </ScrollView>
-);
+  );
+}
