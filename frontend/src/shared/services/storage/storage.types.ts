@@ -10,6 +10,7 @@ export const STORAGE_KEYS = {
   REFRESH_TOKEN: 'coa_refresh_token',
   THEME: 'coa_theme',
   LOCALE: 'coa_locale',
+  ACTIVE_ORG_ID: 'coa_active_org_id',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

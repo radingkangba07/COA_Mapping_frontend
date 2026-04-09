@@ -19,10 +19,15 @@ export type AuthStackParamList = {
   ForgotPassword: undefined;
 };
 
+export type SettingsStackParamList = {
+  SettingsHome: undefined;
+  Members: undefined;
+};
+
 export type AppTabsParamList = {
   ProjectsTab: undefined;
   MigrationTab: NavigatorScreenParams<MigrationStackParamList>;
-  SettingsTab: undefined;
+  SettingsTab: NavigatorScreenParams<SettingsStackParamList>;
 };
 
 export type ProjectsStackParamList = {
@@ -53,6 +58,9 @@ export const useAppDrawerNavigation = (): DrawerNavigationProp<AppDrawerParamLis
 
 export const useProjectDetailRoute = (): RouteProp<ProjectsStackParamList, 'ProjectDetail'> =>
   useRoute<RouteProp<ProjectsStackParamList, 'ProjectDetail'>>();
+
+export const useSettingsNavigation = (): NativeStackNavigationProp<SettingsStackParamList> =>
+  useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
 
 export function useMigrationScreenRoute<T extends keyof MigrationStackParamList>(
 ): RouteProp<MigrationStackParamList, T> {

@@ -12,6 +12,8 @@ import {
   selectProjectsLoading,
   selectProjectsError,
 } from '../store/projects.selectors';
+import { useAppStore } from '@/shared/store/app.store';
+import { selectActiveOrgId } from '@/shared/store/app.selectors';
 
 // ─── Return Type ────────────────────────────────────────────────────────────
 
@@ -31,11 +33,12 @@ export function useProjectsViewModel(): ProjectsViewModel {
   const selectedProject = useProjectsStore(selectSelectedProject);
   const storeLoading = useProjectsStore(selectProjectsLoading);
   const storeError = useProjectsStore(selectProjectsError);
+  const activeOrgId = useAppStore(selectActiveOrgId);
 
   const query = useQuery({
-    queryKey: ['projects'] as const,
+    queryKey: ['projects', activeOrgId] as const,
     queryFn: async (): Promise<{ projects: Project[]; total: number }> => {
-      const result = await getProjects(httpClient);
+      const result = await getProjects(httpClient, 0, 100, activeOrgId ?? undefined);
 
       if (!result.ok) {
         throw result.error;
@@ -43,6 +46,7 @@ export function useProjectsViewModel(): ProjectsViewModel {
 
       return result.data;
     },
+    enabled: !!activeOrgId,
   });
 
   const queryError: AppError | null =
