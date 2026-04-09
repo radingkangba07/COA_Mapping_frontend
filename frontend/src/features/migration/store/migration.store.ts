@@ -320,6 +320,7 @@ export const useMigrationStore = create<MigrationStore>()(
           : group.accounts[accountIdx];
         if (account) {
           account.target_name = newName;
+          account.score = newName.length > 0 ? 100 : 0;
           account.user_changed = true;
           account.changed_by_name = userName;
           account.changed_at = new Date().toISOString();

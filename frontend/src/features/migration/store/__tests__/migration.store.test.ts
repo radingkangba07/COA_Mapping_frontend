@@ -238,6 +238,30 @@ describe('useMigrationStore', () => {
       expect(account?.changed_by_name).toBe('TestUser');
       expect(account?.changed_at).toBeDefined();
     });
+
+    it('updateAccountName sets score to 100 when target name is non-empty', () => {
+      const { setGroupedMappings, updateAccountName } = useMigrationStore.getState();
+
+      setGroupedMappings(mockGroupedMappings);
+      updateAccountName('Asset', 0, 'Petty Cash', 'TestUser');
+
+      const group = useMigrationStore.getState().groupedMappings.find(
+        (g) => g.source_type === 'Asset',
+      );
+      expect(group?.accounts[0]?.score).toBe(100);
+    });
+
+    it('updateAccountName sets score to 0 when target name is empty', () => {
+      const { setGroupedMappings, updateAccountName } = useMigrationStore.getState();
+
+      setGroupedMappings(mockGroupedMappings);
+      updateAccountName('Asset', 0, '', 'TestUser');
+
+      const group = useMigrationStore.getState().groupedMappings.find(
+        (g) => g.source_type === 'Asset',
+      );
+      expect(group?.accounts[0]?.score).toBe(0);
+    });
   });
 
   describe('confidence filter', () => {
