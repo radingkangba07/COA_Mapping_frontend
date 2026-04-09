@@ -87,8 +87,8 @@ export function toMappingCreateDTOs(
         target_account_name: account.target_name,
         confidence_score: account.score,
         status: 'pending',
-        source_type: group.source_type,
-        target_type: group.target_type,
+        source_account_type: group.source_type,
+        target_account_type: group.target_type,
       }),
     ),
   );
