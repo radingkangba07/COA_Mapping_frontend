@@ -77,6 +77,7 @@ interface MigrationActions {
     accountIdx: number,
     newName: string,
     userName: string,
+    sourceName?: string,
   ) => void;
   setConfidenceFilter: (filter: ConfidenceLevel | null) => void;
   confirmConfidenceLevel: (level: ConfidenceLevel) => void;
@@ -376,7 +377,7 @@ export const useMigrationStore = create<MigrationStore>()(
           (a) => a.source_name === sourceName,
         );
         if (accountIdx === -1) return;
-        const account = group.accounts[accountIdx];
+        const account = group.accounts[accountIdx]!;
 
         const deleted: DeletedAccount = {
           sourceType,
