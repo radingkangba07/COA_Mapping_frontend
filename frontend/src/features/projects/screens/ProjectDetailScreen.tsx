@@ -15,6 +15,7 @@ import type { ProjectsStackParamList } from '@/navigation/types';
 import { useProjectDetail } from '../hooks/useProjectDetail';
 import { StatusBadge } from '../components/StatusBadge';
 import { MemberBadge } from '../components/MemberBadge';
+import { ProjectMemberList } from '../components/ProjectMemberList';
 import { createProjectId } from '@/shared/types/common.types';
 
 type DetailNav = NativeStackNavigationProp<ProjectsStackParamList, 'ProjectDetail'>;
@@ -108,6 +109,8 @@ export const ProjectDetailScreen = (): React.JSX.Element => {
                 </View>
               </Card.Content>
             </Card>
+
+            <ProjectMemberList projectId={project.projectId} />
           </View>
 
           <View className="lg:w-64 lg:self-start">
