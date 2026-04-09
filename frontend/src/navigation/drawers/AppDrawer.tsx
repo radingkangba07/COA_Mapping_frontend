@@ -9,9 +9,10 @@ import {
 } from 'lucide-react-native';
 import { useAppStore } from '@/shared/store/app.store';
 import { Tooltip } from '@/shared/components/ui/Tooltip';
-import { SettingsScreen } from '../screens/SettingsScreen';
 import { ProjectsStack } from '../stacks/ProjectsStack';
 import { MigrationStack } from '../stacks/MigrationStack';
+import { SettingsStack } from '../stacks/SettingsStack';
+import { OrgSwitcher } from '@/features/projects/components/OrgSwitcher';
 import type { AppDrawerParamList } from '../types';
 
 const Drawer = createDrawerNavigator<AppDrawerParamList>();
@@ -90,6 +91,11 @@ const CustomDrawerContent = ({
       style={{ backgroundColor: DARK_BG }}
       testID="app-drawer-content"
     >
+      {/* Org switcher */}
+      <View className={`mb-4 ${isCollapsed ? 'items-center' : 'px-1'}`}>
+        <OrgSwitcher collapsed={isCollapsed} />
+      </View>
+
       {/* Nav items */}
       <View className="flex-1 gap-0.5">
         {DRAWER_ITEMS.map((item, index) => {
@@ -101,7 +107,13 @@ const CustomDrawerContent = ({
               icon={<item.Icon color={isActive ? SIDEBAR_ICON_ACTIVE : SIDEBAR_ICON} size={ICON_SIZE} />}
               isActive={isActive}
               isCollapsed={isCollapsed}
-              onPress={() => navigation.navigate(item.key)}
+              onPress={() => {
+                if (item.key === 'SettingsTab') {
+                  navigation.navigate('SettingsTab', { screen: 'SettingsHome' });
+                } else {
+                  navigation.navigate(item.key);
+                }
+              }}
             />
           );
         })}
@@ -158,7 +170,7 @@ export const AppDrawer = (): React.JSX.Element => {
     >
       <Drawer.Screen name="ProjectsTab" component={ProjectsStack} />
       <Drawer.Screen name="MigrationTab" component={MigrationStack} />
-      <Drawer.Screen name="SettingsTab" component={SettingsScreen} />
+      <Drawer.Screen name="SettingsTab" component={SettingsStack} />
     </Drawer.Navigator>
   );
 };

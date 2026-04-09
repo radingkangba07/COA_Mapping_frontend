@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import { type OrgId, createOrgId } from '@/shared/types/common.types';
+import { STORAGE_KEYS } from '@/shared/services/storage/storage.types';
+import { storageService } from '@/shared/services/storage/storage.service';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -12,6 +15,7 @@ interface AppState {
   locale: Locale;
   isOnline: boolean;
   isDrawerCollapsed: boolean;
+  activeOrgId: OrgId | null;
 }
 
 interface AppActions {
@@ -21,6 +25,8 @@ interface AppActions {
   setDrawerCollapsed: (collapsed: boolean) => void;
   toggleDrawerCollapsed: () => void;
   toggleTheme: () => void;
+  setActiveOrg: (orgId: OrgId | null) => void;
+  hydrateActiveOrg: () => Promise<void>;
   reset: () => void;
 }
 
@@ -33,6 +39,7 @@ const initialState: AppState = {
   locale: 'en',
   isOnline: true,
   isDrawerCollapsed: false,
+  activeOrgId: null,
 };
 
 // ─── Store ───────────────────────────────────────────────────────────────────
@@ -77,8 +84,31 @@ export const useAppStore = create<AppStore>()(
       });
     },
 
+    setActiveOrg: (orgId: OrgId | null) => {
+      set((state) => {
+        state.activeOrgId = orgId;
+      });
+      if (orgId !== null) {
+        storageService.set(STORAGE_KEYS.ACTIVE_ORG_ID, orgId).catch(() => {});
+      } else {
+        storageService.remove(STORAGE_KEYS.ACTIVE_ORG_ID).catch(() => {});
+      }
+    },
+
+    hydrateActiveOrg: async (): Promise<void> => {
+      try {
+        const raw = await storageService.get(STORAGE_KEYS.ACTIVE_ORG_ID);
+        set((state) => {
+          state.activeOrgId = raw ? createOrgId(raw) : null;
+        });
+      } catch {
+        // Storage read failed — keep activeOrgId as null (safe default)
+      }
+    },
+
     reset: () => {
       set(() => initialState);
+      storageService.remove(STORAGE_KEYS.ACTIVE_ORG_ID).catch(() => {});
     },
   })),
 );

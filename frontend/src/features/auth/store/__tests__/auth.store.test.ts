@@ -11,7 +11,12 @@ jest.mock('@/shared/services/http/http.instance', () => ({
   configureHttpClient: jest.fn(),
 }));
 jest.mock('@/shared/services/storage/storage.service', () => ({
-  storageService: {},
+  storageService: {
+    get: jest.fn().mockResolvedValue(null),
+    set: jest.fn().mockResolvedValue(undefined),
+    remove: jest.fn().mockResolvedValue(undefined),
+    clear: jest.fn().mockResolvedValue(undefined),
+  },
 }));
 
 import { useAuthStore } from '@/features/auth/store/auth.store';

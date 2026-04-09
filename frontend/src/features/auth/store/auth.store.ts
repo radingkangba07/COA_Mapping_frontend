@@ -5,6 +5,7 @@ import type { AuthState, AuthStore, TokenPair } from '../types/auth.types';
 import * as authService from '../services/auth.service';
 import { httpClient, configureHttpClient } from '@/shared/services/http/http.instance';
 import { storageService } from '@/shared/services/storage/storage.service';
+import { useAppStore } from '@/shared/store/app.store';
 
 // ─── Initial State ───────────────────────────────────────────────────────────
 
@@ -99,6 +100,7 @@ export const useAuthStore = create<AuthStore>()(
       const current = get().refreshToken;
       await authService.logout(httpClient, current);
       await authService.clearTokens(storageService);
+      useAppStore.getState().setActiveOrg(null);
       set(() => ({
         ...initialState,
         isRestoring: false,
