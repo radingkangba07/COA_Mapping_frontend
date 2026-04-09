@@ -153,12 +153,12 @@ export function useValidationScreenViewModel(
   const handleTypeChange = useCallback(
     (sourceType: string, newTargetType: string): void => { actions.updateTypeMapping(sourceType, newTargetType); }, [actions]);
   const handleAccountNameChange = useCallback(
-    (sourceType: string, accountIndex: number, newName: string): void => {
-      actions.updateAccountName(sourceType, accountIndex, newName, 'User');
+    (sourceType: string, accountIndex: number, newName: string, sourceName?: string): void => {
+      actions.updateAccountName(sourceType, accountIndex, newName, 'User', sourceName);
     }, [actions]);
   const handleDeleteAccount = useCallback(
-    (sourceType: string, accountIndex: number, _account: AccountMapping): void => {
-      actions.deleteAccount(sourceType, accountIndex);
+    (sourceType: string, _accountIndex: number, account: AccountMapping): void => {
+      actions.deleteAccount(sourceType, account.source_name);
     }, [actions]);
   const handleRestoreAccount = useCallback(
     (deletedIndex: number): void => { actions.restoreAccount(deletedIndex); }, [actions]);
