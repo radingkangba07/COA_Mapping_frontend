@@ -77,10 +77,11 @@ interface MigrationActions {
     accountIdx: number,
     newName: string,
     userName: string,
+    sourceName?: string,
   ) => void;
   setConfidenceFilter: (filter: ConfidenceLevel | null) => void;
   confirmConfidenceLevel: (level: ConfidenceLevel) => void;
-  deleteAccount: (sourceType: string, accountIdx: number) => void;
+  deleteAccount: (sourceType: string, sourceName: string) => void;
   restoreAccount: (deletedIdx: number) => void;
 
   clearTargetERP: () => void;
@@ -365,15 +366,18 @@ export const useMigrationStore = create<MigrationStore>()(
       });
     },
 
-    deleteAccount: (sourceType: string, accountIdx: number): void => {
+    deleteAccount: (sourceType: string, sourceName: string): void => {
       set((state) => {
         const group = state.groupedMappings.find(
           (g) => g.source_type === sourceType,
         );
         if (!group) return;
 
-        const account = group.accounts[accountIdx];
-        if (!account) return;
+        const accountIdx = group.accounts.findIndex(
+          (a) => a.source_name === sourceName,
+        );
+        if (accountIdx === -1) return;
+        const account = group.accounts[accountIdx]!;
 
         const deleted: DeletedAccount = {
           sourceType,

@@ -302,7 +302,7 @@ describe('useMigrationStore', () => {
       const { setGroupedMappings, deleteAccount } = useMigrationStore.getState();
 
       setGroupedMappings(mockGroupedMappings);
-      deleteAccount('Asset', 0);
+      deleteAccount('Asset', 'Cash');
 
       const state = useMigrationStore.getState();
       const assetGroup = state.groupedMappings.find((g) => g.source_type === 'Asset');
@@ -317,7 +317,7 @@ describe('useMigrationStore', () => {
         useMigrationStore.getState();
 
       setGroupedMappings(mockGroupedMappings);
-      deleteAccount('Asset', 0);
+      deleteAccount('Asset', 'Cash');
       restoreAccount(0);
 
       const state = useMigrationStore.getState();
