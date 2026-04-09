@@ -2,7 +2,7 @@ name: Frontend CI/CD
 
 on:
   push:
-    branches: [main, staging, develop]
+    branches: [main, develop]
     paths:
       - "frontend/**"
       - "services/frontend/**"
@@ -71,29 +71,3 @@ jobs:
             docker compose -p coa-testing -f docker-compose.testing.yml up -d frontend
             docker restart coa-gateway-nginx
             echo "Testing frontend deployed from branch: $BRANCH"
-
-  deploy-staging:
-    name: Deploy to Staging
-    needs: test
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            set -e
-            cd /opt/coa-migration/environments/staging/frontend
-            git config --global --add safe.directory /opt/coa-migration/environments/staging/frontend
-            git fetch origin develop
-            git checkout develop
-            git reset --hard origin/develop
-            cd /opt/coa-migration/environments/staging
-            docker compose -p coa-staging -f docker-compose.staging.yml build frontend
-            docker compose -p coa-staging -f docker-compose.staging.yml up -d frontend
-            docker restart coa-gateway-nginx
-            echo "Staging frontend deployed successfully"
