@@ -12,6 +12,7 @@ import type { TypeMappingRow } from '@/features/migration/types/migration.types'
 import {
   buildCustomTypeMappings,
   applyCustomTypeMappings,
+  toMappingCreateDTOs,
   getHierarchicalMapping,
   saveMappings,
   getMappings,
@@ -245,6 +246,63 @@ describe('applyCustomTypeMappings', () => {
     expect(result[1]?.confidence).toBe(70);
     expect(result[2]?.target_type).toBe('Owner Equity');
     expect(result[2]?.confidence).toBe(100);
+  });
+});
+
+// ─── toMappingCreateDTOs ──────────────────────────────────────────────────
+
+describe('toMappingCreateDTOs', () => {
+  it('maps source_type to source_account_type for backend compatibility', () => {
+    const groups: readonly GroupedMapping[] = [
+      makeGroupedMapping({ source_type: 'Asset', target_type: 'Fixed Asset' }),
+    ];
+
+    const result = toMappingCreateDTOs('proj-1', groups);
+
+    expect(result[0]?.source_account_type).toBe('Asset');
+    expect(result[0]?.target_account_type).toBe('Fixed Asset');
+    expect((result[0] as unknown as Record<string, unknown>)['source_type']).toBeUndefined();
+    expect((result[0] as unknown as Record<string, unknown>)['target_type']).toBeUndefined();
+  });
+
+  it('maps confidence_score from account score', () => {
+    const groups: readonly GroupedMapping[] = [
+      makeGroupedMapping({
+        accounts: [
+          { source_number: '1000', source_name: 'Cash', target_name: 'Cash Equiv', score: 45, remark: '' },
+        ],
+      }),
+    ];
+
+    const result = toMappingCreateDTOs('proj-1', groups);
+
+    expect(result[0]?.confidence_score).toBe(45);
+  });
+
+  it('produces one DTO per account across all groups', () => {
+    const groups: readonly GroupedMapping[] = [
+      makeGroupedMapping({
+        source_type: 'Asset',
+        target_type: 'Fixed Asset',
+        accounts: [
+          { source_number: '1000', source_name: 'Cash', target_name: 'Cash Equiv', score: 90, remark: '' },
+          { source_number: '1001', source_name: 'AR', target_name: 'Receivable', score: 80, remark: '' },
+        ],
+      }),
+      makeGroupedMapping({
+        source_type: 'Liability',
+        target_type: 'Current Liability',
+        accounts: [
+          { source_number: '2000', source_name: 'AP', target_name: 'Payable', score: 70, remark: '' },
+        ],
+      }),
+    ];
+
+    const result = toMappingCreateDTOs('proj-1', groups);
+
+    expect(result).toHaveLength(3);
+    expect(result[2]?.source_account_type).toBe('Liability');
+    expect(result[2]?.target_account_type).toBe('Current Liability');
   });
 });
 
