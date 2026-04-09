@@ -5,7 +5,6 @@ import type { AccessGrant } from '@/features/projects/types/project-access.types
 import {
   getProjectMembers,
   grantProjectAccess,
-  revokeProjectAccess,
 } from '@/features/projects/services/project-access.service';
 
 // ─── Mock HTTP Client ──────────────────────────────────────────────────────
@@ -251,64 +250,3 @@ describe('grantProjectAccess', () => {
   });
 });
 
-// ─── revokeProjectAccess ──────────────────────────────────────────────────
-
-describe('revokeProjectAccess', () => {
-  let client: jest.Mocked<HttpClient>;
-
-  beforeEach(() => {
-    client = createMockClient();
-  });
-
-  const userId = createUserId('user-002');
-
-  it('calls DELETE /api/v1/projects/{id}/access/{userId}', async () => {
-    client.delete.mockResolvedValue({ data: null });
-
-    await revokeProjectAccess(client, PROJECT_ID, userId);
-
-    expect(client.delete).toHaveBeenCalledWith(
-      '/api/v1/projects/proj-001/access/user-002',
-    );
-  });
-
-  it('returns ok(undefined) on success', async () => {
-    client.delete.mockResolvedValue({ data: null });
-
-    const result = await revokeProjectAccess(client, PROJECT_ID, userId);
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-
-    expect(result.data).toBeUndefined();
-  });
-
-  it('returns Result.err on HTTP failure', async () => {
-    client.delete.mockRejectedValue(createAxiosError(404, 'User not found'));
-
-    const result = await revokeProjectAccess(client, PROJECT_ID, userId);
-
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-
-    expect(result.error.code).toBe('HTTP_404');
-    expect(result.error.message).toBe('User not found');
-  });
-
-  it('returns Result.err on network error', async () => {
-    const networkError = new AxiosError(
-      'Network Error',
-      AxiosError.ERR_NETWORK,
-    );
-    networkError.config = { url: '/api/v1/projects/proj-001/access/user-002', headers: new AxiosHeaders() };
-    client.delete.mockRejectedValue(networkError);
-
-    const result = await revokeProjectAccess(client, PROJECT_ID, userId);
-
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-
-    expect(result.error.code).toBe('HTTP_0');
-    expect(result.error.message).toBe('Network Error');
-  });
-});

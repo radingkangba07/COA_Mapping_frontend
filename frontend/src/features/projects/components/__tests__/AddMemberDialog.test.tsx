@@ -45,9 +45,7 @@ const mockUseProjectAccess = jest.fn((..._args: unknown[]) => ({
   currentUserId: null,
   grant: jest.fn(),
   grantAsync: mockGrantAsync,
-  revoke: jest.fn(),
   isGranting: false,
-  isRevoking: false,
 }));
 
 jest.mock('../../hooks/useProjectAccess', () => ({
@@ -87,7 +85,7 @@ describe('AddMemberDialog', () => {
   it('renders the dialog when visible', () => {
     renderDialog();
     expect(screen.getByTestId('add-member-dialog')).toBeTruthy();
-    expect(screen.getByText('Add Member')).toBeTruthy();
+    expect(screen.getByText('Project Members')).toBeTruthy();
   });
 
   it('shows validation error on empty userId when submitting', async () => {

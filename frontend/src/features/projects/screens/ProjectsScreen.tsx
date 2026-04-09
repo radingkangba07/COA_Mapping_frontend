@@ -215,7 +215,6 @@ export const ProjectsScreen = (): React.JSX.Element => {
       <NewProjectDialog
         visible={dialogVisible}
         onClose={handleCloseDialog}
-        companyOptions={groups}
         testID="new-project-dialog"
       />
     </Screen>

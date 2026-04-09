@@ -1,15 +1,15 @@
 import React, { useCallback } from 'react';
 import { Dialog } from '@/shared/components/ui/Dialog';
 import { useCreateProject } from '../hooks/useCreateProject';
+import { useUserOrgs } from '../hooks/useUserOrgs';
 import { ProjectForm } from './ProjectForm';
-import type { ProjectCreate, ProjectGroup } from '../types/projects.types';
+import type { ProjectCreate } from '../types/projects.types';
 import type { CompanyId } from '@/shared/types/common.types';
 
 interface NewProjectDialogProps {
   visible: boolean;
   onClose: () => void;
   companyId?: CompanyId;
-  companyOptions?: ProjectGroup[];
   testID?: string;
 }
 
@@ -17,10 +17,10 @@ export const NewProjectDialog = ({
   visible,
   onClose,
   companyId,
-  companyOptions,
   testID,
 }: NewProjectDialogProps): React.JSX.Element => {
   const mutation = useCreateProject(onClose);
+  const { orgs } = useUserOrgs(visible);
 
   const handleSubmit = useCallback(
     (data: ProjectCreate) => {
@@ -42,7 +42,7 @@ export const NewProjectDialog = ({
           isPending={mutation.isPending}
           onCancel={onClose}
           defaultCompanyId={companyId}
-          companyOptions={companyOptions}
+          companyOptions={orgs}
           testID="new-project-form"
         />
       </Dialog.Content>
