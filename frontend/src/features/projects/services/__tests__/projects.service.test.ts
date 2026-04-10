@@ -39,8 +39,8 @@ function createMockClient(): jest.Mocked<HttpClient> {
 const VALID_PROJECT_DTO = {
   id: 'proj-001',
   name: 'SAP to NetSuite Migration',
-  source_erp: 'sap',
-  target_erp: 'netsuite',
+  source_system: 'sap',
+  target_system: 'netsuite',
   status: 'draft' as const,
   company_id: 'comp-001',
   description: 'Annual migration',
@@ -52,8 +52,8 @@ const VALID_PROJECT_DTO = {
 const VALID_PROJECT_DTO_MINIMAL = {
   id: 'proj-002',
   name: 'QuickBooks Export',
-  source_erp: 'quickbooks',
-  target_erp: 'xero',
+  source_system: 'quickbooks',
+  target_system: 'xero',
   status: 'in_progress' as const,
   company_id: null,
   description: null,
@@ -310,13 +310,13 @@ describe('createProject', () => {
 
     expect(client.post).toHaveBeenCalledWith('/api/v1/projects', {
       name: 'SAP to NetSuite Migration',
-      source_erp: 'sap',
-      target_erp: 'netsuite',
+      source_system: 'sap',
+      target_system: 'netsuite',
       description: 'Annual migration',
     });
   });
 
-  it('maps sourceErp to source_erp and targetErp to target_erp', async () => {
+  it('maps sourceErp to source_system and targetErp to target_system', async () => {
     client.post.mockResolvedValue({ data: VALID_PROJECT_DTO });
 
     const input: ProjectCreate = {
@@ -328,8 +328,8 @@ describe('createProject', () => {
     await createProject(client, input);
 
     const payload = client.post.mock.calls[0]?.[1] as Record<string, unknown>;
-    expect(payload).toHaveProperty('source_erp', 'quickbooks');
-    expect(payload).toHaveProperty('target_erp', 'xero');
+    expect(payload).toHaveProperty('source_system', 'quickbooks');
+    expect(payload).toHaveProperty('target_system', 'xero');
     expect(payload).not.toHaveProperty('sourceErp');
     expect(payload).not.toHaveProperty('targetErp');
   });
@@ -439,11 +439,11 @@ describe('updateProject', () => {
 
     expect(client.patch).toHaveBeenCalledWith('/api/v1/projects/proj-001', {
       name: 'Updated Name',
-      source_erp: 'dynamics365',
+      source_system: 'dynamics365',
     });
   });
 
-  it('maps sourceErp to source_erp in patch payload', async () => {
+  it('maps sourceErp to source_system in patch payload', async () => {
     client.patch.mockResolvedValue({ data: VALID_PROJECT_DTO });
 
     await updateProject(client, createProjectId('proj-001'), {
@@ -451,11 +451,11 @@ describe('updateProject', () => {
     });
 
     const payload = client.patch.mock.calls[0]?.[1] as Record<string, unknown>;
-    expect(payload).toHaveProperty('source_erp', 'sage');
+    expect(payload).toHaveProperty('source_system', 'sage');
     expect(payload).not.toHaveProperty('sourceErp');
   });
 
-  it('maps targetErp to target_erp in patch payload', async () => {
+  it('maps targetErp to target_system in patch payload', async () => {
     client.patch.mockResolvedValue({ data: VALID_PROJECT_DTO });
 
     await updateProject(client, createProjectId('proj-001'), {
@@ -463,7 +463,7 @@ describe('updateProject', () => {
     });
 
     const payload = client.patch.mock.calls[0]?.[1] as Record<string, unknown>;
-    expect(payload).toHaveProperty('target_erp', 'odoo');
+    expect(payload).toHaveProperty('target_system', 'odoo');
     expect(payload).not.toHaveProperty('targetErp');
   });
 

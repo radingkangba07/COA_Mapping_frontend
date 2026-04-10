@@ -111,8 +111,8 @@ export async function getHierarchicalMapping(
     const body: HierarchicalMappingRequestDTO = {
       source_data: sourceData,
       target_data: targetData,
-      source_erp: sourceErp,
-      target_erp: targetErp,
+      source_system: sourceErp,
+      target_system: targetErp,
     };
 
     const response = await client.post<HierarchicalMappingResponse>(
