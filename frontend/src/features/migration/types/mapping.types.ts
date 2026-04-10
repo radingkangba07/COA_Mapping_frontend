@@ -84,8 +84,8 @@ export interface MappingBulkUpdateDTO {
 export interface HierarchicalMappingRequestDTO {
   readonly source_data: Record<string, unknown>[];
   readonly target_data?: Record<string, unknown>[] | undefined;
-  readonly source_erp?: string | undefined;
-  readonly target_erp?: string | undefined;
+  readonly source_system?: string | undefined;
+  readonly target_system?: string | undefined;
 }
 
 export interface MappingResponseDTO {

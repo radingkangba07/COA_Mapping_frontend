@@ -11,8 +11,8 @@ import type { Project, ProjectCreate, ProjectUpdate } from '../types/projects.ty
 export const projectResponseSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  source_erp: z.string(),
-  target_erp: z.string(),
+  source_system: z.string(),
+  target_system: z.string(),
   status: z.enum(['draft', 'in_progress', 'pending_review', 'completed']),
   company_id: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
@@ -36,8 +36,8 @@ export function toProject(dto: ProjectResponseDTO): Project {
   return {
     projectId: createProjectId(dto.id),
     name: dto.name,
-    sourceErp: dto.source_erp,
-    targetErp: dto.target_erp,
+    sourceErp: dto.source_system,
+    targetErp: dto.target_system,
     status: dto.status,
     companyId: dto.company_id ? createCompanyId(dto.company_id) : undefined,
     description: dto.description ?? undefined,
@@ -57,11 +57,11 @@ export function toCreatePayload(
   };
 
   if (data.sourceErp !== undefined) {
-    payload.source_erp = data.sourceErp;
+    payload.source_system = data.sourceErp;
   }
 
   if (data.targetErp !== undefined) {
-    payload.target_erp = data.targetErp;
+    payload.target_system = data.targetErp;
   }
 
   if (data.companyId !== undefined) {
@@ -89,10 +89,10 @@ export function toUpdatePayload(
     payload.name = data.name;
   }
   if (data.sourceErp !== undefined) {
-    payload.source_erp = data.sourceErp;
+    payload.source_system = data.sourceErp;
   }
   if (data.targetErp !== undefined) {
-    payload.target_erp = data.targetErp;
+    payload.target_system = data.targetErp;
   }
   if (data.description !== undefined) {
     payload.description = data.description;

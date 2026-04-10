@@ -327,8 +327,8 @@ describe('getHierarchicalMapping', () => {
     expect(mockClient.post).toHaveBeenCalledWith('/api/v1/mappings/hierarchical', {
       source_data: sourceData,
       target_data: undefined,
-      source_erp: 'sap',
-      target_erp: 'xero',
+      source_system: 'sap',
+      target_system: 'xero',
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -354,8 +354,8 @@ describe('getHierarchicalMapping', () => {
     expect(mockClient.post).toHaveBeenCalledWith('/api/v1/mappings/hierarchical', {
       source_data: sourceData,
       target_data: targetData,
-      source_erp: 'sap',
-      target_erp: 'xero',
+      source_system: 'sap',
+      target_system: 'xero',
     });
   });
 
