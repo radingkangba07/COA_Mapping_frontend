@@ -4,6 +4,7 @@ import { colors } from '@/config/theme';
 import { LoginScreen } from '@/features/auth/screens/LoginScreen';
 import { RegisterScreen } from '@/features/auth/screens/RegisterScreen';
 import { CheckEmailScreen } from '@/features/auth/screens/CheckEmailScreen';
+import { AuthCallbackScreen } from '@/features/auth/screens/AuthCallbackScreen';
 import { PlaceholderScreen } from '../screens/PlaceholderScreen';
 import type { AuthStackParamList } from '../types';
 
@@ -38,6 +39,11 @@ export const AuthStack = (): React.JSX.Element => {
       name="CheckEmail"
       component={CheckEmailScreen}
       options={{ title: 'Verify Email', headerBackVisible: false }}
+    />
+    <Stack.Screen
+      name="AuthCallback"
+      component={AuthCallbackScreen}
+      options={{ headerShown: false }}
     />
     <Stack.Screen
       name="ForgotPassword"

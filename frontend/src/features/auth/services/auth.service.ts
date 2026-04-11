@@ -20,9 +20,9 @@ const meResponseSchema = z.object({
   name: z.string(),
   email: z.string().email(),
   is_verified: z.boolean(),
-  organizations: z.array(
+  orgs: z.array(
     z.object({
-      org_id: z.string(),
+      id: z.string(),
       name: z.string(),
       role: z.enum(['owner', 'admin', 'member']),
     }),
@@ -42,8 +42,8 @@ function toUser(dto: z.infer<typeof meResponseSchema>): User {
     name: dto.name,
     email: dto.email,
     isVerified: dto.is_verified,
-    organizations: dto.organizations.map((org) => ({
-      orgId: createOrgId(org.org_id),
+    organizations: dto.orgs.map((org) => ({
+      orgId: createOrgId(org.id),
       name: org.name,
       role: org.role,
     })),

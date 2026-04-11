@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, type LinkingOptions } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from '@/shared/components/feedback/Toast';
@@ -10,6 +10,23 @@ import { useAppStore } from '@/shared/store/app.store';
 import { storageService } from '@/shared/services/storage/storage.service';
 import { STORAGE_KEYS } from '@/shared/services/storage/storage.types';
 import { ThemeSynchronizer } from '@/bootstrap/providers/ThemeSynchronizer';
+import type { RootStackParamList } from '@/navigation/types';
+
+// Deep-linking config — routes browser URLs to React Navigation screens.
+// Currently scoped to the magic-link callback; other routes are unaffected
+// since they have no path mapping and fall through to the default initial route.
+const linking: LinkingOptions<RootStackParamList> = {
+  prefixes: [typeof window !== 'undefined' ? window.location.origin : 'http://localhost'],
+  config: {
+    screens: {
+      Auth: {
+        screens: {
+          AuthCallback: 'auth/callback',
+        },
+      },
+    },
+  },
+};
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -52,7 +69,7 @@ export function AppProviders({ children }: AppProvidersProps): React.JSX.Element
       <SafeAreaProvider>
         <ThemeSynchronizer isReady={isThemeReady} />
         <OfflineBanner />
-        <NavigationContainer>
+        <NavigationContainer linking={linking}>
           {children}
         </NavigationContainer>
         <Toast config={toastConfig} />

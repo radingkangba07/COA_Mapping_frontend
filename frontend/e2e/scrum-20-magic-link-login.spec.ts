@@ -6,12 +6,13 @@ import { SELECTORS, waitForApp, isLoginVisible, setAuthTokens } from './helpers'
 // ---------------------------------------------------------------------------
 
 const MOCK_USER = {
+  id: 'test-user-uuid',
   user_id: 'test-user-id',
   name: 'Jane Doe',
   email: 'jane@acme.com',
   is_verified: true,
-  organizations: [
-    { org_id: 'org-1', name: 'Acme Corp', role: 'owner' },
+  orgs: [
+    { id: 'org-1', name: 'Acme Corp', role: 'owner' },
   ],
 };
 
