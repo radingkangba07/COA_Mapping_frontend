@@ -72,9 +72,9 @@ const validMeResponse = {
   name: 'Jane Doe',
   email: 'jane@example.com',
   is_verified: true,
-  organizations: [
-    { org_id: 'org-1', name: 'Acme Inc', role: 'owner' as const },
-    { org_id: 'org-2', name: 'Beta Corp', role: 'member' as const },
+  orgs: [
+    { id: 'org-1', name: 'Acme Inc', role: 'owner' as const },
+    { id: 'org-2', name: 'Beta Corp', role: 'member' as const },
   ],
 };
 
