@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useShallow } from 'zustand/react/shallow';
@@ -26,7 +26,11 @@ import { MigrationStepper } from '../components/MigrationStepper/MigrationSteppe
 import { MappingTableSkeleton } from '../components/MappingTableSkeleton';
 import { useHydrateProject } from '../hooks/useHydrateProject';
 import { useFuzzyMapper } from '../hooks/useFuzzyMapper';
+import { useSyncStep } from '../hooks/useSyncStep';
 import { useMigrationStore } from '../store/migration.store';
+import { getHierarchicalMapping } from '../services/mapping.service';
+import { httpClient } from '@/shared/services/http/http.instance';
+import { useToast } from '@/shared/hooks/useToast';
 import { selectTypeMappingSummary } from '../store/migration.selectors';
 import { useMigrationScreenRoute } from '@/navigation/types';
 import { createProjectId } from '@/shared/types/common.types';
@@ -65,6 +69,128 @@ export const MappingScreen = (): React.JSX.Element => {
   );
 
   const { runMapping, isMapping } = useFuzzyMapper();
+  const syncStep = useSyncStep();
+  const { showSuccess, showError } = useToast();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingMessage, setProcessingMessage] = useState('Submitting mapping job...');
+  const cancelledRef = useRef(false);
+
+  // Poll for a job's completion. Extracted so it can be called from both
+  // handleProceed (initial submit) and the focus listener (resume).
+  const pollJobStatus = useCallback(async (jobId: string): Promise<boolean> => {
+    setIsProcessing(true);
+    setProcessingMessage('Matching accounts — this may take a moment...');
+    console.log('[MAPPING] Starting poll loop for job:', jobId);
+
+    const maxAttempts = 60;
+    for (let i = 0; i < maxAttempts; i++) {
+      if (cancelledRef.current) {
+        console.log('[MAPPING] Poll cancelled (pre-sleep)');
+        return false;
+      }
+
+      await new Promise((r) => setTimeout(r, 5000));
+
+      if (cancelledRef.current) {
+        console.log('[MAPPING] Poll cancelled (post-sleep)');
+        return false;
+      }
+
+      try {
+        const resp = await httpClient.get<{
+          job_id: string;
+          status: string;
+          progress: number;
+          is_complete: boolean;
+          has_error: boolean;
+        }>(`/api/v1/jobs/${jobId}/status`);
+
+        if (cancelledRef.current) {
+          console.log('[MAPPING] Poll cancelled (post-fetch)');
+          return false;
+        }
+
+        const { status, progress, is_complete, has_error } = resp.data;
+        console.log(`[MAPPING] Poll #${i + 1}:`, { status, progress, is_complete, has_error });
+
+        if (has_error) {
+          console.error('[MAPPING] Job error — aborting');
+          showError('Mapping failed', 'The mapping job encountered an error.');
+          setIsProcessing(false);
+          return false;
+        }
+
+        if (is_complete) {
+          console.log('[MAPPING] Job complete');
+          setProcessingMessage('Mapping complete — loading results...');
+          setIsProcessing(false);
+          return true;
+        }
+
+        const pct = Math.round(progress * 100);
+        setProcessingMessage(
+          status === 'processing'
+            ? `Processing account mappings... ${pct > 0 ? `${pct}%` : ''}`
+            : 'Waiting for job to start...',
+        );
+      } catch (pollErr) {
+        console.warn('[MAPPING] Poll network error, retrying...', pollErr);
+      }
+    }
+
+    setIsProcessing(false);
+    return false;
+  }, [showError]);
+
+  // Cancel polling on blur, resume on focus if there's an incomplete job.
+  // React Navigation keeps stack screens mounted in the background, so
+  // unmount/projectId-change cleanup never fires.
+  useEffect(() => {
+    const unsubBlur = navigation.addListener('blur', () => {
+      console.log('[MAPPING] blur — cancelling polling for:', projectId);
+      cancelledRef.current = true;
+      setIsProcessing(false);
+    });
+    const unsubFocus = navigation.addListener('focus', () => {
+      console.log('[MAPPING] focus:', projectId);
+      cancelledRef.current = false;
+
+      // Resume polling if there's a pending job for this project
+      const store = useMigrationStore.getState();
+      if (store.jobId && store.projectId === projectId && store.currentStep < 3) {
+        console.log('[MAPPING] Resuming poll for job:', store.jobId);
+        void (async () => {
+          const completed = await pollJobStatus(store.jobId!);
+          if (completed && !cancelledRef.current) {
+            showSuccess('Mapping complete', 'Review your account mappings.');
+            useMigrationStore.getState().completeStep(2);
+            useMigrationStore.getState().setStep(3);
+            syncStep(3);
+            navigation.navigate('Validation', { projectId });
+          }
+        })();
+      }
+    });
+    return () => {
+      console.log('[MAPPING] unmount — cancelling polling for:', projectId);
+      cancelledRef.current = true;
+      unsubBlur();
+      unsubFocus();
+    };
+  }, [navigation, projectId, pollJobStatus, showSuccess, syncStep]);
+
+  console.log('[MAPPING] render:', {
+    projectId,
+    isProcessing,
+    isHydrating,
+    currentStep,
+    storeProjectId: useMigrationStore.getState().projectId,
+    storeJobId: useMigrationStore.getState().jobId,
+    hasSourceFile: !!useMigrationStore.getState().sourceFile,
+    hasTargetFile: !!useMigrationStore.getState().targetFile,
+    sourceFileId: useMigrationStore.getState().sourceFile?.fileId ?? null,
+    targetFileId: useMigrationStore.getState().targetFile?.fileId ?? null,
+  });
   const mappingSummary = useMigrationStore(useShallow(selectTypeMappingSummary));
 
   const targetOptions = useMemo<SelectOption[]>(
@@ -99,13 +225,66 @@ export const MappingScreen = (): React.JSX.Element => {
   }, [actions, navigation, projectId]);
 
   const handleProceed = useCallback(async (): Promise<void> => {
-    await runMapping();
-    // runMapping sets step to 3 on success — navigate to Validation (COA Mapping) screen
-    const step = useMigrationStore.getState().currentStep;
-    if (step === 3) {
+    const store = useMigrationStore.getState();
+    const { sourceFile, targetFile, mappingFile } = store;
+
+    console.log('[MAPPING] handleProceed called:', {
+      projectId,
+      storeProjectId: store.projectId,
+      jobId: store.jobId,
+      sourceFileId: sourceFile?.fileId ?? null,
+      targetFileId: targetFile?.fileId ?? null,
+    });
+
+    if (!projectId || !sourceFile || !targetFile) {
+      showError('Missing files', 'Go back to Upload and submit your files first.');
+      return;
+    }
+
+    cancelledRef.current = false;
+    setIsProcessing(true);
+    setProcessingMessage('Submitting mapping job...');
+
+    let jobId = store.jobId;
+
+    // Create the mapping job if one doesn't exist yet
+    if (!jobId) {
+      console.log('[MAPPING] No existing jobId — calling getHierarchicalMapping');
+      const result = await getHierarchicalMapping(
+        httpClient,
+        projectId,
+        sourceFile.fileId,
+        targetFile.fileId,
+        mappingFile?.fileId,
+      );
+
+      if (cancelledRef.current) return;
+
+      if (!result.ok) {
+        showError('Mapping failed', result.error.message);
+        setIsProcessing(false);
+        return;
+      }
+
+      jobId = result.data.job_id;
+      console.log('[MAPPING] Job created:', { jobId });
+      useMigrationStore.getState().setJobId(jobId);
+    } else {
+      console.log('[MAPPING] Reusing existing jobId:', jobId);
+    }
+
+    // Poll until complete
+    const completed = await pollJobStatus(jobId);
+
+    if (completed && !cancelledRef.current) {
+      console.log('[MAPPING] Advancing step and navigating:', { projectId });
+      showSuccess('Mapping complete', 'Review your account mappings.');
+      useMigrationStore.getState().completeStep(2);
+      useMigrationStore.getState().setStep(3);
+      syncStep(3);
       navigation.navigate('Validation', { projectId });
     }
-  }, [runMapping, navigation, projectId]);
+  }, [navigation, projectId, showError, showSuccess, syncStep, pollJobStatus]);
 
   const handleSaveCSV = useCallback((): void => {
     const csvContent =
@@ -139,6 +318,8 @@ export const MappingScreen = (): React.JSX.Element => {
 
   const sourceERPName = sourceERP?.name ?? 'Source';
   const targetERPName = targetERP?.name ?? 'Target';
+
+  const processingBarStyle = useMemo(() => ({ width: '60%' as const }), []);
 
   if (isHydrating) {
     return (
@@ -207,6 +388,29 @@ export const MappingScreen = (): React.JSX.Element => {
           onStepPress={handleStepPress}
         />
 
+        {isProcessing && (
+          <View className="items-center px-6 py-8">
+            <View className="w-full max-w-sm items-center rounded-2xl border border-border bg-card p-8 shadow-sm">
+              <View className="mb-6 h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+                <Spinner size="lg" />
+              </View>
+              <Text className="font-heading text-lg font-semibold text-foreground text-center">
+                Processing Mappings
+              </Text>
+              <Text className="mt-2 font-body text-sm text-muted-foreground text-center">
+                {processingMessage}
+              </Text>
+              <View className="mt-6 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <View className="h-full rounded-full bg-primary animate-pulse" style={processingBarStyle} />
+              </View>
+              <Text className="mt-4 font-body text-xs text-muted-foreground text-center">
+                This usually takes 10–30 seconds. Please don't close this page.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {!isProcessing && (<>
         <View className="mt-4 mb-2">
           <Text className="font-heading text-lg font-bold text-foreground">
             Review Account Type Mapping
@@ -363,6 +567,7 @@ export const MappingScreen = (): React.JSX.Element => {
             </View>
           </Button>
         </View>
+        </>)}
       </View>
     </MigrationLayout>
   );

@@ -97,22 +97,22 @@ export function toMappingCreateDTOs(
 // ─── Service Functions ──────────────────────────────────────────────────────
 
 /**
- * POST to /api/v1/mappings/hierarchical — get grouped account mappings.
- * Port of App.js:1486-1530 (handleProceedToMapping).
+ * POST to /api/v1/mappings/hierarchical — submit a mapping job using file references.
+ * Returns a job reference ({job_id, project_id, status}), not inline results.
  */
 export async function getHierarchicalMapping(
   client: HttpClient,
-  sourceData: Record<string, unknown>[],
-  targetData?: Record<string, unknown>[],
-  sourceErp?: string,
-  targetErp?: string,
+  projectId: string,
+  sourceFileId: string,
+  targetFileId: string,
+  mappingFileId?: string,
 ): Promise<Result<HierarchicalMappingResponse, AppError>> {
   try {
     const body: HierarchicalMappingRequestDTO = {
-      source_data: sourceData,
-      target_data: targetData,
-      source_system: sourceErp,
-      target_system: targetErp,
+      project_id: projectId,
+      source_file_id: sourceFileId,
+      target_file_id: targetFileId,
+      mapping_file_id: mappingFileId,
     };
 
     const response = await client.post<HierarchicalMappingResponse>(

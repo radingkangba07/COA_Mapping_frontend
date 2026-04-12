@@ -177,6 +177,23 @@ export async function hydrateProject(
     }
   }
 
+  // Restore jobId from backend — check if this project has an active mapping job
+  try {
+    const jobsResp = await client.get<Array<{ id: string; job_type: string; status: string }>>(
+      `/api/v1/jobs/project/${projectId}`,
+    );
+    console.log('[hydrateProject] jobs for project:', jobsResp.data.map((j) => ({ id: j.id, type: j.job_type, status: j.status })));
+    const accountJob = jobsResp.data.find((j) => j.job_type === 'account_matching');
+    if (accountJob) {
+      console.log('[hydrateProject] restoring jobId:', accountJob.id);
+      store.setJobId(accountJob.id);
+    } else {
+      console.log('[hydrateProject] no account_matching job found');
+    }
+  } catch (jobErr) {
+    console.warn('[hydrateProject] failed to fetch jobs — continuing without jobId', jobErr);
+  }
+
   // Step 2 (TypeMapping): needs target types + type mapping rows
   if (targetStep <= MIGRATION_STEPS.TYPE_MAPPING) {
     return { ok: true };

@@ -33,13 +33,9 @@ export interface GroupedMapping {
 // ─── API Response Types ────────────────────────────────────────────────────
 
 export interface HierarchicalMappingResponse {
-  readonly type_column: string | null;
-  readonly name_column: string | null;
-  readonly number_column: string | null;
-  readonly target_types: readonly string[];
-  readonly grouped_mappings: readonly GroupedMapping[];
-  readonly total_accounts: number;
-  readonly total_types: number;
+  readonly job_id: string;
+  readonly project_id: string;
+  readonly status: string;
 }
 
 // ─── Field Mapping ─────────────────────────────────────────────────────────
@@ -82,10 +78,11 @@ export interface MappingBulkUpdateDTO {
 }
 
 export interface HierarchicalMappingRequestDTO {
-  readonly source_data: Record<string, unknown>[];
-  readonly target_data?: Record<string, unknown>[] | undefined;
-  readonly source_system?: string | undefined;
-  readonly target_system?: string | undefined;
+  readonly project_id: string;
+  readonly source_file_id: string;
+  readonly target_file_id: string;
+  readonly mapping_file_id?: string | undefined;
+  readonly account_type_mapping_file_id?: string | undefined;
 }
 
 export interface MappingResponseDTO {
