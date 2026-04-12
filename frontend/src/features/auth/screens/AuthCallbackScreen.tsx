@@ -8,14 +8,14 @@ import type { AuthStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'AuthCallback'>;
 
-function readTokensFromWindow(): { accessToken?: string; refreshToken?: string } {
+function readTokensFromWindow(): { access_token?: string; refresh_token?: string } {
   if (Platform.OS !== 'web' || typeof window === 'undefined') {
     return {};
   }
   const params = new URLSearchParams(window.location.search);
   return {
-    accessToken: params.get('access_token') ?? undefined,
-    refreshToken: params.get('refresh_token') ?? undefined,
+    access_token: params.get('access_token') ?? undefined,
+    refresh_token: params.get('refresh_token') ?? undefined,
   };
 }
 
@@ -26,6 +26,10 @@ function clearUrlQueryString(): void {
   window.history.replaceState(null, '', window.location.pathname);
 }
 
+// Note: the primary magic-link callback flow is handled in useSessionGuard,
+// which reads tokens directly from window.location before any navigation
+// renders. This screen is a fallback in case someone navigates here
+// programmatically or the URL is matched via a future linking config.
 export const AuthCallbackScreen = ({ route, navigation }: Props): React.JSX.Element => {
   const hasRunRef = useRef(false);
 
@@ -38,8 +42,8 @@ export const AuthCallbackScreen = ({ route, navigation }: Props): React.JSX.Elem
     const fromParams = route.params ?? {};
     const fromUrl = readTokensFromWindow();
 
-    const accessToken = fromParams.accessToken ?? fromUrl.accessToken;
-    const refreshToken = fromParams.refreshToken ?? fromUrl.refreshToken;
+    const accessToken = fromParams.access_token ?? fromUrl.access_token;
+    const refreshToken = fromParams.refresh_token ?? fromUrl.refresh_token;
 
     if (accessToken === undefined || refreshToken === undefined) {
       navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
@@ -51,10 +55,6 @@ export const AuthCallbackScreen = ({ route, navigation }: Props): React.JSX.Elem
 
       clearUrlQueryString();
 
-      // If profile fetch failed, the store cleared tokens and set an error.
-      // RootNavigator will still be on the Auth stack — send the user to Login.
-      // On success, selectIsAuthenticated flips to true and RootNavigator
-      // automatically swaps to the App stack.
       const { user, accessToken: storedToken } = useAuthStore.getState();
       if (user === null || storedToken === null) {
         navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
