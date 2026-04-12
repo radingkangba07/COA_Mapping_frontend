@@ -41,9 +41,9 @@ export function useSidebarData(projectId: string): SidebarContentProps {
     projectId: project?.projectId ?? null,
     projectName: project?.name,
     createdAt: project?.createdAt ?? undefined,
-    createdByName: project?.createdBy ?? user?.name,
+    createdByName: project?.createdByName ?? user?.name,
     updatedAt: project?.updatedAt ?? undefined,
-    lastEditedBy: project?.updatedBy ?? project?.createdBy ?? user?.name,
+    lastEditedBy: project?.updatedByName ?? project?.createdByName ?? user?.name,
     sourceERP: resolvedSourceERP,
     targetERP: resolvedTargetERP,
     currentUser: user

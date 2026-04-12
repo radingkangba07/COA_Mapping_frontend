@@ -20,6 +20,8 @@ export const projectResponseSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   updated_by: z.string().nullable().optional(),
+  created_by_name: z.string().nullable().optional(),
+  updated_by_name: z.string().nullable().optional(),
   current_step: z.number().int().min(0).default(0),
 });
 
@@ -45,6 +47,8 @@ export function toProject(dto: ProjectResponseDTO): Project {
     createdAt: new Date(dto.created_at),
     updatedAt: new Date(dto.updated_at),
     updatedBy: dto.updated_by ? createUserId(dto.updated_by) : undefined,
+    createdByName: dto.created_by_name ?? undefined,
+    updatedByName: dto.updated_by_name ?? undefined,
     currentStep: dto.current_step,
   };
 }
