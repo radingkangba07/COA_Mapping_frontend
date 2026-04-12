@@ -15,7 +15,12 @@ export type AuthStackParamList = {
   Login: undefined;
   Register: undefined;
   CheckEmail: { email: string };
-  AuthCallback: { accessToken?: string; refreshToken?: string; error?: string };
+  // Params use snake_case because React Navigation v7 populates `route.params`
+  // from the magic-link URL query string as-is, and the backend emits the
+  // tokens as `?access_token=...&refresh_token=...` (see backend
+  // auth/routes.py:91). Mapping to camelCase happens inside AuthCallbackScreen
+  // at the boundary to the Zustand store.
+  AuthCallback: { access_token?: string; refresh_token?: string; error?: string };
   ForgotPassword: undefined;
 };
 
