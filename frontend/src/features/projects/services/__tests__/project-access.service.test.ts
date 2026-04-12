@@ -35,15 +35,15 @@ function createMockClient(): jest.Mocked<HttpClient> {
 
 const VALID_ACCESS_DTO = {
   user_id: 'user-001',
-  name: 'John Doe',
-  email: 'john@acme.com',
+  user_name: 'John Doe',
+  user_email: 'john@acme.com',
   permission: 'admin' as const,
 };
 
 const VALID_ACCESS_DTO_VIEWER = {
   user_id: 'user-002',
-  name: 'Alice Smith',
-  email: 'alice@acme.com',
+  user_name: 'Alice Smith',
+  user_email: 'alice@acme.com',
   permission: 'viewer' as const,
 };
 
@@ -120,7 +120,7 @@ describe('getProjectMembers', () => {
 
   it('returns INVALID_RESPONSE when DTO validation fails', async () => {
     client.get.mockResolvedValue({
-      data: [{ user_id: '', name: 123, email: 'not-an-email' }],
+      data: [{ user_id: '', user_name: 123, user_email: 'not-an-email' }],
     });
 
     const result = await getProjectMembers(client, PROJECT_ID);
@@ -195,8 +195,8 @@ describe('grantProjectAccess', () => {
   it('returns mapped AccessResponse on success', async () => {
     const responseDto = {
       user_id: 'user-003',
-      name: 'Bob Jones',
-      email: 'bob@acme.com',
+      user_name: 'Bob Jones',
+      user_email: 'bob@acme.com',
       permission: 'editor' as const,
     };
     client.post.mockResolvedValue({ data: responseDto });

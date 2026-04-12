@@ -68,6 +68,7 @@ function createAxiosError(status: number, message: string): AxiosError {
 // ─── Valid DTOs ──────────────────────────────────────────────────────────────
 
 const validMeResponse = {
+  id: 'uuid-usr-123',
   user_id: 'usr-123',
   name: 'Jane Doe',
   email: 'jane@example.com',
@@ -142,6 +143,7 @@ describe('fetchUserProfile', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.data).toEqual({
+      id: 'uuid-usr-123',
       userId: createUserId('usr-123'),
       name: 'Jane Doe',
       email: 'jane@example.com',

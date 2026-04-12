@@ -12,8 +12,8 @@ import type { AccessResponse, AccessGrant } from '../types/project-access.types'
 
 const accessResponseDTOSchema = z.object({
   user_id: z.string().min(1),
-  name: z.string(),
-  email: z.string().email(),
+  user_name: z.string().nullable().optional(),
+  user_email: z.string().nullable().optional(),
   permission: z.enum(['viewer', 'editor', 'approver', 'admin']),
 });
 
@@ -26,8 +26,8 @@ const accessListSchema = z.array(accessResponseDTOSchema);
 function toAccessResponse(dto: AccessResponseDTO): AccessResponse {
   return {
     userId: createUserId(dto.user_id),
-    name: dto.name,
-    email: dto.email,
+    name: dto.user_name ?? '',
+    email: dto.user_email ?? '',
     permission: dto.permission,
   };
 }
