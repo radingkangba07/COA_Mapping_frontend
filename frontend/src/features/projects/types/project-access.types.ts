@@ -15,7 +15,7 @@ export interface AccessResponse {
 }
 
 export interface AccessGrant {
-  readonly userId: UserId;
+  readonly email: string;
   readonly permission: ProjectPermission;
 }
 

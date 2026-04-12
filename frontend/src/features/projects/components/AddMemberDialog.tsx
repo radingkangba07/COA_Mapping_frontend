@@ -4,7 +4,6 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import type { ProjectId } from '@/shared/types/common.types';
-import { createUserId } from '@/shared/types/common.types';
 import { Dialog } from '@/shared/components/ui/Dialog';
 import { Input } from '@/shared/components/ui/Input';
 import { Select, type SelectOption } from '@/shared/components/ui/Select';
@@ -18,7 +17,7 @@ import { MemberBadge } from './MemberBadge';
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
 const addMemberSchema = z.object({
-  userId: z.string().min(1, 'User ID required'),
+  email: z.string().email('Please enter a valid email address'),
   permission: z.enum(PROJECT_PERMISSIONS),
 });
 
@@ -32,7 +31,7 @@ const PERMISSION_OPTIONS: SelectOption[] = PROJECT_PERMISSIONS.map((p) => ({
 }));
 
 const DEFAULT_VALUES: AddMemberFormValues = {
-  userId: '',
+  email: '',
   permission: 'viewer',
 };
 
@@ -83,7 +82,7 @@ export function AddMemberDialog({
     async (values: AddMemberFormValues): Promise<void> => {
       try {
         const result = await grantAsync({
-          userId: createUserId(values.userId),
+          email: values.email,
           permission: values.permission,
         });
         if (result.ok) {
@@ -162,15 +161,15 @@ export function AddMemberDialog({
           </Text>
           <Controller
             control={control}
-            name="userId"
+            name="email"
             render={({ field: { onChange, onBlur, value } }) => (
               <Input
-                label="User"
-                placeholder="User ID or email"
+                label="Email address"
+                placeholder="colleague@company.com"
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
-                error={errors.userId?.message}
+                error={errors.email?.message}
                 testID="add-member-user-input"
               />
             )}

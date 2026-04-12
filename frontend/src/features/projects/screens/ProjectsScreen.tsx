@@ -9,6 +9,7 @@ import { Button } from '@/shared/components/ui/Button';
 import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorFallback';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { useProjectsViewModel } from '../hooks/useProjectsViewModel';
+import { useOrgsViewModel } from '../hooks/useOrgsViewModel';
 import { ProjectList } from '../components/ProjectList';
 import { ProjectListSkeleton } from '../components/ProjectListSkeleton';
 import { DashboardStats } from '../components/DashboardStats';
@@ -25,15 +26,10 @@ type ProjectsNav = NativeStackNavigationProp<ProjectsStackParamList, 'ProjectsLi
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function formatCompanyName(companyId: string, index: number): string {
-  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (uuidPattern.test(companyId)) {
-    return `Company ${String(index + 1)}`;
-  }
-  return companyId;
-}
-
-function groupProjectsByCompany(projects: readonly Project[]): ProjectGroup[] {
+function groupProjectsByCompany(
+  projects: readonly Project[],
+  orgNameMap: ReadonlyMap<string, string>,
+): ProjectGroup[] {
   const map = new Map<string, { companyId: CompanyId | null; projects: Project[] }>();
 
   for (const project of projects) {
@@ -67,11 +63,10 @@ function groupProjectsByCompany(projects: readonly Project[]): ProjectGroup[] {
     return (a.companyId as string).localeCompare(b.companyId as string);
   });
 
-  // Assign names after sorting so "Company 1" is always the first visible group
   return unsorted.map((entry, idx) => ({
     companyId: entry.companyId,
     companyName: entry.companyId !== null
-      ? formatCompanyName(entry.companyId as string, idx)
+      ? orgNameMap.get(entry.companyId as string) ?? `Company ${String(idx + 1)}`
       : 'Unassigned',
     projects: entry.projects,
   }));
@@ -82,10 +77,15 @@ function groupProjectsByCompany(projects: readonly Project[]): ProjectGroup[] {
 export const ProjectsScreen = (): React.JSX.Element => {
   const navigation = useNavigation<ProjectsNav>();
   const { projects, isLoading, error, refetch } = useProjectsViewModel();
+  const { orgs } = useOrgsViewModel();
   const [dialogVisible, setDialogVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const groups = useMemo(() => groupProjectsByCompany(projects), [projects]);
+  const orgNameMap = useMemo(
+    () => new Map(orgs.map((o) => [o.id as string, o.name])),
+    [orgs],
+  );
+  const groups = useMemo(() => groupProjectsByCompany(projects, orgNameMap), [projects, orgNameMap]);
 
   const totalProjects = projects.length;
   const totalCompanies = useMemo(

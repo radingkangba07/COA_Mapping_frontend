@@ -39,6 +39,9 @@ function getGrantErrorMessage(error: AppError): string {
   if (error.code === 'FORBIDDEN') {
     return 'You do not have permission to manage members';
   }
+  if (error.code === 'HTTP_404') {
+    return 'No account found with that email address. They need to register first.';
+  }
   return error.message;
 }
 
