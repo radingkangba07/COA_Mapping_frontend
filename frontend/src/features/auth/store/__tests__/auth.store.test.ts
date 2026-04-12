@@ -43,6 +43,7 @@ const mockLoadTokens = authService.loadTokens as jest.MockedFunction<
 // ─── Fixtures ──────────────────────────────────────────────────────────────
 
 const mockUser: User = {
+  id: 'uuid-user-1',
   userId: createUserId('user-1'),
   name: 'Test User',
   email: 'test@example.com',

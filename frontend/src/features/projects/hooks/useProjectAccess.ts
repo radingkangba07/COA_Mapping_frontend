@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { useToast } from '@/shared/hooks/useToast';
-import type { ProjectId, UserId } from '@/shared/types/common.types';
+import type { ProjectId } from '@/shared/types/common.types';
 import type { AppError, Result } from '@/shared/types/result.types';
 import { toAppError } from '@/shared/services/http/http.client';
 import type { AccessResponse, AccessGrant } from '../types/project-access.types';
@@ -24,7 +24,7 @@ interface ProjectAccessViewModel {
   readonly isLoading: boolean;
   readonly error: AppError | null;
   readonly canManage: boolean;
-  readonly currentUserId: UserId | null;
+  readonly currentUserId: string | null;
   readonly grant: (grant: AccessGrant) => void;
   readonly grantAsync: (grant: AccessGrant) => Promise<Result<AccessResponse, AppError>>;
   readonly isGranting: boolean;
@@ -48,7 +48,9 @@ export function useProjectAccess(
   projectId: ProjectId | null,
 ): ProjectAccessViewModel {
   const queryClient = useQueryClient();
-  const currentUserId = useAuthStore((s) => s.user?.userId ?? null);
+  // Compare by UUID (user.id), not the legacy handle (user.userId).
+  // The project access list returns database UUIDs, not legacy handles.
+  const currentUserUUID = useAuthStore((s) => s.user?.id ?? null);
   const { showSuccess, showError } = useToast();
 
   const queryKey = [QUERY_KEY_PREFIX, projectId] as const;
@@ -88,7 +90,7 @@ export function useProjectAccess(
   });
 
   const myPermission =
-    query.data?.find((m) => m.userId === currentUserId)?.permission ?? null;
+    query.data?.find((m) => String(m.userId) === currentUserUUID)?.permission ?? null;
 
   const error: AppError | null =
     query.error != null ? toAppError(query.error) : null;
@@ -98,7 +100,7 @@ export function useProjectAccess(
     isLoading: query.isLoading,
     error,
     canManage: canManageMembers(myPermission),
-    currentUserId,
+    currentUserId: currentUserUUID,
     grant: grantMutation.mutate,
     grantAsync: grantMutation.mutateAsync,
     isGranting: grantMutation.isPending,

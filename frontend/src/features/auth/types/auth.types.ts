@@ -10,6 +10,7 @@ export interface Organization {
 }
 
 export interface User {
+  readonly id: string;
   readonly userId: UserId;
   readonly name: string;
   readonly email: string;

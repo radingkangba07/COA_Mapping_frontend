@@ -16,6 +16,7 @@ const tokenPairSchema = z.object({
 });
 
 const meResponseSchema = z.object({
+  id: z.string(),
   user_id: z.string(),
   name: z.string(),
   email: z.string().email(),
@@ -38,6 +39,7 @@ const registerResponseSchema = z.object({
 
 function toUser(dto: z.infer<typeof meResponseSchema>): User {
   return {
+    id: dto.id,
     userId: createUserId(dto.user_id),
     name: dto.name,
     email: dto.email,

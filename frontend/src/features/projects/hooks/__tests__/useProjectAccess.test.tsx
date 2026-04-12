@@ -48,11 +48,11 @@ jest.mock('../../services/project-access.service', () => ({
     mockGrantProjectAccess(...args),
 }));
 
-let mockUserId: UserId | null = CURRENT_USER_ID;
+let mockUserUUID: string | null = 'current-user';
 
 jest.mock('@/features/auth/store/auth.store', () => ({
   useAuthStore: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({ user: mockUserId ? { userId: mockUserId } : null }),
+    selector({ user: mockUserUUID ? { id: mockUserUUID, userId: mockUserUUID } : null }),
 }));
 
 // ─── Import (after mocks) ──────────────────────────────────────────────────
@@ -89,7 +89,7 @@ function makeMember(
 describe('useProjectAccess', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUserId = CURRENT_USER_ID;
+    mockUserUUID = 'current-user';
     mockGetProjectMembers.mockResolvedValue(ok([]));
   });
 
@@ -192,7 +192,7 @@ describe('useProjectAccess', () => {
       wrapper: createWrapper(),
     });
 
-    expect(result.current.currentUserId).toBe(CURRENT_USER_ID);
+    expect(result.current.currentUserId).toBe('current-user');
     await waitFor(() => expect(result.current.members).toHaveLength(2));
     expect(result.current.members[0]?.userId).toBe(CURRENT_USER_ID);
     expect(result.current.members[1]?.userId).toBe(OTHER_USER_ID);
