@@ -14,10 +14,14 @@ interface ProjectCardProps {
   testID?: string;
 }
 
-function useResolveUserName(value: string | undefined): string {
+function useResolveUserName(
+  displayName: string | undefined,
+  fallbackId: string | undefined,
+): string {
   const currentUser = useAuthStore((s) => s.user);
-  if (value === undefined) return currentUser?.name ?? '—';
-  return value;
+  if (displayName !== undefined) return displayName;
+  if (fallbackId !== undefined) return fallbackId;
+  return currentUser?.name ?? '—';
 }
 
 export const ProjectCard = ({
@@ -27,7 +31,7 @@ export const ProjectCard = ({
 }: ProjectCardProps): React.JSX.Element => {
   const sourceErpName = getERPById(project.sourceErp)?.name ?? project.sourceErp;
   const targetErpName = getERPById(project.targetErp)?.name ?? project.targetErp;
-  const createdByName = useResolveUserName(project.createdBy);
+  const createdByName = useResolveUserName(project.createdByName, project.createdBy);
 
   return (
     <Pressable
