@@ -66,6 +66,18 @@ jest.mock('../../hooks/useProjectsViewModel', () => ({
   useProjectsViewModel: () => mockUseProjectsViewModel(),
 }));
 
+jest.mock('../../hooks/useOrgsViewModel', () => ({
+  useOrgsViewModel: () => ({
+    orgs: [],
+    activeOrg: null,
+    activeOrgId: null,
+    isLoading: false,
+    error: null,
+    setActiveOrg: jest.fn(),
+    refetch: jest.fn(),
+  }),
+}));
+
 // Mock child components as simple stubs
 jest.mock('../../components/ProjectList', () => ({
   ProjectList: (props: Record<string, unknown>) => {

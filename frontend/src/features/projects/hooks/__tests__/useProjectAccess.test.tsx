@@ -123,7 +123,7 @@ describe('useProjectAccess', () => {
   });
 
   describe('grant mutation', () => {
-    const grantPayload = { userId: OTHER_USER_ID, permission: 'editor' as const };
+    const grantPayload = { email: 'other@acme.com', permission: 'editor' as const };
 
     it('invalidates the cache on success', async () => {
       mockGetProjectMembers.mockResolvedValue(ok([makeMember(CURRENT_USER_ID, 'admin')]));

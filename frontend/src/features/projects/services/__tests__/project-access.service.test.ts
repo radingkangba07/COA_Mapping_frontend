@@ -167,29 +167,29 @@ describe('grantProjectAccess', () => {
   });
 
   const grant: AccessGrant = {
-    userId: createUserId('user-003'),
+    email: 'bob@acme.com',
     permission: 'editor',
   };
 
-  it('calls POST /api/v1/projects/{id}/access with snake_case body', async () => {
+  it('calls POST /api/v1/projects/{id}/access with email body', async () => {
     client.post.mockResolvedValue({ data: { ...VALID_ACCESS_DTO, user_id: 'user-003', permission: 'editor' } });
 
     await grantProjectAccess(client, PROJECT_ID, grant);
 
     expect(client.post).toHaveBeenCalledWith(
       '/api/v1/projects/proj-001/access',
-      { user_id: 'user-003', permission: 'editor' },
+      { email: 'bob@acme.com', permission: 'editor' },
     );
   });
 
-  it('sends user_id not userId in POST body', async () => {
+  it('sends email not user_id in POST body', async () => {
     client.post.mockResolvedValue({ data: { ...VALID_ACCESS_DTO, user_id: 'user-003', permission: 'editor' } });
 
     await grantProjectAccess(client, PROJECT_ID, grant);
 
     const payload = client.post.mock.calls[0]?.[1] as Record<string, unknown>;
-    expect(payload).toHaveProperty('user_id');
-    expect(payload).not.toHaveProperty('userId');
+    expect(payload).toHaveProperty('email');
+    expect(payload).not.toHaveProperty('user_id');
   });
 
   it('returns mapped AccessResponse on success', async () => {

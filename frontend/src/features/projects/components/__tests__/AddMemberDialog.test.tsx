@@ -1,7 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 import type { ProjectId } from '@/shared/types/common.types';
-import { createUserId } from '@/shared/types/common.types';
 import type { Result } from '@/shared/types/result.types';
 import type { AppError } from '@/shared/types/result.types';
 import type { AccessResponse } from '../../types/project-access.types';
@@ -33,7 +32,7 @@ jest.mock('@/config/theme', () => ({
 
 const mockGrantAsync = jest.fn<
   Promise<Result<AccessResponse, AppError>>,
-  [{ userId: ReturnType<typeof createUserId>; permission: string }]
+  [{ email: string; permission: string }]
 >();
 const mockOnClose = jest.fn();
 
@@ -74,7 +73,7 @@ describe('AddMemberDialog', () => {
     mockGrantAsync.mockResolvedValue({
       ok: true,
       data: {
-        userId: createUserId('user@test.com'),
+        userId: 'user-uuid-001' as unknown as import('@/shared/types/common.types').UserId,
         name: 'Test User',
         email: 'user@test.com',
         permission: 'viewer',
@@ -88,14 +87,14 @@ describe('AddMemberDialog', () => {
     expect(screen.getByText('Project Members')).toBeTruthy();
   });
 
-  it('shows validation error on empty userId when submitting', async () => {
+  it('shows validation error on empty email when submitting', async () => {
     renderDialog();
 
     const submitBtn = screen.getByTestId('add-member-submit-btn');
     fireEvent.press(submitBtn);
 
     await waitFor(() => {
-      expect(screen.getByText('User ID required')).toBeTruthy();
+      expect(screen.getByText('Please enter a valid email address')).toBeTruthy();
     });
 
     expect(mockGrantAsync).not.toHaveBeenCalled();
@@ -114,7 +113,7 @@ describe('AddMemberDialog', () => {
     });
 
     expect(mockGrantAsync).toHaveBeenCalledWith({
-      userId: createUserId('user@test.com'),
+      email: 'user@test.com',
       permission: 'viewer',
     });
   });

@@ -67,7 +67,7 @@ export async function grantProjectAccess(
   try {
     const { data } = await client.post<unknown>(
       `/api/v1/projects/${projectId}/access`,
-      { user_id: grant.userId, permission: grant.permission },
+      { email: grant.email, permission: grant.permission },
     );
 
     const parsed = accessResponseDTOSchema.safeParse(data);
