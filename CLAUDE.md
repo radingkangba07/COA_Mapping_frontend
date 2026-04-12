@@ -419,6 +419,7 @@ export function createHttpClient(getToken: () => string | null): AxiosInstance {
 8. **No AsyncStorage for auth tokens.** Use expo-secure-store on native, localStorage on web (via `shared/services/storage/`).
 9. **No hardcoded API URLs.** Base URL lives in `config/env.ts`, configured per environment (.env.development, .env.staging, .env.production).
 10. **No barrel exports** (`index.ts` re-exporting everything). Import directly from source files to avoid circular dependencies and bundle bloat.
+11. **No duplicate service functions for the same API endpoint.** Each backend endpoint must have exactly one service function that handles the HTTP call and response validation (zod schema). If multiple hooks need data from the same endpoint in different shapes, they must consume the single service function and map the result to their domain type — not create a second service with its own schema. Use shared TanStack Query cache keys so the endpoint is called once.
 
 #### Platform Notes
 

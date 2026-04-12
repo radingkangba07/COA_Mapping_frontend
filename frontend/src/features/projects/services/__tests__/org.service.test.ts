@@ -103,7 +103,7 @@ describe('getUserOrgs', () => {
 
   it('calls GET /api/v1/users/me/orgs', async () => {
     client.get.mockResolvedValue({
-      data: { orgs: [VALID_ORG_DTO] },
+      data: [VALID_ORG_DTO],
     });
 
     await getUserOrgs(client);
@@ -113,7 +113,7 @@ describe('getUserOrgs', () => {
 
   it('returns mapped Org[] on success', async () => {
     client.get.mockResolvedValue({
-      data: { orgs: [VALID_ORG_DTO, VALID_ORG_DTO_2] },
+      data: [VALID_ORG_DTO, VALID_ORG_DTO_2],
     });
 
     const result = await getUserOrgs(client);
@@ -135,9 +135,25 @@ describe('getUserOrgs', () => {
     expect(second?.role).toBe('member');
   });
 
+  it('handles orgs without created_at (matches live backend shape)', async () => {
+    client.get.mockResolvedValue({
+      data: [{ id: 'org-003', name: 'No Date Corp', role: 'owner' }],
+    });
+
+    const result = await getUserOrgs(client);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0]?.id).toBe(createOrgId('org-003'));
+    expect(result.data[0]?.name).toBe('No Date Corp');
+    expect(result.data[0]?.createdAt).toBeNull();
+  });
+
   it('returns INVALID_RESPONSE when response fails validation', async () => {
     client.get.mockResolvedValue({
-      data: { orgs: [{ id: 123, bad_field: true }] },
+      data: [{ id: 123, bad_field: true }],
     });
 
     const result = await getUserOrgs(client);
@@ -152,7 +168,7 @@ describe('getUserOrgs', () => {
 
   it('returns INVALID_RESPONSE when top-level shape is wrong', async () => {
     client.get.mockResolvedValue({
-      data: { organizations: [] },
+      data: { not_an_array: true },
     });
 
     const result = await getUserOrgs(client);
@@ -177,7 +193,7 @@ describe('getUserOrgs', () => {
 
   it('returns ok with empty orgs array', async () => {
     client.get.mockResolvedValue({
-      data: { orgs: [] },
+      data: [],
     });
 
     const result = await getUserOrgs(client);

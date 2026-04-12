@@ -12,7 +12,7 @@ export interface Org {
   readonly id: OrgId;
   readonly name: string;
   readonly role: OrgRole;
-  readonly createdAt: string;
+  readonly createdAt: string | null;
 }
 
 export interface OrgMember {
@@ -39,14 +39,13 @@ export const orgResponseSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   role: orgRoleSchema,
-  created_at: z.string(),
+  created_at: z.string().optional(),
 });
 
 export type OrgDTO = z.infer<typeof orgResponseSchema>;
 
-export const orgListResponseSchema = z.object({
-  orgs: z.array(orgResponseSchema),
-});
+// Backend GET /api/v1/users/me/orgs returns a flat array, not wrapped.
+export const orgListResponseSchema = z.array(orgResponseSchema);
 
 export const orgMemberResponseSchema = z.object({
   user_id: z.string().min(1),
@@ -83,7 +82,7 @@ export function toOrg(dto: OrgDTO): Org {
     id: createOrgId(dto.id),
     name: dto.name,
     role: dto.role,
-    createdAt: dto.created_at,
+    createdAt: dto.created_at ?? null,
   };
 }
 

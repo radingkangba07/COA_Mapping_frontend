@@ -36,7 +36,7 @@ export async function getUserOrgs(
       });
     }
 
-    return ok(parsed.data.orgs.map(toOrg));
+    return ok(parsed.data.map(toOrg));
   } catch (error: unknown) {
     return err(toAppError(error));
   }
