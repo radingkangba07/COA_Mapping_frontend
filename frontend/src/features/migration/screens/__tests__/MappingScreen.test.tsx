@@ -44,8 +44,9 @@ jest.mock('../../components/MigrationLayout', () => {
 
 // ─── Navigation mocks ──────────────────────────────────────────────────────
 const mockNavigate = jest.fn();
+const mockAddListener = jest.fn(() => jest.fn());
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: mockNavigate }),
+  useNavigation: () => ({ navigate: mockNavigate, addListener: mockAddListener }),
 }));
 
 jest.mock('@/navigation/types', () => ({
@@ -53,7 +54,7 @@ jest.mock('@/navigation/types', () => ({
 }));
 
 // ─── Store mock ─────────────────────────────────────────────────────────────
-const mockStoreState = {
+const mockStoreState: Record<string, unknown> = {
   currentStep: 2,
   completedSteps: [0, 1],
   typeMappingRows: [
@@ -61,11 +62,16 @@ const mockStoreState = {
   ],
   targetTypes: ['Asset', 'Liability', 'Equity'],
   isLoading: false,
+  sourceFile: { fileId: 'src-file-001', name: 'source.xlsx', rowCount: 10 },
+  targetFile: { fileId: 'tgt-file-001', name: 'target.xlsx', rowCount: 10 },
+  mappingFile: null,
+  jobId: null,
   updateTypeMappingRow: jest.fn(),
   addTypeMappingRow: jest.fn(),
   deleteTypeMappingRow: jest.fn(),
   setStep: jest.fn(),
   completeStep: jest.fn(),
+  setJobId: jest.fn(),
 };
 
 jest.mock('../../store/migration.store', () => {
@@ -86,6 +92,30 @@ jest.mock('../../store/migration.selectors', () => ({
 
 jest.mock('zustand/react/shallow', () => ({
   useShallow: (fn: unknown) => fn,
+}));
+
+// ─── Service + HTTP mocks ──────────────────────────────────────────────────
+const mockGetHierarchicalMapping = jest.fn().mockResolvedValue({
+  ok: true,
+  data: { job_id: 'job-001', project_id: 'test-project-1', status: 'pending' },
+});
+jest.mock('../../services/mapping.service', () => ({
+  getHierarchicalMapping: (...args: unknown[]) => mockGetHierarchicalMapping(...args),
+  buildCustomTypeMappings: jest.fn(() => ({})),
+  applyCustomTypeMappings: jest.fn((m: unknown) => m),
+  normalizeGroupedMappings: jest.fn((m: unknown) => m),
+  saveMappings: jest.fn(),
+  toMappingCreateDTOs: jest.fn(() => []),
+}));
+
+jest.mock('@/shared/services/http/http.instance', () => ({
+  httpClient: {},
+}));
+
+const mockShowSuccess = jest.fn();
+const mockShowError = jest.fn();
+jest.mock('@/shared/hooks/useToast', () => ({
+  useToast: () => ({ showSuccess: mockShowSuccess, showError: mockShowError }),
 }));
 
 // ─── Hook mocks ─────────────────────────────────────────────────────────────
@@ -185,11 +215,17 @@ describe('MappingScreen', () => {
     expect(screen.getByTestId('mapping-skeleton')).toBeTruthy();
   });
 
-  it('calls runMapping when Proceed button is pressed', async () => {
-    mockRunMapping.mockResolvedValue(undefined);
+  it('calls getHierarchicalMapping when Proceed button is pressed', async () => {
+    mockStoreState.jobId = null;
     render(<MappingScreen />);
     const button = screen.getByTestId('mapping-proceed-button');
     await fireEvent.press(button);
-    expect(mockRunMapping).toHaveBeenCalled();
+    expect(mockGetHierarchicalMapping).toHaveBeenCalledWith(
+      expect.anything(),
+      'test-project-1',
+      'src-file-001',
+      'tgt-file-001',
+      undefined,
+    );
   });
 });

@@ -21,6 +21,7 @@ import type { MigrationStackParamList } from '@/navigation/types';
 import type { PickedFile } from '../hooks/useFileUpload';
 import { STEP_TO_SCREEN } from '@/shared/constants/migration-steps';
 import type { MigrationStepValue } from '@/shared/constants/migration-steps';
+import { useToast } from '@/shared/hooks/useToast';
 
 type MigrationNavigation = NativeStackNavigationProp<MigrationStackParamList>;
 

@@ -61,13 +61,9 @@ function makeHierarchicalResponse(
   overrides: Partial<HierarchicalMappingResponse> = {},
 ): HierarchicalMappingResponse {
   return {
-    type_column: 'Account Type',
-    name_column: 'Account Name',
-    number_column: 'Account Number',
-    target_types: ['Asset', 'Liability', 'Equity'],
-    grouped_mappings: [makeGroupedMapping()],
-    total_accounts: 10,
-    total_types: 3,
+    job_id: 'job-001',
+    project_id: 'proj-001',
+    status: 'pending',
     ...overrides,
   };
 }
@@ -314,21 +310,17 @@ describe('getHierarchicalMapping', () => {
     const responseData = makeHierarchicalResponse();
     mockClient.post.mockResolvedValue(makeAxiosResponse(responseData));
 
-    const sourceData = [{ 'Account Name': 'Cash' }];
-
     const result = await getHierarchicalMapping(
       mockClient as unknown as AxiosInstance,
-      sourceData,
-      undefined,
-      'sap',
-      'xero',
+      'proj-001',
+      'src-file-001',
+      'tgt-file-001',
     );
 
     expect(mockClient.post).toHaveBeenCalledWith('/api/v1/mappings/hierarchical', {
-      source_data: sourceData,
-      target_data: undefined,
-      source_system: 'sap',
-      target_system: 'xero',
+      project_id: 'proj-001',
+      source_file_id: 'src-file-001',
+      target_file_id: 'tgt-file-001',
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -336,26 +328,23 @@ describe('getHierarchicalMapping', () => {
     }
   });
 
-  it('sends target_data when provided', async () => {
+  it('sends mapping_file_id when provided', async () => {
     const mockClient = createMockClient();
     mockClient.post.mockResolvedValue(makeAxiosResponse(makeHierarchicalResponse()));
 
-    const sourceData = [{ name: 'Cash' }];
-    const targetData = [{ name: 'Cash and Equivalents' }];
-
     await getHierarchicalMapping(
       mockClient as unknown as AxiosInstance,
-      sourceData,
-      targetData,
-      'sap',
-      'xero',
+      'proj-001',
+      'src-001',
+      'tgt-001',
+      'map-001',
     );
 
     expect(mockClient.post).toHaveBeenCalledWith('/api/v1/mappings/hierarchical', {
-      source_data: sourceData,
-      target_data: targetData,
-      source_system: 'sap',
-      target_system: 'xero',
+      project_id: 'proj-001',
+      source_file_id: 'src-001',
+      target_file_id: 'tgt-001',
+      mapping_file_id: 'map-001',
     });
   });
 
@@ -366,7 +355,9 @@ describe('getHierarchicalMapping', () => {
 
     const result = await getHierarchicalMapping(
       mockClient as unknown as AxiosInstance,
-      [],
+      'proj-001',
+      'src-001',
+      'tgt-001',
     );
 
     expect(result.ok).toBe(false);
@@ -391,7 +382,9 @@ describe('getHierarchicalMapping', () => {
 
     const result = await getHierarchicalMapping(
       mockClient as unknown as AxiosInstance,
-      [],
+      'proj-001',
+      'src-001',
+      'tgt-001',
     );
 
     expect(result.ok).toBe(false);
