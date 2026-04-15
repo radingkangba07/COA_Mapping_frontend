@@ -44,33 +44,6 @@ interface ProjectSection {
 const EMPTY_ICON = <FolderOpen size={48} color={colors.mutedForeground} />;
 const PAGE_SIZE = 10;
 
-// ─── Table Header ──────────────────────────────────────────────────────────
-
-const HEADER_COLUMNS = [
-  { label: 'Name', flex: 3 },
-  { label: 'Status', flex: 1.2 },
-  { label: 'Migration Path', flex: 2.5 },
-  { label: 'Created By', flex: 1.5 },
-  { label: 'Updated', flex: 1.5 },
-] as const;
-
-function TableHeader(): React.JSX.Element {
-  return (
-    <View
-      className="flex-row items-center border-b-2 border-border py-3 px-4"
-      style={{ backgroundColor: colors.muted }}
-    >
-      {HEADER_COLUMNS.map((col) => (
-        <View key={col.label} style={{ flex: col.flex }}>
-          <Text className="font-heading text-xs font-semibold text-foreground uppercase tracking-wide">
-            {col.label}
-          </Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
 // ─── Pagination ────────────────────────────────────────────────────────────
 
 interface PaginationProps {
@@ -257,7 +230,6 @@ const WebProjectList = ({
       testID={testID}
     >
       <View className="rounded-lg border border-border overflow-hidden bg-card">
-        <TableHeader />
         {pagedGroups.map((group) => {
           const groupKey = group.companyId ?? 'unassigned';
           const isExpanded = !collapsedGroups.has(groupKey);

@@ -8,6 +8,7 @@ import {
   FolderOpen, ArrowRightLeft, Settings, ChevronsLeft, ChevronsRight,
 } from 'lucide-react-native';
 import { useAppStore } from '@/shared/store/app.store';
+import { colors } from '@/config/theme';
 import { Tooltip } from '@/shared/components/ui/Tooltip';
 import { ProjectsStack } from '../stacks/ProjectsStack';
 import { MigrationStack } from '../stacks/MigrationStack';
@@ -21,14 +22,6 @@ const ICON_SIZE = 20;
 const COLLAPSE_ICON_SIZE = 18;
 const DRAWER_WIDTH_EXPANDED = 240;
 const DRAWER_WIDTH_COLLAPSED = 64;
-
-const DARK_BG = '#2D2D2D';
-const SIDEBAR_ITEM_ACTIVE = '#003399';
-const SIDEBAR_TEXT = 'rgba(255,255,255,0.65)';
-const SIDEBAR_TEXT_ACTIVE = '#FFFFFF';
-const SIDEBAR_ICON = 'rgba(255,255,255,0.5)';
-const SIDEBAR_ICON_ACTIVE = '#FFFFFF';
-const SIDEBAR_BORDER = 'rgba(255,255,255,0.08)';
 
 const DRAWER_ITEMS = [
   { key: 'ProjectsTab' as const, label: 'Projects', Icon: FolderOpen },
@@ -63,14 +56,14 @@ const NavItem = ({
       className={`items-center rounded-lg py-2.5 ${
         isCollapsed ? 'justify-center px-2' : 'flex-row px-3'
       }`}
-      style={{ backgroundColor: isActive ? SIDEBAR_ITEM_ACTIVE : 'transparent' }}
+      style={{ backgroundColor: isActive ? colors.primary : 'transparent' }}
       testID={`drawer-nav-${label.toLowerCase()}`}
     >
       {icon}
       {!isCollapsed && (
         <Text
           className="ml-3 text-sm font-medium"
-          style={{ color: isActive ? SIDEBAR_TEXT_ACTIVE : SIDEBAR_TEXT }}
+          style={{ color: isActive ? colors.primaryForeground : colors.mutedForeground }}
         >
           {label}
         </Text>
@@ -88,7 +81,7 @@ const CustomDrawerContent = ({
   return (
     <View
       className={`flex-1 pb-4 pt-5 ${isCollapsed ? 'items-center px-2' : 'px-3'}`}
-      style={{ backgroundColor: DARK_BG }}
+      style={{ backgroundColor: colors.surface }}
       testID="app-drawer-content"
     >
       {/* Org switcher */}
@@ -104,7 +97,7 @@ const CustomDrawerContent = ({
             <NavItem
               key={item.key}
               label={item.label}
-              icon={<item.Icon color={isActive ? SIDEBAR_ICON_ACTIVE : SIDEBAR_ICON} size={ICON_SIZE} />}
+              icon={<item.Icon color={isActive ? colors.primaryForeground : colors.mutedForeground} size={ICON_SIZE} />}
               isActive={isActive}
               isCollapsed={isCollapsed}
               onPress={() => {
@@ -122,7 +115,7 @@ const CustomDrawerContent = ({
       {/* Collapse toggle at bottom — icon only */}
       <View
         className="pt-3 items-center"
-        style={{ borderTopWidth: 1, borderTopColor: SIDEBAR_BORDER }}
+        style={{ borderTopWidth: 1, borderTopColor: colors.border }}
       >
         <MaybeTooltip
           show={isCollapsed}
@@ -136,8 +129,8 @@ const CustomDrawerContent = ({
             testID={isCollapsed ? 'drawer-expand-button' : 'drawer-collapse-button'}
           >
             {isCollapsed
-              ? <ChevronsRight color={SIDEBAR_ICON} size={COLLAPSE_ICON_SIZE} />
-              : <ChevronsLeft color={SIDEBAR_ICON} size={COLLAPSE_ICON_SIZE} />}
+              ? <ChevronsRight color={colors.mutedForeground} size={COLLAPSE_ICON_SIZE} />
+              : <ChevronsLeft color={colors.mutedForeground} size={COLLAPSE_ICON_SIZE} />}
           </Pressable>
         </MaybeTooltip>
       </View>
@@ -153,8 +146,9 @@ export const AppDrawer = (): React.JSX.Element => {
 
   const drawerStyle = useMemo(() => ({
     width: isCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH_EXPANDED,
-    backgroundColor: DARK_BG,
-    borderRightWidth: 0,
+    backgroundColor: colors.surface,
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
     transition: 'width 200ms ease',
   } as const), [isCollapsed]);
 
