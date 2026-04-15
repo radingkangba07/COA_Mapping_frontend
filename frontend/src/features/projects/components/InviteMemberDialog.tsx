@@ -13,14 +13,14 @@ import { useMembersViewModel } from '../hooks/useMembersViewModel';
 
 const inviteSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Please enter a valid email'),
-  role: z.enum(['owner', 'member']),
+  role: z.enum(['admin', 'member']),
 });
 
 type InviteFormData = z.infer<typeof inviteSchema>;
 
 const ROLE_OPTIONS = [
   { label: 'Member', value: 'member' },
-  { label: 'Owner', value: 'owner' },
+  { label: 'Admin', value: 'admin' },
 ];
 
 // ─── Props ──────────────────────────────────────────────────────────────────

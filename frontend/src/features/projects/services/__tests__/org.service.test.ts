@@ -74,6 +74,12 @@ const VALID_INVITATION_DTO = {
   invited_at: '2026-03-01T10:00:00Z',
 };
 
+// POST /api/v1/orgs/:orgId/invitations returns a slim confirmation.
+const VALID_CREATE_INVITATION_RESPONSE = {
+  invitation_id: 'inv-001',
+  message: 'Invitation sent',
+};
+
 function createAxiosError(status: number, message: string): AxiosError {
   const error = new AxiosError(
     message,
@@ -283,7 +289,7 @@ describe('inviteMember', () => {
   });
 
   it('calls POST /api/v1/orgs/{orgId}/invitations with email and role', async () => {
-    client.post.mockResolvedValue({ data: VALID_INVITATION_DTO });
+    client.post.mockResolvedValue({ data: VALID_CREATE_INVITATION_RESPONSE });
 
     await inviteMember(client, orgId, 'carol@acme.com', 'member');
 
@@ -293,19 +299,15 @@ describe('inviteMember', () => {
     );
   });
 
-  it('returns mapped OrgInvitation on success', async () => {
-    client.post.mockResolvedValue({ data: VALID_INVITATION_DTO });
+  it('returns invitationId on success', async () => {
+    client.post.mockResolvedValue({ data: VALID_CREATE_INVITATION_RESPONSE });
 
     const result = await inviteMember(client, orgId, 'carol@acme.com', 'member');
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.data.id).toBe('inv-001');
-    expect(result.data.email).toBe('carol@acme.com');
-    expect(result.data.role).toBe('member');
-    expect(result.data.status).toBe('pending');
-    expect(result.data.invitedAt).toBe('2026-03-01T10:00:00Z');
+    expect(result.data.invitationId).toBe('inv-001');
   });
 
   it('returns INVITATION_ALREADY_PENDING on 409 conflict', async () => {

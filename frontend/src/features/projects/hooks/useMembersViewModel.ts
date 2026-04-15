@@ -24,7 +24,7 @@ interface MembersViewModel {
   readonly isOwner: boolean;
   readonly isLoading: boolean;
   readonly error: AppError | null;
-  readonly invite: (params: { email: string; role: OrgRole }) => Promise<Result<OrgInvitation, AppError>>;
+  readonly invite: (params: { email: string; role: OrgRole }) => Promise<Result<{ invitationId: string }, AppError>>;
   readonly remove: (userId: UserId) => Promise<Result<undefined, AppError>>;
   readonly cancelInvitation: (invitationId: string) => Promise<Result<undefined, AppError>>;
   readonly isInviting: boolean;
@@ -48,8 +48,8 @@ export function useMembersViewModel(): MembersViewModel {
     },
   });
 
-  const isOwner =
-    orgsQuery.data?.find((o) => o.id === activeOrgId)?.role === 'owner';
+  const activeRole = orgsQuery.data?.find((o) => o.id === activeOrgId)?.role;
+  const isOwner = activeRole === 'owner' || activeRole === 'admin';
 
   // Members query
   const membersQuery = useQuery({
