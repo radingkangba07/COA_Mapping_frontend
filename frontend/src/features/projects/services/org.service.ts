@@ -61,7 +61,7 @@ export async function getOrgMembers(
       });
     }
 
-    return ok(parsed.data.members.map(toOrgMember));
+    return ok(parsed.data.map(toOrgMember));
   } catch (error: unknown) {
     return err(toAppError(error));
   }
@@ -138,7 +138,7 @@ export async function getOrgInvitations(
       });
     }
 
-    return ok(parsed.data.invitations.map(toOrgInvitation));
+    return ok(parsed.data.map(toOrgInvitation));
   } catch (error: unknown) {
     return err(toAppError(error));
   }

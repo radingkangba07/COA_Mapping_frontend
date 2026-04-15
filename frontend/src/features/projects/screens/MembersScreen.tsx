@@ -62,10 +62,40 @@ export const MembersScreen = (): React.JSX.Element => {
     [cancelInvitation, showError],
   );
 
+  const dialogs = (
+    <>
+      <InviteMemberDialog
+        visible={inviteVisible}
+        onClose={handleInviteClose}
+        testID="invite-dialog"
+      />
+
+      {isVisible && confirmOptions !== null && (
+        <Dialog visible={isVisible} onClose={onCancel} testID="confirm-dialog">
+          <Dialog.Header>
+            <Dialog.Title>{confirmOptions.title}</Dialog.Title>
+          </Dialog.Header>
+          <Dialog.Content>
+            <Text className="font-body text-sm text-foreground">{confirmOptions.message}</Text>
+          </Dialog.Content>
+          <Dialog.Footer>
+            <Button variant="outline" onPress={onCancel} testID="confirm-cancel-btn">
+              {confirmOptions.cancelText ?? 'Cancel'}
+            </Button>
+            <Button variant="destructive" onPress={onConfirm} testID="confirm-ok-btn">
+              {confirmOptions.confirmText ?? 'Confirm'}
+            </Button>
+          </Dialog.Footer>
+        </Dialog>
+      )}
+    </>
+  );
+
   if (error !== null && members.length === 0) {
     return (
       <Screen testID="members-screen">
         <NetworkErrorFallback error={new Error(error.message)} onRetry={refetch} />
+        {dialogs}
       </Screen>
     );
   }
@@ -171,7 +201,7 @@ export const MembersScreen = (): React.JSX.Element => {
                     {inv.email}
                   </Text>
                   <Text className="font-body text-xs text-muted-foreground">
-                    Invited {formatDate(inv.sentAt)}
+                    Invited {formatDate(inv.invitedAt)}
                   </Text>
                 </View>
                 <Badge
@@ -196,30 +226,7 @@ export const MembersScreen = (): React.JSX.Element => {
         </View>
       )}
 
-      <InviteMemberDialog
-        visible={inviteVisible}
-        onClose={handleInviteClose}
-        testID="invite-dialog"
-      />
-
-      {isVisible && confirmOptions !== null && (
-        <Dialog visible={isVisible} onClose={onCancel} testID="confirm-dialog">
-          <Dialog.Header>
-            <Dialog.Title>{confirmOptions.title}</Dialog.Title>
-          </Dialog.Header>
-          <Dialog.Content>
-            <Text className="font-body text-sm text-foreground">{confirmOptions.message}</Text>
-          </Dialog.Content>
-          <Dialog.Footer>
-            <Button variant="outline" onPress={onCancel} testID="confirm-cancel-btn">
-              {confirmOptions.cancelText ?? 'Cancel'}
-            </Button>
-            <Button variant="destructive" onPress={onConfirm} testID="confirm-ok-btn">
-              {confirmOptions.confirmText ?? 'Confirm'}
-            </Button>
-          </Dialog.Footer>
-        </Dialog>
-      )}
+      {dialogs}
     </Screen>
   );
 };
