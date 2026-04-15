@@ -70,8 +70,8 @@ const VALID_INVITATION_DTO = {
   id: 'inv-001',
   email: 'carol@acme.com',
   role: 'member' as const,
-  sent_at: '2026-03-01T10:00:00Z',
-  expires_at: '2026-03-08T10:00:00Z',
+  status: 'pending',
+  invited_at: '2026-03-01T10:00:00Z',
 };
 
 function createAxiosError(status: number, message: string): AxiosError {
@@ -217,7 +217,7 @@ describe('getOrgMembers', () => {
 
   it('calls GET /api/v1/orgs/{orgId}/members', async () => {
     client.get.mockResolvedValue({
-      data: { members: [VALID_MEMBER_DTO] },
+      data: [VALID_MEMBER_DTO],
     });
 
     await getOrgMembers(client, orgId);
@@ -227,7 +227,7 @@ describe('getOrgMembers', () => {
 
   it('returns mapped OrgMember[] on success', async () => {
     client.get.mockResolvedValue({
-      data: { members: [VALID_MEMBER_DTO, VALID_MEMBER_DTO_2] },
+      data: [VALID_MEMBER_DTO, VALID_MEMBER_DTO_2],
     });
 
     const result = await getOrgMembers(client, orgId);
@@ -247,7 +247,7 @@ describe('getOrgMembers', () => {
 
   it('returns INVALID_RESPONSE when response fails validation', async () => {
     client.get.mockResolvedValue({
-      data: { members: [{ bad: true }] },
+      data: [{ bad: true }],
     });
 
     const result = await getOrgMembers(client, orgId);
@@ -304,8 +304,8 @@ describe('inviteMember', () => {
     expect(result.data.id).toBe('inv-001');
     expect(result.data.email).toBe('carol@acme.com');
     expect(result.data.role).toBe('member');
-    expect(result.data.sentAt).toBe('2026-03-01T10:00:00Z');
-    expect(result.data.expiresAt).toBe('2026-03-08T10:00:00Z');
+    expect(result.data.status).toBe('pending');
+    expect(result.data.invitedAt).toBe('2026-03-01T10:00:00Z');
   });
 
   it('returns INVITATION_ALREADY_PENDING on 409 conflict', async () => {
@@ -405,7 +405,7 @@ describe('getOrgInvitations', () => {
 
   it('calls GET /api/v1/orgs/{orgId}/invitations', async () => {
     client.get.mockResolvedValue({
-      data: { invitations: [VALID_INVITATION_DTO] },
+      data: [VALID_INVITATION_DTO],
     });
 
     await getOrgInvitations(client, orgId);
@@ -415,7 +415,7 @@ describe('getOrgInvitations', () => {
 
   it('returns mapped OrgInvitation[] on success', async () => {
     client.get.mockResolvedValue({
-      data: { invitations: [VALID_INVITATION_DTO] },
+      data: [VALID_INVITATION_DTO],
     });
 
     const result = await getOrgInvitations(client, orgId);
@@ -429,13 +429,13 @@ describe('getOrgInvitations', () => {
     expect(inv?.id).toBe('inv-001');
     expect(inv?.email).toBe('carol@acme.com');
     expect(inv?.role).toBe('member');
-    expect(inv?.sentAt).toBe('2026-03-01T10:00:00Z');
-    expect(inv?.expiresAt).toBe('2026-03-08T10:00:00Z');
+    expect(inv?.status).toBe('pending');
+    expect(inv?.invitedAt).toBe('2026-03-01T10:00:00Z');
   });
 
   it('returns INVALID_RESPONSE when response fails validation', async () => {
     client.get.mockResolvedValue({
-      data: { invitations: [{ bad: true }] },
+      data: [{ bad: true }],
     });
 
     const result = await getOrgInvitations(client, orgId);

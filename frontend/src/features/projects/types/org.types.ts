@@ -27,8 +27,8 @@ export interface OrgInvitation {
   readonly id: string;
   readonly email: string;
   readonly role: OrgRole;
-  readonly sentAt: string;
-  readonly expiresAt: string;
+  readonly status: string;
+  readonly invitedAt: string;
 }
 
 // ─── Zod Schemas ─────────────────────────────────────────────────────────────
@@ -57,23 +57,21 @@ export const orgMemberResponseSchema = z.object({
 
 export type OrgMemberDTO = z.infer<typeof orgMemberResponseSchema>;
 
-export const orgMemberListResponseSchema = z.object({
-  members: z.array(orgMemberResponseSchema),
-});
+// Backend returns a flat array, not wrapped.
+export const orgMemberListResponseSchema = z.array(orgMemberResponseSchema);
 
 export const orgInvitationResponseSchema = z.object({
   id: z.string().min(1),
   email: z.string(),
   role: orgRoleSchema,
-  sent_at: z.string(),
-  expires_at: z.string(),
+  status: z.string(),
+  invited_at: z.string(),
 });
 
 export type OrgInvitationDTO = z.infer<typeof orgInvitationResponseSchema>;
 
-export const orgInvitationListResponseSchema = z.object({
-  invitations: z.array(orgInvitationResponseSchema),
-});
+// Backend returns a flat array, not wrapped.
+export const orgInvitationListResponseSchema = z.array(orgInvitationResponseSchema);
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
 
@@ -101,7 +99,7 @@ export function toOrgInvitation(dto: OrgInvitationDTO): OrgInvitation {
     id: dto.id,
     email: dto.email,
     role: dto.role,
-    sentAt: dto.sent_at,
-    expiresAt: dto.expires_at,
+    status: dto.status,
+    invitedAt: dto.invited_at,
   };
 }

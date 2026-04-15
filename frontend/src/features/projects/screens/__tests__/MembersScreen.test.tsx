@@ -73,8 +73,8 @@ const pendingInvitation: OrgInvitation = {
   id: 'inv-1',
   email: 'pending@test.com',
   role: 'member',
-  sentAt: '2024-03-01',
-  expiresAt: '2024-03-08',
+  status: 'pending',
+  invitedAt: '2024-03-01',
 };
 
 interface MembersViewModelReturn {
