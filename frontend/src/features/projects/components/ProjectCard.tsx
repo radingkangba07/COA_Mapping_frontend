@@ -1,9 +1,10 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { ArrowRight } from 'lucide-react-native';
-import { formatRelative } from '@/shared/utils/date.utils';
+import { ArrowRight, Clock } from 'lucide-react-native';
+import { formatDate, formatRelative } from '@/shared/utils/date.utils';
 import { getERPById } from '@/shared/constants/erp-systems';
 import { colors } from '@/config/theme';
+import { useAppStore } from '@/shared/store/app.store';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { StatusBadge } from './StatusBadge';
 import type { Project } from '../types/projects.types';
@@ -24,14 +25,17 @@ function useResolveUserName(
   return currentUser?.name ?? '—';
 }
 
+const DOT = '\u00A0\u00B7\u00A0';
+
 export const ProjectCard = ({
   project,
   onPress,
   testID,
 }: ProjectCardProps): React.JSX.Element => {
+  useAppStore((s) => s.theme);
   const sourceErpName = getERPById(project.sourceErp)?.name ?? project.sourceErp;
   const targetErpName = getERPById(project.targetErp)?.name ?? project.targetErp;
-  const createdByName = useResolveUserName(project.createdByName, project.createdBy);
+  const updatedByName = useResolveUserName(project.updatedByName, project.updatedBy);
 
   return (
     <Pressable
@@ -39,62 +43,50 @@ export const ProjectCard = ({
       testID={testID}
       // @ts-expect-error -- web-only style for hover cursor
       style={({ hovered }: { hovered?: boolean }) => ({
-        backgroundColor: hovered === true ? 'rgba(0,0,0,0.02)' : 'transparent',
+        backgroundColor: hovered === true ? colors.surfaceHighlight : 'transparent',
         cursor: 'pointer',
       })}
     >
-      <View className="flex-row items-center border-b border-border py-3 pl-8 pr-4">
-        {/* Name + description */}
-        <View style={{ flex: 3 }}>
+      <View
+        className="border-b border-border px-5 py-3.5"
+      >
+        {/* Row 1: Name + Status */}
+        <View className="flex-row items-center gap-2.5 mb-1.5">
           <Text
-            className="font-body text-sm text-foreground"
+            className="font-heading text-sm font-semibold"
+            style={{ color: colors.foreground }}
             numberOfLines={1}
           >
             {project.name}
           </Text>
-          {project.description !== undefined && project.description !== '' && (
-            <Text
-              className="font-body text-xs text-muted-foreground mt-0.5"
-              numberOfLines={1}
-            >
-              {project.description}
-            </Text>
-          )}
-        </View>
-
-        {/* Status */}
-        <View style={{ flex: 1.2 }}>
           <StatusBadge status={project.status} />
         </View>
 
-        {/* ERP Path */}
-        <View style={{ flex: 2.5 }}>
-          <View className="flex-row items-center gap-1">
-            <Text className="font-body text-sm text-muted-foreground" numberOfLines={1}>
-              {sourceErpName}
-            </Text>
-            <ArrowRight size={10} color={colors.mutedForeground} />
-            <Text className="font-body text-sm text-muted-foreground" numberOfLines={1}>
-              {targetErpName}
-            </Text>
-          </View>
-        </View>
-
-        {/* Created By */}
-        <View style={{ flex: 1.5 }}>
-          <Text className="font-body text-xs text-muted-foreground" numberOfLines={1}>
-            {createdByName}
+        {/* Row 2: ERP path + date */}
+        <View className="flex-row items-center mb-1">
+          <Text className="font-body text-xs" style={{ color: colors.mutedForeground }}>
+            {sourceErpName}
+          </Text>
+          <ArrowRight size={10} color={colors.mutedForeground} style={{ marginHorizontal: 4 }} />
+          <Text className="font-body text-xs" style={{ color: colors.mutedForeground }}>
+            {targetErpName}
+          </Text>
+          <Text className="font-body text-xs" style={{ color: colors.mutedForeground }}>
+            {DOT}
+          </Text>
+          <Clock size={11} color={colors.mutedForeground} />
+          <Text className="font-body text-xs" style={{ color: colors.mutedForeground, marginLeft: 2 }}>
+            {formatDate(project.createdAt)}
           </Text>
         </View>
 
-        {/* Updated */}
-        <View style={{ flex: 1.5 }}>
-          <Text className="font-body text-xs text-muted-foreground">
-            {formatRelative(project.updatedAt)}
+        {/* Row 3: Last edited */}
+        <View className="flex-row items-center mt-0.5">
+          <Text className="font-body text-xs" style={{ color: colors.mutedForeground }}>
+            Last edited by {updatedByName}{DOT}{formatRelative(project.updatedAt)}
           </Text>
         </View>
       </View>
     </Pressable>
   );
 };
-
