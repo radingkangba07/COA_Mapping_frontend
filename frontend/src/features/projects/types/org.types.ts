@@ -4,7 +4,7 @@ import { createOrgId, createUserId } from '@/shared/types/common.types';
 
 // ─── Value Objects ──────────────────────────────────────────────────────────
 
-export type OrgRole = 'owner' | 'member';
+export type OrgRole = 'owner' | 'admin' | 'member';
 
 // ─── Domain Entities ────────────────────────────────────────────────────────
 
@@ -33,7 +33,7 @@ export interface OrgInvitation {
 
 // ─── Zod Schemas ─────────────────────────────────────────────────────────────
 
-export const orgRoleSchema = z.enum(['owner', 'member']);
+export const orgRoleSchema = z.enum(['owner', 'admin', 'member']);
 
 export const orgResponseSchema = z.object({
   id: z.string().min(1),
@@ -69,6 +69,12 @@ export const orgInvitationResponseSchema = z.object({
 });
 
 export type OrgInvitationDTO = z.infer<typeof orgInvitationResponseSchema>;
+
+// POST /api/v1/orgs/:orgId/invitations returns a slim confirmation, not a full invitation.
+export const createInvitationResponseSchema = z.object({
+  invitation_id: z.string().min(1),
+  message: z.string(),
+});
 
 // Backend returns a flat array, not wrapped.
 export const orgInvitationListResponseSchema = z.array(orgInvitationResponseSchema);

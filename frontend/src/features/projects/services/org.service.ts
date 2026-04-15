@@ -11,6 +11,7 @@ import {
   orgMemberListResponseSchema,
   orgInvitationResponseSchema,
   orgInvitationListResponseSchema,
+  createInvitationResponseSchema,
   toOrg,
   toOrgMember,
   toOrgInvitation,
@@ -74,14 +75,14 @@ export async function inviteMember(
   orgId: OrgId,
   email: string,
   role: OrgRole,
-): Promise<Result<OrgInvitation, AppError>> {
+): Promise<Result<{ invitationId: string }, AppError>> {
   try {
     const { data } = await client.post<unknown>(
       `/api/v1/orgs/${orgId}/invitations`,
       { email, role },
     );
 
-    const parsed = orgInvitationResponseSchema.safeParse(data);
+    const parsed = createInvitationResponseSchema.safeParse(data);
 
     if (!parsed.success) {
       return err({
@@ -91,7 +92,7 @@ export async function inviteMember(
       });
     }
 
-    return ok(toOrgInvitation(parsed.data));
+    return ok({ invitationId: parsed.data.invitation_id });
   } catch (error: unknown) {
     if (error instanceof AxiosError && error.response?.status === 409) {
       return err({
