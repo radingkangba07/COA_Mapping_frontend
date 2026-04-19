@@ -29,13 +29,24 @@ function createMockClient(): jest.Mocked<Pick<AxiosInstance, 'get' | 'post'>> {
 
 // ─── Test Factories ────────────────────────────────────────────────────────
 
-function makeTypeMappingRow(overrides: Partial<TypeMappingRow> = {}): TypeMappingRow {
+interface TypeMappingRowFactoryInput {
+  readonly id?: string;
+  readonly sourceType?: string;
+  readonly targetType?: string;
+  readonly targetTypes?: readonly string[];
+  readonly isCustom?: boolean;
+}
+
+function makeTypeMappingRow(overrides: TypeMappingRowFactoryInput = {}): TypeMappingRow {
+  const { targetType, targetTypes, ...rest } = overrides;
+  const resolvedTargets =
+    targetTypes ?? (targetType !== undefined ? (targetType.length > 0 ? [targetType] : []) : ['Fixed Asset']);
   return {
     id: 'row-1',
     sourceType: 'Asset',
-    targetType: 'Fixed Asset',
+    targetTypes: resolvedTargets,
     isCustom: true,
-    ...overrides,
+    ...rest,
   };
 }
 
@@ -153,6 +164,28 @@ describe('buildCustomTypeMappings', () => {
 
     const result = buildCustomTypeMappings(rows);
     expect(result).toEqual({ Asset: 'Second' });
+  });
+
+  it('flattens multi-target rows to the first target (hierarchical endpoint is single-target)', () => {
+    const rows: readonly TypeMappingRow[] = [
+      makeTypeMappingRow({
+        id: 'multi',
+        sourceType: 'Asset',
+        targetTypes: ['Primary Asset', 'Secondary Asset', 'Tertiary Asset'],
+      }),
+    ];
+
+    const result = buildCustomTypeMappings(rows);
+    expect(result).toEqual({ Asset: 'Primary Asset' });
+  });
+
+  it('skips multi-target rows with an empty first entry', () => {
+    const rows: readonly TypeMappingRow[] = [
+      makeTypeMappingRow({ sourceType: 'Asset', targetTypes: [] }),
+    ];
+
+    const result = buildCustomTypeMappings(rows);
+    expect(result).toEqual({});
   });
 });
 

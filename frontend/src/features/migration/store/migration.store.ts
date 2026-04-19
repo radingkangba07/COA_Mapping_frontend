@@ -33,6 +33,7 @@ interface MigrationState {
 
   typeMappingRows: TypeMappingRow[];
   hasUnsavedChanges: boolean;
+  hasUnsavedTypeMappings: boolean;
   targetTypes: string[];
 
   groupedMappings: GroupedMapping[];
@@ -66,10 +67,15 @@ interface MigrationActions {
   setMappingData: (file: UploadedFile, data: Record<string, unknown>[]) => void;
 
   setTypeMappingRows: (rows: TypeMappingRow[]) => void;
-  updateTypeMappingRow: (id: string, field: 'sourceType' | 'targetType', value: string) => void;
+  hydrateTypeMappingRows: (rows: TypeMappingRow[]) => void;
+  updateTypeMappingRow: (
+    id: string,
+    update: Partial<Pick<TypeMappingRow, 'sourceType' | 'targetTypes'>>,
+  ) => void;
   addTypeMappingRow: () => void;
   deleteTypeMappingRow: (id: string) => void;
   markChangesSaved: () => void;
+  markTypeMappingsSaved: () => void;
 
   setGroupedMappings: (mappings: GroupedMapping[]) => void;
   updateTypeMapping: (sourceType: string, targetType: string) => void;
@@ -120,6 +126,7 @@ const initialState: MigrationState = {
 
   typeMappingRows: [],
   hasUnsavedChanges: false,
+  hasUnsavedTypeMappings: false,
   targetTypes: [],
 
   groupedMappings: [],
@@ -158,6 +165,7 @@ function clearDownstreamState(state: MigrationState, fromStep: number): void {
     state.jobId = null;
     state.typeMappingRows = [];
     state.hasUnsavedChanges = false;
+    state.hasUnsavedTypeMappings = false;
     state.targetTypes = [];
   }
   if (fromStep <= 3) {
@@ -177,7 +185,6 @@ export const useMigrationStore = create<MigrationStore>()(
     ...initialState,
 
     setStep: (step: number): void => {
-      console.log('[MigrationStore] setStep', step, new Error().stack?.split('\n').slice(1, 4).join(' <- '));
       set((state) => {
         state.currentStep = step;
       });
@@ -192,7 +199,6 @@ export const useMigrationStore = create<MigrationStore>()(
     },
 
     setSourceERP: (erp: ERPSystem): void => {
-      console.log('[MigrationStore] setSourceERP', erp.id);
       set((state) => {
         const changed = state.sourceERP !== null && state.sourceERP.id !== erp.id;
         if (changed && state.completedSteps.includes(0)) {
@@ -250,43 +256,72 @@ export const useMigrationStore = create<MigrationStore>()(
 
     setTypeMappingRows: (rows: TypeMappingRow[]): void => {
       set((state) => {
-        state.typeMappingRows = rows;
+        state.hasUnsavedTypeMappings = true;
+        state.typeMappingRows = rows.map((r) => ({
+          ...r,
+          targetTypes: [...r.targetTypes],
+        }));
       });
     },
 
-    updateTypeMappingRow: (id: string, field: 'sourceType' | 'targetType', value: string): void => {
+    hydrateTypeMappingRows: (rows: TypeMappingRow[]): void => {
+      set((state) => {
+        state.typeMappingRows = rows.map((r) => ({
+          ...r,
+          targetTypes: [...r.targetTypes],
+        }));
+      });
+    },
+
+    updateTypeMappingRow: (
+      id: string,
+      update: Partial<Pick<TypeMappingRow, 'sourceType' | 'targetTypes'>>,
+    ): void => {
       set((state) => {
         const row = state.typeMappingRows.find((r) => r.id === id);
-        if (row) {
-          row[field] = value;
-          state.hasUnsavedChanges = true;
+        if (!row) return;
+        state.hasUnsavedTypeMappings = true;
+        state.hasUnsavedChanges = true;
+        if (update.sourceType !== undefined) {
+          row.sourceType = update.sourceType;
+        }
+        if (update.targetTypes !== undefined) {
+          row.targetTypes = [...update.targetTypes];
         }
       });
     },
 
     addTypeMappingRow: (): void => {
       set((state) => {
+        state.hasUnsavedTypeMappings = true;
+        state.hasUnsavedChanges = true;
         const newRow: TypeMappingRow = {
           id: Date.now().toString(),
           sourceType: '',
-          targetType: '',
+          targetTypes: [],
           isCustom: true,
         };
-        state.typeMappingRows.push(newRow);
-        state.hasUnsavedChanges = true;
+        state.typeMappingRows.push(castDraft(newRow));
       });
     },
 
     deleteTypeMappingRow: (id: string): void => {
       set((state) => {
-        state.typeMappingRows = state.typeMappingRows.filter((r) => r.id !== id);
+        state.hasUnsavedTypeMappings = true;
         state.hasUnsavedChanges = true;
+        state.typeMappingRows = state.typeMappingRows.filter((r) => r.id !== id);
       });
     },
 
     markChangesSaved: (): void => {
       set((state) => {
         state.hasUnsavedChanges = false;
+      });
+    },
+
+    markTypeMappingsSaved: (): void => {
+      set((state) => {
+        state.hasUnsavedTypeMappings = false;
       });
     },
 
@@ -514,7 +549,6 @@ export const useMigrationStore = create<MigrationStore>()(
     },
 
     reset: (): void => {
-      console.log('[MigrationStore] reset() called', new Error().stack?.split('\n').slice(1, 4).join(' <- '));
       set(() => ({ ...initialState }));
     },
   })),

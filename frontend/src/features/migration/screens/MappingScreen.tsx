@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useShallow } from 'zustand/react/shallow';
@@ -17,7 +17,7 @@ import {
 import { MigrationLayout } from '../components/MigrationLayout';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
-import { Select, type SelectOption } from '@/shared/components/ui/Select';
+import { MultiSelect } from '@/shared/components/ui/MultiSelect';
 import { Input } from '@/shared/components/ui/Input';
 import { Skeleton } from '@/shared/components/ui/Skeleton';
 import { Spinner } from '@/shared/components/ui/Spinner';
@@ -27,10 +27,12 @@ import { MappingTableSkeleton } from '../components/MappingTableSkeleton';
 import { useHydrateProject } from '../hooks/useHydrateProject';
 import { useFuzzyMapper } from '../hooks/useFuzzyMapper';
 import { useSyncStep } from '../hooks/useSyncStep';
+import { useAccountTypeMappings } from '../hooks/useAccountTypeMappings';
 import { useMigrationStore } from '../store/migration.store';
 import { getHierarchicalMapping } from '../services/mapping.service';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { useToast } from '@/shared/hooks/useToast';
+import { useConfirm } from '@/shared/hooks/useConfirm';
 import { selectTypeMappingSummary } from '../store/migration.selectors';
 import { useMigrationScreenRoute } from '@/navigation/types';
 import { createProjectId } from '@/shared/types/common.types';
@@ -71,6 +73,8 @@ export const MappingScreen = (): React.JSX.Element => {
   const { runMapping, isMapping } = useFuzzyMapper();
   const syncStep = useSyncStep();
   const { showSuccess, showError } = useToast();
+  const { confirm } = useConfirm();
+  const accountTypeMappings = useAccountTypeMappings(projectId);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState('Submitting mapping job...');
   const cancelledRef = useRef(false);
@@ -80,19 +84,16 @@ export const MappingScreen = (): React.JSX.Element => {
   const pollJobStatus = useCallback(async (jobId: string): Promise<boolean> => {
     setIsProcessing(true);
     setProcessingMessage('Matching accounts — this may take a moment...');
-    console.log('[MAPPING] Starting poll loop for job:', jobId);
 
     const maxAttempts = 60;
     for (let i = 0; i < maxAttempts; i++) {
       if (cancelledRef.current) {
-        console.log('[MAPPING] Poll cancelled (pre-sleep)');
         return false;
       }
 
       await new Promise((r) => setTimeout(r, 5000));
 
       if (cancelledRef.current) {
-        console.log('[MAPPING] Poll cancelled (post-sleep)');
         return false;
       }
 
@@ -106,12 +107,10 @@ export const MappingScreen = (): React.JSX.Element => {
         }>(`/api/v1/jobs/${jobId}/status`);
 
         if (cancelledRef.current) {
-          console.log('[MAPPING] Poll cancelled (post-fetch)');
           return false;
         }
 
         const { status, progress, is_complete, has_error } = resp.data;
-        console.log(`[MAPPING] Poll #${i + 1}:`, { status, progress, is_complete, has_error });
 
         if (has_error) {
           console.error('[MAPPING] Job error — aborting');
@@ -121,7 +120,6 @@ export const MappingScreen = (): React.JSX.Element => {
         }
 
         if (is_complete) {
-          console.log('[MAPPING] Job complete');
           setProcessingMessage('Mapping complete — loading results...');
           setIsProcessing(false);
           return true;
@@ -147,18 +145,15 @@ export const MappingScreen = (): React.JSX.Element => {
   // unmount/projectId-change cleanup never fires.
   useEffect(() => {
     const unsubBlur = navigation.addListener('blur', () => {
-      console.log('[MAPPING] blur — cancelling polling for:', projectId);
       cancelledRef.current = true;
       setIsProcessing(false);
     });
     const unsubFocus = navigation.addListener('focus', () => {
-      console.log('[MAPPING] focus:', projectId);
       cancelledRef.current = false;
 
       // Resume polling if there's a pending job for this project
       const store = useMigrationStore.getState();
       if (store.jobId && store.projectId === projectId && store.currentStep < 3) {
-        console.log('[MAPPING] Resuming poll for job:', store.jobId);
         void (async () => {
           const completed = await pollJobStatus(store.jobId!);
           if (completed && !cancelledRef.current) {
@@ -172,38 +167,20 @@ export const MappingScreen = (): React.JSX.Element => {
       }
     });
     return () => {
-      console.log('[MAPPING] unmount — cancelling polling for:', projectId);
       cancelledRef.current = true;
       unsubBlur();
       unsubFocus();
     };
   }, [navigation, projectId, pollJobStatus, showSuccess, syncStep]);
 
-  console.log('[MAPPING] render:', {
-    projectId,
-    isProcessing,
-    isHydrating,
-    currentStep,
-    storeProjectId: useMigrationStore.getState().projectId,
-    storeJobId: useMigrationStore.getState().jobId,
-    hasSourceFile: !!useMigrationStore.getState().sourceFile,
-    hasTargetFile: !!useMigrationStore.getState().targetFile,
-    sourceFileId: useMigrationStore.getState().sourceFile?.fileId ?? null,
-    targetFileId: useMigrationStore.getState().targetFile?.fileId ?? null,
-  });
   const mappingSummary = useMigrationStore(useShallow(selectTypeMappingSummary));
 
-  const targetOptions = useMemo<SelectOption[]>(
-    () => [
-      { label: 'Unmatched', value: '' },
-      ...targetTypes.map((t) => ({ label: t, value: t })),
-    ],
-    [targetTypes],
-  );
-
   const handleUpdateRow = useCallback(
-    (id: string, field: 'sourceType' | 'targetType', value: string): void => {
-      actions.updateTypeMappingRow(id, field, value);
+    (
+      id: string,
+      update: Partial<Pick<TypeMappingRow, 'sourceType' | 'targetTypes'>>,
+    ): void => {
+      actions.updateTypeMappingRow(id, update);
     },
     [actions],
   );
@@ -228,14 +205,6 @@ export const MappingScreen = (): React.JSX.Element => {
     const store = useMigrationStore.getState();
     const { sourceFile, targetFile, mappingFile } = store;
 
-    console.log('[MAPPING] handleProceed called:', {
-      projectId,
-      storeProjectId: store.projectId,
-      jobId: store.jobId,
-      sourceFileId: sourceFile?.fileId ?? null,
-      targetFileId: targetFile?.fileId ?? null,
-    });
-
     if (!projectId || !sourceFile || !targetFile) {
       showError('Missing files', 'Go back to Upload and submit your files first.');
       return;
@@ -249,7 +218,6 @@ export const MappingScreen = (): React.JSX.Element => {
 
     // Create the mapping job if one doesn't exist yet
     if (!jobId) {
-      console.log('[MAPPING] No existing jobId — calling getHierarchicalMapping');
       const result = await getHierarchicalMapping(
         httpClient,
         projectId,
@@ -267,17 +235,13 @@ export const MappingScreen = (): React.JSX.Element => {
       }
 
       jobId = result.data.job_id;
-      console.log('[MAPPING] Job created:', { jobId });
       useMigrationStore.getState().setJobId(jobId);
-    } else {
-      console.log('[MAPPING] Reusing existing jobId:', jobId);
     }
 
     // Poll until complete
     const completed = await pollJobStatus(jobId);
 
     if (completed && !cancelledRef.current) {
-      console.log('[MAPPING] Advancing step and navigating:', { projectId });
       showSuccess('Mapping complete', 'Review your account mappings.');
       useMigrationStore.getState().completeStep(2);
       useMigrationStore.getState().setStep(3);
@@ -290,8 +254,10 @@ export const MappingScreen = (): React.JSX.Element => {
     const csvContent =
       'Source Type,Target Type\n' +
       typeMappingRows
-        .filter((row) => row.sourceType && row.targetType.length > 0)
-        .map((row) => `"${row.sourceType}","${row.targetType}"`)
+        .filter((row) => row.sourceType && row.targetTypes.length > 0)
+        .flatMap((row) =>
+          row.targetTypes.map((target) => `"${row.sourceType}","${target}"`),
+        )
         .join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -303,6 +269,21 @@ export const MappingScreen = (): React.JSX.Element => {
     link.remove();
     window.URL.revokeObjectURL(url);
   }, [typeMappingRows]);
+
+  const handleSaveMappings = useCallback(async (): Promise<void> => {
+    await accountTypeMappings.save();
+  }, [accountTypeMappings]);
+
+  const handleClearMappings = useCallback(async (): Promise<void> => {
+    const confirmed = await confirm({
+      title: 'Clear all mappings?',
+      message: 'This removes every account-type mapping saved for this project. Continue?',
+      confirmText: 'Clear',
+      cancelText: 'Cancel',
+    });
+    if (!confirmed) return;
+    await accountTypeMappings.clear();
+  }, [accountTypeMappings, confirm]);
 
   const handleStepPress = useCallback(
     (step: number): void => {
@@ -505,7 +486,7 @@ export const MappingScreen = (): React.JSX.Element => {
                 <AccountMappingRow
                   key={row.id}
                   row={row}
-                  targetOptions={targetOptions}
+                  targetTypes={targetTypes}
                   onUpdateRow={handleUpdateRow}
                   onDeleteRow={handleDeleteRow}
                 />
@@ -539,15 +520,38 @@ export const MappingScreen = (): React.JSX.Element => {
 
           <Button
             variant="outline"
-            onPress={handleSaveCSV}
-            disabled={!hasCompleteMappings}
-            accessibilityLabel="Save mapping as CSV"
+            onPress={() => void handleClearMappings()}
+            disabled={accountTypeMappings.isSaving}
+            accessibilityLabel="Clear all type mappings"
+            testID="mapping-clear-button"
+          >
+            <View className="flex-row items-center gap-1.5">
+              <Trash2 size={16} color={colors.destructive} />
+              <Text className="font-body text-sm font-medium text-foreground">
+                Clear All
+              </Text>
+            </View>
+          </Button>
+
+          <Button
+            variant="outline"
+            onPress={() => void handleSaveMappings()}
+            disabled={!accountTypeMappings.isDirty || accountTypeMappings.isSaving}
+            isLoading={accountTypeMappings.isSaving}
+            accessibilityLabel="Save type mappings"
             testID="mapping-save-button"
           >
             <View className="flex-row items-center gap-1.5">
-              <Save size={16} color={hasCompleteMappings ? colors.foreground : colors.mutedForeground} />
+              <Save
+                size={16}
+                color={
+                  accountTypeMappings.isDirty
+                    ? colors.foreground
+                    : colors.mutedForeground
+                }
+              />
               <Text className="font-body text-sm font-medium text-foreground">
-                Save Mapping
+                Save Mappings
               </Text>
             </View>
           </Button>
@@ -618,7 +622,7 @@ const MappingPreviewTable = React.memo(function MappingPreviewTable({
 
       <ScrollView style={{ maxHeight: 200 }}>
         {previewRows.map((row, idx) => {
-          const isMatched = row.targetType.length > 0;
+          const isMatched = row.targetTypes.length > 0;
           return (
             <View key={row.id} className="flex-row items-center py-2">
               <View className="w-10 items-center">
@@ -632,7 +636,9 @@ const MappingPreviewTable = React.memo(function MappingPreviewTable({
               </View>
               <View className="flex-1 px-2">
                 {isMatched ? (
-                  <Text className="font-body text-sm text-foreground">{row.targetType}</Text>
+                  <Text className="font-body text-sm text-foreground">
+                    {row.targetTypes.join(', ')}
+                  </Text>
                 ) : (
                   <Text className="font-body text-sm italic text-muted-foreground">Not mapped</Text>
                 )}
@@ -656,26 +662,29 @@ const MappingPreviewTable = React.memo(function MappingPreviewTable({
 
 interface AccountMappingRowProps {
   row: TypeMappingRow;
-  targetOptions: readonly SelectOption[];
-  onUpdateRow: (id: string, field: 'sourceType' | 'targetType', value: string) => void;
+  targetTypes: readonly string[];
+  onUpdateRow: (
+    id: string,
+    update: Partial<Pick<TypeMappingRow, 'sourceType' | 'targetTypes'>>,
+  ) => void;
   onDeleteRow: (id: string) => void;
 }
 
 const AccountMappingRow = React.memo(function AccountMappingRow({
   row,
-  targetOptions,
+  targetTypes,
   onUpdateRow,
   onDeleteRow,
 }: AccountMappingRowProps) {
-  const isMatched = row.targetType.length > 0;
+  const isMatched = row.targetTypes.length > 0;
 
   const handleSourceChange = useCallback(
-    (text: string) => onUpdateRow(row.id, 'sourceType', text),
+    (text: string) => onUpdateRow(row.id, { sourceType: text }),
     [row.id, onUpdateRow],
   );
 
   const handleTargetChange = useCallback(
-    (value: string) => onUpdateRow(row.id, 'targetType', value),
+    (values: readonly string[]) => onUpdateRow(row.id, { targetTypes: values }),
     [row.id, onUpdateRow],
   );
 
@@ -721,13 +730,13 @@ const AccountMappingRow = React.memo(function AccountMappingRow({
         />
       </View>
 
-      {/* Target type select */}
+      {/* Target types multi-select */}
       <View className="flex-1 px-1">
-        <Select
-          options={[...targetOptions]}
-          value={row.targetType.length > 0 ? row.targetType : ''}
-          onValueChange={handleTargetChange}
-          placeholder="Select target type"
+        <MultiSelect
+          values={row.targetTypes}
+          options={targetTypes}
+          onChange={handleTargetChange}
+          placeholder="Select target types"
         />
       </View>
 
