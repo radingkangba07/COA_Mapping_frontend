@@ -130,16 +130,25 @@ jest.mock('../../hooks/useHydrateProject', () => ({
 
 const mockSaveMappings = jest.fn().mockResolvedValue(undefined);
 const mockClearMappings = jest.fn().mockResolvedValue(undefined);
+const mockAccountTypeMappings: {
+  rows: Array<{ id: string; sourceType: string; targetTypes: readonly string[] }>;
+  availableTargetTypes: readonly string[];
+  isLoading: boolean;
+  isSaving: boolean;
+  isDirty: boolean;
+  save: jest.Mock;
+  clear: jest.Mock;
+} = {
+  rows: [],
+  availableTargetTypes: [],
+  isLoading: false,
+  isSaving: false,
+  isDirty: false,
+  save: mockSaveMappings,
+  clear: mockClearMappings,
+};
 jest.mock('../../hooks/useAccountTypeMappings', () => ({
-  useAccountTypeMappings: () => ({
-    rows: [],
-    availableTargetTypes: [],
-    isLoading: false,
-    isSaving: false,
-    isDirty: false,
-    save: mockSaveMappings,
-    clear: mockClearMappings,
-  }),
+  useAccountTypeMappings: () => mockAccountTypeMappings,
 }));
 
 jest.mock('@/shared/hooks/useConfirm', () => ({
@@ -187,6 +196,9 @@ describe('MappingScreen', () => {
       { id: '1', sourceType: 'Asset', targetTypes: ['Asset'], isCustom: false },
     ];
     mockAllMatched = true;
+    mockAccountTypeMappings.rows = [];
+    mockAccountTypeMappings.isDirty = false;
+    mockAccountTypeMappings.isSaving = false;
   });
 
   it('renders with testID "mapping-screen"', () => {
@@ -242,5 +254,45 @@ describe('MappingScreen', () => {
       'tgt-file-001',
       undefined,
     );
+  });
+
+  it('disables Save Mappings button when rows are empty', () => {
+    mockAccountTypeMappings.rows = [];
+    mockAccountTypeMappings.isDirty = false;
+    render(<MappingScreen />);
+    const button = screen.getByTestId('mapping-save-button');
+    expect(button.props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it('enables Save Mappings button when rows exist even if not dirty', () => {
+    mockAccountTypeMappings.rows = [
+      { id: 'r1', sourceType: 'Asset', targetTypes: ['Asset'] },
+    ];
+    mockAccountTypeMappings.isDirty = false;
+    render(<MappingScreen />);
+    const button = screen.getByTestId('mapping-save-button');
+    expect(button.props.accessibilityState?.disabled).not.toBe(true);
+  });
+
+  it('disables Save Mappings button while saving is in progress', () => {
+    mockAccountTypeMappings.rows = [
+      { id: 'r1', sourceType: 'Asset', targetTypes: ['Asset'] },
+    ];
+    mockAccountTypeMappings.isDirty = true;
+    mockAccountTypeMappings.isSaving = true;
+    render(<MappingScreen />);
+    const button = screen.getByTestId('mapping-save-button');
+    expect(button.props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it('calls accountTypeMappings.save when Save is pressed with isDirty=false but rows exist', async () => {
+    mockAccountTypeMappings.rows = [
+      { id: 'r1', sourceType: 'Asset', targetTypes: ['Asset'] },
+    ];
+    mockAccountTypeMappings.isDirty = false;
+    render(<MappingScreen />);
+    const button = screen.getByTestId('mapping-save-button');
+    await fireEvent.press(button);
+    expect(mockSaveMappings).toHaveBeenCalledTimes(1);
   });
 });
