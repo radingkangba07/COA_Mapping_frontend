@@ -536,7 +536,7 @@ export const MappingScreen = (): React.JSX.Element => {
           <Button
             variant="outline"
             onPress={() => void handleSaveMappings()}
-            disabled={!accountTypeMappings.isDirty || accountTypeMappings.isSaving}
+            disabled={accountTypeMappings.rows.length === 0 || accountTypeMappings.isSaving}
             isLoading={accountTypeMappings.isSaving}
             accessibilityLabel="Save type mappings"
             testID="mapping-save-button"

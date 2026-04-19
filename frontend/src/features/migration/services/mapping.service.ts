@@ -92,7 +92,7 @@ export function toMappingCreateDTOs(
         source_account_number: account.source_number || undefined,
         target_account_name: account.target_name,
         confidence_score: account.score,
-        status: 'pending',
+        status: account.status ?? 'pending',
         source_account_type: group.source_type,
         target_account_type: group.target_type,
       }),

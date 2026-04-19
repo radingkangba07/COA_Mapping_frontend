@@ -333,6 +333,47 @@ describe('toMappingCreateDTOs', () => {
     expect(result[2]?.source_account_type).toBe('Liability');
     expect(result[2]?.target_account_type).toBe('Current Liability');
   });
+
+  it('preserves per-account status=confirmed on the output DTO', () => {
+    const groups: readonly GroupedMapping[] = [
+      makeGroupedMapping({
+        accounts: [
+          {
+            source_number: '1000',
+            source_name: 'Cash',
+            target_name: 'Cash Equiv',
+            score: 95,
+            remark: '',
+            status: 'confirmed',
+          },
+        ],
+      }),
+    ];
+
+    const result = toMappingCreateDTOs('proj-1', groups);
+
+    expect(result[0]?.status).toBe('confirmed');
+  });
+
+  it('defaults status to "pending" when account.status is undefined', () => {
+    const groups: readonly GroupedMapping[] = [
+      makeGroupedMapping({
+        accounts: [
+          {
+            source_number: '1000',
+            source_name: 'Cash',
+            target_name: 'Cash Equiv',
+            score: 55,
+            remark: '',
+          },
+        ],
+      }),
+    ];
+
+    const result = toMappingCreateDTOs('proj-1', groups);
+
+    expect(result[0]?.status).toBe('pending');
+  });
 });
 
 // ─── getHierarchicalMapping ────────────────────────────────────────────────

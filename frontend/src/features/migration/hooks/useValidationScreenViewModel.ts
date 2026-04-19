@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useMigrationStore } from '../store/migration.store';
 import {
@@ -9,7 +9,7 @@ import { CONFIDENCE_THRESHOLDS } from '@/shared/constants/mapping-confidence';
 import { useSyncStep } from './useSyncStep';
 import { useValidation } from './useValidation';
 import { useToast } from '@/shared/hooks/useToast';
-import { updateMappingStatus, saveMappings, toMappingCreateDTOs } from '../services/mapping.service';
+import { saveMappings, toMappingCreateDTOs } from '../services/mapping.service';
 import { httpClient } from '@/shared/services/http/http.instance';
 import type { ConfidenceLevel, AccountMapping, GroupedMapping } from '../types/mapping.types';
 import type { UploadedFile } from '../types/migration.types';
@@ -48,7 +48,7 @@ interface ValidationScreenViewModel {
   readonly isDeletedOpen: boolean;
   readonly handleStepPress: (step: number) => void;
   readonly handleFilterPress: (filter: ConfidenceLevel | null) => void;
-  readonly handleConfirm: (level: ConfidenceLevel) => void;
+  readonly handleConfirm: (level: ConfidenceLevel) => Promise<void>;
   readonly handleTypeChange: (sourceType: string, newTargetType: string) => void;
   readonly handleAccountNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string) => void;
   readonly handleDeleteAccount: (sourceType: string, accountIndex: number, account: AccountMapping) => void;
@@ -116,6 +116,7 @@ export function useValidationScreenViewModel(
   const { showSuccess, showError } = useToast();
   const [isDeletedOpen, setIsDeletedOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const confirmInFlightRef = useRef<boolean>(false);
 
   const targetAccountNames = useMemo<string[]>(() => {
     const names = new Set<string>();
@@ -134,22 +135,25 @@ export function useValidationScreenViewModel(
   const handleFilterPress = useCallback(
     (filter: ConfidenceLevel | null): void => { actions.setConfidenceFilter(filter); }, [actions]);
   const handleConfirm = useCallback(
-    (level: ConfidenceLevel): void => {
-      actions.confirmConfidenceLevel(level);
-      const state = useMigrationStore.getState();
-      const isNowConfirmed =
-        level === 'high' ? state.confirmedHigh :
-        level === 'medium' ? state.confirmedMedium :
-        state.confirmedLow;
-      const minScore = level === 'high' ? CONFIDENCE_THRESHOLDS.HIGH
-        : level === 'medium' ? CONFIDENCE_THRESHOLDS.MEDIUM : 0;
-      const maxScore = level === 'high' ? 100
-        : level === 'medium' ? CONFIDENCE_THRESHOLDS.HIGH : CONFIDENCE_THRESHOLDS.MEDIUM;
-      void updateMappingStatus(
-        httpClient, projectId, minScore,
-        isNowConfirmed ? 'confirmed' : 'pending', maxScore,
-      );
-    }, [actions, projectId]);
+    async (level: ConfidenceLevel): Promise<void> => {
+      if (confirmInFlightRef.current) return;
+      confirmInFlightRef.current = true;
+      try {
+        actions.confirmConfidenceLevel(level);
+        const latestGroups = useMigrationStore.getState().groupedMappings;
+        const dtos = toMappingCreateDTOs(projectId, latestGroups);
+        const result = await saveMappings(httpClient, projectId, dtos);
+        if (!result.ok) {
+          actions.confirmConfidenceLevel(level); // revert local toggle
+          showError('Confirm failed', result.error.message);
+          return;
+        }
+        actions.markChangesSaved();
+        showSuccess('Confirmed', 'Saved to server.');
+      } finally {
+        confirmInFlightRef.current = false;
+      }
+    }, [actions, projectId, showError, showSuccess]);
   const handleTypeChange = useCallback(
     (sourceType: string, newTargetType: string): void => { actions.updateTypeMapping(sourceType, newTargetType); }, [actions]);
   const handleAccountNameChange = useCallback(
