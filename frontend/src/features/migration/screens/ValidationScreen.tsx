@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { View, Text } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -27,12 +27,17 @@ import { AccountTypeGroup } from '../components/AccountTypeGroup/AccountTypeGrou
 import { ValidationSkeleton } from '../components/ValidationSkeleton';
 import { useHydrateProject } from '../hooks/useHydrateProject';
 import { useValidationScreenViewModel } from '../hooks/useValidationScreenViewModel';
+import { useJobStream } from '../hooks/useJobStream';
+import { useMappingSuggestions } from '../hooks/useMappingSuggestions';
 import { useMigrationStore } from '../store/migration.store';
+import { adaptSuggestionsToGroupedMappings } from '../services/suggestion-adapter.service';
 import { useMigrationScreenRoute } from '@/navigation/types';
 import { createProjectId } from '@/shared/types/common.types';
+import { useToast } from '@/shared/hooks/useToast';
 import { cn } from '@/shared/utils/string.utils';
 import type { MigrationStackParamList } from '@/navigation/types';
 import type { ConfidenceLevel } from '../types/mapping.types';
+import type { JobStatusEvent } from '../types/job-event.types';
 import { colors } from '@/config/theme';
 import { STEP_TO_SCREEN } from '@/shared/constants/migration-steps';
 import type { MigrationStepValue } from '@/shared/constants/migration-steps';
@@ -88,6 +93,58 @@ export const ValidationScreen = (): React.JSX.Element => {
   );
 
   const vm = useValidationScreenViewModel(projectId, navigateBack, navigateForward);
+
+  const { showSuccess, showError, showWarning } = useToast();
+  const suggestions = useMappingSuggestions(projectId);
+  const setGroupedMappings = useMigrationStore((s) => s.setGroupedMappings);
+
+  // Push suggestion snapshots into the store so the existing VM (stats,
+  // filters, confirmation, edit/delete UI) sees them without any rewiring.
+  useEffect((): void => {
+    if (suggestions.isLoading) return;
+    if (suggestions.suggestions.length === 0) return;
+    setGroupedMappings(adaptSuggestionsToGroupedMappings(suggestions.suggestions));
+  }, [suggestions.isLoading, suggestions.suggestions, setGroupedMappings]);
+
+  const refetchRef = useRef(suggestions.refetch);
+  refetchRef.current = suggestions.refetch;
+
+  const handleJobComplete = useCallback(
+    (event: JobStatusEvent): void => {
+      if (event.jobType !== 'account_matching' && event.jobType !== 'mapping') {
+        return;
+      }
+      void refetchRef.current();
+      showSuccess('Mapping complete', 'Latest suggestions loaded.');
+    },
+    [showSuccess],
+  );
+
+  const handleJobFailed = useCallback(
+    (event: JobStatusEvent): void => {
+      if (event.jobType !== 'account_matching' && event.jobType !== 'mapping') {
+        return;
+      }
+      showError('Mapping failed', event.errorMessage ?? 'Please try again.');
+    },
+    [showError],
+  );
+
+  const jobStream = useJobStream(projectId, {
+    onComplete: handleJobComplete,
+    onFailed: handleJobFailed,
+  });
+
+  const liveErrorSurfacedRef = useRef(false);
+  useEffect((): void => {
+    if (jobStream.error !== null && !liveErrorSurfacedRef.current) {
+      liveErrorSurfacedRef.current = true;
+      showWarning('Live updates unavailable', 'Refresh to check status.');
+    }
+    if (jobStream.error === null) {
+      liveErrorSurfacedRef.current = false;
+    }
+  }, [jobStream.error, showWarning]);
 
   const handleStepPress = useCallback(
     (step: number): void => {
