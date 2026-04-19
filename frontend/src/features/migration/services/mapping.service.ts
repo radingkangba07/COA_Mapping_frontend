@@ -16,14 +16,20 @@ import type { TypeMappingRow } from '@/features/migration/types/migration.types'
 
 /**
  * Build a record of source→target type overrides from user-edited type mapping rows.
+ *
+ * The hierarchical mapping endpoint is single-target — it accepts exactly one
+ * target per source. When a row has multiple targets (PR #1 multi-select), we
+ * intentionally flatten to `targetTypes[0]` to preserve legacy behavior until
+ * the backend adds multi-target support on /api/v1/mappings/hierarchical.
  */
 export function buildCustomTypeMappings(
   rows: readonly TypeMappingRow[],
 ): Record<string, string> {
   const mappings: Record<string, string> = {};
   for (const row of rows) {
-    if (row.sourceType && row.targetType) {
-      mappings[row.sourceType] = row.targetType;
+    const firstTarget = row.targetTypes[0];
+    if (row.sourceType && firstTarget !== undefined && firstTarget.length > 0) {
+      mappings[row.sourceType] = firstTarget;
     }
   }
   return mappings;

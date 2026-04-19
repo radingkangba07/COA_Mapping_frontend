@@ -32,8 +32,8 @@ const mockSourceData: Record<string, unknown>[] = [
 ];
 
 const mockTypeMappingRows: TypeMappingRow[] = [
-  { id: 'row-1', sourceType: 'Asset', targetType: 'Assets', isCustom: false },
-  { id: 'row-2', sourceType: 'Liability', targetType: 'Liabilities', isCustom: false },
+  { id: 'row-1', sourceType: 'Asset', targetTypes: ['Assets'], isCustom: false },
+  { id: 'row-2', sourceType: 'Liability', targetTypes: ['Liabilities'], isCustom: false },
 ];
 
 const mockGroupedMappings: GroupedMapping[] = [
@@ -150,19 +150,31 @@ describe('useMigrationStore', () => {
       expect(useMigrationStore.getState().typeMappingRows).toEqual(mockTypeMappingRows);
     });
 
-    it('updateTypeMappingRow updates field and marks hasUnsavedChanges', () => {
+    it('updateTypeMappingRow updates targetTypes and marks hasUnsavedChanges', () => {
       const { setTypeMappingRows, updateTypeMappingRow } = useMigrationStore.getState();
 
       setTypeMappingRows(mockTypeMappingRows);
-      updateTypeMappingRow('row-1', 'targetType', 'Fixed Assets');
+      updateTypeMappingRow('row-1', { targetTypes: ['Fixed Assets', 'Other Assets'] });
 
       const state = useMigrationStore.getState();
       const updated = state.typeMappingRows.find((r) => r.id === 'row-1');
-      expect(updated?.targetType).toBe('Fixed Assets');
+      expect(updated?.targetTypes).toEqual(['Fixed Assets', 'Other Assets']);
       expect(state.hasUnsavedChanges).toBe(true);
     });
 
-    it('addTypeMappingRow adds a custom row', () => {
+    it('updateTypeMappingRow updates sourceType and marks hasUnsavedChanges', () => {
+      const { setTypeMappingRows, updateTypeMappingRow } = useMigrationStore.getState();
+
+      setTypeMappingRows(mockTypeMappingRows);
+      updateTypeMappingRow('row-1', { sourceType: 'Revenue' });
+
+      const state = useMigrationStore.getState();
+      const updated = state.typeMappingRows.find((r) => r.id === 'row-1');
+      expect(updated?.sourceType).toBe('Revenue');
+      expect(state.hasUnsavedChanges).toBe(true);
+    });
+
+    it('addTypeMappingRow adds a custom row with empty targetTypes', () => {
       const { setTypeMappingRows, addTypeMappingRow } = useMigrationStore.getState();
 
       setTypeMappingRows(mockTypeMappingRows);
@@ -173,7 +185,7 @@ describe('useMigrationStore', () => {
       const newRow = state.typeMappingRows[2];
       expect(newRow?.isCustom).toBe(true);
       expect(newRow?.sourceType).toBe('');
-      expect(newRow?.targetType).toBe('');
+      expect(newRow?.targetTypes).toEqual([]);
       expect(state.hasUnsavedChanges).toBe(true);
     });
 
@@ -194,11 +206,83 @@ describe('useMigrationStore', () => {
         useMigrationStore.getState();
 
       setTypeMappingRows(mockTypeMappingRows);
-      updateTypeMappingRow('row-1', 'sourceType', 'Revenue');
+      updateTypeMappingRow('row-1', { sourceType: 'Revenue' });
       expect(useMigrationStore.getState().hasUnsavedChanges).toBe(true);
 
       markChangesSaved();
       expect(useMigrationStore.getState().hasUnsavedChanges).toBe(false);
+    });
+  });
+
+  describe('hasUnsavedTypeMappings', () => {
+    it('starts false', () => {
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(false);
+    });
+
+    it('is set true by setTypeMappingRows', () => {
+      useMigrationStore.getState().setTypeMappingRows(mockTypeMappingRows);
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(true);
+    });
+
+    it('is NOT set true by hydrateTypeMappingRows', () => {
+      // Hydration paths (server fetch, file upload) populate the rows without
+      // marking the table dirty — only explicit user edits should flip this.
+      useMigrationStore.getState().hydrateTypeMappingRows(mockTypeMappingRows);
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(false);
+      expect(useMigrationStore.getState().typeMappingRows).toEqual(mockTypeMappingRows);
+    });
+
+    it('hydrateTypeMappingRows preserves existing dirty flag when true', () => {
+      const store = useMigrationStore.getState();
+      store.setTypeMappingRows(mockTypeMappingRows);
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(true);
+
+      // Hydration must not silently clear the dirty flag either; the contract
+      // is "no effect on dirty", not "flip to false".
+      store.hydrateTypeMappingRows(mockTypeMappingRows);
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(true);
+    });
+
+    it('is set true by addTypeMappingRow', () => {
+      useMigrationStore.getState().addTypeMappingRow();
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(true);
+    });
+
+    it('is set true by updateTypeMappingRow', () => {
+      const store = useMigrationStore.getState();
+      store.setTypeMappingRows(mockTypeMappingRows);
+      store.markTypeMappingsSaved();
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(false);
+
+      store.updateTypeMappingRow('row-1', { targetTypes: ['X'] });
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(true);
+    });
+
+    it('is set true by deleteTypeMappingRow', () => {
+      const store = useMigrationStore.getState();
+      store.setTypeMappingRows(mockTypeMappingRows);
+      store.markTypeMappingsSaved();
+
+      store.deleteTypeMappingRow('row-1');
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(true);
+    });
+
+    it('markTypeMappingsSaved flips it back to false', () => {
+      const store = useMigrationStore.getState();
+      store.setTypeMappingRows(mockTypeMappingRows);
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(true);
+
+      store.markTypeMappingsSaved();
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(false);
+    });
+
+    it('reset() resets hasUnsavedTypeMappings to false', () => {
+      const store = useMigrationStore.getState();
+      store.setTypeMappingRows(mockTypeMappingRows);
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(true);
+
+      store.reset();
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(false);
     });
   });
 

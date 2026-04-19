@@ -27,6 +27,7 @@ function createMockState(overrides: Partial<MigrationStore> = {}): MigrationStor
     mappingData: [],
     typeMappingRows: [],
     hasUnsavedChanges: false,
+    hasUnsavedTypeMappings: false,
     targetTypes: [],
     groupedMappings: [],
     confidenceFilter: null,
@@ -45,10 +46,12 @@ function createMockState(overrides: Partial<MigrationStore> = {}): MigrationStor
     setTargetData: jest.fn(),
     setMappingData: jest.fn(),
     setTypeMappingRows: jest.fn(),
+    hydrateTypeMappingRows: jest.fn(),
     updateTypeMappingRow: jest.fn(),
     addTypeMappingRow: jest.fn(),
     deleteTypeMappingRow: jest.fn(),
     markChangesSaved: jest.fn(),
+    markTypeMappingsSaved: jest.fn(),
     setGroupedMappings: jest.fn(),
     updateTypeMapping: jest.fn(),
     updateAccountName: jest.fn(),
@@ -161,9 +164,9 @@ describe('selectTypeMappingSummary', () => {
   it('counts total and matched rows correctly', () => {
     const state = createMockState({
       typeMappingRows: [
-        { id: '1', sourceType: 'Asset', targetType: 'Assets', isCustom: false },
-        { id: '2', sourceType: 'Liability', targetType: '', isCustom: false },
-        { id: '3', sourceType: 'Revenue', targetType: 'Income', isCustom: false },
+        { id: '1', sourceType: 'Asset', targetTypes: ['Assets'], isCustom: false },
+        { id: '2', sourceType: 'Liability', targetTypes: [], isCustom: false },
+        { id: '3', sourceType: 'Revenue', targetTypes: ['Income'], isCustom: false },
       ],
     });
     const result = selectTypeMappingSummary(state);
@@ -172,11 +175,16 @@ describe('selectTypeMappingSummary', () => {
     expect(result.allMatched).toBe(false);
   });
 
-  it('sets allMatched true when all rows have non-empty targetType', () => {
+  it('sets allMatched true when all rows have at least one targetType', () => {
     const state = createMockState({
       typeMappingRows: [
-        { id: '1', sourceType: 'Asset', targetType: 'Assets', isCustom: false },
-        { id: '2', sourceType: 'Liability', targetType: 'Liabilities', isCustom: false },
+        { id: '1', sourceType: 'Asset', targetTypes: ['Assets'], isCustom: false },
+        {
+          id: '2',
+          sourceType: 'Liability',
+          targetTypes: ['Liabilities', 'Other Liability'],
+          isCustom: false,
+        },
       ],
     });
     const result = selectTypeMappingSummary(state);

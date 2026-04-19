@@ -209,7 +209,7 @@ describe('matchTypesToTargets', () => {
       expect(result).toHaveLength(3);
       result.forEach((row, i) => {
         expect(row.sourceType).toBe(types[i]);
-        expect(row.targetType).toBe(types[i]);
+        expect(row.targetTypes).toEqual([types[i]]);
         expect(row.isCustom).toBe(false);
         expect(row.id).toBe(String(i));
       });
@@ -220,8 +220,8 @@ describe('matchTypesToTargets', () => {
       const target = ['Asset', 'Liability'];
       const result = matchTypesToTargets(source, target);
 
-      expect(result[0]?.targetType).toBe('Asset');
-      expect(result[1]?.targetType).toBe('Liability');
+      expect(result[0]?.targetTypes).toEqual(['Asset']);
+      expect(result[1]?.targetTypes).toEqual(['Liability']);
     });
   });
 
@@ -231,7 +231,7 @@ describe('matchTypesToTargets', () => {
       const target = ['Operating Revenue', 'Expense'];
       const result = matchTypesToTargets(source, target);
 
-      expect(result[0]?.targetType).toBe('Operating Revenue');
+      expect(result[0]?.targetTypes).toEqual(['Operating Revenue']);
     });
 
     it('matches when target type is contained in source type', () => {
@@ -239,7 +239,7 @@ describe('matchTypesToTargets', () => {
       const target = ['Asset', 'Liability'];
       const result = matchTypesToTargets(source, target);
 
-      expect(result[0]?.targetType).toBe('Asset');
+      expect(result[0]?.targetTypes).toEqual(['Asset']);
     });
   });
 
@@ -249,17 +249,17 @@ describe('matchTypesToTargets', () => {
       const target = ['Fixed Asset', 'Revenue'];
       const result = matchTypesToTargets(source, target);
 
-      expect(result[0]?.targetType).toBe('Fixed Asset');
+      expect(result[0]?.targetTypes).toEqual(['Fixed Asset']);
     });
   });
 
   describe('no match found', () => {
-    it('returns empty targetType when no match is possible', () => {
+    it('returns empty targetTypes when no match is possible', () => {
       const source = ['Alpha'];
       const target = ['Beta'];
       const result = matchTypesToTargets(source, target);
 
-      expect(result[0]?.targetType).toBe('');
+      expect(result[0]?.targetTypes).toEqual([]);
     });
   });
 
@@ -285,13 +285,13 @@ describe('matchTypesToTargets', () => {
 
       expect(result).toHaveLength(5);
       expect(result[0]?.sourceType).toBe('Asset');
-      expect(result[0]?.targetType).toBe('Other Asset');
+      expect(result[0]?.targetTypes).toEqual(['Other Asset']);
 
       expect(result[2]?.sourceType).toBe('Equity');
-      expect(result[2]?.targetType).toBe('Equity');
+      expect(result[2]?.targetTypes).toEqual(['Equity']);
 
       expect(result[4]?.sourceType).toBe('Expense');
-      expect(result[4]?.targetType).toBe('Expense');
+      expect(result[4]?.targetTypes).toEqual(['Expense']);
     });
 
     it('produces TypeMappingRow with correct shape', () => {
@@ -300,11 +300,11 @@ describe('matchTypesToTargets', () => {
       result.forEach((row) => {
         expect(row).toHaveProperty('id');
         expect(row).toHaveProperty('sourceType');
-        expect(row).toHaveProperty('targetType');
+        expect(row).toHaveProperty('targetTypes');
         expect(row).toHaveProperty('isCustom');
         expect(typeof row.id).toBe('string');
         expect(typeof row.sourceType).toBe('string');
-        expect(typeof row.targetType).toBe('string');
+        expect(Array.isArray(row.targetTypes)).toBe(true);
         expect(row.isCustom).toBe(false);
       });
     });
@@ -323,11 +323,11 @@ describe('matchTypesToTargets', () => {
       expect(result).toEqual([]);
     });
 
-    it('returns rows with empty targetType for empty target types', () => {
+    it('returns rows with empty targetTypes for empty target types', () => {
       const result = matchTypesToTargets(['Asset', 'Liability'], []);
       expect(result).toHaveLength(2);
       result.forEach((row) => {
-        expect(row.targetType).toBe('');
+        expect(row.targetTypes).toEqual([]);
       });
     });
 
@@ -339,20 +339,20 @@ describe('matchTypesToTargets', () => {
     it('handles single item source array', () => {
       const result = matchTypesToTargets(['Asset'], ['Asset', 'Liability']);
       expect(result).toHaveLength(1);
-      expect(result[0]?.targetType).toBe('Asset');
+      expect(result[0]?.targetTypes).toEqual(['Asset']);
     });
 
     it('handles single item target array', () => {
       const result = matchTypesToTargets(['Asset', 'Liability'], ['Asset']);
       expect(result).toHaveLength(2);
-      expect(result[0]?.targetType).toBe('Asset');
+      expect(result[0]?.targetTypes).toEqual(['Asset']);
     });
 
     it('handles duplicate source types', () => {
       const result = matchTypesToTargets(['Asset', 'Asset'], ['Asset']);
       expect(result).toHaveLength(2);
-      expect(result[0]?.targetType).toBe('Asset');
-      expect(result[1]?.targetType).toBe('Asset');
+      expect(result[0]?.targetTypes).toEqual(['Asset']);
+      expect(result[1]?.targetTypes).toEqual(['Asset']);
     });
 
     it('handles whitespace in type names', () => {
@@ -360,7 +360,7 @@ describe('matchTypesToTargets', () => {
         ['  Asset  '],
         ['Asset'],
       );
-      expect(result[0]?.targetType).toBe('Asset');
+      expect(result[0]?.targetTypes).toEqual(['Asset']);
     });
 
     it('handles types with all same confidence scores', () => {
@@ -369,7 +369,7 @@ describe('matchTypesToTargets', () => {
       const result = matchTypesToTargets(source, target);
 
       result.forEach((row) => {
-        expect(row.sourceType).toBe(row.targetType);
+        expect(row.targetTypes).toEqual([row.sourceType]);
       });
     });
   });

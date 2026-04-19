@@ -58,7 +58,7 @@ const mockStoreState: Record<string, unknown> = {
   currentStep: 2,
   completedSteps: [0, 1],
   typeMappingRows: [
-    { id: '1', sourceType: 'Asset', targetType: 'Asset', isCustom: false },
+    { id: '1', sourceType: 'Asset', targetTypes: ['Asset'], isCustom: false },
   ],
   targetTypes: ['Asset', 'Liability', 'Equity'],
   isLoading: false,
@@ -128,6 +128,30 @@ jest.mock('../../hooks/useHydrateProject', () => ({
   useHydrateProject: () => ({ isHydrating: false, error: null, retry: jest.fn() }),
 }));
 
+const mockSaveMappings = jest.fn().mockResolvedValue(undefined);
+const mockClearMappings = jest.fn().mockResolvedValue(undefined);
+jest.mock('../../hooks/useAccountTypeMappings', () => ({
+  useAccountTypeMappings: () => ({
+    rows: [],
+    availableTargetTypes: [],
+    isLoading: false,
+    isSaving: false,
+    isDirty: false,
+    save: mockSaveMappings,
+    clear: mockClearMappings,
+  }),
+}));
+
+jest.mock('@/shared/hooks/useConfirm', () => ({
+  useConfirm: () => ({
+    confirm: jest.fn().mockResolvedValue(true),
+    isVisible: false,
+    confirmOptions: null,
+    onConfirm: jest.fn(),
+    onCancel: jest.fn(),
+  }),
+}));
+
 // ─── Child component stubs ──────────────────────────────────────────────────
 jest.mock('../../components/MigrationStepper/MigrationStepper', () => {
   const RN = require('react-native');
@@ -135,15 +159,6 @@ jest.mock('../../components/MigrationStepper/MigrationStepper', () => {
   return {
     MigrationStepper: (props: Record<string, unknown>) =>
       R.createElement(RN.View, { testID: 'migration-stepper', ...props }),
-  };
-});
-
-jest.mock('../../components/FieldMappingTable/FieldMappingTable', () => {
-  const RN = require('react-native');
-  const R = require('react');
-  return {
-    FieldMappingTable: (props: Record<string, unknown>) =>
-      R.createElement(RN.View, { testID: props.testID ?? 'field-mapping-table' }),
   };
 });
 
@@ -169,7 +184,7 @@ describe('MappingScreen', () => {
     jest.clearAllMocks();
     mockStoreState.isLoading = false;
     mockStoreState.typeMappingRows = [
-      { id: '1', sourceType: 'Asset', targetType: 'Asset', isCustom: false },
+      { id: '1', sourceType: 'Asset', targetTypes: ['Asset'], isCustom: false },
     ];
     mockAllMatched = true;
   });

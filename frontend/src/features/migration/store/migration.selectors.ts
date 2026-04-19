@@ -41,9 +41,12 @@ interface TypeMappingSummary {
 
 export const selectTypeMappingSummary = (state: MigrationStore): TypeMappingSummary => {
   const total = state.typeMappingRows.length;
-  const matched = state.typeMappingRows.filter((r) => r.targetType.length > 0).length;
+  const matched = state.typeMappingRows.filter((r) => r.targetTypes.length > 0).length;
   return { total, matched, allMatched: total > 0 && matched === total };
 };
+
+export const selectHasUnsavedTypeMappings = (state: MigrationStore): boolean =>
+  state.hasUnsavedTypeMappings;
 
 // ─── Mapping Stats ───────────────────────────────────────────────────────────
 

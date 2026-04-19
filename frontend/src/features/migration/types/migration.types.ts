@@ -27,7 +27,7 @@ export interface MigrationRow {
 export interface TypeMappingRow {
   readonly id: string;
   readonly sourceType: string;
-  readonly targetType: string;
+  readonly targetTypes: readonly string[];
   readonly isCustom: boolean;
 }
 

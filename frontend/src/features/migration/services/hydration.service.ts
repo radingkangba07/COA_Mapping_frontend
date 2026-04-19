@@ -166,14 +166,14 @@ export async function hydrateProject(
   }
 
   if (mappingDataResult?.ok) {
-    store.setTypeMappingRows(buildTypeMappingRows(mappingDataResult.data.data));
+    store.hydrateTypeMappingRows(buildTypeMappingRows(mappingDataResult.data.data));
   } else if (sourceDataResult?.ok) {
     const sourceTypes = extractAccountTypes(sourceDataResult.data.data);
     const targetTypes = targetDataResult?.ok
       ? extractAccountTypes(targetDataResult.data.data)
       : [];
     if (sourceTypes.length > 0) {
-      store.setTypeMappingRows(matchTypesToTargets(sourceTypes, targetTypes));
+      store.hydrateTypeMappingRows(matchTypesToTargets(sourceTypes, targetTypes));
     }
   }
 
