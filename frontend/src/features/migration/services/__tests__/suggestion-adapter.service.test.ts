@@ -15,6 +15,7 @@ describe('adaptSuggestionsToGroupedMappings', () => {
         accounts: [
           {
             id: 'a1',
+            suggestionId: 's1',
             sourceName: 'Cash',
             targetName: 'Cash at Bank',
             score: 97,
@@ -69,6 +70,7 @@ describe('adaptSuggestionsToGroupedMappings', () => {
         accounts: [
           {
             id: 'a1',
+            suggestionId: 's1',
             sourceName: 'Cash',
             targetName: 'Cash',
             score: 100,
@@ -92,6 +94,7 @@ describe('adaptSuggestionsToGroupedMappings', () => {
         accounts: [
           {
             id: 'r1',
+            suggestionId: 's1',
             sourceName: 'Sales',
             targetName: 'Sales',
             score: 88,
@@ -115,6 +118,7 @@ describe('adaptSuggestionsToGroupedMappings', () => {
         accounts: [
           {
             id: 'e1',
+            suggestionId: 's1',
             sourceName: 'Common Stock',
             targetName: 'Common Stock',
             score: 95,
@@ -123,6 +127,7 @@ describe('adaptSuggestionsToGroupedMappings', () => {
           },
           {
             id: 'e2',
+            suggestionId: 's2',
             sourceName: 'Retained Earnings',
             targetName: 'Retained Earnings',
             score: 90,

@@ -17,8 +17,14 @@ function getScoreColor(score: number): string {
   return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30';
 }
 
+function isUserChanged(account: AccountMapping): boolean {
+  // Local edits set user_changed:true optimistically. After Save + refetch,
+  // that flag is gone but the backend returns mapping_source:"user".
+  return account.user_changed === true || account.mapping_source === 'user';
+}
+
 function getRemarkText(account: AccountMapping): string {
-  if (account.user_changed === true) {
+  if (isUserChanged(account)) {
     return account.changed_by_name ? `Changed by ${account.changed_by_name}` : 'User Changed';
   }
   if (account.score >= 70) return 'AI Suggestion';
@@ -26,7 +32,7 @@ function getRemarkText(account: AccountMapping): string {
 }
 
 function getRemarkColor(account: AccountMapping): string {
-  if (account.user_changed === true) return 'text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30';
+  if (isUserChanged(account)) return 'text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30';
   if (account.score >= 70) return 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30';
   return 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-[#2D2D2D]';
 }

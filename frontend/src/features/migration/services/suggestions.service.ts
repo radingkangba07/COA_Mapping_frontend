@@ -14,7 +14,8 @@ import type {
 // ─── Zod schemas (API boundary) ────────────────────────────────────────────
 
 const suggestionAccountSchema = z.object({
-  id: z.string(),
+  id: z.string().nullable(),
+  suggestion_id: z.string(),
   source_name: z.string(),
   target_name: z.string(),
   score: z.number(),
@@ -36,6 +37,7 @@ const suggestionListSchema = z.array(suggestionGroupSchema);
 function toAccount(dto: SuggestionAccountDTO): SuggestionAccount {
   return {
     id: dto.id,
+    suggestionId: dto.suggestion_id,
     sourceName: dto.source_name,
     targetName: dto.target_name,
     score: dto.score,

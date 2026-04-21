@@ -382,7 +382,7 @@ describe('useMigrationStore', () => {
   });
 
   describe('delete/restore accounts', () => {
-    it('deleteAccount moves account to deletedAccounts and splices from group', () => {
+    it('deleteAccount tombstones the row in place with is_active=false and marks unsaved', () => {
       const { setGroupedMappings, deleteAccount } = useMigrationStore.getState();
 
       setGroupedMappings(mockGroupedMappings);
@@ -390,13 +390,14 @@ describe('useMigrationStore', () => {
 
       const state = useMigrationStore.getState();
       const assetGroup = state.groupedMappings.find((g) => g.source_type === 'Asset');
-      expect(assetGroup?.accounts).toHaveLength(1);
-      expect(state.deletedAccounts).toHaveLength(1);
-      expect(state.deletedAccounts[0]?.sourceNumber).toBe('1000');
-      expect(state.deletedAccounts[0]?.sourceName).toBe('Cash');
+      // Row stays in the group — Save will ship it with is_active:false.
+      expect(assetGroup?.accounts).toHaveLength(2);
+      const tombstoned = assetGroup?.accounts.find((a) => a.source_name === 'Cash');
+      expect(tombstoned?.is_active).toBe(false);
+      expect(state.hasUnsavedChanges).toBe(true);
     });
 
-    it('restoreAccount moves account back with score=0 and remark=Restored', () => {
+    it('restoreAccount flips is_active back to true', () => {
       const { setGroupedMappings, deleteAccount, restoreAccount } =
         useMigrationStore.getState();
 
@@ -405,14 +406,11 @@ describe('useMigrationStore', () => {
       restoreAccount(0);
 
       const state = useMigrationStore.getState();
-      expect(state.deletedAccounts).toHaveLength(0);
-
       const assetGroup = state.groupedMappings.find((g) => g.source_type === 'Asset');
-      const restoredAccount = assetGroup?.accounts[assetGroup.accounts.length - 1];
-      expect(restoredAccount?.source_number).toBe('1000');
-      expect(restoredAccount?.source_name).toBe('Cash');
-      expect(restoredAccount?.score).toBe(0);
-      expect(restoredAccount?.remark).toBe('Restored');
+      const cash = assetGroup?.accounts.find((a) => a.source_name === 'Cash');
+      expect(cash?.is_active).toBe(true);
+      // Score + target_name must be preserved — we didn't splice and re-create.
+      expect(cash?.source_number).toBe('1000');
     });
   });
 
@@ -459,7 +457,6 @@ describe('useMigrationStore', () => {
       expect(state.targetTypes).toEqual([]);
       expect(state.groupedMappings).toEqual([]);
       expect(state.confirmedHigh).toBe(false);
-      expect(state.deletedAccounts).toEqual([]);
     });
 
     it('changing target ERP invalidates steps 1+ and clears downstream data', () => {
@@ -618,7 +615,6 @@ describe('useMigrationStore', () => {
       expect(state.confirmedHigh).toBe(false);
       expect(state.confirmedMedium).toBe(false);
       expect(state.confirmedLow).toBe(false);
-      expect(state.deletedAccounts).toEqual([]);
       expect(state.isLoading).toBe(false);
       expect(state.error).toBeNull();
     });

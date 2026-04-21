@@ -1,4 +1,6 @@
+import React from 'react';
 import { act, renderHook } from '@testing-library/react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Result, AppError } from '@/shared/types/result.types';
 import { ok, err } from '@/shared/types/result.types';
 import type {
@@ -17,12 +19,19 @@ const mockToMappingCreateDTOs = jest.fn<
   MappingCreateDTO[],
   [string, readonly GroupedMapping[]]
 >();
+const mockUpdateMappingStatus = jest.fn<
+  Promise<Result<void, AppError>>,
+  [unknown, string, number, 'confirmed' | 'pending', number?]
+>();
 
 jest.mock('@/features/migration/services/mapping.service', () => ({
   saveMappings: (...args: [unknown, string, readonly MappingCreateDTO[]]) =>
     mockSaveMappings(...args),
   toMappingCreateDTOs: (...args: [string, readonly GroupedMapping[]]) =>
     mockToMappingCreateDTOs(...args),
+  updateMappingStatus: (
+    ...args: [unknown, string, number, 'confirmed' | 'pending', number?]
+  ) => mockUpdateMappingStatus(...args),
 }));
 
 jest.mock('@/shared/services/http/http.instance', () => ({
@@ -153,10 +162,19 @@ function makeMappingCreateDTO(): MappingCreateDTO {
     source_account_name: 'Cash',
     target_account_name: 'Cash Equiv',
     confidence_score: 95,
-    status: 'pending',
+    mapping_status: 'pending',
     source_account_type: 'Asset',
     target_account_type: 'Fixed Asset',
   };
+}
+
+function createWrapper(): React.FC<{ children: React.ReactNode }> {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return ({ children }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
 }
 
 // ─── Tests ─────────────────────────────────────────────────────────────────
@@ -169,15 +187,26 @@ describe('useValidationScreenViewModel.handleConfirm', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockStoreState.groupedMappings = [makeGroupedMapping()];
+    mockStoreState.confirmedHigh = false;
+    mockStoreState.confirmedMedium = false;
+    mockStoreState.confirmedLow = false;
     mockToMappingCreateDTOs.mockReturnValue([makeMappingCreateDTO()]);
     mockSaveMappings.mockResolvedValue(
-      ok({ created: 1, mappings: [] }),
+      ok({ success: true, mapping_count: 1, project_id: 'proj-1', inserted: 1, updated: 0 }),
     );
+    mockUpdateMappingStatus.mockResolvedValue(ok(undefined));
+    // confirmConfidenceLevel action flips the corresponding store flag
+    mockConfirmConfidenceLevel.mockImplementation((level: 'high' | 'medium' | 'low') => {
+      if (level === 'high') mockStoreState.confirmedHigh = !mockStoreState.confirmedHigh;
+      if (level === 'medium') mockStoreState.confirmedMedium = !mockStoreState.confirmedMedium;
+      if (level === 'low') mockStoreState.confirmedLow = !mockStoreState.confirmedLow;
+    });
   });
 
-  it('calls saveMappings with flattened DTOs from latest store state', async () => {
-    const { result } = renderHook(() =>
-      useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+  it('calls updateMappingStatus with the high range when confirming high', async () => {
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
     );
 
     await act(async () => {
@@ -185,44 +214,45 @@ describe('useValidationScreenViewModel.handleConfirm', () => {
     });
 
     expect(mockConfirmConfidenceLevel).toHaveBeenCalledWith('high');
-    expect(mockToMappingCreateDTOs).toHaveBeenCalledWith(
-      projectId,
-      mockStoreState.groupedMappings,
-    );
-    expect(mockSaveMappings).toHaveBeenCalledTimes(1);
-    const call = mockSaveMappings.mock.calls[0];
+    expect(mockUpdateMappingStatus).toHaveBeenCalledTimes(1);
+    const call = mockUpdateMappingStatus.mock.calls[0];
     expect(call?.[1]).toBe(projectId);
-    expect(call?.[2]).toEqual([makeMappingCreateDTO()]);
+    // min_score for high, status now 'confirmed', max_score 100
+    expect(call?.[3]).toBe('confirmed');
     expect(mockShowSuccess).toHaveBeenCalledWith(
       'Confirmed',
-      'Saved to server.',
+      expect.stringContaining('High'),
     );
-    expect(mockMarkChangesSaved).toHaveBeenCalledTimes(1);
+    // Save path is not used by Confirm anymore
+    expect(mockSaveMappings).not.toHaveBeenCalled();
+    expect(mockMarkChangesSaved).not.toHaveBeenCalled();
   });
 
-  it('does not call markChangesSaved when save fails', async () => {
-    mockSaveMappings.mockResolvedValue(
-      err({ code: 'HTTP_500', message: 'Server down' }),
-    );
+  it('sends status "pending" when toggling off a previously-confirmed level', async () => {
+    mockStoreState.confirmedHigh = true; // starts confirmed → confirm again toggles OFF
 
-    const { result } = renderHook(() =>
-      useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
     );
 
     await act(async () => {
       await result.current.handleConfirm('high');
     });
 
-    expect(mockMarkChangesSaved).not.toHaveBeenCalled();
+    expect(mockUpdateMappingStatus).toHaveBeenCalledTimes(1);
+    const call = mockUpdateMappingStatus.mock.calls[0];
+    expect(call?.[3]).toBe('pending');
   });
 
-  it('reverts confirmation and shows error toast on save failure', async () => {
-    mockSaveMappings.mockResolvedValue(
+  it('reverts the local toggle and shows an error toast on status-update failure', async () => {
+    mockUpdateMappingStatus.mockResolvedValue(
       err({ code: 'HTTP_500', message: 'Server down' }),
     );
 
-    const { result } = renderHook(() =>
-      useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
     );
 
     await act(async () => {
@@ -238,35 +268,116 @@ describe('useValidationScreenViewModel.handleConfirm', () => {
   });
 
   it('de-dupes overlapping handleConfirm calls via the in-flight ref guard', async () => {
-    // Keep the first save "pending" long enough to overlap
-    let resolveFirst: ((r: Result<BulkSaveResponseDTO, AppError>) => void) | null = null;
-    mockSaveMappings.mockImplementationOnce(
+    let resolveFirst: ((r: Result<void, AppError>) => void) | null = null;
+    mockUpdateMappingStatus.mockImplementationOnce(
       () =>
-        new Promise<Result<BulkSaveResponseDTO, AppError>>((resolve) => {
+        new Promise<Result<void, AppError>>((resolve) => {
           resolveFirst = resolve;
         }),
     );
 
-    const { result } = renderHook(() =>
-      useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
     );
 
     await act(async () => {
-      // Fire the first call (will hang), then fire a second while first is in-flight
       const first = result.current.handleConfirm('high');
       const second = result.current.handleConfirm('high');
 
       // Only the first call should touch the store/service
       expect(mockConfirmConfidenceLevel).toHaveBeenCalledTimes(1);
-      expect(mockSaveMappings).toHaveBeenCalledTimes(1);
+      expect(mockUpdateMappingStatus).toHaveBeenCalledTimes(1);
 
-      // Resolve the first call so promises settle
-      resolveFirst?.(ok({ created: 1, mappings: [] }));
+      resolveFirst?.(ok(undefined));
       await Promise.all([first, second]);
     });
 
-    // Second call was a no-op — still exactly one save
-    expect(mockSaveMappings).toHaveBeenCalledTimes(1);
+    expect(mockUpdateMappingStatus).toHaveBeenCalledTimes(1);
     expect(mockConfirmConfidenceLevel).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('useValidationScreenViewModel.handleSaveMappings', () => {
+  const projectId = 'proj-1';
+  const navigateBack = jest.fn();
+  const navigateForward = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockStoreState.groupedMappings = [makeGroupedMapping()];
+    mockToMappingCreateDTOs.mockReturnValue([makeMappingCreateDTO()]);
+    mockSaveMappings.mockResolvedValue(
+      ok({ success: true, mapping_count: 1, project_id: 'proj-1', inserted: 1, updated: 0 }),
+    );
+  });
+
+  it('calls saveMappings with DTOs from the store and marks changes saved', async () => {
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
+    );
+
+    await act(async () => {
+      result.current.handleSaveMappings();
+      // flush microtasks until the promise chain resolves
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockToMappingCreateDTOs).toHaveBeenCalledWith(
+      projectId,
+      mockStoreState.groupedMappings,
+    );
+    expect(mockSaveMappings).toHaveBeenCalledTimes(1);
+    const call = mockSaveMappings.mock.calls[0];
+    expect(call?.[1]).toBe(projectId);
+    expect(call?.[2]).toEqual([makeMappingCreateDTO()]);
+    expect(mockMarkChangesSaved).toHaveBeenCalledTimes(1);
+    expect(mockShowSuccess).toHaveBeenCalledWith(
+      'Mappings saved',
+      '1 inserted, 0 updated',
+    );
+  });
+
+  it('skips the HTTP call when there are no DTOs to save', async () => {
+    mockToMappingCreateDTOs.mockReturnValue([]);
+
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
+    );
+
+    await act(async () => {
+      result.current.handleSaveMappings();
+      await Promise.resolve();
+    });
+
+    expect(mockSaveMappings).not.toHaveBeenCalled();
+    expect(mockShowSuccess).toHaveBeenCalledWith(
+      'Nothing to save',
+      'No edits to persist',
+    );
+    expect(mockMarkChangesSaved).not.toHaveBeenCalled();
+  });
+
+  it('shows an error toast and does not mark saved when the server rejects', async () => {
+    mockSaveMappings.mockResolvedValue(
+      err({ code: 'HTTP_500', message: 'Server down' }),
+    );
+
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
+    );
+
+    await act(async () => {
+      result.current.handleSaveMappings();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockShowError).toHaveBeenCalledWith('Save failed', 'Server down');
+    expect(mockMarkChangesSaved).not.toHaveBeenCalled();
   });
 });

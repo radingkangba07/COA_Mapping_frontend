@@ -31,13 +31,6 @@ export interface TypeMappingRow {
   readonly isCustom: boolean;
 }
 
-export interface DeletedAccount {
-  readonly sourceType: string;
-  readonly accountIndex: number;
-  readonly sourceNumber: string;
-  readonly sourceName: string;
-}
-
 export interface MigrationJob {
   readonly id: JobId;
   readonly projectId: ProjectId;

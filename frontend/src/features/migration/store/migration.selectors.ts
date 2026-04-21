@@ -60,7 +60,9 @@ export interface MappingStats {
 }
 
 export const selectMappingStats = (state: MigrationStore): MappingStats => {
-  const allAccounts = state.groupedMappings.flatMap((g) => g.accounts);
+  const allAccounts = state.groupedMappings
+    .flatMap((g) => g.accounts)
+    .filter((a) => a.is_active !== false);
 
   let highConfidence = 0;
   let mediumConfidence = 0;
@@ -118,20 +120,43 @@ function matchesConfidenceLevel(
 export const selectFilteredMappings = (
   state: MigrationStore,
 ): GroupedMapping[] => {
-  if (state.confidenceFilter === null) {
-    return state.groupedMappings;
-  }
-
   const filter = state.confidenceFilter;
-
   return state.groupedMappings
     .map((group) => ({
       ...group,
-      accounts: group.accounts.filter((account) =>
-        matchesConfidenceLevel(account.score, filter),
-      ),
+      accounts: group.accounts.filter((account) => {
+        if (account.is_active === false) return false;
+        if (filter === null) return true;
+        return matchesConfidenceLevel(account.score, filter);
+      }),
     }))
     .filter((group) => group.accounts.length > 0);
+};
+
+// ─── Deleted Accounts (derived) ─────────────────────────────────────────────
+
+export interface DeletedAccountEntry {
+  readonly sourceType: string;
+  readonly sourceNumber: string;
+  readonly sourceName: string;
+}
+
+export const selectDeletedAccounts = (
+  state: MigrationStore,
+): DeletedAccountEntry[] => {
+  const out: DeletedAccountEntry[] = [];
+  for (const group of state.groupedMappings) {
+    for (const account of group.accounts) {
+      if (account.is_active === false) {
+        out.push({
+          sourceType: group.source_type,
+          sourceNumber: account.source_number,
+          sourceName: account.source_name,
+        });
+      }
+    }
+  }
+  return out;
 };
 
 // ─── Confirmation Selectors ──────────────────────────────────────────────────

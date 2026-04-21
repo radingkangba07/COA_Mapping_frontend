@@ -102,7 +102,6 @@ export const ValidationScreen = (): React.JSX.Element => {
   // filters, confirmation, edit/delete UI) sees them without any rewiring.
   useEffect((): void => {
     if (suggestions.isLoading) return;
-    if (suggestions.suggestions.length === 0) return;
     setGroupedMappings(adaptSuggestionsToGroupedMappings(suggestions.suggestions));
   }, [suggestions.isLoading, suggestions.suggestions, setGroupedMappings]);
 

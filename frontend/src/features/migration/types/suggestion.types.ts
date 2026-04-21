@@ -1,7 +1,8 @@
 // ─── Wire Shape (snake_case — matches API response) ────────────────────────
 
 export interface SuggestionAccountDTO {
-  readonly id: string;
+  readonly id: string | null;
+  readonly suggestion_id: string;
   readonly source_name: string;
   readonly target_name: string;
   readonly score: number;
@@ -19,7 +20,8 @@ export interface SuggestionGroupDTO {
 // ─── Domain Shape ──────────────────────────────────────────────────────────
 
 export interface SuggestionAccount {
-  readonly id: string;
+  readonly id: string | null;
+  readonly suggestionId: string;
   readonly sourceName: string;
   readonly targetName: string;
   readonly score: number;
