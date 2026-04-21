@@ -95,7 +95,10 @@ export const ValidationScreen = (): React.JSX.Element => {
   const vm = useValidationScreenViewModel(projectId, navigateBack, navigateForward);
 
   const { showSuccess, showError, showWarning } = useToast();
-  const suggestions = useMappingSuggestions(projectId);
+  // ValidationScreen shows all groups at once, so request the backend's max
+  // page size (500) instead of paginating. `total` from the response is the
+  // authoritative row count surfaced in the header.
+  const suggestions = useMappingSuggestions(projectId, { limit: 500 });
   const setGroupedMappings = useMigrationStore((s) => s.setGroupedMappings);
 
   // Push suggestion snapshots into the store so the existing VM (stats,
@@ -235,7 +238,7 @@ export const ValidationScreen = (): React.JSX.Element => {
               <View className="mt-1 flex-row items-center gap-1.5">
                 <FileSpreadsheet size={14} color={colors.mutedForeground} />
                 <Text className="font-body text-sm text-muted-foreground">
-                  {vm.sourceFile.name} &bull; {vm.stats.totalAccounts} rows
+                  {vm.sourceFile.name} &bull; {suggestions.total} rows
                 </Text>
               </View>
             )}
@@ -428,7 +431,7 @@ export const ValidationScreen = (): React.JSX.Element => {
         {/* Account type groups */}
         <View className="gap-0">
           {vm.filteredMappings.map((group) => (
-            <AccountTypeGroup
+          <AccountTypeGroup
               key={group.source_type}
               sourceType={group.source_type}
               targetType={group.target_type}

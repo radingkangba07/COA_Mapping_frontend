@@ -1,7 +1,10 @@
 import { AxiosError, AxiosHeaders } from 'axios';
 import type { AxiosInstance, AxiosResponse } from 'axios';
 import { listMappingSuggestions } from '../suggestions.service';
-import type { SuggestionGroupDTO } from '@/features/migration/types/suggestion.types';
+import type {
+  SuggestionGroupDTO,
+  SuggestionListResponseDTO,
+} from '@/features/migration/types/suggestion.types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -38,12 +41,24 @@ const group: SuggestionGroupDTO = {
   ],
 };
 
+function wrap(
+  groups: readonly SuggestionGroupDTO[],
+  overrides: Partial<Omit<SuggestionListResponseDTO, 'groups'>> = {},
+): SuggestionListResponseDTO {
+  return {
+    total: overrides.total ?? groups.reduce((n, g) => n + g.accounts.length, 0),
+    skip: overrides.skip ?? 0,
+    limit: overrides.limit ?? 50,
+    groups,
+  };
+}
+
 // ─── Query param passthrough ───────────────────────────────────────────────
 
 describe('listMappingSuggestions — query params', () => {
   it('passes status, source_type, skip, limit to the request', async () => {
     const client = createMockClient();
-    client.get.mockResolvedValue(axiosOk<SuggestionGroupDTO[]>([]));
+    client.get.mockResolvedValue(axiosOk<SuggestionListResponseDTO>(wrap([])));
 
     await listMappingSuggestions(client as unknown as AxiosInstance, 'proj-1', {
       status: 'pending',
@@ -67,7 +82,7 @@ describe('listMappingSuggestions — query params', () => {
 
   it('omits params when no options are supplied', async () => {
     const client = createMockClient();
-    client.get.mockResolvedValue(axiosOk<SuggestionGroupDTO[]>([]));
+    client.get.mockResolvedValue(axiosOk<SuggestionListResponseDTO>(wrap([])));
 
     await listMappingSuggestions(client as unknown as AxiosInstance, 'proj-1');
 
@@ -79,7 +94,7 @@ describe('listMappingSuggestions — query params', () => {
 
   it('drops empty string filters', async () => {
     const client = createMockClient();
-    client.get.mockResolvedValue(axiosOk<SuggestionGroupDTO[]>([]));
+    client.get.mockResolvedValue(axiosOk<SuggestionListResponseDTO>(wrap([])));
 
     await listMappingSuggestions(client as unknown as AxiosInstance, 'proj-1', {
       status: '',
@@ -98,7 +113,9 @@ describe('listMappingSuggestions — query params', () => {
 describe('listMappingSuggestions — success', () => {
   it('returns ok and maps snake_case to camelCase', async () => {
     const client = createMockClient();
-    client.get.mockResolvedValue(axiosOk<SuggestionGroupDTO[]>([group]));
+    client.get.mockResolvedValue(
+      axiosOk<SuggestionListResponseDTO>(wrap([group], { total: 106, skip: 0, limit: 50 })),
+    );
 
     const result = await listMappingSuggestions(
       client as unknown as AxiosInstance,
@@ -107,16 +124,21 @@ describe('listMappingSuggestions — success', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0]?.sourceType).toBe('Asset');
-    expect(result.data[0]?.targetType).toBe('Fixed Asset');
-    expect(result.data[0]?.accounts[0]?.sourceName).toBe('Cash');
-    expect(result.data[0]?.accounts[0]?.mappingSource).toBe('fuzzy');
+    expect(result.data.total).toBe(106);
+    expect(result.data.skip).toBe(0);
+    expect(result.data.limit).toBe(50);
+    expect(result.data.groups).toHaveLength(1);
+    expect(result.data.groups[0]?.sourceType).toBe('Asset');
+    expect(result.data.groups[0]?.targetType).toBe('Fixed Asset');
+    expect(result.data.groups[0]?.accounts[0]?.sourceName).toBe('Cash');
+    expect(result.data.groups[0]?.accounts[0]?.mappingSource).toBe('fuzzy');
   });
 
-  it('handles an empty array response', async () => {
+  it('handles an empty project response', async () => {
     const client = createMockClient();
-    client.get.mockResolvedValue(axiosOk<SuggestionGroupDTO[]>([]));
+    client.get.mockResolvedValue(
+      axiosOk<SuggestionListResponseDTO>(wrap([], { total: 0, skip: 0, limit: 50 })),
+    );
 
     const result = await listMappingSuggestions(
       client as unknown as AxiosInstance,
@@ -125,7 +147,8 @@ describe('listMappingSuggestions — success', () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.data).toEqual([]);
+      expect(result.data.total).toBe(0);
+      expect(result.data.groups).toEqual([]);
     }
   });
 
@@ -144,7 +167,9 @@ describe('listMappingSuggestions — success', () => {
         },
       ],
     };
-    client.get.mockResolvedValue(axiosOk<SuggestionGroupDTO[]>([groupNoMapping]));
+    client.get.mockResolvedValue(
+      axiosOk<SuggestionListResponseDTO>(wrap([groupNoMapping])),
+    );
 
     const result = await listMappingSuggestions(
       client as unknown as AxiosInstance,
@@ -153,7 +178,27 @@ describe('listMappingSuggestions — success', () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.data[0]?.accounts[0]?.mappingSource).toBeNull();
+      expect(result.data.groups[0]?.accounts[0]?.mappingSource).toBeNull();
+    }
+  });
+
+  it('echoes skip and limit from the backend response', async () => {
+    const client = createMockClient();
+    client.get.mockResolvedValue(
+      axiosOk<SuggestionListResponseDTO>(wrap([group], { total: 106, skip: 50, limit: 50 })),
+    );
+
+    const result = await listMappingSuggestions(
+      client as unknown as AxiosInstance,
+      'proj-1',
+      { skip: 50, limit: 50 },
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.skip).toBe(50);
+      expect(result.data.limit).toBe(50);
+      expect(result.data.total).toBe(106);
     }
   });
 });
@@ -180,7 +225,24 @@ describe('listMappingSuggestions — errors', () => {
   it('returns err on malformed response shape', async () => {
     const client = createMockClient();
     client.get.mockResolvedValue(
-      axiosOk<unknown>({ not_an_array: true }) as AxiosResponse<SuggestionGroupDTO[]>,
+      axiosOk<unknown>({ not_wrapped: true }) as AxiosResponse<SuggestionListResponseDTO>,
+    );
+
+    const result = await listMappingSuggestions(
+      client as unknown as AxiosInstance,
+      'proj-1',
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe('INVALID_RESPONSE');
+    }
+  });
+
+  it('returns err when the legacy unwrapped array shape is returned', async () => {
+    const client = createMockClient();
+    client.get.mockResolvedValue(
+      axiosOk<unknown>([group]) as AxiosResponse<SuggestionListResponseDTO>,
     );
 
     const result = await listMappingSuggestions(

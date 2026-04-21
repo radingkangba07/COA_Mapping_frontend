@@ -8,6 +8,7 @@ import type {
   SuggestionAccountDTO,
   SuggestionGroup,
   SuggestionGroupDTO,
+  SuggestionListResponse,
   SuggestionQueryOptions,
 } from '@/features/migration/types/suggestion.types';
 
@@ -30,7 +31,12 @@ const suggestionGroupSchema = z.object({
   accounts: z.array(suggestionAccountSchema),
 });
 
-const suggestionListSchema = z.array(suggestionGroupSchema);
+const suggestionListSchema = z.object({
+  total: z.number(),
+  skip: z.number(),
+  limit: z.number(),
+  groups: z.array(suggestionGroupSchema),
+});
 
 // ─── Pure transforms ───────────────────────────────────────────────────────
 
@@ -75,14 +81,15 @@ function buildQueryParams(
 
 /**
  * GET /api/v1/mappings/project/{projectId}/suggestions
- * Returns mapping suggestions grouped by source_type × target_type. Accepts
- * optional filters (`status`, `source_type`) and pagination (`skip`, `limit`).
+ * Returns a paginated envelope: `{ total, skip, limit, groups }`. Groups are a
+ * page of suggestions collapsed by source_type × target_type, so `total` is the
+ * count of underlying suggestions (post-filter), not the number of groups.
  */
 export async function listMappingSuggestions(
   client: HttpClient,
   projectId: string,
   opts?: SuggestionQueryOptions,
-): Promise<Result<SuggestionGroup[], AppError>> {
+): Promise<Result<SuggestionListResponse, AppError>> {
   try {
     const response = await client.get<unknown>(
       `/api/v1/mappings/project/${projectId}/suggestions`,
@@ -95,7 +102,12 @@ export async function listMappingSuggestions(
         message: 'Unexpected response shape from suggestions endpoint',
       });
     }
-    return ok(parsed.data.map(toSuggestionGroup));
+    return ok({
+      total: parsed.data.total,
+      skip: parsed.data.skip,
+      limit: parsed.data.limit,
+      groups: parsed.data.groups.map(toSuggestionGroup),
+    });
   } catch (error: unknown) {
     return err(toAppError(error));
   }
