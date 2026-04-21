@@ -28,7 +28,7 @@ function getRemarkText(account: AccountMapping): string {
     return account.changed_by_name ? `Changed by ${account.changed_by_name}` : 'User Changed';
   }
   if (account.score >= 70) return 'AI Suggestion';
-  return 'Account Name Mapping';
+  return account.remark.trim().length > 0 ? account.remark : 'Account Name Mapping';
 }
 
 function getRemarkColor(account: AccountMapping): string {
