@@ -18,6 +18,10 @@ function normalizeStatus(status: string): AccountMapping['status'] {
 // ─── Account Adapter ───────────────────────────────────────────────────────
 
 function toAccountMapping(account: SuggestionAccount): AccountMapping {
+  // Preserve the raw backend status string as `mapping_status` for UI
+  // display (e.g. the Remark column). `status` keeps the stricter
+  // pending/confirmed-only normalisation used by hydration/business logic.
+  const rawStatus = account.status.length > 0 ? account.status : undefined;
   const base: AccountMapping = {
     id: account.id || undefined,
     suggestion_id: account.suggestionId,
@@ -27,6 +31,7 @@ function toAccountMapping(account: SuggestionAccount): AccountMapping {
     score: account.score,
     remark: account.mappingSource ?? '',
     mapping_source: account.mappingSource,
+    ...(rawStatus !== undefined ? { mapping_status: rawStatus } : {}),
   };
   const status = normalizeStatus(account.status);
   if (status === undefined) {
@@ -61,6 +66,8 @@ function toGroupedMapping(group: SuggestionGroup): GroupedMapping {
  *   account.targetName -> target_name
  *   account.score     -> score
  *   account.mappingSource (nullable) -> remark ('' when absent)
+ *   account.mappingSource (nullable) -> mapping_source (passthrough)
+ *   account.status (raw string) -> mapping_status (undefined when empty)
  *   account.status ('pending'|'confirmed') -> status (other values dropped)
  *
  * `source_number` is not provided by the suggestions endpoint, so it is
