@@ -28,7 +28,11 @@ function getRemarkText(account: AccountMapping): string {
     return account.changed_by_name ? `Changed by ${account.changed_by_name}` : 'User Changed';
   }
   if (account.score >= 70) return 'AI Suggestion';
-  return account.remark.trim().length > 0 ? account.remark : 'Account Name Mapping';
+  // Show the backend's raw mapping_status DB column when available, so the
+  // Remark badge reflects the persisted status value rather than a static
+  // label. Falls back to the original label when the column is unset.
+  const status = account.mapping_status?.trim();
+  return status !== undefined && status.length > 0 ? status : 'Account Name Mapping';
 }
 
 function getRemarkColor(account: AccountMapping): string {

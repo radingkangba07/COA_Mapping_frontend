@@ -45,6 +45,59 @@ describe('adaptSuggestionsToGroupedMappings', () => {
     expect(account.score).toBe(97);
     expect(account.remark).toBe('fuzzy');
     expect(account.status).toBe('pending');
+    expect(account.mapping_status).toBe('pending');
+  });
+
+  it('preserves the raw backend status as mapping_status even when it is not pending/confirmed', () => {
+    const groups: readonly SuggestionGroup[] = [
+      {
+        sourceType: 'Asset',
+        targetType: 'Fixed Asset',
+        confidence: 0.6,
+        accounts: [
+          {
+            id: 'a1',
+            suggestionId: 's1',
+            sourceName: 'Petty Cash',
+            targetName: 'Cash on Hand',
+            score: 55,
+            status: 'auto_matched',
+            mappingSource: 'fuzzy',
+          },
+        ],
+      },
+    ];
+
+    const [group] = adaptSuggestionsToGroupedMappings(groups);
+    const account = group?.accounts[0];
+    expect(account?.mapping_status).toBe('auto_matched');
+    // `status` still normalises away non-pending/confirmed values.
+    expect(account?.status).toBeUndefined();
+  });
+
+  it('leaves mapping_status undefined when the backend sends an empty string', () => {
+    const groups: readonly SuggestionGroup[] = [
+      {
+        sourceType: 'Asset',
+        targetType: 'Fixed Asset',
+        confidence: 0.6,
+        accounts: [
+          {
+            id: 'a1',
+            suggestionId: 's1',
+            sourceName: 'Cash',
+            targetName: 'Cash',
+            score: 80,
+            status: '',
+            mappingSource: null,
+          },
+        ],
+      },
+    ];
+
+    const [group] = adaptSuggestionsToGroupedMappings(groups);
+    const account = group?.accounts[0];
+    expect(account?.mapping_status).toBeUndefined();
   });
 
   it('preserves confidence on the group', () => {

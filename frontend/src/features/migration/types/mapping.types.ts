@@ -20,6 +20,12 @@ export interface AccountMapping {
   readonly score: number;
   readonly remark: string;
   readonly mapping_source?: string | null | undefined;
+  // Raw value of the backend's `mapping_status` DB column. Preserves the
+  // original string (e.g. 'suggested', 'pending', 'confirmed',
+  // 'auto_matched', 'user_edited', …) without normalisation so the UI can
+  // display it verbatim. Use `status` below when you only care about the
+  // normalised pending/confirmed distinction.
+  readonly mapping_status?: string | undefined;
   readonly status?: 'pending' | 'confirmed' | undefined;
   readonly user_changed?: boolean | undefined;
   readonly changed_by_name?: string | undefined;
