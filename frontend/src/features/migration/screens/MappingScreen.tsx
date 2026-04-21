@@ -11,7 +11,6 @@ import {
   Edit3,
   Plus,
   Download,
-  Save,
   Trash2,
 } from 'lucide-react-native';
 import { MigrationLayout } from '../components/MigrationLayout';
@@ -151,20 +150,56 @@ export const MappingScreen = (): React.JSX.Element => {
     const unsubFocus = navigation.addListener('focus', () => {
       cancelledRef.current = false;
 
-      // Resume polling if there's a pending job for this project
       const store = useMigrationStore.getState();
-      if (store.jobId && store.projectId === projectId && store.currentStep < 3) {
-        void (async () => {
-          const completed = await pollJobStatus(store.jobId!);
-          if (completed && !cancelledRef.current) {
-            showSuccess('Mapping complete', 'Review your account mappings.');
+
+      // Fast path: local store already knows mapping has finished at least
+      // once — no overlay, no network call.
+      if (store.completedSteps.includes(2)) return;
+
+      if (!store.jobId || store.projectId !== projectId) return;
+
+      const jobId = store.jobId;
+
+      void (async () => {
+        // Source of truth lives on the backend. Ask whether this job is
+        // already complete before showing the "Processing Mappings"
+        // overlay — the store can be stale (hydration skew, other device,
+        // or navigation back after mapping already finished server-side).
+        try {
+          const resp = await httpClient.get<{
+            job_id: string;
+            status: string;
+            progress: number;
+            is_complete: boolean;
+            has_error: boolean;
+          }>(`/api/v1/jobs/${jobId}/status`);
+
+          if (cancelledRef.current) return;
+
+          if (resp.data.has_error) return;
+
+          if (resp.data.is_complete) {
+            // Sync the store so subsequent focuses take the fast path and
+            // any stepper UI reflects that step 2 is done. Stay on this
+            // screen — the user landed here intentionally.
             useMigrationStore.getState().completeStep(2);
-            useMigrationStore.getState().setStep(3);
-            syncStep(3);
-            navigation.navigate('Validation', { projectId });
+            return;
           }
-        })();
-      }
+        } catch (err) {
+          console.warn('[MAPPING] focus status check failed, skipping auto-resume', err);
+          return;
+        }
+
+        // Job is genuinely running on the backend — resume polling.
+        const completed = await pollJobStatus(jobId);
+        if (completed && !cancelledRef.current) {
+          showSuccess('Mapping complete', 'Review your account mappings.');
+          useMigrationStore.getState().completeStep(2);
+          useMigrationStore.getState().setStep(3);
+          syncStep(3);
+          navigation.navigate('Validation', { projectId });
+        }
+      })();
     });
     return () => {
       cancelledRef.current = true;
@@ -210,6 +245,17 @@ export const MappingScreen = (): React.JSX.Element => {
       return;
     }
 
+    // Persist any pending type-mapping edits before kicking off the job.
+    // The save mutation surfaces its own error toast via onError; if it
+    // rejects, bail so we don't run mapping against stale server state.
+    if (accountTypeMappings.isDirty && accountTypeMappings.rows.length > 0) {
+      try {
+        await accountTypeMappings.save();
+      } catch {
+        return;
+      }
+    }
+
     cancelledRef.current = false;
     setIsProcessing(true);
     setProcessingMessage('Submitting mapping job...');
@@ -248,7 +294,7 @@ export const MappingScreen = (): React.JSX.Element => {
       syncStep(3);
       navigation.navigate('Validation', { projectId });
     }
-  }, [navigation, projectId, showError, showSuccess, syncStep, pollJobStatus]);
+  }, [navigation, projectId, showError, showSuccess, syncStep, pollJobStatus, accountTypeMappings]);
 
   const handleSaveCSV = useCallback((): void => {
     const csvContent =
@@ -269,10 +315,6 @@ export const MappingScreen = (): React.JSX.Element => {
     link.remove();
     window.URL.revokeObjectURL(url);
   }, [typeMappingRows]);
-
-  const handleSaveMappings = useCallback(async (): Promise<void> => {
-    await accountTypeMappings.save();
-  }, [accountTypeMappings]);
 
   const handleClearMappings = useCallback(async (): Promise<void> => {
     const confirmed = await confirm({
@@ -295,7 +337,7 @@ export const MappingScreen = (): React.JSX.Element => {
   );
 
   const hasCompleteMappings = mappingSummary.matched > 0;
-  const canProceed = hasCompleteMappings && !isMapping;
+  const canProceed = hasCompleteMappings && !isMapping && !accountTypeMappings.isSaving;
 
   const sourceERPName = sourceERP?.name ?? 'Source';
   const targetERPName = targetERP?.name ?? 'Target';
@@ -534,32 +576,9 @@ export const MappingScreen = (): React.JSX.Element => {
           </Button>
 
           <Button
-            variant="outline"
-            onPress={() => void handleSaveMappings()}
-            disabled={accountTypeMappings.rows.length === 0 || accountTypeMappings.isSaving}
-            isLoading={accountTypeMappings.isSaving}
-            accessibilityLabel="Save type mappings"
-            testID="mapping-save-button"
-          >
-            <View className="flex-row items-center gap-1.5">
-              <Save
-                size={16}
-                color={
-                  accountTypeMappings.isDirty
-                    ? colors.foreground
-                    : colors.mutedForeground
-                }
-              />
-              <Text className="font-body text-sm font-medium text-foreground">
-                Save Mappings
-              </Text>
-            </View>
-          </Button>
-
-          <Button
             onPress={() => void handleProceed()}
             disabled={!canProceed}
-            isLoading={isMapping}
+            isLoading={isMapping || accountTypeMappings.isSaving}
             accessibilityLabel="Continue to COA mapping"
             testID="mapping-proceed-button"
           >

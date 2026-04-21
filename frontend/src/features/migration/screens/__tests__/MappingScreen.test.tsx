@@ -256,43 +256,63 @@ describe('MappingScreen', () => {
     );
   });
 
-  it('disables Save Mappings button when rows are empty', () => {
-    mockAccountTypeMappings.rows = [];
-    mockAccountTypeMappings.isDirty = false;
+  it('does not render a standalone Save Mappings button', () => {
     render(<MappingScreen />);
-    const button = screen.getByTestId('mapping-save-button');
-    expect(button.props.accessibilityState?.disabled).toBe(true);
+    expect(screen.queryByTestId('mapping-save-button')).toBeNull();
   });
 
-  it('enables Save Mappings button when rows exist even if not dirty', () => {
-    mockAccountTypeMappings.rows = [
-      { id: 'r1', sourceType: 'Asset', targetTypes: ['Asset'] },
-    ];
-    mockAccountTypeMappings.isDirty = false;
-    render(<MappingScreen />);
-    const button = screen.getByTestId('mapping-save-button');
-    expect(button.props.accessibilityState?.disabled).not.toBe(true);
-  });
-
-  it('disables Save Mappings button while saving is in progress', () => {
+  it('saves type mappings before running the mapping job when dirty', async () => {
+    mockStoreState.jobId = null;
     mockAccountTypeMappings.rows = [
       { id: 'r1', sourceType: 'Asset', targetTypes: ['Asset'] },
     ];
     mockAccountTypeMappings.isDirty = true;
-    mockAccountTypeMappings.isSaving = true;
+
+    const callOrder: string[] = [];
+    mockSaveMappings.mockImplementation(async () => {
+      callOrder.push('save');
+    });
+    mockGetHierarchicalMapping.mockImplementation(async () => {
+      callOrder.push('getHierarchicalMapping');
+      return { ok: true, data: { job_id: 'job-xyz' } };
+    });
+
     render(<MappingScreen />);
-    const button = screen.getByTestId('mapping-save-button');
-    expect(button.props.accessibilityState?.disabled).toBe(true);
+    const button = screen.getByTestId('mapping-proceed-button');
+    await fireEvent.press(button);
+
+    expect(mockSaveMappings).toHaveBeenCalledTimes(1);
+    expect(callOrder).toEqual(['save', 'getHierarchicalMapping']);
   });
 
-  it('calls accountTypeMappings.save when Save is pressed with isDirty=false but rows exist', async () => {
+  it('skips save when type mappings are not dirty', async () => {
+    mockStoreState.jobId = null;
     mockAccountTypeMappings.rows = [
       { id: 'r1', sourceType: 'Asset', targetTypes: ['Asset'] },
     ];
     mockAccountTypeMappings.isDirty = false;
+
     render(<MappingScreen />);
-    const button = screen.getByTestId('mapping-save-button');
+    const button = screen.getByTestId('mapping-proceed-button');
     await fireEvent.press(button);
+
+    expect(mockSaveMappings).not.toHaveBeenCalled();
+    expect(mockGetHierarchicalMapping).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call getHierarchicalMapping when save fails', async () => {
+    mockStoreState.jobId = null;
+    mockAccountTypeMappings.rows = [
+      { id: 'r1', sourceType: 'Asset', targetTypes: ['Asset'] },
+    ];
+    mockAccountTypeMappings.isDirty = true;
+    mockSaveMappings.mockRejectedValueOnce(new Error('boom'));
+
+    render(<MappingScreen />);
+    const button = screen.getByTestId('mapping-proceed-button');
+    await fireEvent.press(button);
+
     expect(mockSaveMappings).toHaveBeenCalledTimes(1);
+    expect(mockGetHierarchicalMapping).not.toHaveBeenCalled();
   });
 });

@@ -2,7 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, useWindowDimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Download, RefreshCw, ArrowLeft } from 'lucide-react-native';
+import { Download, CheckCircle2, ArrowLeft } from 'lucide-react-native';
 import { MigrationLayout } from '../components/MigrationLayout';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
@@ -67,7 +67,7 @@ export const PreviewScreen = (): React.JSX.Element => {
 
   const completeStep = useMigrationStore((s) => s.completeStep);
 
-  const { performExport, changeFormat, isExporting, exportFormat } = useExportViewModel({
+  const { performExport, markComplete, changeFormat, isExporting, isCompleting, exportFormat } = useExportViewModel({
     groupedMappings: vm.groupedMappings,
     projectId,
   });
@@ -87,17 +87,16 @@ export const PreviewScreen = (): React.JSX.Element => {
 
   const reviewCount = vm.stats.mediumConfidence + vm.stats.lowConfidence;
 
-  const handleStartNew = useCallback((): void => {
-    vm.resetMigration();
-    navigation.navigate('ERPSelect', { projectId });
-  }, [vm, navigation, projectId]);
-
   const handleExport = useCallback(async (): Promise<void> => {
-    const success = await performExport();
+    await performExport();
+  }, [performExport]);
+
+  const handleComplete = useCallback(async (): Promise<void> => {
+    const success = await markComplete();
     if (success) {
       completeStep(MIGRATION_STEPS.FINAL_PREVIEW);
     }
-  }, [performExport, completeStep]);
+  }, [markComplete, completeStep]);
 
   if (isHydrating) {
     return (
@@ -246,17 +245,19 @@ export const PreviewScreen = (): React.JSX.Element => {
               <Text className="text-sm font-medium text-foreground">Back</Text>
             </View>
           </Button>
-          <Button variant="outline" onPress={handleStartNew} accessibilityLabel="Start new migration" testID="start-new-button">
+          <Button variant="outline" onPress={handleExport} disabled={isExporting || !isOnline} accessibilityLabel="Download export" testID="download-button">
             <View className="flex-row items-center gap-2">
-              <RefreshCw size={ICON_SIZE} color={colors.foreground} />
-              <Text className="text-sm font-medium text-foreground">Start New</Text>
+              <Download size={ICON_SIZE} color={colors.foreground} />
+              <Text className="text-sm font-medium text-foreground">
+                {isExporting ? 'Exporting...' : 'Download'}
+              </Text>
             </View>
           </Button>
-          <Button onPress={handleExport} disabled={isExporting || !isOnline} accessibilityLabel="Download export" testID="download-button">
+          <Button onPress={handleComplete} disabled={isCompleting || !isOnline} accessibilityLabel="Mark migration complete" testID="complete-button">
             <View className="flex-row items-center gap-2">
-              <Download size={ICON_SIZE} color={colors.primaryForeground} />
+              <CheckCircle2 size={ICON_SIZE} color={colors.primaryForeground} />
               <Text className="text-sm font-medium text-primary-foreground">
-                {isExporting ? 'Exporting...' : 'Download'}
+                {isCompleting ? 'Completing...' : 'Complete'}
               </Text>
             </View>
           </Button>

@@ -52,13 +52,12 @@ describe('useExportViewModel', () => {
     useExportStore.getState().reset();
   });
 
-  it('updates project status to completed after successful export', async () => {
+  it('performExport downloads without calling updateProject', async () => {
     mockExportMappingsAsCSV.mockReturnValue({
       ok: true,
       data: { blob: new Blob(['test']), filename: 'test.csv', format: 'csv' },
     });
     mockDownloadBlob.mockResolvedValue({ ok: true });
-    mockUpdateProject.mockResolvedValue({ ok: true, data: {} });
 
     useExportStore.getState().setFormat('csv');
 
@@ -72,15 +71,11 @@ describe('useExportViewModel', () => {
     });
 
     expect(success).toBe(true);
-    expect(mockUpdateProject).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      { status: 'completed', currentStep: 5 },
-    );
+    expect(mockUpdateProject).not.toHaveBeenCalled();
     expect(mockShowSuccess).toHaveBeenCalledWith('Export completed successfully!');
   });
 
-  it('does not update project status when export fails', async () => {
+  it('performExport returns false and skips download when export fails', async () => {
     mockExportMappingsAsCSV.mockReturnValue({
       ok: false,
       error: { code: 'EXPORT_FAILED', message: 'Export failed' },
@@ -98,11 +93,11 @@ describe('useExportViewModel', () => {
     });
 
     expect(success).toBe(false);
-    expect(mockUpdateProject).not.toHaveBeenCalled();
+    expect(mockDownloadBlob).not.toHaveBeenCalled();
     expect(mockShowError).toHaveBeenCalled();
   });
 
-  it('does not update project status when download fails', async () => {
+  it('performExport returns false when download fails', async () => {
     mockExportMappingsAsCSV.mockReturnValue({
       ok: true,
       data: { blob: new Blob(['test']), filename: 'test.csv', format: 'csv' },
@@ -124,7 +119,61 @@ describe('useExportViewModel', () => {
     });
 
     expect(success).toBe(false);
-    expect(mockUpdateProject).not.toHaveBeenCalled();
     expect(mockShowError).toHaveBeenCalled();
+  });
+
+  it('markComplete calls updateProject with completed status', async () => {
+    mockUpdateProject.mockResolvedValue({ ok: true, data: {} });
+
+    const { result } = renderHook(() =>
+      useExportViewModel({ groupedMappings: mockGroupedMappings, projectId: 'proj-1' }),
+    );
+
+    let success = false;
+    await act(async () => {
+      success = await result.current.markComplete();
+    });
+
+    expect(success).toBe(true);
+    expect(mockUpdateProject).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      { status: 'completed', currentStep: 5 },
+    );
+    expect(mockShowSuccess).toHaveBeenCalledWith('Migration marked as complete');
+  });
+
+  it('markComplete returns false when updateProject fails', async () => {
+    mockUpdateProject.mockResolvedValue({
+      ok: false,
+      error: { code: 'UPDATE_FAILED', message: 'Update failed' },
+    });
+
+    const { result } = renderHook(() =>
+      useExportViewModel({ groupedMappings: mockGroupedMappings, projectId: 'proj-1' }),
+    );
+
+    let success = true;
+    await act(async () => {
+      success = await result.current.markComplete();
+    });
+
+    expect(success).toBe(false);
+    expect(mockShowError).toHaveBeenCalledWith('Update failed');
+  });
+
+  it('markComplete shows error and returns false when projectId is missing', async () => {
+    const { result } = renderHook(() =>
+      useExportViewModel({ groupedMappings: mockGroupedMappings, projectId: null }),
+    );
+
+    let success = true;
+    await act(async () => {
+      success = await result.current.markComplete();
+    });
+
+    expect(success).toBe(false);
+    expect(mockUpdateProject).not.toHaveBeenCalled();
+    expect(mockShowError).toHaveBeenCalledWith('No project selected');
   });
 });
