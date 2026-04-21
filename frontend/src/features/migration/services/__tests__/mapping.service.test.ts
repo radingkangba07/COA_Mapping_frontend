@@ -714,7 +714,7 @@ describe('saveMappings', () => {
 // ─── getMappings ───────────────────────────────────────────────────────────
 
 describe('getMappings', () => {
-  it('fetches from /api/v1/mappings/project/{projectId} and returns ok result', async () => {
+  it('fetches from /api/v1/mappings/project/{projectId}/effective and returns ok result', async () => {
     const mockClient = createMockClient();
     const responseData: GroupedMapping[] = [
       makeGroupedMapping({ source_type: 'Asset' }),
@@ -727,7 +727,7 @@ describe('getMappings', () => {
       'proj-123',
     );
 
-    expect(mockClient.get).toHaveBeenCalledWith('/api/v1/mappings/project/proj-123');
+    expect(mockClient.get).toHaveBeenCalledWith('/api/v1/mappings/project/proj-123/effective');
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.data).toHaveLength(2);

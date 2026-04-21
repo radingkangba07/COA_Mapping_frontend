@@ -238,7 +238,11 @@ export async function updateMappingStatus(
 }
 
 /**
- * GET from /api/v1/mappings/project/{projectId} — fetch all mappings for a project.
+ * GET from /api/v1/mappings/project/{projectId}/effective — fetch the merged
+ * view of final mappings + ML suggestions for a project. The backend merges
+ * saved mappings from `coa_mappings` with suggestions from
+ * `coa_mapping_suggestions`, so this is the authoritative dataset the
+ * Validation and Final Preview screens should display.
  */
 export async function getMappings(
   client: HttpClient,
@@ -246,7 +250,7 @@ export async function getMappings(
 ): Promise<Result<GroupedMapping[], AppError>> {
   try {
     const response = await client.get<GroupedMapping[]>(
-      `/api/v1/mappings/project/${projectId}`,
+      `/api/v1/mappings/project/${projectId}/effective`,
     );
     return ok(response.data);
   } catch (error: unknown) {

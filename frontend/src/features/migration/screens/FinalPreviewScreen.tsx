@@ -1,6 +1,6 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ArrowLeft,
@@ -22,8 +22,6 @@ import { useHydrateProject } from '../hooks/useHydrateProject';
 import { useMigrationStore } from '../store/migration.store';
 import { useShallow } from 'zustand/react/shallow';
 import { selectMappingStats } from '../store/migration.selectors';
-import { getMappings } from '../services/mapping.service';
-import { httpClient } from '@/shared/services/http/http.instance';
 import { useMigrationScreenRoute } from '@/navigation/types';
 import { createProjectId } from '@/shared/types/common.types';
 import { cn } from '@/shared/utils/string.utils';
@@ -31,7 +29,6 @@ import { colors } from '@/config/theme';
 import type { MigrationStackParamList } from '@/navigation/types';
 import { STEP_TO_SCREEN } from '@/shared/constants/migration-steps';
 import type { MigrationStepValue } from '@/shared/constants/migration-steps';
-import type { GroupedMapping } from '../types/mapping.types';
 
 type MigrationNavProp = NativeStackNavigationProp<MigrationStackParamList>;
 const ICON_SIZE = 16;
@@ -59,10 +56,11 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
   const { projectId } = route.params;
   const { isHydrating, error, retry } = useHydrateProject(createProjectId(projectId));
 
-  const [groupedMappings, setGroupedMappings] = useState<GroupedMapping[]>([]);
-  const [isLoadingMappings, setIsLoadingMappings] = useState(true);
-  const [mappingsError, setMappingsError] = useState<string | null>(null);
-
+  // Read grouped mappings directly from the migration store — the Validation
+  // screen (via useMappingSuggestions → adaptSuggestionsToGroupedMappings)
+  // and the hydration service both populate this field, so it's already the
+  // authoritative dataset by the time the user reaches Final Preview.
+  const groupedMappings = useMigrationStore((s) => s.groupedMappings);
   const currentStep = useMigrationStore((s) => s.currentStep);
   const completedSteps = useMigrationStore((s) => s.completedSteps);
   const sourceFile = useMigrationStore((s) => s.sourceFile);
@@ -72,38 +70,6 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
   const completeStep = useMigrationStore((s) => s.completeStep);
   const setStep = useMigrationStore((s) => s.setStep);
   const stats = useMigrationStore(useShallow(selectMappingStats));
-
-  // Refetch every time this screen gains focus so edits saved on step 4 are
-  // reflected here without requiring a full page refresh.
-  useFocusEffect(
-    useCallback(() => {
-      let cancelled = false;
-      const loadMappings = async (): Promise<void> => {
-        try {
-          setIsLoadingMappings(true);
-          setMappingsError(null);
-          const result = await getMappings(httpClient, projectId);
-          if (cancelled) return;
-          if (result.ok) {
-            setGroupedMappings(result.data);
-          } else {
-            setMappingsError(result.error.message);
-          }
-        } catch (error) {
-          if (cancelled) return;
-          setMappingsError('Failed to load mappings');
-          console.error('Failed to load mappings:', error);
-        } finally {
-          if (!cancelled) setIsLoadingMappings(false);
-        }
-      };
-
-      void loadMappings();
-      return () => {
-        cancelled = true;
-      };
-    }, [projectId]),
-  );
 
   const rows = useMemo((): readonly PreviewRow[] =>
     groupedMappings.flatMap((group) =>
@@ -149,7 +115,7 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
     [setStep, navigation, projectId],
   );
 
-  if (isHydrating || isLoadingMappings) {
+  if (isHydrating) {
     return (
       <MigrationLayout title="COA Migration" projectId={projectId} onBack={handleBack} testID="final-preview-screen">
         <View className="flex-1 items-center justify-center">
@@ -162,11 +128,11 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
     );
   }
 
-  if (error || mappingsError) {
+  if (error) {
     return (
       <MigrationLayout title="COA Migration" projectId={projectId} onBack={handleBack} testID="final-preview-screen">
         <NetworkErrorFallback
-          error={new Error(error?.message || mappingsError || 'Failed to load data')}
+          error={new Error(error.message)}
           onRetry={retry}
           testID="final-preview-error"
         />
