@@ -88,6 +88,9 @@ jest.mock('../../hooks/useJobStream', () => ({
 const mockRefetch = jest.fn().mockResolvedValue({ data: [] });
 const mockSuggestions = {
   suggestions: [] as unknown[],
+  total: 0,
+  skip: 0,
+  limit: 500,
   isLoading: false,
   error: null as unknown,
   refetch: mockRefetch,
@@ -318,6 +321,9 @@ describe('ValidationScreen', () => {
       },
     ];
     mockSuggestions.suggestions = [];
+    mockSuggestions.total = 0;
+    mockSuggestions.skip = 0;
+    mockSuggestions.limit = 500;
     mockSuggestions.isLoading = false;
     mockJobStream.error = null;
     mockJobStreamOptionsRef.current = null;
@@ -331,6 +337,15 @@ describe('ValidationScreen', () => {
   it('shows "COA Mapping" heading', () => {
     render(<ValidationScreen />);
     expect(screen.getByText('COA Mapping')).toBeTruthy();
+  });
+
+  it('binds the row count label to suggestions.total, not the current page size', () => {
+    // stats.totalAccounts reflects the loaded page only; total is the whole
+    // project's post-filter suggestion count and must drive the label.
+    mockVM.stats.totalAccounts = 50;
+    mockSuggestions.total = 106;
+    render(<ValidationScreen />);
+    expect(screen.getByText(/test\.xlsx\s*•\s*106 rows/)).toBeTruthy();
   });
 
   it('renders MappingStatsBar', () => {

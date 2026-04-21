@@ -17,6 +17,13 @@ export interface SuggestionGroupDTO {
   readonly accounts: readonly SuggestionAccountDTO[];
 }
 
+export interface SuggestionListResponseDTO {
+  readonly total: number;
+  readonly skip: number;
+  readonly limit: number;
+  readonly groups: readonly SuggestionGroupDTO[];
+}
+
 // ─── Domain Shape ──────────────────────────────────────────────────────────
 
 export interface SuggestionAccount {
@@ -34,6 +41,13 @@ export interface SuggestionGroup {
   readonly targetType: string;
   readonly confidence: number;
   readonly accounts: readonly SuggestionAccount[];
+}
+
+export interface SuggestionListResponse {
+  readonly total: number;
+  readonly skip: number;
+  readonly limit: number;
+  readonly groups: readonly SuggestionGroup[];
 }
 
 // ─── Query Options ─────────────────────────────────────────────────────────
