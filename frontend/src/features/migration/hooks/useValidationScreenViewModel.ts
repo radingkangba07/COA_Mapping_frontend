@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { useQueryClient } from '@tanstack/react-query';
 import { useMigrationStore } from '../store/migration.store';
 import {
   selectMappingStats,
@@ -9,7 +10,11 @@ import { CONFIDENCE_THRESHOLDS } from '@/shared/constants/mapping-confidence';
 import { useSyncStep } from './useSyncStep';
 import { useValidation } from './useValidation';
 import { useToast } from '@/shared/hooks/useToast';
-import { saveMappings, toMappingCreateDTOs } from '../services/mapping.service';
+import {
+  saveMappings,
+  toMappingCreateDTOs,
+  updateMappingStatus,
+} from '../services/mapping.service';
 import { httpClient } from '@/shared/services/http/http.instance';
 import type { ConfidenceLevel, AccountMapping, GroupedMapping } from '../types/mapping.types';
 import type { UploadedFile } from '../types/migration.types';
@@ -78,26 +83,50 @@ export function useValidationScreenViewModel(
   const confirmedHigh = useMigrationStore((s) => s.confirmedHigh);
   const confirmedMedium = useMigrationStore((s) => s.confirmedMedium);
   const confirmedLow = useMigrationStore((s) => s.confirmedLow);
-  const deletedAccounts = useMigrationStore((s) => s.deletedAccounts);
   const targetTypes = useMigrationStore((s) => s.targetTypes);
   const hasUnsavedChanges = useMigrationStore((s) => s.hasUnsavedChanges);
   const stats = useMigrationStore(useShallow(selectMappingStats));
   const allConfirmed = useMigrationStore(selectAllConfirmed);
 
+  // Derived lists live here (not as store selectors) so their referential
+  // identity only changes when their real deps change — otherwise useShallow
+  // trips the subscription every render (new arrays/objects each call).
   const filteredMappings = useMemo(() => {
-    if (confidenceFilter === null) return groupedMappings;
-    const thresholds = { high: CONFIDENCE_THRESHOLDS.HIGH, medium: CONFIDENCE_THRESHOLDS.MEDIUM };
+    const filter = confidenceFilter;
     return groupedMappings
       .map((group) => ({
         ...group,
         accounts: group.accounts.filter((a) => {
-          if (confidenceFilter === 'high') return a.score >= thresholds.high;
-          if (confidenceFilter === 'medium') return a.score >= thresholds.medium && a.score < thresholds.high;
-          return a.score < thresholds.medium;
+          if (a.is_active === false) return false;
+          if (filter === null) return true;
+          if (filter === 'high') return a.score >= CONFIDENCE_THRESHOLDS.HIGH;
+          if (filter === 'medium') {
+            return (
+              a.score >= CONFIDENCE_THRESHOLDS.MEDIUM &&
+              a.score < CONFIDENCE_THRESHOLDS.HIGH
+            );
+          }
+          return a.score < CONFIDENCE_THRESHOLDS.MEDIUM;
         }),
       }))
       .filter((group) => group.accounts.length > 0);
   }, [groupedMappings, confidenceFilter]);
+
+  const deletedAccounts = useMemo(() => {
+    const out: { sourceType: string; sourceNumber: string; sourceName: string }[] = [];
+    for (const group of groupedMappings) {
+      for (const a of group.accounts) {
+        if (a.is_active === false) {
+          out.push({
+            sourceType: group.source_type,
+            sourceNumber: a.source_number,
+            sourceName: a.source_name,
+          });
+        }
+      }
+    }
+    return out;
+  }, [groupedMappings]);
 
   const actions = useMigrationStore(useShallow((s) => ({
     setStep: s.setStep,
@@ -114,9 +143,16 @@ export function useValidationScreenViewModel(
   const syncStep = useSyncStep();
   const { errors, warnings } = useValidation();
   const { showSuccess, showError } = useToast();
+  const queryClient = useQueryClient();
   const [isDeletedOpen, setIsDeletedOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const confirmInFlightRef = useRef<boolean>(false);
+
+  const invalidateSuggestions = useCallback((): void => {
+    void queryClient.invalidateQueries({
+      queryKey: ['mapping-suggestions', projectId],
+    });
+  }, [queryClient, projectId]);
 
   const targetAccountNames = useMemo<string[]>(() => {
     const names = new Set<string>();
@@ -140,20 +176,48 @@ export function useValidationScreenViewModel(
       confirmInFlightRef.current = true;
       try {
         actions.confirmConfidenceLevel(level);
-        const latestGroups = useMigrationStore.getState().groupedMappings;
-        const dtos = toMappingCreateDTOs(projectId, latestGroups);
-        const result = await saveMappings(httpClient, projectId, dtos);
-        if (!result.ok) {
+        const isNowConfirmed =
+          level === 'high'
+            ? useMigrationStore.getState().confirmedHigh
+            : level === 'medium'
+            ? useMigrationStore.getState().confirmedMedium
+            : useMigrationStore.getState().confirmedLow;
+        const minScore =
+          level === 'high'
+            ? CONFIDENCE_THRESHOLDS.HIGH
+            : level === 'medium'
+            ? CONFIDENCE_THRESHOLDS.MEDIUM
+            : 0;
+        const maxScore =
+          level === 'high'
+            ? 100
+            : level === 'medium'
+            ? CONFIDENCE_THRESHOLDS.HIGH
+            : CONFIDENCE_THRESHOLDS.MEDIUM;
+
+        const statusResult = await updateMappingStatus(
+          httpClient,
+          projectId,
+          minScore,
+          isNowConfirmed ? 'confirmed' : 'pending',
+          maxScore,
+        );
+        if (!statusResult.ok) {
           actions.confirmConfidenceLevel(level); // revert local toggle
-          showError('Confirm failed', result.error.message);
+          showError('Confirm failed', statusResult.error.message);
           return;
         }
-        actions.markChangesSaved();
-        showSuccess('Confirmed', 'Saved to server.');
+        invalidateSuggestions();
+        showSuccess(
+          'Confirmed',
+          isNowConfirmed
+            ? `${level.charAt(0).toUpperCase() + level.slice(1)} score confirmed`
+            : `${level.charAt(0).toUpperCase() + level.slice(1)} score un-confirmed`,
+        );
       } finally {
         confirmInFlightRef.current = false;
       }
-    }, [actions, projectId, showError, showSuccess]);
+    }, [actions, projectId, showError, showSuccess, invalidateSuggestions]);
   const handleTypeChange = useCallback(
     (sourceType: string, newTargetType: string): void => { actions.updateTypeMapping(sourceType, newTargetType); }, [actions]);
   const handleAccountNameChange = useCallback(
@@ -184,16 +248,26 @@ export function useValidationScreenViewModel(
     setIsSaving(true);
     const store = useMigrationStore.getState();
     const dtos = toMappingCreateDTOs(projectId, store.groupedMappings);
+    if (dtos.length === 0) {
+      setIsSaving(false);
+      showSuccess('Nothing to save', 'No edits to persist');
+      return;
+    }
     void saveMappings(httpClient, projectId, dtos).then((result) => {
       if (result.ok) {
         actions.markChangesSaved();
-        showSuccess('Mappings saved', `${dtos.length} mappings saved successfully`);
+        const { inserted, updated } = result.data;
+        showSuccess(
+          'Mappings saved',
+          `${inserted} inserted, ${updated} updated`,
+        );
+        invalidateSuggestions();
       } else {
         showError('Save failed', result.error.message);
       }
       setIsSaving(false);
     });
-  }, [projectId, actions, showSuccess, showError]);
+  }, [projectId, actions, showSuccess, showError, invalidateSuggestions]);
 
   return {
     currentStep, completedSteps, sourceFile, sourceERP, targetERP, confidenceFilter,

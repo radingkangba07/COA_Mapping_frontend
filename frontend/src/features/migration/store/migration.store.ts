@@ -5,11 +5,9 @@ import type { ERPSystem } from '@/features/migration/types/erp.types';
 import type {
   UploadedFile,
   TypeMappingRow,
-  DeletedAccount,
 } from '@/features/migration/types/migration.types';
 import type {
   GroupedMapping,
-  AccountMapping,
   ConfidenceLevel,
 } from '@/features/migration/types/mapping.types';
 import type { AppError } from '@/shared/types/result.types';
@@ -41,7 +39,6 @@ interface MigrationState {
   confirmedHigh: boolean;
   confirmedMedium: boolean;
   confirmedLow: boolean;
-  deletedAccounts: DeletedAccount[];
 
   pendingSourceRemoval: boolean;
   pendingTargetRemoval: boolean;
@@ -134,7 +131,6 @@ const initialState: MigrationState = {
   confirmedHigh: false,
   confirmedMedium: false,
   confirmedLow: false,
-  deletedAccounts: [],
 
   pendingSourceRemoval: false,
   pendingTargetRemoval: false,
@@ -174,7 +170,6 @@ function clearDownstreamState(state: MigrationState, fromStep: number): void {
     state.confirmedHigh = false;
     state.confirmedMedium = false;
     state.confirmedLow = false;
-    state.deletedAccounts = [];
   }
 }
 
@@ -411,56 +406,27 @@ export const useMigrationStore = create<MigrationStore>()(
           (g) => g.source_type === sourceType,
         );
         if (!group) return;
-
-        const accountIdx = group.accounts.findIndex(
-          (a) => a.source_name === sourceName,
-        );
-        if (accountIdx === -1) return;
-        const account = group.accounts[accountIdx]!;
-
-        const deleted: DeletedAccount = {
-          sourceType,
-          accountIndex: accountIdx,
-          sourceNumber: account.source_number,
-          sourceName: account.source_name,
-        };
-        state.deletedAccounts.push(deleted);
-        group.accounts.splice(accountIdx, 1);
+        const account = group.accounts.find((a) => a.source_name === sourceName);
+        if (!account) return;
+        (account as { is_active?: boolean }).is_active = false;
         state.hasUnsavedChanges = true;
       });
     },
 
     restoreAccount: (deletedIdx: number): void => {
       set((state) => {
-        const deleted = state.deletedAccounts[deletedIdx];
-        if (!deleted) return;
-
-        state.deletedAccounts.splice(deletedIdx, 1);
-
-        let group = state.groupedMappings.find(
-          (g) => g.source_type === deleted.sourceType,
-        );
-
-        if (!group) {
-          const newGroup: GroupedMapping = {
-            source_type: deleted.sourceType,
-            target_type: '',
-            confidence: 0,
-            accounts: [],
-          };
-          state.groupedMappings.push(castDraft(newGroup));
-          group = state.groupedMappings[state.groupedMappings.length - 1];
-        }
-
-        if (group) {
-          const restoredAccount: AccountMapping = {
-            source_number: deleted.sourceNumber,
-            source_name: deleted.sourceName,
-            target_name: '',
-            score: 0,
-            remark: 'Restored',
-          };
-          group.accounts.push(restoredAccount);
+        let seen = 0;
+        for (const group of state.groupedMappings) {
+          for (const account of group.accounts) {
+            if (account.is_active === false) {
+              if (seen === deletedIdx) {
+                (account as { is_active?: boolean }).is_active = true;
+                state.hasUnsavedChanges = true;
+                return;
+              }
+              seen += 1;
+            }
+          }
         }
       });
     },

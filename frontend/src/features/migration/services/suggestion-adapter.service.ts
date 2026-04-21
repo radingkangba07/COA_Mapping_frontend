@@ -19,11 +19,14 @@ function normalizeStatus(status: string): AccountMapping['status'] {
 
 function toAccountMapping(account: SuggestionAccount): AccountMapping {
   const base: AccountMapping = {
+    id: account.id || undefined,
+    suggestion_id: account.suggestionId,
     source_number: '',
     source_name: account.sourceName,
     target_name: account.targetName,
     score: account.score,
     remark: account.mappingSource ?? '',
+    mapping_source: account.mappingSource,
   };
   const status = normalizeStatus(account.status);
   if (status === undefined) {

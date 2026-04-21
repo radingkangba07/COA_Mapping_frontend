@@ -28,6 +28,7 @@ const group: SuggestionGroupDTO = {
   accounts: [
     {
       id: 'a1',
+      suggestion_id: 's1',
       source_name: 'Cash',
       target_name: 'Cash at Bank',
       score: 0.97,
@@ -135,6 +136,7 @@ describe('listMappingSuggestions — success', () => {
       accounts: [
         {
           id: 'a1',
+          suggestion_id: 's1',
           source_name: 'Cash',
           target_name: 'Cash',
           score: 0.8,
