@@ -306,7 +306,7 @@ export const AccountTypeGroup = ({
         <View>
           {accounts.map((account, index) => (
             <AccountRow
-              key={`${account.source_number}-${account.source_name}`}
+              key={account.suggestion_id ?? `${account.source_number}-${account.source_name}-${index}`}
               account={account}
               index={index}
               sourceType={sourceType}
