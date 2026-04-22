@@ -27,7 +27,7 @@ function getRemarkText(account: AccountMapping): string {
   if (isUserChanged(account)) {
     return account.changed_by_name ? `Changed by ${account.changed_by_name}` : 'User Changed';
   }
-  if (account.score >= 70) return 'AI Suggestion';
+  if (account.score >= 70) return 'AI suggestion';
   // Show the backend's raw mapping_status DB column when available, so the
   // Remark badge reflects the persisted status value rather than a static
   // label. Falls back to the original label when the column is unset.
