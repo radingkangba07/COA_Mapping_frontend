@@ -33,8 +33,8 @@ const suggestionGroupSchema = z.object({
 
 const suggestionListSchema = z.object({
   total: z.number(),
-  skip: z.number(),
-  limit: z.number(),
+  skip: z.number().optional(),
+  limit: z.number().optional(),
   groups: z.array(suggestionGroupSchema),
 });
 
@@ -104,8 +104,8 @@ export async function listMappingSuggestions(
     }
     return ok({
       total: parsed.data.total,
-      skip: parsed.data.skip,
-      limit: parsed.data.limit,
+      skip: parsed.data.skip ?? 0,
+      limit: parsed.data.limit ?? parsed.data.total,
       groups: parsed.data.groups.map(toSuggestionGroup),
     });
   } catch (error: unknown) {
