@@ -238,7 +238,7 @@ export const ValidationScreen = (): React.JSX.Element => {
               <View className="mt-1 flex-row items-center gap-1.5">
                 <FileSpreadsheet size={14} color={colors.mutedForeground} />
                 <Text className="font-body text-sm text-muted-foreground">
-                  {vm.sourceFile.name} &bull; {suggestions.total} rows
+                  {vm.sourceFile.name} &bull; {vm.stats.totalAccounts} rows
                 </Text>
               </View>
             )}

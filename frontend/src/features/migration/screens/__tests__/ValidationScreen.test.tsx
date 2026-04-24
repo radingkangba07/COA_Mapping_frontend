@@ -339,13 +339,15 @@ describe('ValidationScreen', () => {
     expect(screen.getByText('COA Mapping')).toBeTruthy();
   });
 
-  it('binds the row count label to suggestions.total, not the current page size', () => {
-    // stats.totalAccounts reflects the loaded page only; total is the whole
-    // project's post-filter suggestion count and must drive the label.
+  it('binds the row count label to stats.totalAccounts so deletes update live', () => {
+    // stats.totalAccounts excludes locally-deleted rows (is_active === false),
+    // so the label reflects the current edit state immediately. The screen
+    // requests limit:500 from useMappingSuggestions, so for any realistic
+    // project it equals the server total anyway.
     mockVM.stats.totalAccounts = 50;
     mockSuggestions.total = 106;
     render(<ValidationScreen />);
-    expect(screen.getByText(/test\.xlsx\s*•\s*106 rows/)).toBeTruthy();
+    expect(screen.getByText(/test\.xlsx\s*•\s*50 rows/)).toBeTruthy();
   });
 
   it('renders MappingStatsBar', () => {

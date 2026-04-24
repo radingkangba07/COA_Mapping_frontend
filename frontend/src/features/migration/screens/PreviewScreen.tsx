@@ -67,22 +67,38 @@ export const PreviewScreen = (): React.JSX.Element => {
 
   const completeStep = useMigrationStore((s) => s.completeStep);
 
+  // Strip locally-deleted accounts before handing off to export — the export
+  // VM doesn't know about is_active and would otherwise write tombstoned rows
+  // into the output file.
+  const exportableMappings = useMemo(
+    () =>
+      vm.groupedMappings
+        .map((group) => ({
+          ...group,
+          accounts: group.accounts.filter((a) => a.is_active !== false),
+        }))
+        .filter((group) => group.accounts.length > 0),
+    [vm.groupedMappings],
+  );
+
   const { performExport, markComplete, changeFormat, isExporting, isCompleting, exportFormat } = useExportViewModel({
-    groupedMappings: vm.groupedMappings,
+    groupedMappings: exportableMappings,
     projectId,
   });
 
   const tableRows = useMemo((): readonly TableRowData[] =>
     vm.groupedMappings.flatMap((group) =>
-      group.accounts.map((account, idx) => ({
-        sourceNumber: account.source_number,
-        sourceName: account.source_name,
-        targetName: account.target_name,
-        score: Math.round(account.score),
-        sourceType: group.source_type,
-        targetType: group.target_type,
-        key: `${group.source_type}-${account.source_number}-${idx}`,
-      })),
+      group.accounts
+        .filter((account) => account.is_active !== false)
+        .map((account, idx) => ({
+          sourceNumber: account.source_number,
+          sourceName: account.source_name,
+          targetName: account.target_name,
+          score: Math.round(account.score),
+          sourceType: group.source_type,
+          targetType: group.target_type,
+          key: `${group.source_type}-${account.source_number}-${idx}`,
+        })),
     ), [vm.groupedMappings]);
 
   const reviewCount = vm.stats.mediumConfidence + vm.stats.lowConfidence;
