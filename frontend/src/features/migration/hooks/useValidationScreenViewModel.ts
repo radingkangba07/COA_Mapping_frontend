@@ -55,7 +55,7 @@ interface ValidationScreenViewModel {
   readonly handleFilterPress: (filter: ConfidenceLevel | null) => void;
   readonly handleConfirm: (level: ConfidenceLevel) => Promise<void>;
   readonly handleTypeChange: (sourceType: string, newTargetType: string) => void;
-  readonly handleAccountNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string) => void;
+  readonly handleAccountNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string, suggestionId?: string) => void;
   readonly handleDeleteAccount: (sourceType: string, accountIndex: number, account: AccountMapping) => void;
   readonly handleRestoreAccount: (deletedIndex: number) => void;
   readonly handleToggleDeleted: () => void;
@@ -84,6 +84,7 @@ export function useValidationScreenViewModel(
   const confirmedMedium = useMigrationStore((s) => s.confirmedMedium);
   const confirmedLow = useMigrationStore((s) => s.confirmedLow);
   const targetTypes = useMigrationStore((s) => s.targetTypes);
+  const targetData = useMigrationStore((s) => s.targetData);
   const hasUnsavedChanges = useMigrationStore((s) => s.hasUnsavedChanges);
   const stats = useMigrationStore(useShallow(selectMappingStats));
   const allConfirmed = useMigrationStore(selectAllConfirmed);
@@ -155,16 +156,16 @@ export function useValidationScreenViewModel(
   }, [queryClient, projectId]);
 
   const targetAccountNames = useMemo<string[]>(() => {
-    const names = new Set<string>();
-    for (const group of groupedMappings) {
-      for (const account of group.accounts) {
-        if (account.target_name && account.target_name.length > 0) {
-          names.add(account.target_name);
-        }
-      }
-    }
-    return Array.from(names).sort();
-  }, [groupedMappings]);
+    const firstRow = targetData[0];
+    if (!firstRow) return [];
+    const nameCol = Object.keys(firstRow).find(
+      (k) => k.toLowerCase().includes('name') || k.toLowerCase().includes('title'),
+    );
+    if (!nameCol) return [];
+    return [...new Set(
+      targetData.map((r) => String(r[nameCol] ?? '').trim()).filter(Boolean),
+    )].sort();
+  }, [targetData]);
 
   const handleStepPress = useCallback(
     (step: number): void => { actions.setStep(step); }, [actions]);
@@ -221,12 +222,12 @@ export function useValidationScreenViewModel(
   const handleTypeChange = useCallback(
     (sourceType: string, newTargetType: string): void => { actions.updateTypeMapping(sourceType, newTargetType); }, [actions]);
   const handleAccountNameChange = useCallback(
-    (sourceType: string, accountIndex: number, newName: string, sourceName?: string): void => {
-      actions.updateAccountName(sourceType, accountIndex, newName, 'User', sourceName);
+    (sourceType: string, accountIndex: number, newName: string, sourceName?: string, suggestionId?: string): void => {
+      actions.updateAccountName(sourceType, accountIndex, newName, 'User', sourceName, suggestionId);
     }, [actions]);
   const handleDeleteAccount = useCallback(
     (sourceType: string, _accountIndex: number, account: AccountMapping): void => {
-      actions.deleteAccount(sourceType, account.source_name);
+      actions.deleteAccount(sourceType, account.source_name, account.suggestion_id);
     }, [actions]);
   const handleRestoreAccount = useCallback(
     (deletedIndex: number): void => { actions.restoreAccount(deletedIndex); }, [actions]);

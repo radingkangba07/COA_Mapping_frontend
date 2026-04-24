@@ -73,6 +73,7 @@ interface MockStoreState {
   confirmedLow: boolean;
   deletedAccounts: readonly unknown[];
   targetTypes: readonly string[];
+  targetData: readonly Record<string, unknown>[];
   hasUnsavedChanges: boolean;
   setStep: jest.Mock;
   completeStep: jest.Mock;
@@ -98,6 +99,7 @@ const mockStoreState: MockStoreState = {
   confirmedLow: false,
   deletedAccounts: [],
   targetTypes: [],
+  targetData: [],
   hasUnsavedChanges: false,
   setStep: jest.fn(),
   completeStep: jest.fn(),

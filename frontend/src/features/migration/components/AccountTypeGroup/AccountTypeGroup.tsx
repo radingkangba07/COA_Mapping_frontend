@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { ArrowRight, ChevronDown, ChevronRight, Edit3, FolderTree, Trash2, X } from 'lucide-react-native';
 import { Select, type SelectOption } from '@/shared/components/ui/Select';
@@ -51,7 +51,7 @@ interface AccountTypeGroupProps {
   targetTypes: readonly string[];
   targetAccountNames: readonly string[];
   onTypeChange: (sourceType: string, newTargetType: string) => void;
-  onAccountNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string) => void;
+  onAccountNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string, suggestionId?: string) => void;
   onDeleteAccount: (sourceType: string, accountIndex: number, account: AccountMapping) => void;
   testID?: string;
 }
@@ -65,7 +65,7 @@ interface AccountRowProps {
   isEditing: boolean;
   targetAccountOptions: readonly SelectOption[];
   onEditClick: (index: number) => void;
-  onNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string) => void;
+  onNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string, suggestionId?: string) => void;
   onDelete: (sourceType: string, accountIndex: number, account: AccountMapping) => void;
   testID?: string;
 }
@@ -83,10 +83,10 @@ const AccountRow = memo(({
 }: AccountRowProps) => {
   const handleSelectChange = useCallback(
     (value: string) => {
-      onNameChange(sourceType, index, value === 'unmatched' ? '' : value, account.source_name);
+      onNameChange(sourceType, index, value === 'unmatched' ? '' : value, account.source_name, account.suggestion_id);
       onEditClick(index); // close editing
     },
-    [onNameChange, onEditClick, sourceType, index, account.source_name],
+    [onNameChange, onEditClick, sourceType, index, account.source_name, account.suggestion_id],
   );
 
   const handleEdit = useCallback(() => {
@@ -134,6 +134,7 @@ const AccountRow = memo(({
             value={account.target_name || 'unmatched'}
             onValueChange={handleSelectChange}
             placeholder="Select target account"
+            searchable
             testID={testID !== undefined ? `${testID}-select` : undefined}
           />
         ) : (
@@ -223,6 +224,12 @@ export const AccountTypeGroup = ({
   const [isOpen, setIsOpen] = useState(true);
   const [editingRow, setEditingRow] = useState<number | null>(null);
 
+  // Reset editing state when the accounts array changes (e.g. filter applied)
+  // so a stale editingRow index doesn't open the Select for the wrong row.
+  useEffect(() => {
+    setEditingRow(null);
+  }, [accounts]);
+
   const handleToggle = useCallback(() => {
     setIsOpen((prev) => !prev);
   }, []);
@@ -306,7 +313,7 @@ export const AccountTypeGroup = ({
         <View>
           {accounts.map((account, index) => (
             <AccountRow
-              key={account.suggestion_id ?? `${account.source_number}-${account.source_name}-${index}`}
+              key={account.suggestion_id ?? `${account.source_number ?? ''}-${account.source_name}-${index}`}
               account={account}
               index={index}
               sourceType={sourceType}

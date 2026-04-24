@@ -2,6 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   Pressable,
   Modal,
   FlatList,
@@ -28,6 +29,7 @@ interface SelectProps {
   label?: string;
   className?: string;
   testID?: string;
+  searchable?: boolean;
 }
 
 export const Select = React.forwardRef<View, SelectProps>(
@@ -42,10 +44,12 @@ export const Select = React.forwardRef<View, SelectProps>(
       label,
       className,
       testID,
+      searchable = false,
     },
     ref,
   ) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState('');
     const [triggerLayout, setTriggerLayout] = useState<LayoutRectangle | null>(null);
     const triggerRef = useRef<View>(null);
 
@@ -70,6 +74,7 @@ export const Select = React.forwardRef<View, SelectProps>(
 
     const handleClose = useCallback(() => {
       setIsOpen(false);
+      setSearch('');
     }, []);
 
     const renderItem = useCallback(
@@ -100,6 +105,10 @@ export const Select = React.forwardRef<View, SelectProps>(
     );
 
     const keyExtractor = useCallback((item: SelectOption) => item.value, []);
+
+    const filteredOptions = searchable && search.length > 0
+      ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
+      : options;
 
     return (
       <View className={cn('gap-1.5', className)} testID={testID} ref={ref}>
@@ -166,8 +175,21 @@ export const Select = React.forwardRef<View, SelectProps>(
                   <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
                 </View>
               )}
+              {searchable && (
+                <View className="border-b border-border px-3 py-2">
+                  <TextInput
+                    value={search}
+                    onChangeText={setSearch}
+                    placeholder="Search..."
+                    placeholderTextColor={colors.mutedForeground}
+                    autoFocus
+                    className="font-body text-sm text-foreground"
+                    testID={testID !== undefined ? `${testID}-search` : undefined}
+                  />
+                </View>
+              )}
               <FlatList
-                data={options}
+                data={filteredOptions}
                 keyExtractor={keyExtractor}
                 renderItem={renderItem}
                 bounces={false}
