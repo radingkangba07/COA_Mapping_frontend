@@ -61,7 +61,7 @@ interface ValidationScreenViewModel {
   readonly handleToggleDeleted: () => void;
   readonly handleBack: () => void;
   readonly handleContinue: () => void;
-  readonly handleSaveMappings: () => void;
+  readonly handleSaveMappings: () => Promise<boolean>;
   readonly hasUnsavedChanges: boolean;
   readonly isSaving: boolean;
 }
@@ -236,38 +236,36 @@ export function useValidationScreenViewModel(
     actions.setStep(2);
     navigateBack(projectId);
   }, [actions, navigateBack, projectId]);
+  const handleSaveMappings = useCallback(async (): Promise<boolean> => {
+    if (!projectId) return false;
+    setIsSaving(true);
+    const store = useMigrationStore.getState();
+    const dtos = toMappingCreateDTOs(projectId, store.groupedMappings);
+    if (dtos.length === 0) {
+      setIsSaving(false);
+      // Quiet no-op — used by handleContinue's auto-save on a clean state.
+      return true;
+    }
+    const result = await saveMappings(httpClient, projectId, dtos);
+    if (result.ok) {
+      actions.markChangesSaved();
+      const { inserted, updated } = result.data;
+      showSuccess('Mappings saved', `${inserted} inserted, ${updated} updated`);
+      invalidateSuggestions();
+      setIsSaving(false);
+      return true;
+    }
+    showError('Save failed', result.error.message);
+    setIsSaving(false);
+    return false;
+  }, [projectId, actions, showSuccess, showError, invalidateSuggestions]);
+
   const handleContinue = useCallback((): void => {
     actions.completeStep(3);
     actions.setStep(4);
     syncStep(4);
     navigateForward(projectId);
   }, [actions, syncStep, navigateForward, projectId]);
-
-  const handleSaveMappings = useCallback((): void => {
-    if (!projectId) return;
-    setIsSaving(true);
-    const store = useMigrationStore.getState();
-    const dtos = toMappingCreateDTOs(projectId, store.groupedMappings);
-    if (dtos.length === 0) {
-      setIsSaving(false);
-      showSuccess('Nothing to save', 'No edits to persist');
-      return;
-    }
-    void saveMappings(httpClient, projectId, dtos).then((result) => {
-      if (result.ok) {
-        actions.markChangesSaved();
-        const { inserted, updated } = result.data;
-        showSuccess(
-          'Mappings saved',
-          `${inserted} inserted, ${updated} updated`,
-        );
-        invalidateSuggestions();
-      } else {
-        showError('Save failed', result.error.message);
-      }
-      setIsSaving(false);
-    });
-  }, [projectId, actions, showSuccess, showError, invalidateSuggestions]);
 
   return {
     currentStep, completedSteps, sourceFile, sourceERP, targetERP, confidenceFilter,

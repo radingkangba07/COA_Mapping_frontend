@@ -19,6 +19,7 @@ import { Spinner } from '@/shared/components/ui/Spinner';
 import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorFallback';
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
 import { useHydrateProject } from '../hooks/useHydrateProject';
+import { useSaveMappings } from '../hooks/useSaveMappings';
 import { useMigrationStore } from '../store/migration.store';
 import { useShallow } from 'zustand/react/shallow';
 import { selectMappingStats } from '../store/migration.selectors';
@@ -70,26 +71,29 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
   const completeStep = useMigrationStore((s) => s.completeStep);
   const setStep = useMigrationStore((s) => s.setStep);
   const stats = useMigrationStore(useShallow(selectMappingStats));
+  const { save, isSaving } = useSaveMappings(projectId);
 
   const rows = useMemo((): readonly PreviewRow[] =>
     groupedMappings.flatMap((group) =>
-      group.accounts.map((account, idx) => {
-        const score = Math.round(account.score);
-        const isConfirmed =
-          (score >= 90 && confirmedHigh) ||
-          (score >= 70 && score < 90 && confirmedMedium) ||
-          (score < 70 && confirmedLow);
-        return {
-          key: `${group.source_type}-${account.source_number}-${idx}`,
-          sourceNumber: account.source_number,
-          sourceName: account.source_name,
-          sourceType: group.source_type,
-          targetName: account.target_name,
-          targetType: group.target_type,
-          score,
-          isConfirmed,
-        };
-      }),
+      group.accounts
+        .filter((account) => account.is_active !== false)
+        .map((account, idx) => {
+          const score = Math.round(account.score);
+          const isConfirmed =
+            (score >= 90 && confirmedHigh) ||
+            (score >= 70 && score < 90 && confirmedMedium) ||
+            (score < 70 && confirmedLow);
+          return {
+            key: `${group.source_type}-${account.source_number}-${idx}`,
+            sourceNumber: account.source_number,
+            sourceName: account.source_name,
+            sourceType: group.source_type,
+            targetName: account.target_name,
+            targetType: group.target_type,
+            score,
+            isConfirmed,
+          };
+        }),
     ),
   [groupedMappings, confirmedHigh, confirmedMedium, confirmedLow]);
 
@@ -100,11 +104,17 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
     navigation.goBack();
   }, [navigation]);
 
-  const handleContinueToExport = useCallback((): void => {
+  const handleContinueToExport = useCallback(async (): Promise<void> => {
+    // The user has reviewed the final mapping table — this is the commit
+    // point. Save (including is_active=false tombstones for deletes) before
+    // moving to the export screen. Bail on failure so the user stays here
+    // instead of exporting stale data.
+    const saved = await save();
+    if (!saved) return;
     completeStep(3);
     setStep(4);
     navigation.navigate('Preview', { projectId });
-  }, [completeStep, setStep, navigation, projectId]);
+  }, [save, completeStep, setStep, navigation, projectId]);
 
   const handleStepPress = useCallback(
     (step: number): void => {
@@ -180,6 +190,8 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
             </View>
             <Button
               onPress={handleContinueToExport}
+              disabled={isSaving}
+              isLoading={isSaving}
               accessibilityLabel="Continue to export"
               testID="continue-to-export"
             >

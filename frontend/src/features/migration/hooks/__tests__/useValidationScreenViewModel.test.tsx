@@ -340,7 +340,9 @@ describe('useValidationScreenViewModel.handleSaveMappings', () => {
     );
   });
 
-  it('skips the HTTP call when there are no DTOs to save', async () => {
+  it('skips the HTTP call and stays silent when there are no DTOs to save', async () => {
+    // No-op return value (true) lets the Review & Save button proceed to
+    // navigate without surfacing a misleading "Nothing to save" toast.
     mockToMappingCreateDTOs.mockReturnValue([]);
 
     const { result } = renderHook(
@@ -348,16 +350,14 @@ describe('useValidationScreenViewModel.handleSaveMappings', () => {
       { wrapper: createWrapper() },
     );
 
+    let saved: boolean | undefined;
     await act(async () => {
-      result.current.handleSaveMappings();
-      await Promise.resolve();
+      saved = await result.current.handleSaveMappings();
     });
 
+    expect(saved).toBe(true);
     expect(mockSaveMappings).not.toHaveBeenCalled();
-    expect(mockShowSuccess).toHaveBeenCalledWith(
-      'Nothing to save',
-      'No edits to persist',
-    );
+    expect(mockShowSuccess).not.toHaveBeenCalled();
     expect(mockMarkChangesSaved).not.toHaveBeenCalled();
   });
 
@@ -381,3 +381,4 @@ describe('useValidationScreenViewModel.handleSaveMappings', () => {
     expect(mockMarkChangesSaved).not.toHaveBeenCalled();
   });
 });
+
