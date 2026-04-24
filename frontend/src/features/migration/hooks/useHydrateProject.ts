@@ -5,6 +5,7 @@ import { hydrateProject } from '../services/hydration.service';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { useMigrationStore } from '../store/migration.store';
 import { useERPConfigStore } from '@/features/erp-config/store/erp-config.store';
+import { useToast } from '@/shared/hooks/useToast';
 
 export interface UseHydrateProjectReturn {
   readonly isHydrating: boolean;
@@ -21,6 +22,7 @@ export function useHydrateProject(projectId: ProjectId): UseHydrateProjectReturn
   const [isHydrating, setIsHydrating] = useState(!alreadyLoaded);
   const [error, setError] = useState<AppError | null>(null);
   const hydratedProjectRef = useRef<string | null>(alreadyLoaded ? (projectId as string) : null);
+  const { showWarning } = useToast();
 
   const hydrate = useCallback(async (): Promise<void> => {
     console.log('[useHydrateProject] hydrate START', { projectId });
@@ -48,6 +50,11 @@ export function useHydrateProject(projectId: ProjectId): UseHydrateProjectReturn
           currentStep: storeAfter.currentStep,
           completedSteps: storeAfter.completedSteps,
         });
+        if (result.warnings) {
+          for (const w of result.warnings) {
+            showWarning('File data unavailable', w);
+          }
+        }
       }
     } catch {
       console.log('[useHydrateProject] hydration EXCEPTION');
@@ -55,7 +62,7 @@ export function useHydrateProject(projectId: ProjectId): UseHydrateProjectReturn
     }
     hydratedProjectRef.current = projectId as string;
     setIsHydrating(false);
-  }, [projectId]);
+  }, [projectId, showWarning]);
 
   useEffect(() => {
     if (hydratedProjectRef.current === (projectId as string)) {

@@ -15,6 +15,7 @@ const initialState: AuthState = {
   refreshToken: null,
   isLoading: false,
   isRestoring: true,
+  sessionExpired: false,
   error: null,
 };
 
@@ -104,7 +105,14 @@ export const useAuthStore = create<AuthStore>()(
       set(() => ({
         ...initialState,
         isRestoring: false,
+        sessionExpired: false,
       }));
+    },
+
+    markSessionExpired: (): void => {
+      set((state) => {
+        state.sessionExpired = true;
+      });
     },
 
     restoreSession: async (): Promise<void> => {
@@ -178,5 +186,8 @@ export const useAuthStore = create<AuthStore>()(
 configureHttpClient({
   getAccessToken: () => useAuthStore.getState().accessToken,
   refresh: () => useAuthStore.getState().refreshTokens(),
-  onLogout: () => void useAuthStore.getState().logout(),
+  onLogout: () => {
+    if (useAuthStore.getState().user === null) return;
+    useAuthStore.getState().markSessionExpired();
+  },
 });

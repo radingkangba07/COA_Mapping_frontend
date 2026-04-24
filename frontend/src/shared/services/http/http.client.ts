@@ -1,7 +1,7 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import type { HttpClient, HttpClientConfig } from './http.types';
 import type { AppError } from '@/shared/types/result.types';
-import { isTransientError, showTransientErrorToast } from './http.error-handler';
+import { isTransientError, showTransientErrorToast, showAccessDeniedToast } from './http.error-handler';
 import { createRefreshQueue } from './refresh-queue';
 
 const DEFAULT_TIMEOUT = 30_000;
@@ -42,7 +42,7 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
 
       const status = error.response?.status;
 
-      if (status === 401) {
+      if (status === 401 || status === 403) {
         const requestConfig = error.config as RetriableRequestConfig | undefined;
         const url = requestConfig?.url ?? '';
 
@@ -60,7 +60,12 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
         }
 
         if (!isAuthEndpoint(url)) {
-          config.onLogout?.();
+          if (status === 403 && requestConfig?._retried) {
+            // Refresh succeeded but resource still 403 = genuine permission error
+            showAccessDeniedToast();
+          } else {
+            config.onLogout?.();
+          }
         }
         return Promise.reject(error);
       }

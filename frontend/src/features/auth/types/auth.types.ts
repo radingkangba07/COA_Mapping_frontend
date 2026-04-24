@@ -43,6 +43,7 @@ export interface AuthState {
   readonly refreshToken: string | null;
   readonly isLoading: boolean;
   readonly isRestoring: boolean;
+  readonly sessionExpired: boolean;
   readonly error: AppError | null;
 }
 
@@ -52,6 +53,7 @@ export interface AuthActions {
   refreshTokens: () => Promise<boolean>;
   logout: () => Promise<void>;
   restoreSession: () => Promise<void>;
+  markSessionExpired: () => void;
   clearError: () => void;
 }
 

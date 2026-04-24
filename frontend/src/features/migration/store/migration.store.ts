@@ -82,10 +82,11 @@ interface MigrationActions {
     newName: string,
     userName: string,
     sourceName?: string,
+    suggestionId?: string,
   ) => void;
   setConfidenceFilter: (filter: ConfidenceLevel | null) => void;
   confirmConfidenceLevel: (level: ConfidenceLevel) => void;
-  deleteAccount: (sourceType: string, sourceName: string) => void;
+  deleteAccount: (sourceType: string, sourceName: string, suggestionId?: string) => void;
   restoreAccount: (deletedIdx: number) => void;
 
   clearTargetERP: () => void;
@@ -344,18 +345,20 @@ export const useMigrationStore = create<MigrationStore>()(
       newName: string,
       userName: string,
       sourceName?: string,
+      suggestionId?: string,
     ): void => {
       set((state) => {
         const group = state.groupedMappings.find(
           (g) => g.source_type === sourceType,
         );
         if (!group) return;
-        const account = sourceName
+        const account = suggestionId
+          ? group.accounts.find((a) => a.suggestion_id === suggestionId)
+          : sourceName
           ? group.accounts.find((a) => a.source_name === sourceName)
           : group.accounts[accountIdx];
         if (account) {
           account.target_name = newName;
-          account.score = newName.length > 0 ? 100 : 0;
           account.user_changed = true;
           account.changed_by_name = userName;
           account.changed_at = new Date().toISOString();
@@ -400,13 +403,15 @@ export const useMigrationStore = create<MigrationStore>()(
       });
     },
 
-    deleteAccount: (sourceType: string, sourceName: string): void => {
+    deleteAccount: (sourceType: string, sourceName: string, suggestionId?: string): void => {
       set((state) => {
         const group = state.groupedMappings.find(
           (g) => g.source_type === sourceType,
         );
         if (!group) return;
-        const account = group.accounts.find((a) => a.source_name === sourceName);
+        const account = suggestionId
+          ? group.accounts.find((a) => a.suggestion_id === suggestionId)
+          : group.accounts.find((a) => a.source_name === sourceName);
         if (!account) return;
         (account as { is_active?: boolean }).is_active = false;
         state.hasUnsavedChanges = true;
