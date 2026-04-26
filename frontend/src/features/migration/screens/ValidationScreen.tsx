@@ -98,15 +98,20 @@ export const ValidationScreen = (): React.JSX.Element => {
   // ValidationScreen shows all groups at once, so request the backend's max
   // page size (500) instead of paginating. `total` from the response is the
   // authoritative row count surfaced in the header.
-  const suggestions = useMappingSuggestions(projectId, { limit: 500 });
+  const suggestions = useMappingSuggestions(projectId);
   const setGroupedMappings = useMigrationStore((s) => s.setGroupedMappings);
 
   // Push suggestion snapshots into the store so the existing VM (stats,
   // filters, confirmation, edit/delete UI) sees them without any rewiring.
+  // Wait for hydration to finish — hydration calls store.reset() asynchronously,
+  // which would wipe groupedMappings after this effect runs if we don't wait.
+  // Skip the update when the query errored — don't wipe existing store data.
   useEffect((): void => {
+    if (isHydrating) return;
     if (suggestions.isLoading) return;
+    if (suggestions.error !== null) return;
     setGroupedMappings(adaptSuggestionsToGroupedMappings(suggestions.suggestions));
-  }, [suggestions.isLoading, suggestions.suggestions, setGroupedMappings]);
+  }, [isHydrating, suggestions.isLoading, suggestions.error, suggestions.suggestions, setGroupedMappings]);
 
   const refetchRef = useRef(suggestions.refetch);
   refetchRef.current = suggestions.refetch;
@@ -137,6 +142,7 @@ export const ValidationScreen = (): React.JSX.Element => {
     onFailed: handleJobFailed,
   });
 
+
   const liveErrorSurfacedRef = useRef(false);
   useEffect((): void => {
     if (jobStream.error !== null && !liveErrorSurfacedRef.current) {
@@ -150,16 +156,8 @@ export const ValidationScreen = (): React.JSX.Element => {
 
   const handleStepPress = useCallback(
     (step: number): void => {
-      const storeBefore = useMigrationStore.getState();
-      console.log('[ValidationScreen] handleStepPress', {
-        step,
-        sourceERP: storeBefore.sourceERP?.id ?? null,
-        targetERP: storeBefore.targetERP?.id ?? null,
-        currentStep: storeBefore.currentStep,
-      });
       vm.handleStepPress(step);
       const screen = STEP_TO_SCREEN[step as MigrationStepValue];
-      console.log('[ValidationScreen] navigating to', screen);
       navigation.navigate(screen as 'ERPSelect', { projectId });
     },
     [vm, navigation, projectId],
@@ -186,7 +184,7 @@ export const ValidationScreen = (): React.JSX.Element => {
 
   const sourceERPName = vm.sourceERP?.name ?? 'Source';
   const targetERPName = vm.targetERP?.name ?? 'Target';
-  const isLoadingData = vm.stats.totalAccounts === 0 && vm.filteredMappings.length === 0;
+  const isLoadingData = suggestions.isLoading && vm.stats.totalAccounts === 0 && vm.filteredMappings.length === 0;
 
   if (isLoadingData) {
     return (
@@ -238,7 +236,7 @@ export const ValidationScreen = (): React.JSX.Element => {
               <View className="mt-1 flex-row items-center gap-1.5">
                 <FileSpreadsheet size={14} color={colors.mutedForeground} />
                 <Text className="font-body text-sm text-muted-foreground">
-                  {vm.sourceFile.name} &bull; {suggestions.total} rows
+                  {vm.sourceFile.name} &bull; {suggestions.total > 0 ? suggestions.total : vm.stats.totalAccounts} rows
                 </Text>
               </View>
             )}
@@ -430,21 +428,24 @@ export const ValidationScreen = (): React.JSX.Element => {
 
         {/* Account type groups */}
         <View className="gap-0">
-          {vm.filteredMappings.map((group) => (
-          <AccountTypeGroup
-              key={group.source_type}
-              sourceType={group.source_type}
-              targetType={group.target_type}
-              confidence={group.confidence}
-              accounts={group.accounts}
-              targetTypes={vm.targetTypes}
-              targetAccountNames={vm.targetAccountNames}
-              onTypeChange={vm.handleTypeChange}
-              onAccountNameChange={vm.handleAccountNameChange}
-              onDeleteAccount={vm.handleDeleteAccount}
-              testID={`group-${group.source_type}`}
-            />
-          ))}
+          {vm.filteredMappings.map((group) => {
+            const groupKey = `${group.source_type}__${group.target_type}`;
+            return (
+              <AccountTypeGroup
+                key={groupKey}
+                sourceType={group.source_type}
+                targetType={group.target_type}
+                confidence={group.confidence}
+                accounts={group.accounts}
+                targetTypes={vm.targetTypes}
+                targetAccountNames={vm.targetAccountNames}
+                onTypeChange={vm.handleTypeChange}
+                onAccountNameChange={vm.handleAccountNameChange}
+                onDeleteAccount={vm.handleDeleteAccount}
+                testID={`group-${groupKey}`}
+              />
+            );
+          })}
         </View>
 
         {/* Footer buttons */}

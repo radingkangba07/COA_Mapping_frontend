@@ -70,18 +70,19 @@ export const selectMappingStats = (state: MigrationStore): MappingStats => {
   let confirmedCount = 0;
 
   for (const account of allAccounts) {
-    if (account.score >= CONFIDENCE_THRESHOLDS.HIGH) {
+    const s = Math.round(account.score);
+    if (s >= CONFIDENCE_THRESHOLDS.HIGH) {
       highConfidence += 1;
-    } else if (account.score >= CONFIDENCE_THRESHOLDS.MEDIUM) {
+    } else if (s >= CONFIDENCE_THRESHOLDS.MEDIUM) {
       mediumConfidence += 1;
     } else {
       lowConfidence += 1;
     }
 
     const isConfirmedByBand =
-      (account.score >= CONFIDENCE_THRESHOLDS.HIGH && state.confirmedHigh) ||
-      (account.score >= CONFIDENCE_THRESHOLDS.MEDIUM && account.score < CONFIDENCE_THRESHOLDS.HIGH && state.confirmedMedium) ||
-      (account.score < CONFIDENCE_THRESHOLDS.MEDIUM && state.confirmedLow);
+      (s >= CONFIDENCE_THRESHOLDS.HIGH && state.confirmedHigh) ||
+      (s >= CONFIDENCE_THRESHOLDS.MEDIUM && s < CONFIDENCE_THRESHOLDS.HIGH && state.confirmedMedium) ||
+      (s < CONFIDENCE_THRESHOLDS.MEDIUM && state.confirmedLow);
 
     if (account.user_changed === true || isConfirmedByBand) {
       confirmedCount += 1;
@@ -104,24 +105,25 @@ function matchesConfidenceLevel(
   score: number,
   level: ConfidenceLevel,
 ): boolean {
+  const s = Math.round(score);
   switch (level) {
     case 'high':
-      return score >= CONFIDENCE_THRESHOLDS.HIGH;
+      return s >= CONFIDENCE_THRESHOLDS.HIGH;
     case 'medium':
       return (
-        score >= CONFIDENCE_THRESHOLDS.MEDIUM &&
-        score < CONFIDENCE_THRESHOLDS.HIGH
+        s >= CONFIDENCE_THRESHOLDS.MEDIUM &&
+        s < CONFIDENCE_THRESHOLDS.HIGH
       );
     case 'low':
-      return score < CONFIDENCE_THRESHOLDS.MEDIUM;
+      return s < CONFIDENCE_THRESHOLDS.MEDIUM;
   }
 }
 
-export const selectFilteredMappings = (
-  state: MigrationStore,
-): GroupedMapping[] => {
-  const filter = state.confidenceFilter;
-  return state.groupedMappings
+export function applyConfidenceFilter(
+  groupedMappings: readonly GroupedMapping[],
+  filter: ConfidenceLevel | null,
+): GroupedMapping[] {
+  return (groupedMappings as GroupedMapping[])
     .map((group) => ({
       ...group,
       accounts: group.accounts.filter((account) => {
@@ -131,7 +133,7 @@ export const selectFilteredMappings = (
       }),
     }))
     .filter((group) => group.accounts.length > 0);
-};
+}
 
 // ─── Deleted Accounts (derived) ─────────────────────────────────────────────
 

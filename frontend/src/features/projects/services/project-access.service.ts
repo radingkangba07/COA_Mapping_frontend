@@ -59,18 +59,23 @@ export async function getProjectMembers(
   }
 }
 
+const grantResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string().optional(),
+});
+
 export async function grantProjectAccess(
   client: HttpClient,
   projectId: ProjectId,
   grant: AccessGrant,
-): Promise<Result<AccessResponse, AppError>> {
+): Promise<Result<void, AppError>> {
   try {
     const { data } = await client.post<unknown>(
       `/api/v1/projects/${projectId}/access`,
       { email: grant.email, permission: grant.permission },
     );
 
-    const parsed = accessResponseDTOSchema.safeParse(data);
+    const parsed = grantResponseSchema.safeParse(data);
 
     if (!parsed.success) {
       return err({
@@ -80,7 +85,7 @@ export async function grantProjectAccess(
       });
     }
 
-    return ok(toAccessResponse(parsed.data));
+    return ok(undefined);
   } catch (error: unknown) {
     return err(toAppError(error));
   }

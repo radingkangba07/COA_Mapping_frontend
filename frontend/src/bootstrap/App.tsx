@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { AppProviders } from './providers/AppProviders';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { useSessionGuard } from '@/features/auth/hooks/useSessionGuard';
+import { SessionExpiredModal } from '@/features/auth/components/SessionExpiredModal';
 import { useAppStore } from '@/shared/store/app.store';
 import { Spinner } from '@/shared/components/ui/Spinner';
 
@@ -31,6 +32,7 @@ function AppContent(): React.JSX.Element | null {
   return (
     <>
       <RootNavigator />
+      <SessionExpiredModal />
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
     </>
   );
