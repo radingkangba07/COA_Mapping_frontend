@@ -31,10 +31,9 @@ const suggestionGroupSchema = z.object({
   accounts: z.array(suggestionAccountSchema),
 });
 
+// Backend returns { total, groups } — no skip/limit in the response.
 const suggestionListSchema = z.object({
   total: z.number(),
-  skip: z.number().optional(),
-  limit: z.number().optional(),
   groups: z.array(suggestionGroupSchema),
 });
 
@@ -72,8 +71,7 @@ function buildQueryParams(
   if (opts.sourceType !== undefined && opts.sourceType.length > 0) {
     params['source_type'] = opts.sourceType;
   }
-  if (opts.skip !== undefined) params['skip'] = opts.skip;
-  if (opts.limit !== undefined) params['limit'] = opts.limit;
+  // skip/limit not forwarded — endpoint does not support pagination
   return params;
 }
 
@@ -81,9 +79,8 @@ function buildQueryParams(
 
 /**
  * GET /api/v1/mappings/project/{projectId}/suggestions
- * Returns a paginated envelope: `{ total, skip, limit, groups }`. Groups are a
- * page of suggestions collapsed by source_type × target_type, so `total` is the
- * count of underlying suggestions (post-filter), not the number of groups.
+ * Returns { total, groups } — suggestions from coa_mappings_suggestion, merged
+ * with any confirmed coa_mappings rows for the same project.
  */
 export async function listMappingSuggestions(
   client: HttpClient,
@@ -104,8 +101,8 @@ export async function listMappingSuggestions(
     }
     return ok({
       total: parsed.data.total,
-      skip: parsed.data.skip ?? 0,
-      limit: parsed.data.limit ?? parsed.data.total,
+      skip: 0,
+      limit: parsed.data.total,
       groups: parsed.data.groups.map(toSuggestionGroup),
     });
   } catch (error: unknown) {

@@ -67,24 +67,25 @@ interface MockStoreState {
   sourceERP: null;
   targetERP: null;
   groupedMappings: readonly GroupedMapping[];
-  confidenceFilter: null;
   confirmedHigh: boolean;
   confirmedMedium: boolean;
   confirmedLow: boolean;
-  deletedAccounts: readonly unknown[];
+  confidenceFilter: 'high' | 'medium' | 'low' | null;
   targetTypes: readonly string[];
   targetData: readonly Record<string, unknown>[];
   hasUnsavedChanges: boolean;
   setStep: jest.Mock;
   completeStep: jest.Mock;
-  setConfidenceFilter: jest.Mock;
   confirmConfidenceLevel: jest.Mock;
   updateTypeMapping: jest.Mock;
   updateAccountName: jest.Mock;
   deleteAccount: jest.Mock;
   restoreAccount: jest.Mock;
   markChangesSaved: jest.Mock;
+  setConfidenceFilter: jest.Mock;
 }
+
+const mockSetConfidenceFilter = jest.fn();
 
 const mockStoreState: MockStoreState = {
   currentStep: 3,
@@ -93,23 +94,22 @@ const mockStoreState: MockStoreState = {
   sourceERP: null,
   targetERP: null,
   groupedMappings: [],
-  confidenceFilter: null,
   confirmedHigh: false,
   confirmedMedium: false,
   confirmedLow: false,
-  deletedAccounts: [],
+  confidenceFilter: null,
   targetTypes: [],
   targetData: [],
   hasUnsavedChanges: false,
   setStep: jest.fn(),
   completeStep: jest.fn(),
-  setConfidenceFilter: jest.fn(),
   confirmConfidenceLevel: mockConfirmConfidenceLevel,
   updateTypeMapping: jest.fn(),
   updateAccountName: jest.fn(),
   deleteAccount: jest.fn(),
   restoreAccount: jest.fn(),
   markChangesSaved: mockMarkChangesSaved,
+  setConfidenceFilter: mockSetConfidenceFilter,
 };
 
 jest.mock('../../store/migration.store', () => {
@@ -119,17 +119,21 @@ jest.mock('../../store/migration.store', () => {
   return { useMigrationStore: hook };
 });
 
-jest.mock('../../store/migration.selectors', () => ({
-  selectMappingStats: () => ({
-    totalTypes: 0,
-    totalAccounts: 0,
-    highConfidence: 0,
-    mediumConfidence: 0,
-    lowConfidence: 0,
-    confirmedCount: 0,
-  }),
-  selectAllConfirmed: () => false,
-}));
+jest.mock('../../store/migration.selectors', () => {
+  const actual = jest.requireActual('../../store/migration.selectors');
+  return {
+    ...actual,
+    selectMappingStats: () => ({
+      totalTypes: 0,
+      totalAccounts: 0,
+      highConfidence: 0,
+      mediumConfidence: 0,
+      lowConfidence: 0,
+      confirmedCount: 0,
+    }),
+    selectAllConfirmed: () => false,
+  };
+});
 
 jest.mock('zustand/react/shallow', () => ({
   useShallow: (fn: unknown) => fn,
@@ -192,6 +196,7 @@ describe('useValidationScreenViewModel.handleConfirm', () => {
     mockStoreState.confirmedHigh = false;
     mockStoreState.confirmedMedium = false;
     mockStoreState.confirmedLow = false;
+    mockStoreState.confidenceFilter = null;
     mockToMappingCreateDTOs.mockReturnValue([makeMappingCreateDTO()]);
     mockSaveMappings.mockResolvedValue(
       ok({ success: true, mapping_count: 1, project_id: 'proj-1', inserted: 1, updated: 0 }),
@@ -308,6 +313,7 @@ describe('useValidationScreenViewModel.handleSaveMappings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockStoreState.groupedMappings = [makeGroupedMapping()];
+    mockStoreState.confidenceFilter = null;
     mockToMappingCreateDTOs.mockReturnValue([makeMappingCreateDTO()]);
     mockSaveMappings.mockResolvedValue(
       ok({ success: true, mapping_count: 1, project_id: 'proj-1', inserted: 1, updated: 0 }),
@@ -381,6 +387,105 @@ describe('useValidationScreenViewModel.handleSaveMappings', () => {
 
     expect(mockShowError).toHaveBeenCalledWith('Save failed', 'Server down');
     expect(mockMarkChangesSaved).not.toHaveBeenCalled();
+  });
+});
+
+// ─── filteredMappings ───────────────────────────────────────────────────────
+
+describe('useValidationScreenViewModel.filteredMappings', () => {
+  const projectId = 'proj-1';
+  const navigateBack = jest.fn();
+  const navigateForward = jest.fn();
+
+  const highAccount = { source_number: 'H1', source_name: 'High', target_name: 'H', score: 100, remark: '' };
+  const mediumAccount = { source_number: 'M1', source_name: 'Medium', target_name: 'M', score: 75, remark: '' };
+  const lowAccount = { source_number: 'L1', source_name: 'Low', target_name: 'L', score: 60, remark: '' };
+
+  const mixedGroup: GroupedMapping = {
+    source_type: 'Mixed',
+    target_type: 'Target',
+    confidence: 75,
+    accounts: [highAccount, mediumAccount, lowAccount],
+  };
+  const highOnlyGroup: GroupedMapping = {
+    source_type: 'HighOnly',
+    target_type: 'Target',
+    confidence: 100,
+    accounts: [highAccount],
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockStoreState.groupedMappings = [mixedGroup, highOnlyGroup];
+    mockStoreState.confidenceFilter = null;
+  });
+
+  it('shows all active accounts when filter is null', () => {
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
+    );
+    const allAccounts = result.current.filteredMappings.flatMap((g) => g.accounts);
+    expect(allAccounts).toHaveLength(4);
+  });
+
+  it('shows only ≥90% accounts when filter is high', () => {
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
+    );
+    act(() => { result.current.handleFilterPress('high'); });
+    const allAccounts = result.current.filteredMappings.flatMap((g) => g.accounts);
+    expect(allAccounts).toHaveLength(2);
+    expect(allAccounts.every((a) => a.score >= 90)).toBe(true);
+  });
+
+  it('shows only 70–89% accounts when filter is medium', () => {
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
+    );
+    act(() => { result.current.handleFilterPress('medium'); });
+    const allAccounts = result.current.filteredMappings.flatMap((g) => g.accounts);
+    expect(allAccounts).toHaveLength(1);
+    expect(allAccounts[0]?.score).toBe(75);
+  });
+
+  it('shows only <70% accounts when filter is low', () => {
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
+    );
+    act(() => { result.current.handleFilterPress('low'); });
+    const allAccounts = result.current.filteredMappings.flatMap((g) => g.accounts);
+    expect(allAccounts).toHaveLength(1);
+    expect(allAccounts[0]?.score).toBe(60);
+  });
+
+  it('excludes groups where all accounts are filtered out', () => {
+    mockStoreState.groupedMappings = [
+      { source_type: 'LowOnly', target_type: 'T', confidence: 60, accounts: [lowAccount] },
+    ];
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
+    );
+    act(() => { result.current.handleFilterPress('high'); });
+    expect(result.current.filteredMappings).toHaveLength(0);
+  });
+
+  it('excludes tombstoned (is_active=false) accounts regardless of filter', () => {
+    const tombstoned = { ...highAccount, is_active: false as const };
+    mockStoreState.groupedMappings = [
+      { source_type: 'G', target_type: 'T', confidence: 100, accounts: [tombstoned, mediumAccount] },
+    ];
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
+    );
+    const allAccounts = result.current.filteredMappings.flatMap((g) => g.accounts);
+    expect(allAccounts).toHaveLength(1);
+    expect(allAccounts[0]?.source_name).toBe('Medium');
   });
 });
 

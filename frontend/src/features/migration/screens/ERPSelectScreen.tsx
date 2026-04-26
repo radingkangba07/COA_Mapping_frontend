@@ -30,8 +30,6 @@ export const ERPSelectScreen = (): React.JSX.Element => {
   const route = useMigrationScreenRoute<'ERPSelect'>();
   const projectId = route.params.projectId;
 
-  console.log('[ERPSelectScreen] RENDER', { projectId });
-
   const { isHydrating, error, retry } = useHydrateProject(createProjectId(projectId));
 
   const {
@@ -44,14 +42,6 @@ export const ERPSelectScreen = (): React.JSX.Element => {
     handleTargetSelect,
     goToStep,
   } = useMigrationViewModel();
-
-  console.log('[ERPSelectScreen] state', {
-    isHydrating,
-    sourceERP: sourceERP?.id ?? null,
-    targetERP: targetERP?.id ?? null,
-    currentStep,
-    completedSteps,
-  });
 
   const { erpSystems } = useERPConfig();
 

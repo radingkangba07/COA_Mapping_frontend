@@ -5,8 +5,8 @@ import { useMigrationStore } from '../store/migration.store';
 import {
   selectMappingStats,
   selectAllConfirmed,
+  applyConfidenceFilter,
 } from '../store/migration.selectors';
-import { CONFIDENCE_THRESHOLDS } from '@/shared/constants/mapping-confidence';
 import { useSyncStep } from './useSyncStep';
 import { useValidation } from './useValidation';
 import { useToast } from '@/shared/hooks/useToast';
@@ -16,6 +16,7 @@ import {
   updateMappingStatus,
 } from '../services/mapping.service';
 import { httpClient } from '@/shared/services/http/http.instance';
+import { CONFIDENCE_THRESHOLDS } from '@/shared/constants/mapping-confidence';
 import type { ConfidenceLevel, AccountMapping, GroupedMapping } from '../types/mapping.types';
 import type { UploadedFile } from '../types/migration.types';
 import type { ERPSystem } from '../types/erp.types';
@@ -79,7 +80,16 @@ export function useValidationScreenViewModel(
   const sourceERP = useMigrationStore((s) => s.sourceERP);
   const targetERP = useMigrationStore((s) => s.targetERP);
   const groupedMappings = useMigrationStore((s) => s.groupedMappings);
-  const confidenceFilter = useMigrationStore((s) => s.confidenceFilter);
+  const storeFilter = useMigrationStore((s) => s.confidenceFilter);
+  const [confidenceFilter, setLocalFilter] = useState<ConfidenceLevel | null>(storeFilter);
+
+  // Sync local state when store resets the filter externally (e.g. project switch via setProjectId).
+  const prevStoreFilter = useRef(storeFilter);
+  if (prevStoreFilter.current !== storeFilter) {
+    prevStoreFilter.current = storeFilter;
+    setLocalFilter(storeFilter);
+  }
+
   const confirmedHigh = useMigrationStore((s) => s.confirmedHigh);
   const confirmedMedium = useMigrationStore((s) => s.confirmedMedium);
   const confirmedLow = useMigrationStore((s) => s.confirmedLow);
@@ -92,26 +102,10 @@ export function useValidationScreenViewModel(
   // Derived lists live here (not as store selectors) so their referential
   // identity only changes when their real deps change — otherwise useShallow
   // trips the subscription every render (new arrays/objects each call).
-  const filteredMappings = useMemo(() => {
-    const filter = confidenceFilter;
-    return groupedMappings
-      .map((group) => ({
-        ...group,
-        accounts: group.accounts.filter((a) => {
-          if (a.is_active === false) return false;
-          if (filter === null) return true;
-          if (filter === 'high') return a.score >= CONFIDENCE_THRESHOLDS.HIGH;
-          if (filter === 'medium') {
-            return (
-              a.score >= CONFIDENCE_THRESHOLDS.MEDIUM &&
-              a.score < CONFIDENCE_THRESHOLDS.HIGH
-            );
-          }
-          return a.score < CONFIDENCE_THRESHOLDS.MEDIUM;
-        }),
-      }))
-      .filter((group) => group.accounts.length > 0);
-  }, [groupedMappings, confidenceFilter]);
+  const filteredMappings = useMemo(
+    () => applyConfidenceFilter(groupedMappings, confidenceFilter),
+    [groupedMappings, confidenceFilter],
+  );
 
   const deletedAccounts = useMemo(() => {
     const out: { sourceType: string; sourceNumber: string; sourceName: string }[] = [];
@@ -132,13 +126,13 @@ export function useValidationScreenViewModel(
   const actions = useMigrationStore(useShallow((s) => ({
     setStep: s.setStep,
     completeStep: s.completeStep,
-    setConfidenceFilter: s.setConfidenceFilter,
     confirmConfidenceLevel: s.confirmConfidenceLevel,
     updateTypeMapping: s.updateTypeMapping,
     updateAccountName: s.updateAccountName,
     deleteAccount: s.deleteAccount,
     restoreAccount: s.restoreAccount,
     markChangesSaved: s.markChangesSaved,
+    setConfidenceFilter: s.setConfidenceFilter,
   })));
 
   const syncStep = useSyncStep();
@@ -170,7 +164,10 @@ export function useValidationScreenViewModel(
   const handleStepPress = useCallback(
     (step: number): void => { actions.setStep(step); }, [actions]);
   const handleFilterPress = useCallback(
-    (filter: ConfidenceLevel | null): void => { actions.setConfidenceFilter(filter); }, [actions]);
+    (filter: ConfidenceLevel | null): void => {
+      setLocalFilter(filter);
+      actions.setConfidenceFilter(filter);
+    }, [actions]);
   const handleConfirm = useCallback(
     async (level: ConfidenceLevel): Promise<void> => {
       if (confirmInFlightRef.current) return;
