@@ -26,7 +26,7 @@ interface ProjectAccessViewModel {
   readonly canManage: boolean;
   readonly currentUserId: string | null;
   readonly grant: (grant: AccessGrant) => void;
-  readonly grantAsync: (grant: AccessGrant) => Promise<Result<AccessResponse, AppError>>;
+  readonly grantAsync: (grant: AccessGrant) => Promise<Result<void, AppError>>;
   readonly isGranting: boolean;
 }
 
