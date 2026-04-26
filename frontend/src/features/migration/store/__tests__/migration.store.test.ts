@@ -354,25 +354,6 @@ describe('useMigrationStore', () => {
     });
   });
 
-  describe('confidence filter', () => {
-    it('setConfidenceFilter sets the filter value', () => {
-      const { setConfidenceFilter } = useMigrationStore.getState();
-
-      setConfidenceFilter('high');
-
-      expect(useMigrationStore.getState().confidenceFilter).toBe('high');
-    });
-
-    it('setConfidenceFilter accepts null to clear', () => {
-      const { setConfidenceFilter } = useMigrationStore.getState();
-
-      setConfidenceFilter('medium');
-      setConfidenceFilter(null);
-
-      expect(useMigrationStore.getState().confidenceFilter).toBeNull();
-    });
-  });
-
   describe('confirmConfidenceLevel', () => {
     it.each<[ConfidenceLevel, keyof ReturnType<typeof useMigrationStore.getState>]>([
       ['high', 'confirmedHigh'],
@@ -617,12 +598,48 @@ describe('useMigrationStore', () => {
       expect(state.sourceFile).toBeNull();
       expect(state.sourceData).toEqual([]);
       expect(state.groupedMappings).toEqual([]);
-      expect(state.confidenceFilter).toBeNull();
       expect(state.confirmedHigh).toBe(false);
       expect(state.confirmedMedium).toBe(false);
       expect(state.confirmedLow).toBe(false);
       expect(state.isLoading).toBe(false);
       expect(state.error).toBeNull();
+    });
+
+    it('reset() preserves confidenceFilter so it survives hydration cycles', () => {
+      const store = useMigrationStore.getState();
+      store.setConfidenceFilter('high');
+      store.reset();
+      expect(useMigrationStore.getState().confidenceFilter).toBe('high');
+    });
+  });
+
+  describe('confidenceFilter', () => {
+    it('setConfidenceFilter stores the selected level', () => {
+      useMigrationStore.getState().setConfidenceFilter('medium');
+      expect(useMigrationStore.getState().confidenceFilter).toBe('medium');
+    });
+
+    it('setConfidenceFilter accepts null to clear the filter', () => {
+      const store = useMigrationStore.getState();
+      store.setConfidenceFilter('high');
+      store.setConfidenceFilter(null);
+      expect(useMigrationStore.getState().confidenceFilter).toBeNull();
+    });
+
+    it('setProjectId clears confidenceFilter when switching to a new project', () => {
+      const store = useMigrationStore.getState();
+      store.setProjectId('project-a');
+      store.setConfidenceFilter('low');
+      store.setProjectId('project-b');
+      expect(useMigrationStore.getState().confidenceFilter).toBeNull();
+    });
+
+    it('setProjectId does NOT clear confidenceFilter when setting the same project', () => {
+      const store = useMigrationStore.getState();
+      store.setProjectId('project-a');
+      store.setConfidenceFilter('high');
+      store.setProjectId('project-a');
+      expect(useMigrationStore.getState().confidenceFilter).toBe('high');
     });
   });
 });

@@ -115,7 +115,7 @@ jest.mock('../../store/migration.store', () => {
       const state = getStoreState();
       return selector ? selector(state) : state;
     }),
-    { getState: getStoreState },
+    { getState: getStoreState, subscribe: jest.fn(() => () => undefined) },
   );
   return { useMigrationStore };
 });
@@ -191,8 +191,9 @@ jest.mock('../../hooks/useValidationScreenViewModel', () => ({
   useValidationScreenViewModel: jest.fn(() => mockVM),
 }));
 
+const mockHydrate = { isHydrating: false, error: null as { code: string; message: string } | null, retry: jest.fn() };
 jest.mock('../../hooks/useHydrateProject', () => ({
-  useHydrateProject: () => ({ isHydrating: false, error: null, retry: jest.fn() }),
+  useHydrateProject: () => mockHydrate,
 }));
 
 // ─── Child component stubs ──────────────────────────────────────────────────
@@ -325,6 +326,8 @@ describe('ValidationScreen', () => {
     mockSuggestions.skip = 0;
     mockSuggestions.limit = 500;
     mockSuggestions.isLoading = false;
+    mockHydrate.isHydrating = false;
+    mockHydrate.error = null;
     mockJobStream.error = null;
     mockJobStreamOptionsRef.current = null;
   });
@@ -339,15 +342,13 @@ describe('ValidationScreen', () => {
     expect(screen.getByText('COA Mapping')).toBeTruthy();
   });
 
-  it('binds the row count label to stats.totalAccounts so deletes update live', () => {
-    // stats.totalAccounts excludes locally-deleted rows (is_active === false),
-    // so the label reflects the current edit state immediately. The screen
-    // requests limit:500 from useMappingSuggestions, so for any realistic
-    // project it equals the server total anyway.
+  it('binds the row count label to suggestions.total when available', () => {
+    // suggestions.total is the authoritative backend count; falls back to
+    // stats.totalAccounts only while the suggestions query is still loading.
     mockVM.stats.totalAccounts = 50;
     mockSuggestions.total = 106;
     render(<ValidationScreen />);
-    expect(screen.getByText(/test\.xlsx\s*•\s*50 rows/)).toBeTruthy();
+    expect(screen.getByText(/test\.xlsx\s*•\s*106 rows/)).toBeTruthy();
   });
 
   it('renders MappingStatsBar', () => {
@@ -363,7 +364,7 @@ describe('ValidationScreen', () => {
 
   it('renders account type groups', () => {
     render(<ValidationScreen />);
-    expect(screen.getByTestId('group-Asset')).toBeTruthy();
+    expect(screen.getByTestId('group-Asset__Asset')).toBeTruthy();
   });
 
   it('renders Continue button disabled when not all confirmed', () => {
@@ -390,6 +391,7 @@ describe('ValidationScreen', () => {
   it('shows skeleton when no data is loaded', () => {
     mockVM.stats.totalAccounts = 0;
     mockVM.filteredMappings = [];
+    mockSuggestions.isLoading = true;
     render(<ValidationScreen />);
     expect(screen.getByTestId('validation-skeleton')).toBeTruthy();
   });
@@ -412,6 +414,17 @@ describe('ValidationScreen', () => {
     it('does not push to the store while suggestions are loading', () => {
       mockSuggestions.suggestions = [];
       mockSuggestions.isLoading = true;
+      render(<ValidationScreen />);
+      expect(mockSetGroupedMappings).not.toHaveBeenCalled();
+    });
+
+    it('does not push to the store while hydration is in progress (prevents store.reset() race)', () => {
+      // Regression: hydrate() calls store.reset() asynchronously. If the effect
+      // ran before reset(), cached suggestions would be wiped and never restored
+      // because suggestions.* didn't change to re-trigger the effect.
+      mockSuggestions.suggestions = [{ sourceType: 'Asset', targetType: 'Asset', confidence: 1, accounts: [] }];
+      mockSuggestions.isLoading = false;
+      mockHydrate.isHydrating = true;
       render(<ValidationScreen />);
       expect(mockSetGroupedMappings).not.toHaveBeenCalled();
     });

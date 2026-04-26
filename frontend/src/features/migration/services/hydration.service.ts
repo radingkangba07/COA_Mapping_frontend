@@ -49,12 +49,6 @@ export async function hydrateProject(
   }
   const project = projectResult.data;
 
-  console.log('[hydrateProject] project from API', {
-    currentStep: project.currentStep,
-    sourceErp: project.sourceErp,
-    targetErp: project.targetErp,
-  });
-
   if (!isValidStep(project.currentStep)) {
     return { ok: false, error: { code: 'INVALID_STEP', message: `Unknown migration step: ${String(project.currentStep)}` } };
   }
@@ -65,7 +59,6 @@ export async function hydrateProject(
   const prevTargetERP = store.targetERP;
 
   // Populate project basics
-  console.log('[hydrateProject] calling store.reset()');
   store.reset();
   store.setProjectId(projectId);
   store.setStep(targetStep);
@@ -82,15 +75,6 @@ export async function hydrateProject(
     ? resolveERPSystem(project.targetErp, erpSystems)
     : undefined;
 
-  console.log('[hydrateProject] ERP resolution', {
-    sourceErpId: project.sourceErp,
-    targetErpId: project.targetErp,
-    sourceFound: !!sourceERPInfo,
-    targetFound: !!targetERPInfo,
-    prevSourceERP: prevSourceERP?.id ?? null,
-    prevTargetERP: prevTargetERP?.id ?? null,
-  });
-
   if (sourceERPInfo) store.setSourceERP(sourceERPInfo);
   else if (prevSourceERP) store.setSourceERP(prevSourceERP);
 
@@ -99,7 +83,6 @@ export async function hydrateProject(
 
   // Step 0 (ERPSelect): only needs project metadata + ERPs
   if (targetStep <= MIGRATION_STEPS.ERP_SELECT) {
-    console.log('[hydrateProject] early return at step 0');
     return { ok: true };
   }
 
@@ -192,13 +175,9 @@ export async function hydrateProject(
     const jobsResp = await client.get<Array<{ id: string; job_type: string; status: string }>>(
       `/api/v1/jobs/project/${projectId}`,
     );
-    console.log('[hydrateProject] jobs for project:', jobsResp.data.map((j) => ({ id: j.id, type: j.job_type, status: j.status })));
     const accountJob = jobsResp.data.find((j) => j.job_type === 'account_matching');
     if (accountJob) {
-      console.log('[hydrateProject] restoring jobId:', accountJob.id);
       store.setJobId(accountJob.id);
-    } else {
-      console.log('[hydrateProject] no account_matching job found');
     }
   } catch (jobErr) {
     console.warn('[hydrateProject] failed to fetch jobs — continuing without jobId', jobErr);
@@ -209,11 +188,11 @@ export async function hydrateProject(
     return { ok: true, ...(hydrationWarnings.length > 0 ? { warnings: hydrationWarnings } : {}) };
   }
 
-  // Step >= 3: Fetch grouped mappings
+  // Step >= 3: Fetch mappings for confirmation flags only.
+  // groupedMappings is intentionally NOT set here — the ValidationScreen
+  // owns that data and populates it via useMappingSuggestions. Setting it
+  // here would race with (and overwrite) the suggestions query result.
   const mappingsResult = await getMappings(client, projectId);
-  if (mappingsResult.ok && mappingsResult.data.length > 0) {
-    store.setGroupedMappings(mappingsResult.data);
-  }
 
   // Derive confirmation flags from account statuses
   if (mappingsResult.ok && mappingsResult.data.length > 0) {
