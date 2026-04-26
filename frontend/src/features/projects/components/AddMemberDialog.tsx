@@ -12,6 +12,7 @@ import { Badge } from '@/shared/components/ui/Badge';
 import { Spinner } from '@/shared/components/ui/Spinner';
 import { PROJECT_PERMISSIONS, type ProjectPermission } from '../types/project-access.types';
 import { useProjectAccess } from '../hooks/useProjectAccess';
+import { useAuthStore } from '@/features/auth/store/auth.store';
 import { MemberBadge } from './MemberBadge';
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
@@ -61,11 +62,13 @@ export function AddMemberDialog({
 }: AddMemberDialogProps) {
   const { grantAsync, isGranting, members, isLoading, error, currentUserId } =
     useProjectAccess(projectId);
+  const currentUserEmail = useAuthStore((s) => s.user?.email ?? null);
 
   const {
     control,
     handleSubmit,
     reset,
+    setError,
     formState: { errors },
   } = useForm<AddMemberFormValues>({
     resolver: zodResolver(addMemberSchema),
@@ -80,6 +83,30 @@ export function AddMemberDialog({
 
   const onSubmit = useCallback(
     async (values: AddMemberFormValues): Promise<void> => {
+      const submittedEmail = values.email.trim().toLowerCase();
+      // Catch obvious "already a member" cases on the client so the user gets
+      // an inline error instead of a generic 409 toast from the backend.
+      if (
+        currentUserEmail !== null &&
+        submittedEmail === currentUserEmail.toLowerCase()
+      ) {
+        setError('email', {
+          type: 'manual',
+          message: 'You are already a member of this project. You cannot add yourself.',
+        });
+        return;
+      }
+      const alreadyMember = members.some(
+        (m) => m.email.trim().toLowerCase() === submittedEmail,
+      );
+      if (alreadyMember) {
+        setError('email', {
+          type: 'manual',
+          message: 'This user is already a member of this project.',
+        });
+        return;
+      }
+
       try {
         const result = await grantAsync({
           email: values.email,
@@ -87,13 +114,18 @@ export function AddMemberDialog({
         });
         if (result.ok) {
           onClose();
+          return;
         }
-        // !result.ok (409 CONFLICT, 403 FORBIDDEN): dialog stays open, toast shown by hook
-      } catch {
-        // Network/unexpected error: dialog stays open, toast shown by hook's onError
+        // Surface the server error inline under the email field so the user
+        // doesn't have to look at the floating toast.
+        setError('email', { type: 'manual', message: result.error.message });
+      } catch (caught) {
+        const message =
+          caught instanceof Error ? caught.message : 'Failed to add member';
+        setError('email', { type: 'manual', message });
       }
     },
-    [grantAsync, onClose],
+    [grantAsync, onClose, currentUserEmail, members, setError],
   );
 
   return (

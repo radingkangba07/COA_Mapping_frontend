@@ -1,6 +1,19 @@
 import { adaptSuggestionsToGroupedMappings } from '../suggestion-adapter.service';
 import type { SuggestionGroup } from '@/features/migration/types/suggestion.types';
 
+function makeAccount(overrides: Partial<SuggestionGroup['accounts'][number]> = {}): SuggestionGroup['accounts'][number] {
+  return {
+    id: 'a1',
+    suggestionId: 's1',
+    sourceName: 'Cash',
+    targetName: 'Cash at Bank',
+    score: 97,
+    status: 'pending',
+    mappingSource: 'fuzzy',
+    ...overrides,
+  };
+}
+
 describe('adaptSuggestionsToGroupedMappings', () => {
   it('returns an empty array for empty input', () => {
     expect(adaptSuggestionsToGroupedMappings([])).toEqual([]);
@@ -12,17 +25,7 @@ describe('adaptSuggestionsToGroupedMappings', () => {
         sourceType: 'Asset',
         targetType: 'Fixed Asset',
         confidence: 0.95,
-        accounts: [
-          {
-            id: 'a1',
-            suggestionId: 's1',
-            sourceName: 'Cash',
-            targetName: 'Cash at Bank',
-            score: 97,
-            status: 'pending',
-            mappingSource: 'fuzzy',
-          },
-        ],
+        accounts: [makeAccount()],
       },
     ];
 
@@ -54,24 +57,13 @@ describe('adaptSuggestionsToGroupedMappings', () => {
         sourceType: 'Asset',
         targetType: 'Fixed Asset',
         confidence: 0.6,
-        accounts: [
-          {
-            id: 'a1',
-            suggestionId: 's1',
-            sourceName: 'Petty Cash',
-            targetName: 'Cash on Hand',
-            score: 55,
-            status: 'auto_matched',
-            mappingSource: 'fuzzy',
-          },
-        ],
+        accounts: [makeAccount({ sourceName: 'Petty Cash', targetName: 'Cash on Hand', score: 55, status: 'auto_matched' })],
       },
     ];
 
     const [group] = adaptSuggestionsToGroupedMappings(groups);
     const account = group?.accounts[0];
     expect(account?.mapping_status).toBe('auto_matched');
-    // `status` still normalises away non-pending/confirmed values.
     expect(account?.status).toBeUndefined();
   });
 
@@ -81,17 +73,7 @@ describe('adaptSuggestionsToGroupedMappings', () => {
         sourceType: 'Asset',
         targetType: 'Fixed Asset',
         confidence: 0.6,
-        accounts: [
-          {
-            id: 'a1',
-            suggestionId: 's1',
-            sourceName: 'Cash',
-            targetName: 'Cash',
-            score: 80,
-            status: '',
-            mappingSource: null,
-          },
-        ],
+        accounts: [makeAccount({ score: 80, status: '', mappingSource: null })],
       },
     ];
 
@@ -102,35 +84,20 @@ describe('adaptSuggestionsToGroupedMappings', () => {
 
   it('preserves confidence on the group', () => {
     const groups: readonly SuggestionGroup[] = [
-      {
-        sourceType: 'Liability',
-        targetType: 'Long-Term Liability',
-        confidence: 0.42,
-        accounts: [],
-      },
+      { sourceType: 'Liability', targetType: 'Long-Term Liability', confidence: 0.42, accounts: [] },
     ];
 
     const [group] = adaptSuggestionsToGroupedMappings(groups);
     expect(group?.confidence).toBe(0.42);
   });
 
-  it('defaults source_number to empty string when the API omits it', () => {
+  it('sets source_number to empty string (not provided by suggestions endpoint)', () => {
     const groups: readonly SuggestionGroup[] = [
       {
         sourceType: 'Asset',
         targetType: 'Asset',
         confidence: 1,
-        accounts: [
-          {
-            id: 'a1',
-            suggestionId: 's1',
-            sourceName: 'Cash',
-            targetName: 'Cash',
-            score: 100,
-            status: 'confirmed',
-            mappingSource: null,
-          },
-        ],
+        accounts: [makeAccount({ status: 'confirmed', mappingSource: null })],
       },
     ];
 
@@ -144,17 +111,7 @@ describe('adaptSuggestionsToGroupedMappings', () => {
         sourceType: 'Revenue',
         targetType: 'Revenue',
         confidence: 0.8,
-        accounts: [
-          {
-            id: 'r1',
-            suggestionId: 's1',
-            sourceName: 'Sales',
-            targetName: 'Sales',
-            score: 88,
-            status: 'pending',
-            mappingSource: null,
-          },
-        ],
+        accounts: [makeAccount({ id: 'r1', suggestionId: 'r1', sourceName: 'Sales', targetName: 'Sales', score: 88, mappingSource: null })],
       },
     ];
 
@@ -169,24 +126,8 @@ describe('adaptSuggestionsToGroupedMappings', () => {
         targetType: 'Equity',
         confidence: 0.9,
         accounts: [
-          {
-            id: 'e1',
-            suggestionId: 's1',
-            sourceName: 'Common Stock',
-            targetName: 'Common Stock',
-            score: 95,
-            status: 'confirmed',
-            mappingSource: 'user',
-          },
-          {
-            id: 'e2',
-            suggestionId: 's2',
-            sourceName: 'Retained Earnings',
-            targetName: 'Retained Earnings',
-            score: 90,
-            status: 'archived',
-            mappingSource: null,
-          },
+          makeAccount({ id: 'e1', suggestionId: 'e1', sourceName: 'Common Stock', targetName: 'Common Stock', score: 95, status: 'confirmed', mappingSource: 'user' }),
+          makeAccount({ id: 'e2', suggestionId: 'e2', sourceName: 'Retained Earnings', targetName: 'Retained Earnings', score: 90, status: 'archived', mappingSource: null }),
         ],
       },
     ];

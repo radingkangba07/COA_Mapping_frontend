@@ -35,10 +35,10 @@ interface MigrationState {
   targetTypes: string[];
 
   groupedMappings: GroupedMapping[];
-  confidenceFilter: ConfidenceLevel | null;
   confirmedHigh: boolean;
   confirmedMedium: boolean;
   confirmedLow: boolean;
+  confidenceFilter: ConfidenceLevel | null;
 
   pendingSourceRemoval: boolean;
   pendingTargetRemoval: boolean;
@@ -74,6 +74,7 @@ interface MigrationActions {
   markChangesSaved: () => void;
   markTypeMappingsSaved: () => void;
 
+  setConfidenceFilter: (filter: ConfidenceLevel | null) => void;
   setGroupedMappings: (mappings: GroupedMapping[]) => void;
   updateTypeMapping: (sourceType: string, targetType: string) => void;
   updateAccountName: (
@@ -82,10 +83,10 @@ interface MigrationActions {
     newName: string,
     userName: string,
     sourceName?: string,
+    suggestionId?: string,
   ) => void;
-  setConfidenceFilter: (filter: ConfidenceLevel | null) => void;
   confirmConfidenceLevel: (level: ConfidenceLevel) => void;
-  deleteAccount: (sourceType: string, sourceName: string) => void;
+  deleteAccount: (sourceType: string, sourceName: string, suggestionId?: string) => void;
   restoreAccount: (deletedIdx: number) => void;
 
   clearTargetERP: () => void;
@@ -127,10 +128,10 @@ const initialState: MigrationState = {
   targetTypes: [],
 
   groupedMappings: [],
-  confidenceFilter: null,
   confirmedHigh: false,
   confirmedMedium: false,
   confirmedLow: false,
+  confidenceFilter: null,
 
   pendingSourceRemoval: false,
   pendingTargetRemoval: false,
@@ -166,7 +167,6 @@ function clearDownstreamState(state: MigrationState, fromStep: number): void {
   }
   if (fromStep <= 3) {
     state.groupedMappings = [];
-    state.confidenceFilter = null;
     state.confirmedHigh = false;
     state.confirmedMedium = false;
     state.confirmedLow = false;
@@ -344,29 +344,25 @@ export const useMigrationStore = create<MigrationStore>()(
       newName: string,
       userName: string,
       sourceName?: string,
+      suggestionId?: string,
     ): void => {
       set((state) => {
         const group = state.groupedMappings.find(
           (g) => g.source_type === sourceType,
         );
         if (!group) return;
-        const account = sourceName
+        const account = suggestionId
+          ? group.accounts.find((a) => a.suggestion_id === suggestionId)
+          : sourceName
           ? group.accounts.find((a) => a.source_name === sourceName)
           : group.accounts[accountIdx];
         if (account) {
           account.target_name = newName;
-          account.score = newName.length > 0 ? 100 : 0;
           account.user_changed = true;
           account.changed_by_name = userName;
           account.changed_at = new Date().toISOString();
           state.hasUnsavedChanges = true;
         }
-      });
-    },
-
-    setConfidenceFilter: (filter: ConfidenceLevel | null): void => {
-      set((state) => {
-        state.confidenceFilter = filter;
       });
     },
 
@@ -388,10 +384,11 @@ export const useMigrationStore = create<MigrationStore>()(
         const { HIGH, MEDIUM } = CONFIDENCE_THRESHOLDS;
         for (const group of state.groupedMappings) {
           for (const account of group.accounts) {
+            const s = Math.round(account.score);
             const inBand =
-              (level === 'high' && account.score >= HIGH) ||
-              (level === 'medium' && account.score >= MEDIUM && account.score < HIGH) ||
-              (level === 'low' && account.score < MEDIUM);
+              (level === 'high' && s >= HIGH) ||
+              (level === 'medium' && s >= MEDIUM && s < HIGH) ||
+              (level === 'low' && s < MEDIUM);
             if (inBand) {
               (account as { status: string }).status = newStatus;
             }
@@ -400,13 +397,15 @@ export const useMigrationStore = create<MigrationStore>()(
       });
     },
 
-    deleteAccount: (sourceType: string, sourceName: string): void => {
+    deleteAccount: (sourceType: string, sourceName: string, suggestionId?: string): void => {
       set((state) => {
         const group = state.groupedMappings.find(
           (g) => g.source_type === sourceType,
         );
         if (!group) return;
-        const account = group.accounts.find((a) => a.source_name === sourceName);
+        const account = suggestionId
+          ? group.accounts.find((a) => a.suggestion_id === suggestionId)
+          : group.accounts.find((a) => a.source_name === sourceName);
         if (!account) return;
         (account as { is_active?: boolean }).is_active = false;
         state.hasUnsavedChanges = true;
@@ -492,6 +491,9 @@ export const useMigrationStore = create<MigrationStore>()(
 
     setProjectId: (id: string): void => {
       set((state) => {
+        if (state.projectId !== id) {
+          state.confidenceFilter = null;
+        }
         state.projectId = id;
       });
     },
@@ -514,8 +516,14 @@ export const useMigrationStore = create<MigrationStore>()(
       });
     },
 
+    setConfidenceFilter: (filter: ConfidenceLevel | null): void => {
+      set((state) => {
+        state.confidenceFilter = filter;
+      });
+    },
+
     reset: (): void => {
-      set(() => ({ ...initialState }));
+      set((state) => ({ ...initialState, confidenceFilter: state.confidenceFilter }));
     },
   })),
 );

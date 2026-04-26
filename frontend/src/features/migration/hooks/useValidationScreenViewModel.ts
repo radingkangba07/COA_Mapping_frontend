@@ -5,8 +5,8 @@ import { useMigrationStore } from '../store/migration.store';
 import {
   selectMappingStats,
   selectAllConfirmed,
+  applyConfidenceFilter,
 } from '../store/migration.selectors';
-import { CONFIDENCE_THRESHOLDS } from '@/shared/constants/mapping-confidence';
 import { useSyncStep } from './useSyncStep';
 import { useValidation } from './useValidation';
 import { useToast } from '@/shared/hooks/useToast';
@@ -16,6 +16,7 @@ import {
   updateMappingStatus,
 } from '../services/mapping.service';
 import { httpClient } from '@/shared/services/http/http.instance';
+import { CONFIDENCE_THRESHOLDS } from '@/shared/constants/mapping-confidence';
 import type { ConfidenceLevel, AccountMapping, GroupedMapping } from '../types/mapping.types';
 import type { UploadedFile } from '../types/migration.types';
 import type { ERPSystem } from '../types/erp.types';
@@ -55,13 +56,13 @@ interface ValidationScreenViewModel {
   readonly handleFilterPress: (filter: ConfidenceLevel | null) => void;
   readonly handleConfirm: (level: ConfidenceLevel) => Promise<void>;
   readonly handleTypeChange: (sourceType: string, newTargetType: string) => void;
-  readonly handleAccountNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string) => void;
+  readonly handleAccountNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string, suggestionId?: string) => void;
   readonly handleDeleteAccount: (sourceType: string, accountIndex: number, account: AccountMapping) => void;
   readonly handleRestoreAccount: (deletedIndex: number) => void;
   readonly handleToggleDeleted: () => void;
   readonly handleBack: () => void;
   readonly handleContinue: () => void;
-  readonly handleSaveMappings: () => void;
+  readonly handleSaveMappings: () => Promise<boolean>;
   readonly hasUnsavedChanges: boolean;
   readonly isSaving: boolean;
 }
@@ -79,11 +80,21 @@ export function useValidationScreenViewModel(
   const sourceERP = useMigrationStore((s) => s.sourceERP);
   const targetERP = useMigrationStore((s) => s.targetERP);
   const groupedMappings = useMigrationStore((s) => s.groupedMappings);
-  const confidenceFilter = useMigrationStore((s) => s.confidenceFilter);
+  const storeFilter = useMigrationStore((s) => s.confidenceFilter);
+  const [confidenceFilter, setLocalFilter] = useState<ConfidenceLevel | null>(storeFilter);
+
+  // Sync local state when store resets the filter externally (e.g. project switch via setProjectId).
+  const prevStoreFilter = useRef(storeFilter);
+  if (prevStoreFilter.current !== storeFilter) {
+    prevStoreFilter.current = storeFilter;
+    setLocalFilter(storeFilter);
+  }
+
   const confirmedHigh = useMigrationStore((s) => s.confirmedHigh);
   const confirmedMedium = useMigrationStore((s) => s.confirmedMedium);
   const confirmedLow = useMigrationStore((s) => s.confirmedLow);
   const targetTypes = useMigrationStore((s) => s.targetTypes);
+  const targetData = useMigrationStore((s) => s.targetData);
   const hasUnsavedChanges = useMigrationStore((s) => s.hasUnsavedChanges);
   const stats = useMigrationStore(useShallow(selectMappingStats));
   const allConfirmed = useMigrationStore(selectAllConfirmed);
@@ -91,26 +102,10 @@ export function useValidationScreenViewModel(
   // Derived lists live here (not as store selectors) so their referential
   // identity only changes when their real deps change — otherwise useShallow
   // trips the subscription every render (new arrays/objects each call).
-  const filteredMappings = useMemo(() => {
-    const filter = confidenceFilter;
-    return groupedMappings
-      .map((group) => ({
-        ...group,
-        accounts: group.accounts.filter((a) => {
-          if (a.is_active === false) return false;
-          if (filter === null) return true;
-          if (filter === 'high') return a.score >= CONFIDENCE_THRESHOLDS.HIGH;
-          if (filter === 'medium') {
-            return (
-              a.score >= CONFIDENCE_THRESHOLDS.MEDIUM &&
-              a.score < CONFIDENCE_THRESHOLDS.HIGH
-            );
-          }
-          return a.score < CONFIDENCE_THRESHOLDS.MEDIUM;
-        }),
-      }))
-      .filter((group) => group.accounts.length > 0);
-  }, [groupedMappings, confidenceFilter]);
+  const filteredMappings = useMemo(
+    () => applyConfidenceFilter(groupedMappings, confidenceFilter),
+    [groupedMappings, confidenceFilter],
+  );
 
   const deletedAccounts = useMemo(() => {
     const out: { sourceType: string; sourceNumber: string; sourceName: string }[] = [];
@@ -131,13 +126,13 @@ export function useValidationScreenViewModel(
   const actions = useMigrationStore(useShallow((s) => ({
     setStep: s.setStep,
     completeStep: s.completeStep,
-    setConfidenceFilter: s.setConfidenceFilter,
     confirmConfidenceLevel: s.confirmConfidenceLevel,
     updateTypeMapping: s.updateTypeMapping,
     updateAccountName: s.updateAccountName,
     deleteAccount: s.deleteAccount,
     restoreAccount: s.restoreAccount,
     markChangesSaved: s.markChangesSaved,
+    setConfidenceFilter: s.setConfidenceFilter,
   })));
 
   const syncStep = useSyncStep();
@@ -155,21 +150,24 @@ export function useValidationScreenViewModel(
   }, [queryClient, projectId]);
 
   const targetAccountNames = useMemo<string[]>(() => {
-    const names = new Set<string>();
-    for (const group of groupedMappings) {
-      for (const account of group.accounts) {
-        if (account.target_name && account.target_name.length > 0) {
-          names.add(account.target_name);
-        }
-      }
-    }
-    return Array.from(names).sort();
-  }, [groupedMappings]);
+    const firstRow = targetData[0];
+    if (!firstRow) return [];
+    const nameCol = Object.keys(firstRow).find(
+      (k) => k.toLowerCase().includes('name') || k.toLowerCase().includes('title'),
+    );
+    if (!nameCol) return [];
+    return [...new Set(
+      targetData.map((r) => String(r[nameCol] ?? '').trim()).filter(Boolean),
+    )].sort();
+  }, [targetData]);
 
   const handleStepPress = useCallback(
     (step: number): void => { actions.setStep(step); }, [actions]);
   const handleFilterPress = useCallback(
-    (filter: ConfidenceLevel | null): void => { actions.setConfidenceFilter(filter); }, [actions]);
+    (filter: ConfidenceLevel | null): void => {
+      setLocalFilter(filter);
+      actions.setConfidenceFilter(filter);
+    }, [actions]);
   const handleConfirm = useCallback(
     async (level: ConfidenceLevel): Promise<void> => {
       if (confirmInFlightRef.current) return;
@@ -221,12 +219,12 @@ export function useValidationScreenViewModel(
   const handleTypeChange = useCallback(
     (sourceType: string, newTargetType: string): void => { actions.updateTypeMapping(sourceType, newTargetType); }, [actions]);
   const handleAccountNameChange = useCallback(
-    (sourceType: string, accountIndex: number, newName: string, sourceName?: string): void => {
-      actions.updateAccountName(sourceType, accountIndex, newName, 'User', sourceName);
+    (sourceType: string, accountIndex: number, newName: string, sourceName?: string, suggestionId?: string): void => {
+      actions.updateAccountName(sourceType, accountIndex, newName, 'User', sourceName, suggestionId);
     }, [actions]);
   const handleDeleteAccount = useCallback(
     (sourceType: string, _accountIndex: number, account: AccountMapping): void => {
-      actions.deleteAccount(sourceType, account.source_name);
+      actions.deleteAccount(sourceType, account.source_name, account.suggestion_id);
     }, [actions]);
   const handleRestoreAccount = useCallback(
     (deletedIndex: number): void => { actions.restoreAccount(deletedIndex); }, [actions]);
@@ -236,38 +234,36 @@ export function useValidationScreenViewModel(
     actions.setStep(2);
     navigateBack(projectId);
   }, [actions, navigateBack, projectId]);
+  const handleSaveMappings = useCallback(async (): Promise<boolean> => {
+    if (!projectId) return false;
+    setIsSaving(true);
+    const store = useMigrationStore.getState();
+    const dtos = toMappingCreateDTOs(projectId, store.groupedMappings);
+    if (dtos.length === 0) {
+      setIsSaving(false);
+      // Quiet no-op — used by handleContinue's auto-save on a clean state.
+      return true;
+    }
+    const result = await saveMappings(httpClient, projectId, dtos);
+    if (result.ok) {
+      actions.markChangesSaved();
+      const { inserted, updated } = result.data;
+      showSuccess('Mappings saved', `${inserted} inserted, ${updated} updated`);
+      invalidateSuggestions();
+      setIsSaving(false);
+      return true;
+    }
+    showError('Save failed', result.error.message);
+    setIsSaving(false);
+    return false;
+  }, [projectId, actions, showSuccess, showError, invalidateSuggestions]);
+
   const handleContinue = useCallback((): void => {
     actions.completeStep(3);
     actions.setStep(4);
     syncStep(4);
     navigateForward(projectId);
   }, [actions, syncStep, navigateForward, projectId]);
-
-  const handleSaveMappings = useCallback((): void => {
-    if (!projectId) return;
-    setIsSaving(true);
-    const store = useMigrationStore.getState();
-    const dtos = toMappingCreateDTOs(projectId, store.groupedMappings);
-    if (dtos.length === 0) {
-      setIsSaving(false);
-      showSuccess('Nothing to save', 'No edits to persist');
-      return;
-    }
-    void saveMappings(httpClient, projectId, dtos).then((result) => {
-      if (result.ok) {
-        actions.markChangesSaved();
-        const { inserted, updated } = result.data;
-        showSuccess(
-          'Mappings saved',
-          `${inserted} inserted, ${updated} updated`,
-        );
-        invalidateSuggestions();
-      } else {
-        showError('Save failed', result.error.message);
-      }
-      setIsSaving(false);
-    });
-  }, [projectId, actions, showSuccess, showError, invalidateSuggestions]);
 
   return {
     currentStep, completedSteps, sourceFile, sourceERP, targetERP, confidenceFilter,

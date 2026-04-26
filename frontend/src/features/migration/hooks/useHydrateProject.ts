@@ -5,6 +5,7 @@ import { hydrateProject } from '../services/hydration.service';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { useMigrationStore } from '../store/migration.store';
 import { useERPConfigStore } from '@/features/erp-config/store/erp-config.store';
+import { useToast } from '@/shared/hooks/useToast';
 
 export interface UseHydrateProjectReturn {
   readonly isHydrating: boolean;
@@ -16,59 +17,60 @@ export function useHydrateProject(projectId: ProjectId): UseHydrateProjectReturn
   const storeProjectId = useMigrationStore((s) => s.projectId);
   const alreadyLoaded = storeProjectId === (projectId as string);
 
-  console.log('[useHydrateProject] init', { projectId, storeProjectId, alreadyLoaded });
-
   const [isHydrating, setIsHydrating] = useState(!alreadyLoaded);
   const [error, setError] = useState<AppError | null>(null);
   const hydratedProjectRef = useRef<string | null>(alreadyLoaded ? (projectId as string) : null);
+  // Prevent concurrent hydrations: a second call while one is in-flight would
+  // also call store.reset(), wiping ephemeral UI state (e.g. confidenceFilter).
+  const hydratingInProgressRef = useRef(false);
+  const { showWarning } = useToast();
+  // Keep showWarning in a ref so hydrate's useCallback deps stay stable across
+  // renders — otherwise every toast re-render recreates hydrate, re-fires the
+  // effect, and races with the in-flight hydration.
+  const showWarningRef = useRef(showWarning);
+  showWarningRef.current = showWarning;
 
   const hydrate = useCallback(async (): Promise<void> => {
+    if (hydratingInProgressRef.current) {
+      console.log('[useHydrateProject] hydrate called but already in progress — skipped');
+      return;
+    }
     console.log('[useHydrateProject] hydrate START', { projectId });
+    hydratingInProgressRef.current = true;
     setIsHydrating(true);
     setError(null);
     try {
       const store = useMigrationStore.getState();
       const erpSystems = useERPConfigStore.getState().erpSystems;
-      console.log('[useHydrateProject] store BEFORE hydration', {
-        sourceERP: store.sourceERP?.id ?? null,
-        targetERP: store.targetERP?.id ?? null,
-        currentStep: store.currentStep,
-        completedSteps: store.completedSteps,
-        erpSystemsCount: erpSystems.length,
-      });
       const result = await hydrateProject(httpClient, projectId, store, erpSystems);
       if (!result.ok) {
-        console.log('[useHydrateProject] hydration FAILED', result.error);
         setError(result.error);
       } else {
-        const storeAfter = useMigrationStore.getState();
-        console.log('[useHydrateProject] store AFTER hydration', {
-          sourceERP: storeAfter.sourceERP?.id ?? null,
-          targetERP: storeAfter.targetERP?.id ?? null,
-          currentStep: storeAfter.currentStep,
-          completedSteps: storeAfter.completedSteps,
-        });
+        if (result.warnings) {
+          for (const w of result.warnings) {
+            showWarningRef.current('File data unavailable', w);
+          }
+        }
       }
     } catch {
-      console.log('[useHydrateProject] hydration EXCEPTION');
       setError({ code: 'HYDRATION_ERROR', message: 'Failed to load project data' });
     }
+    hydratingInProgressRef.current = false;
     hydratedProjectRef.current = projectId as string;
     setIsHydrating(false);
-  }, [projectId]);
+  }, [projectId]); // showWarning removed — accessed via ref
 
   useEffect(() => {
     if (hydratedProjectRef.current === (projectId as string)) {
-      console.log('[useHydrateProject] SKIPPED — already hydrated', { projectId });
       setIsHydrating(false);
       return;
     }
-    console.log('[useHydrateProject] TRIGGERING hydration', { projectId, ref: hydratedProjectRef.current });
     void hydrate();
   }, [projectId, hydrate]);
 
   const retry = useCallback((): void => {
     hydratedProjectRef.current = null;
+    hydratingInProgressRef.current = false;
     void hydrate();
   }, [hydrate]);
 
