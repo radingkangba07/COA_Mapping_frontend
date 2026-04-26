@@ -171,8 +171,13 @@ describe('grantProjectAccess', () => {
     permission: 'editor',
   };
 
+  const SUCCESS_RESPONSE = {
+    success: true,
+    message: 'Access granted to bob@acme.com',
+  };
+
   it('calls POST /api/v1/projects/{id}/access with email body', async () => {
-    client.post.mockResolvedValue({ data: { ...VALID_ACCESS_DTO, user_id: 'user-003', permission: 'editor' } });
+    client.post.mockResolvedValue({ data: SUCCESS_RESPONSE });
 
     await grantProjectAccess(client, PROJECT_ID, grant);
 
@@ -183,7 +188,7 @@ describe('grantProjectAccess', () => {
   });
 
   it('sends email not user_id in POST body', async () => {
-    client.post.mockResolvedValue({ data: { ...VALID_ACCESS_DTO, user_id: 'user-003', permission: 'editor' } });
+    client.post.mockResolvedValue({ data: SUCCESS_RESPONSE });
 
     await grantProjectAccess(client, PROJECT_ID, grant);
 
@@ -192,24 +197,20 @@ describe('grantProjectAccess', () => {
     expect(payload).not.toHaveProperty('user_id');
   });
 
-  it('returns mapped AccessResponse on success', async () => {
-    const responseDto = {
-      user_id: 'user-003',
-      user_name: 'Bob Jones',
-      user_email: 'bob@acme.com',
-      permission: 'editor' as const,
-    };
-    client.post.mockResolvedValue({ data: responseDto });
+  it('returns ok on a {success, message} response', async () => {
+    client.post.mockResolvedValue({ data: SUCCESS_RESPONSE });
 
     const result = await grantProjectAccess(client, PROJECT_ID, grant);
 
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+  });
 
-    expect(result.data.userId).toBe(createUserId('user-003'));
-    expect(result.data.name).toBe('Bob Jones');
-    expect(result.data.email).toBe('bob@acme.com');
-    expect(result.data.permission).toBe('editor');
+  it('returns ok when message is omitted (only success: true)', async () => {
+    client.post.mockResolvedValue({ data: { success: true } });
+
+    const result = await grantProjectAccess(client, PROJECT_ID, grant);
+
+    expect(result.ok).toBe(true);
   });
 
   it('returns INVALID_RESPONSE when response fails validation', async () => {
