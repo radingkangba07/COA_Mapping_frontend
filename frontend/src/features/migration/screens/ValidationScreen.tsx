@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { View, Text } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -27,12 +27,17 @@ import { AccountTypeGroup } from '../components/AccountTypeGroup/AccountTypeGrou
 import { ValidationSkeleton } from '../components/ValidationSkeleton';
 import { useHydrateProject } from '../hooks/useHydrateProject';
 import { useValidationScreenViewModel } from '../hooks/useValidationScreenViewModel';
+import { useJobStream } from '../hooks/useJobStream';
+import { useMappingSuggestions } from '../hooks/useMappingSuggestions';
 import { useMigrationStore } from '../store/migration.store';
+import { adaptSuggestionsToGroupedMappings } from '../services/suggestion-adapter.service';
 import { useMigrationScreenRoute } from '@/navigation/types';
 import { createProjectId } from '@/shared/types/common.types';
+import { useToast } from '@/shared/hooks/useToast';
 import { cn } from '@/shared/utils/string.utils';
 import type { MigrationStackParamList } from '@/navigation/types';
 import type { ConfidenceLevel } from '../types/mapping.types';
+import type { JobStatusEvent } from '../types/job-event.types';
 import { colors } from '@/config/theme';
 import { STEP_TO_SCREEN } from '@/shared/constants/migration-steps';
 import type { MigrationStepValue } from '@/shared/constants/migration-steps';
@@ -53,20 +58,20 @@ const CONFIRMATION_DESCRIPTIONS: Record<ConfidenceLevel, (count: number) => stri
 };
 
 const CONFIRMATION_BUTTON_CLASSES: Record<ConfidenceLevel, string> = {
-  high: 'bg-green-600',
-  medium: 'bg-yellow-600',
-  low: 'bg-red-600',
+  high: '',
+  medium: '',
+  low: '',
 };
 
 const CONFIRMATION_ICON_COLORS: Record<ConfidenceLevel, string> = {
-  high: '#16A34A',
-  medium: '#D97706',
+  high: '#003399',
+  medium: '#003399',
   low: '#DC2626',
 };
 
 const CONFIRMATION_CLASSES: Record<ConfidenceLevel, string> = {
-  high: 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20',
-  medium: 'border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20',
+  high: 'border-border bg-card',
+  medium: 'border-border bg-card',
   low: 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20',
 };
 
@@ -89,18 +94,70 @@ export const ValidationScreen = (): React.JSX.Element => {
 
   const vm = useValidationScreenViewModel(projectId, navigateBack, navigateForward);
 
+  const { showSuccess, showError, showWarning } = useToast();
+  // ValidationScreen shows all groups at once, so request the backend's max
+  // page size (500) instead of paginating. `total` from the response is the
+  // authoritative row count surfaced in the header.
+  const suggestions = useMappingSuggestions(projectId);
+  const setGroupedMappings = useMigrationStore((s) => s.setGroupedMappings);
+
+  // Push suggestion snapshots into the store so the existing VM (stats,
+  // filters, confirmation, edit/delete UI) sees them without any rewiring.
+  // Wait for hydration to finish — hydration calls store.reset() asynchronously,
+  // which would wipe groupedMappings after this effect runs if we don't wait.
+  // Skip the update when the query errored — don't wipe existing store data.
+  useEffect((): void => {
+    if (isHydrating) return;
+    if (suggestions.isLoading) return;
+    if (suggestions.error !== null) return;
+    setGroupedMappings(adaptSuggestionsToGroupedMappings(suggestions.suggestions));
+  }, [isHydrating, suggestions.isLoading, suggestions.error, suggestions.suggestions, setGroupedMappings]);
+
+  const refetchRef = useRef(suggestions.refetch);
+  refetchRef.current = suggestions.refetch;
+
+  const handleJobComplete = useCallback(
+    (event: JobStatusEvent): void => {
+      if (event.jobType !== 'account_matching' && event.jobType !== 'mapping') {
+        return;
+      }
+      void refetchRef.current();
+      showSuccess('Mapping complete', 'Latest suggestions loaded.');
+    },
+    [showSuccess],
+  );
+
+  const handleJobFailed = useCallback(
+    (event: JobStatusEvent): void => {
+      if (event.jobType !== 'account_matching' && event.jobType !== 'mapping') {
+        return;
+      }
+      showError('Mapping failed', event.errorMessage ?? 'Please try again.');
+    },
+    [showError],
+  );
+
+  const jobStream = useJobStream(projectId, {
+    onComplete: handleJobComplete,
+    onFailed: handleJobFailed,
+  });
+
+
+  const liveErrorSurfacedRef = useRef(false);
+  useEffect((): void => {
+    if (jobStream.error !== null && !liveErrorSurfacedRef.current) {
+      liveErrorSurfacedRef.current = true;
+      showWarning('Live updates unavailable', 'Refresh to check status.');
+    }
+    if (jobStream.error === null) {
+      liveErrorSurfacedRef.current = false;
+    }
+  }, [jobStream.error, showWarning]);
+
   const handleStepPress = useCallback(
     (step: number): void => {
-      const storeBefore = useMigrationStore.getState();
-      console.log('[ValidationScreen] handleStepPress', {
-        step,
-        sourceERP: storeBefore.sourceERP?.id ?? null,
-        targetERP: storeBefore.targetERP?.id ?? null,
-        currentStep: storeBefore.currentStep,
-      });
       vm.handleStepPress(step);
       const screen = STEP_TO_SCREEN[step as MigrationStepValue];
-      console.log('[ValidationScreen] navigating to', screen);
       navigation.navigate(screen as 'ERPSelect', { projectId });
     },
     [vm, navigation, projectId],
@@ -127,7 +184,7 @@ export const ValidationScreen = (): React.JSX.Element => {
 
   const sourceERPName = vm.sourceERP?.name ?? 'Source';
   const targetERPName = vm.targetERP?.name ?? 'Target';
-  const isLoadingData = vm.stats.totalAccounts === 0 && vm.filteredMappings.length === 0;
+  const isLoadingData = suggestions.isLoading && vm.stats.totalAccounts === 0 && vm.filteredMappings.length === 0;
 
   if (isLoadingData) {
     return (
@@ -172,14 +229,14 @@ export const ValidationScreen = (): React.JSX.Element => {
         />
 
         {/* Header: Title + file info + progress + action button */}
-        <View className="mt-8 mb-4 flex-row items-start justify-between">
+        <View className="mt-4 mb-4 flex-row items-start justify-between">
           <View>
-            <Text className="font-heading text-2xl font-bold text-foreground">COA Mapping</Text>
+            <Text className="font-heading text-lg font-bold text-foreground">COA Mapping</Text>
             {vm.sourceFile !== null && (
               <View className="mt-1 flex-row items-center gap-1.5">
                 <FileSpreadsheet size={14} color={colors.mutedForeground} />
                 <Text className="font-body text-sm text-muted-foreground">
-                  {vm.sourceFile.name} &bull; {vm.stats.totalAccounts} rows
+                  {vm.sourceFile.name} &bull; {suggestions.total > 0 ? suggestions.total : vm.stats.totalAccounts} rows
                 </Text>
               </View>
             )}
@@ -190,13 +247,12 @@ export const ValidationScreen = (): React.JSX.Element => {
                 {vm.stats.totalTypes} / {vm.stats.totalTypes} types mapped
               </Text>
               <View className="h-2 w-32 rounded-full bg-gray-200 dark:bg-[#3E3E42] overflow-hidden">
-                <View className="h-full rounded-full bg-green-500" style={{ width: '100%' }} />
+                <View className="h-full rounded-full bg-primary" style={{ width: '100%' }} />
               </View>
             </View>
             <Button
               onPress={() => navigation.navigate('FinalPreview', { projectId })}
               disabled={!vm.allConfirmed}
-              className="bg-green-600"
               accessibilityLabel="Review and save"
               testID="review-save-button"
             >
@@ -241,7 +297,7 @@ export const ValidationScreen = (): React.JSX.Element => {
               <Card.Content className="py-3 flex-row items-center justify-between gap-3">
                 <View className="flex-row items-center gap-3 flex-1">
                   {isConfirmed ? (
-                    <CheckCircle2 size={20} color="#16A34A" />
+                    <CheckCircle2 size={20} color="#003399" />
                   ) : (
                     <AlertTriangle size={20} color={iconColor} />
                   )}
@@ -331,14 +387,14 @@ export const ValidationScreen = (): React.JSX.Element => {
             </Text>
           </View>
           <View className="flex-row items-center gap-2">
-            <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
-              <Text className="text-xs text-green-700 dark:text-green-400">90%+ High</Text>
+            <Badge variant="outline" className="bg-card border-border">
+              <Text className="text-xs text-muted-foreground">90%+ High</Text>
             </Badge>
-            <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
-              <Text className="text-xs text-yellow-700 dark:text-yellow-400">70-89% Med</Text>
+            <Badge variant="outline" className="bg-card border-border">
+              <Text className="text-xs text-muted-foreground">70-89% Med</Text>
             </Badge>
-            <Badge variant="outline" className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
-              <Text className="text-xs text-red-700 dark:text-red-400">&lt;70% Low</Text>
+            <Badge variant="outline" className="bg-card border-border">
+              <Text className="text-xs text-muted-foreground">&lt;70% Low</Text>
             </Badge>
           </View>
         </View>
@@ -372,25 +428,28 @@ export const ValidationScreen = (): React.JSX.Element => {
 
         {/* Account type groups */}
         <View className="gap-0">
-          {vm.filteredMappings.map((group) => (
-            <AccountTypeGroup
-              key={group.source_type}
-              sourceType={group.source_type}
-              targetType={group.target_type}
-              confidence={group.confidence}
-              accounts={group.accounts}
-              targetTypes={vm.targetTypes}
-              targetAccountNames={vm.targetAccountNames}
-              onTypeChange={vm.handleTypeChange}
-              onAccountNameChange={vm.handleAccountNameChange}
-              onDeleteAccount={vm.handleDeleteAccount}
-              testID={`group-${group.source_type}`}
-            />
-          ))}
+          {vm.filteredMappings.map((group) => {
+            const groupKey = `${group.source_type}__${group.target_type}`;
+            return (
+              <AccountTypeGroup
+                key={groupKey}
+                sourceType={group.source_type}
+                targetType={group.target_type}
+                confidence={group.confidence}
+                accounts={group.accounts}
+                targetTypes={vm.targetTypes}
+                targetAccountNames={vm.targetAccountNames}
+                onTypeChange={vm.handleTypeChange}
+                onAccountNameChange={vm.handleAccountNameChange}
+                onDeleteAccount={vm.handleDeleteAccount}
+                testID={`group-${groupKey}`}
+              />
+            );
+          })}
         </View>
 
         {/* Footer buttons */}
-        <View className="mt-6 flex-row items-center justify-center gap-3">
+        <View className="mt-6 flex-row items-center justify-end gap-3">
           <Button variant="outline" onPress={vm.handleBack} accessibilityLabel="Back to mapping" testID="back-button">
             <View className="flex-row items-center gap-2">
               <ArrowLeft size={ICON_SIZE} color={colors.foreground} />

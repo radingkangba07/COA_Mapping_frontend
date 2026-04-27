@@ -73,7 +73,7 @@ export function matchTypesToTargets(
     return {
       id: String(idx),
       sourceType,
-      targetType: bestMatch,
+      targetTypes: bestMatch.length > 0 ? [bestMatch] : [],
       isCustom: false,
     };
   });

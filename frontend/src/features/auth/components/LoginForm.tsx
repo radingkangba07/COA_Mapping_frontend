@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import React, { useCallback, useEffect } from 'react';
+import { View, Text } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,7 +11,12 @@ import type { AppError } from '@/shared/types/result.types';
 // ─── Form Schema ───────────────────────────────────────────────────────────
 
 const loginSchema = z.object({
-  userId: z.string().min(1, 'Please enter your User ID').trim(),
+  email: z
+    .string()
+    .email('Please enter a valid email address')
+    .max(255)
+    .trim()
+    .toLowerCase(),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -21,13 +26,22 @@ type LoginFormData = z.infer<typeof loginSchema>;
 interface LoginFormProps {
   readonly isLoading: boolean;
   readonly error: AppError | null;
-  readonly onLogin: (userId: string) => Promise<void>;
+  readonly onLogin: (email: string) => Promise<void>;
   readonly onClearError: () => void;
 }
 
-// ─── Constants ─────────────────────────────────────────────────────────────
+// ─── Error Routing ─────────────────────────────────────────────────────────
 
-const DEMO_ACCOUNTS = ['admin', 'john.doe', 'jane.smith'] as const;
+function getInlineErrorMessage(error: AppError): string | null {
+  switch (error.code) {
+    case 'HTTP_404':
+      return 'No account found. Register instead?';
+    case 'HTTP_403':
+      return 'Please verify your email first';
+    default:
+      return null;
+  }
+}
 
 // ─── Component ─────────────────────────────────────────────────────────────
 
@@ -38,14 +52,22 @@ export const LoginForm = ({
   onClearError,
 }: LoginFormProps): React.JSX.Element => {
 
-  const { control, handleSubmit, setValue } = useForm<LoginFormData>({
+  const { control, handleSubmit, setError } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { userId: '' },
+    defaultValues: { email: '' },
   });
+
+  useEffect(() => {
+    if (error === null) return;
+    const inlineMessage = getInlineErrorMessage(error);
+    if (inlineMessage !== null) {
+      setError('email', { message: inlineMessage });
+    }
+  }, [error, setError]);
 
   const onSubmit = useCallback(
     async (data: LoginFormData): Promise<void> => {
-      await onLogin(data.userId);
+      await onLogin(data.email);
     },
     [onLogin],
   );
@@ -54,32 +76,27 @@ export const LoginForm = ({
     void handleSubmit(onSubmit)();
   }, [handleSubmit, onSubmit]);
 
-  const handleDemoPress = useCallback(
-    (id: string): void => {
-      setValue('userId', id);
-    },
-    [setValue],
-  );
+  const isGenericError = error !== null && getInlineErrorMessage(error) === null;
 
   return (
     <Card testID="login-form-card">
       <Card.Header>
         <Card.Title>Sign in</Card.Title>
         <Card.Description>
-          Enter your User ID to access your projects
+          Enter your email to receive a login link
         </Card.Description>
       </Card.Header>
       <Card.Content className="gap-4">
         <Controller
           control={control}
-          name="userId"
+          name="email"
           render={({
             field: { onChange, onBlur, value },
             fieldState: { error: fieldError },
           }) => (
             <Input
-              label="User ID"
-              placeholder="e.g., john.doe"
+              label="Email"
+              placeholder="e.g., jane@acme.com"
               value={value}
               onChangeText={(text: string) => {
                 onChange(text);
@@ -92,14 +109,16 @@ export const LoginForm = ({
               error={fieldError?.message}
               autoCapitalize="none"
               autoCorrect={false}
+              keyboardType="email-address"
+              textContentType="emailAddress"
               returnKeyType="go"
               onSubmitEditing={handlePress}
-              testID="login-user-id-input"
+              testID="login-email-input"
             />
           )}
         />
 
-        {error !== null && (
+        {isGenericError && (
           <View className="rounded-md bg-destructive/10 px-3 py-2">
             <Text className="text-sm text-destructive">{error.message}</Text>
           </View>
@@ -110,54 +129,10 @@ export const LoginForm = ({
           isLoading={isLoading}
           testID="login-submit-btn"
         >
-          Continue
+          Send login link
         </Button>
 
-        <View className="mt-2 border-t border-border pt-4">
-          <Text className="mb-2 text-center text-xs text-muted-foreground">
-            Demo accounts:
-          </Text>
-          <View className="flex-row justify-center gap-2">
-            {DEMO_ACCOUNTS.map((id) => (
-              <DemoAccountChip
-                key={id}
-                id={id}
-                isDisabled={isLoading}
-                onPress={handleDemoPress}
-              />
-            ))}
-          </View>
-        </View>
       </Card.Content>
     </Card>
   );
 };
-
-// ─── Sub-component ─────────────────────────────────────────────────────────
-
-interface DemoAccountChipProps {
-  readonly id: string;
-  readonly isDisabled: boolean;
-  readonly onPress: (id: string) => void;
-}
-
-const DemoAccountChip = React.memo(
-  ({ id, isDisabled, onPress }: DemoAccountChipProps): React.JSX.Element => {
-    const handlePress = useCallback((): void => {
-      onPress(id);
-    }, [id, onPress]);
-
-    return (
-      <Pressable
-        onPress={handlePress}
-        className="rounded bg-secondary px-2 py-1"
-        disabled={isDisabled}
-        testID={`demo-account-${id}`}
-      >
-        <Text className="text-xs text-secondary-foreground">{id}</Text>
-      </Pressable>
-    );
-  },
-);
-
-DemoAccountChip.displayName = 'DemoAccountChip';

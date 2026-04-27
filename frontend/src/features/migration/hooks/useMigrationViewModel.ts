@@ -90,7 +90,7 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
     clearTargetFile: s.clearTargetFile,
     clearMappingFile: s.clearMappingFile,
     setTargetTypes: s.setTargetTypes,
-    setTypeMappingRows: s.setTypeMappingRows,
+    hydrateTypeMappingRows: s.hydrateTypeMappingRows,
     setLoading: s.setLoading,
     setError: s.setError,
   })));
@@ -166,13 +166,17 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
         actions.setTargetTypes(extractedTargetTypes);
       }
 
+      // Hydration path — rows are derived from the uploaded file(s), not
+      // user edits to the mapping table. Don't mark dirty: only explicit
+      // edits in MappingScreen (updateTypeMappingRow / addTypeMappingRow /
+      // deleteTypeMappingRow) should flip hasUnsavedTypeMappings.
       if (mappingData.length > 0) {
-        actions.setTypeMappingRows(buildTypeMappingRows(mappingData));
+        actions.hydrateTypeMappingRows(buildTypeMappingRows(mappingData));
       } else {
         const sourceTypes = extractAccountTypes(sourceData);
         if (sourceTypes.length > 0) {
           const rows = matchTypesToTargets(sourceTypes, extractedTargetTypes);
-          actions.setTypeMappingRows(rows);
+          actions.hydrateTypeMappingRows(rows);
         }
       }
 

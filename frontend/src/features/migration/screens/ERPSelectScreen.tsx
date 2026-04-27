@@ -2,7 +2,7 @@ import React, { useCallback } from 'react';
 import { View, Text } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowRight } from 'lucide-react-native';
+import { ArrowRight, Info } from 'lucide-react-native';
 import { MigrationLayout } from '../components/MigrationLayout';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
@@ -30,8 +30,6 @@ export const ERPSelectScreen = (): React.JSX.Element => {
   const route = useMigrationScreenRoute<'ERPSelect'>();
   const projectId = route.params.projectId;
 
-  console.log('[ERPSelectScreen] RENDER', { projectId });
-
   const { isHydrating, error, retry } = useHydrateProject(createProjectId(projectId));
 
   const {
@@ -44,14 +42,6 @@ export const ERPSelectScreen = (): React.JSX.Element => {
     handleTargetSelect,
     goToStep,
   } = useMigrationViewModel();
-
-  console.log('[ERPSelectScreen] state', {
-    isHydrating,
-    sourceERP: sourceERP?.id ?? null,
-    targetERP: targetERP?.id ?? null,
-    currentStep,
-    completedSteps,
-  });
 
   const { erpSystems } = useERPConfig();
 
@@ -137,68 +127,66 @@ export const ERPSelectScreen = (): React.JSX.Element => {
           onStepPress={handleStepPress}
         />
 
-        <View className="mt-8 mb-6">
-          <Text className="font-heading text-2xl font-bold text-foreground">
+        <View className="mt-4 mb-4">
+          <Text className="font-heading text-lg font-bold text-foreground">
             Select ERP Systems
           </Text>
-          <Text className="mt-2 font-body text-sm text-muted-foreground">
-            Choose the source and target ERP systems for your chart of accounts
-            migration.
+          <Text className="mt-1 font-body text-sm text-muted-foreground">
+            Choose the source and target ERP systems for your chart of accounts migration.
           </Text>
         </View>
 
         <Card className="overflow-visible z-10" testID="erp-selection-card">
-          <Card.Content className="flex-col lg:flex-row lg:gap-6 gap-4 overflow-visible">
-            <View className="flex-1">
-              <Text className="mb-2 font-body text-sm font-medium text-foreground">
-                Source ERP
-              </Text>
-              <ERPCombobox
-                value={sourceERP?.id ?? null}
-                onSelect={handleSourceChange}
-                erpSystems={erpSystems}
-                placeholder="Select Source ERP"
-                testID="source-erp-combobox"
-              />
-            </View>
+          <Card.Content className="gap-4 overflow-visible">
+            <View className="flex-col lg:flex-row lg:gap-6 gap-4 overflow-visible" style={{ zIndex: 10 }}>
+              <View className="flex-1">
+                <Text className="mb-2 font-body text-sm font-medium text-foreground">
+                  Source ERP
+                </Text>
+                <ERPCombobox
+                  value={sourceERP?.id ?? null}
+                  onSelect={handleSourceChange}
+                  erpSystems={erpSystems}
+                  placeholder="Select Source ERP"
+                  testID="source-erp-combobox"
+                />
+              </View>
 
-            <View className="items-center py-2 lg:justify-center">
-              <ArrowRight size={24} color={colors.mutedForeground} />
-            </View>
+              <View className="items-center py-2 lg:justify-center">
+                <ArrowRight size={24} color={colors.mutedForeground} />
+              </View>
 
-            <View className="flex-1">
-              <Text className="mb-2 font-body text-sm font-medium text-foreground">
-                Target ERP
-              </Text>
-              <ERPCombobox
-                value={targetERP?.id ?? null}
-                onSelect={handleTargetChange}
-                erpSystems={erpSystems}
-                excludeId={sourceERP?.id}
-                placeholder="Select Target ERP"
-                testID="target-erp-combobox"
-              />
+              <View className="flex-1">
+                <Text className="mb-2 font-body text-sm font-medium text-foreground">
+                  Target ERP
+                </Text>
+                <ERPCombobox
+                  value={targetERP?.id ?? null}
+                  onSelect={handleTargetChange}
+                  erpSystems={erpSystems}
+                  excludeId={sourceERP?.id}
+                  placeholder="Select Target ERP"
+                  testID="target-erp-combobox"
+                />
+              </View>
             </View>
+            {hasBothSelected && (
+              <View className="flex-row items-center gap-1.5 rounded-md px-3 py-2" style={{ backgroundColor: 'rgba(0,51,153,0.05)' }} testID="erp-summary-card">
+                <Info size={14} color="#003399" />
+                <Text className="font-body text-sm text-muted-foreground">
+                  Migrating from <Text className="font-medium" style={{ color: '#003399' }}>{sourceERP.name}</Text>
+                  {' → '}
+                  <Text className="font-medium" style={{ color: '#003399' }}>{targetERP.name}</Text>
+                </Text>
+              </View>
+            )}
           </Card.Content>
         </Card>
 
-        {hasBothSelected && (
-          <Card className="mt-4 border-border bg-card" testID="erp-summary-card">
-            <Card.Content>
-              <Text className="font-body text-sm font-medium text-green-700 dark:text-green-400">
-                Migrating from {sourceERP.name} → {targetERP.name}
-              </Text>
-            </Card.Content>
-          </Card>
-        )}
-
-        <View className="mt-6">
+        <View className="mt-4 items-end">
           <Button
             onPress={() => void handleContinue()}
             disabled={!canProceedFromStep0}
-            size="lg"
-            className=""
-            textClassName=""
             testID="continue-button"
           >
             Continue to Upload

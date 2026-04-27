@@ -1,11 +1,24 @@
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import type { HttpClient, HttpClientConfig } from './http.types';
 import type { AppError } from '@/shared/types/result.types';
-import { isTransientError, showTransientErrorToast } from './http.error-handler';
+import { isTransientError, showTransientErrorToast, showAccessDeniedToast } from './http.error-handler';
+import { createRefreshQueue } from './refresh-queue';
 
 const DEFAULT_TIMEOUT = 30_000;
 
+type RetriableRequestConfig = InternalAxiosRequestConfig & { _retried?: boolean };
+
+function isAuthEndpoint(url: string): boolean {
+  return (
+    url.includes('/auth/login') ||
+    url.includes('/auth/refresh') ||
+    url.includes('/auth/logout')
+  );
+}
+
 export function createHttpClient(config: HttpClientConfig): HttpClient {
+  const refreshQueue = createRefreshQueue();
+
   const client = axios.create({
     baseURL: config.baseURL,
     timeout: config.timeout ?? DEFAULT_TIMEOUT,
@@ -13,7 +26,7 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
   });
 
   client.interceptors.request.use(async (requestConfig) => {
-    const token = await config.getToken();
+    const token = await config.getAccessToken();
     if (token) {
       requestConfig.headers.Authorization = `Bearer ${token}`;
     }
@@ -22,18 +35,47 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
 
   client.interceptors.response.use(
     (response) => response,
-    (error: unknown) => {
-      if (error instanceof AxiosError) {
-        if (error.response?.status === 401) {
-          config.onUnauthorized?.();
+    async (error: unknown) => {
+      if (!(error instanceof AxiosError)) {
+        return Promise.reject(error);
+      }
+
+      const status = error.response?.status;
+
+      if (status === 401 || status === 403) {
+        const requestConfig = error.config as RetriableRequestConfig | undefined;
+        const url = requestConfig?.url ?? '';
+
+        if (
+          requestConfig &&
+          !requestConfig._retried &&
+          !isAuthEndpoint(url) &&
+          config.refresh !== undefined
+        ) {
+          const refreshed = await refreshQueue.runOnce(config.refresh);
+          if (refreshed) {
+            requestConfig._retried = true;
+            return client.request(requestConfig);
+          }
         }
 
-        if (isTransientError(error.response?.status)) {
-          showTransientErrorToast(
-            error.message ?? 'Something went wrong. Please try again.',
-          );
+        if (!isAuthEndpoint(url)) {
+          if (status === 403 && requestConfig?._retried) {
+            // Refresh succeeded but resource still 403 = genuine permission error
+            showAccessDeniedToast();
+          } else {
+            config.onLogout?.();
+          }
         }
+        return Promise.reject(error);
       }
+
+      if (isTransientError(status)) {
+        showTransientErrorToast(
+          error.message ?? 'Something went wrong. Please try again.',
+        );
+      }
+
       return Promise.reject(error);
     },
   );

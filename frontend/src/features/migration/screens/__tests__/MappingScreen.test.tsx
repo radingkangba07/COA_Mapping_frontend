@@ -44,8 +44,9 @@ jest.mock('../../components/MigrationLayout', () => {
 
 // ─── Navigation mocks ──────────────────────────────────────────────────────
 const mockNavigate = jest.fn();
+const mockAddListener = jest.fn(() => jest.fn());
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: mockNavigate }),
+  useNavigation: () => ({ navigate: mockNavigate, addListener: mockAddListener }),
 }));
 
 jest.mock('@/navigation/types', () => ({
@@ -53,19 +54,24 @@ jest.mock('@/navigation/types', () => ({
 }));
 
 // ─── Store mock ─────────────────────────────────────────────────────────────
-const mockStoreState = {
+const mockStoreState: Record<string, unknown> = {
   currentStep: 2,
   completedSteps: [0, 1],
   typeMappingRows: [
-    { id: '1', sourceType: 'Asset', targetType: 'Asset', isCustom: false },
+    { id: '1', sourceType: 'Asset', targetTypes: ['Asset'], isCustom: false },
   ],
   targetTypes: ['Asset', 'Liability', 'Equity'],
   isLoading: false,
+  sourceFile: { fileId: 'src-file-001', name: 'source.xlsx', rowCount: 10 },
+  targetFile: { fileId: 'tgt-file-001', name: 'target.xlsx', rowCount: 10 },
+  mappingFile: null,
+  jobId: null,
   updateTypeMappingRow: jest.fn(),
   addTypeMappingRow: jest.fn(),
   deleteTypeMappingRow: jest.fn(),
   setStep: jest.fn(),
   completeStep: jest.fn(),
+  setJobId: jest.fn(),
 };
 
 jest.mock('../../store/migration.store', () => {
@@ -88,6 +94,30 @@ jest.mock('zustand/react/shallow', () => ({
   useShallow: (fn: unknown) => fn,
 }));
 
+// ─── Service + HTTP mocks ──────────────────────────────────────────────────
+const mockGetHierarchicalMapping = jest.fn().mockResolvedValue({
+  ok: true,
+  data: { job_id: 'job-001', project_id: 'test-project-1', status: 'pending' },
+});
+jest.mock('../../services/mapping.service', () => ({
+  getHierarchicalMapping: (...args: unknown[]) => mockGetHierarchicalMapping(...args),
+  buildCustomTypeMappings: jest.fn(() => ({})),
+  applyCustomTypeMappings: jest.fn((m: unknown) => m),
+  normalizeGroupedMappings: jest.fn((m: unknown) => m),
+  saveMappings: jest.fn(),
+  toMappingCreateDTOs: jest.fn(() => []),
+}));
+
+jest.mock('@/shared/services/http/http.instance', () => ({
+  httpClient: {},
+}));
+
+const mockShowSuccess = jest.fn();
+const mockShowError = jest.fn();
+jest.mock('@/shared/hooks/useToast', () => ({
+  useToast: () => ({ showSuccess: mockShowSuccess, showError: mockShowError }),
+}));
+
 // ─── Hook mocks ─────────────────────────────────────────────────────────────
 const mockRunMapping = jest.fn();
 jest.mock('../../hooks/useFuzzyMapper', () => ({
@@ -98,6 +128,39 @@ jest.mock('../../hooks/useHydrateProject', () => ({
   useHydrateProject: () => ({ isHydrating: false, error: null, retry: jest.fn() }),
 }));
 
+const mockSaveMappings = jest.fn().mockResolvedValue(undefined);
+const mockClearMappings = jest.fn().mockResolvedValue(undefined);
+const mockAccountTypeMappings: {
+  rows: Array<{ id: string; sourceType: string; targetTypes: readonly string[] }>;
+  availableTargetTypes: readonly string[];
+  isLoading: boolean;
+  isSaving: boolean;
+  isDirty: boolean;
+  save: jest.Mock;
+  clear: jest.Mock;
+} = {
+  rows: [],
+  availableTargetTypes: [],
+  isLoading: false,
+  isSaving: false,
+  isDirty: false,
+  save: mockSaveMappings,
+  clear: mockClearMappings,
+};
+jest.mock('../../hooks/useAccountTypeMappings', () => ({
+  useAccountTypeMappings: () => mockAccountTypeMappings,
+}));
+
+jest.mock('@/shared/hooks/useConfirm', () => ({
+  useConfirm: () => ({
+    confirm: jest.fn().mockResolvedValue(true),
+    isVisible: false,
+    confirmOptions: null,
+    onConfirm: jest.fn(),
+    onCancel: jest.fn(),
+  }),
+}));
+
 // ─── Child component stubs ──────────────────────────────────────────────────
 jest.mock('../../components/MigrationStepper/MigrationStepper', () => {
   const RN = require('react-native');
@@ -105,15 +168,6 @@ jest.mock('../../components/MigrationStepper/MigrationStepper', () => {
   return {
     MigrationStepper: (props: Record<string, unknown>) =>
       R.createElement(RN.View, { testID: 'migration-stepper', ...props }),
-  };
-});
-
-jest.mock('../../components/FieldMappingTable/FieldMappingTable', () => {
-  const RN = require('react-native');
-  const R = require('react');
-  return {
-    FieldMappingTable: (props: Record<string, unknown>) =>
-      R.createElement(RN.View, { testID: props.testID ?? 'field-mapping-table' }),
   };
 });
 
@@ -139,9 +193,12 @@ describe('MappingScreen', () => {
     jest.clearAllMocks();
     mockStoreState.isLoading = false;
     mockStoreState.typeMappingRows = [
-      { id: '1', sourceType: 'Asset', targetType: 'Asset', isCustom: false },
+      { id: '1', sourceType: 'Asset', targetTypes: ['Asset'], isCustom: false },
     ];
     mockAllMatched = true;
+    mockAccountTypeMappings.rows = [];
+    mockAccountTypeMappings.isDirty = false;
+    mockAccountTypeMappings.isSaving = false;
   });
 
   it('renders with testID "mapping-screen"', () => {
@@ -185,11 +242,77 @@ describe('MappingScreen', () => {
     expect(screen.getByTestId('mapping-skeleton')).toBeTruthy();
   });
 
-  it('calls runMapping when Proceed button is pressed', async () => {
-    mockRunMapping.mockResolvedValue(undefined);
+  it('calls getHierarchicalMapping when Proceed button is pressed', async () => {
+    mockStoreState.jobId = null;
     render(<MappingScreen />);
     const button = screen.getByTestId('mapping-proceed-button');
     await fireEvent.press(button);
-    expect(mockRunMapping).toHaveBeenCalled();
+    expect(mockGetHierarchicalMapping).toHaveBeenCalledWith(
+      expect.anything(),
+      'test-project-1',
+      'src-file-001',
+      'tgt-file-001',
+      undefined,
+    );
+  });
+
+  it('does not render a standalone Save Mappings button', () => {
+    render(<MappingScreen />);
+    expect(screen.queryByTestId('mapping-save-button')).toBeNull();
+  });
+
+  it('saves type mappings before running the mapping job when dirty', async () => {
+    mockStoreState.jobId = null;
+    mockAccountTypeMappings.rows = [
+      { id: 'r1', sourceType: 'Asset', targetTypes: ['Asset'] },
+    ];
+    mockAccountTypeMappings.isDirty = true;
+
+    const callOrder: string[] = [];
+    mockSaveMappings.mockImplementation(async () => {
+      callOrder.push('save');
+    });
+    mockGetHierarchicalMapping.mockImplementation(async () => {
+      callOrder.push('getHierarchicalMapping');
+      return { ok: true, data: { job_id: 'job-xyz' } };
+    });
+
+    render(<MappingScreen />);
+    const button = screen.getByTestId('mapping-proceed-button');
+    await fireEvent.press(button);
+
+    expect(mockSaveMappings).toHaveBeenCalledTimes(1);
+    expect(callOrder).toEqual(['save', 'getHierarchicalMapping']);
+  });
+
+  it('skips save when type mappings are not dirty', async () => {
+    mockStoreState.jobId = null;
+    mockAccountTypeMappings.rows = [
+      { id: 'r1', sourceType: 'Asset', targetTypes: ['Asset'] },
+    ];
+    mockAccountTypeMappings.isDirty = false;
+
+    render(<MappingScreen />);
+    const button = screen.getByTestId('mapping-proceed-button');
+    await fireEvent.press(button);
+
+    expect(mockSaveMappings).not.toHaveBeenCalled();
+    expect(mockGetHierarchicalMapping).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call getHierarchicalMapping when save fails', async () => {
+    mockStoreState.jobId = null;
+    mockAccountTypeMappings.rows = [
+      { id: 'r1', sourceType: 'Asset', targetTypes: ['Asset'] },
+    ];
+    mockAccountTypeMappings.isDirty = true;
+    mockSaveMappings.mockRejectedValueOnce(new Error('boom'));
+
+    render(<MappingScreen />);
+    const button = screen.getByTestId('mapping-proceed-button');
+    await fireEvent.press(button);
+
+    expect(mockSaveMappings).toHaveBeenCalledTimes(1);
+    expect(mockGetHierarchicalMapping).not.toHaveBeenCalled();
   });
 });

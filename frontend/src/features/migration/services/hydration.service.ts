@@ -15,6 +15,7 @@ import { matchTypesToTargets } from './fuzzy.service';
 
 export interface HydrationResult {
   readonly ok: true;
+  readonly warnings?: readonly string[];
 }
 
 export interface HydrationError {
@@ -48,12 +49,6 @@ export async function hydrateProject(
   }
   const project = projectResult.data;
 
-  console.log('[hydrateProject] project from API', {
-    currentStep: project.currentStep,
-    sourceErp: project.sourceErp,
-    targetErp: project.targetErp,
-  });
-
   if (!isValidStep(project.currentStep)) {
     return { ok: false, error: { code: 'INVALID_STEP', message: `Unknown migration step: ${String(project.currentStep)}` } };
   }
@@ -64,7 +59,6 @@ export async function hydrateProject(
   const prevTargetERP = store.targetERP;
 
   // Populate project basics
-  console.log('[hydrateProject] calling store.reset()');
   store.reset();
   store.setProjectId(projectId);
   store.setStep(targetStep);
@@ -81,15 +75,6 @@ export async function hydrateProject(
     ? resolveERPSystem(project.targetErp, erpSystems)
     : undefined;
 
-  console.log('[hydrateProject] ERP resolution', {
-    sourceErpId: project.sourceErp,
-    targetErpId: project.targetErp,
-    sourceFound: !!sourceERPInfo,
-    targetFound: !!targetERPInfo,
-    prevSourceERP: prevSourceERP?.id ?? null,
-    prevTargetERP: prevTargetERP?.id ?? null,
-  });
-
   if (sourceERPInfo) store.setSourceERP(sourceERPInfo);
   else if (prevSourceERP) store.setSourceERP(prevSourceERP);
 
@@ -98,7 +83,6 @@ export async function hydrateProject(
 
   // Step 0 (ERPSelect): only needs project metadata + ERPs
   if (targetStep <= MIGRATION_STEPS.ERP_SELECT) {
-    console.log('[hydrateProject] early return at step 0');
     return { ok: true };
   }
 
@@ -113,12 +97,13 @@ export async function hydrateProject(
   const targetFileDTO = files.find((f) => f.fileType === 'targetcoa');
   const mappingFileDTO = files.find((f) => f.fileType === 'typemapping');
 
-  // Attempt to fetch parsed data; fall back to empty rows if endpoint unavailable
+  // Attempt to fetch parsed data; track failures for user-visible warnings
   const safeGetFileData = async (fileId: string) => {
     try {
-      return await getFileData(client, fileId);
+      const data = await getFileData(client, fileId);
+      return { data, failed: false };
     } catch {
-      return null;
+      return { data: null, failed: true };
     }
   };
 
@@ -128,8 +113,16 @@ export async function hydrateProject(
     mappingFileDTO ? safeGetFileData(mappingFileDTO.fileId) : null,
   ]);
 
+  const hydrationWarnings: string[] = [];
+  if (sourceFileDTO && sourceDataResult?.failed)
+    hydrationWarnings.push('Source COA file data could not be loaded. Try re-uploading the file.');
+  if (targetFileDTO && targetDataResult?.failed)
+    hydrationWarnings.push('Target COA file data could not be loaded — the target account dropdown may be empty. Try re-uploading the file.');
+  if (mappingFileDTO && mappingDataResult?.failed)
+    hydrationWarnings.push('Account type mapping file data could not be loaded. Try re-uploading the file.');
+
   if (sourceFileDTO) {
-    const rows = sourceDataResult?.ok ? sourceDataResult.data.data : [];
+    const rows = sourceDataResult?.data?.ok ? sourceDataResult.data.data.data : [];
     store.setSourceData(
       { name: sourceFileDTO.fileName, rowCount: rows.length, fileId: createFileId(sourceFileDTO.fileId) },
       rows,
@@ -137,7 +130,7 @@ export async function hydrateProject(
   }
 
   if (targetFileDTO) {
-    const rows = targetDataResult?.ok ? targetDataResult.data.data : [];
+    const rows = targetDataResult?.data?.ok ? targetDataResult.data.data.data : [];
     store.setTargetData(
       { name: targetFileDTO.fileName, rowCount: rows.length, fileId: createFileId(targetFileDTO.fileId) },
       rows,
@@ -145,7 +138,7 @@ export async function hydrateProject(
   }
 
   if (mappingFileDTO) {
-    const rows = mappingDataResult?.ok ? mappingDataResult.data.data : [];
+    const rows = mappingDataResult?.data?.ok ? mappingDataResult.data.data.data : [];
     store.setMappingData(
       { name: mappingFileDTO.fileName, rowCount: rows.length, fileId: createFileId(mappingFileDTO.fileId) },
       rows,
@@ -154,39 +147,52 @@ export async function hydrateProject(
 
   // Step 1 (Upload): needs files + data
   if (targetStep <= MIGRATION_STEPS.UPLOAD) {
-    return { ok: true };
+    return { ok: true, ...(hydrationWarnings.length > 0 ? { warnings: hydrationWarnings } : {}) };
   }
 
   // Step >= 2: Populate target types + type mapping rows
-  if (targetDataResult?.ok) {
-    const targetTypes = extractAccountTypes(targetDataResult.data.data);
+  if (targetDataResult?.data?.ok) {
+    const targetTypes = extractAccountTypes(targetDataResult.data.data.data);
     if (targetTypes.length > 0) {
       store.setTargetTypes(targetTypes);
     }
   }
 
-  if (mappingDataResult?.ok) {
-    store.setTypeMappingRows(buildTypeMappingRows(mappingDataResult.data.data));
-  } else if (sourceDataResult?.ok) {
-    const sourceTypes = extractAccountTypes(sourceDataResult.data.data);
-    const targetTypes = targetDataResult?.ok
-      ? extractAccountTypes(targetDataResult.data.data)
+  if (mappingDataResult?.data?.ok) {
+    store.hydrateTypeMappingRows(buildTypeMappingRows(mappingDataResult.data.data.data));
+  } else if (sourceDataResult?.data?.ok) {
+    const sourceTypes = extractAccountTypes(sourceDataResult.data.data.data);
+    const targetTypes = targetDataResult?.data?.ok
+      ? extractAccountTypes(targetDataResult.data.data.data)
       : [];
     if (sourceTypes.length > 0) {
-      store.setTypeMappingRows(matchTypesToTargets(sourceTypes, targetTypes));
+      store.hydrateTypeMappingRows(matchTypesToTargets(sourceTypes, targetTypes));
     }
+  }
+
+  // Restore jobId from backend — check if this project has an active mapping job
+  try {
+    const jobsResp = await client.get<Array<{ id: string; job_type: string; status: string }>>(
+      `/api/v1/jobs/project/${projectId}`,
+    );
+    const accountJob = jobsResp.data.find((j) => j.job_type === 'account_matching');
+    if (accountJob) {
+      store.setJobId(accountJob.id);
+    }
+  } catch (jobErr) {
+    console.warn('[hydrateProject] failed to fetch jobs — continuing without jobId', jobErr);
   }
 
   // Step 2 (TypeMapping): needs target types + type mapping rows
   if (targetStep <= MIGRATION_STEPS.TYPE_MAPPING) {
-    return { ok: true };
+    return { ok: true, ...(hydrationWarnings.length > 0 ? { warnings: hydrationWarnings } : {}) };
   }
 
-  // Step >= 3: Fetch grouped mappings
+  // Step >= 3: Fetch mappings for confirmation flags only.
+  // groupedMappings is intentionally NOT set here — the ValidationScreen
+  // owns that data and populates it via useMappingSuggestions. Setting it
+  // here would race with (and overwrite) the suggestions query result.
   const mappingsResult = await getMappings(client, projectId);
-  if (mappingsResult.ok && mappingsResult.data.length > 0) {
-    store.setGroupedMappings(mappingsResult.data);
-  }
 
   // Derive confirmation flags from account statuses
   if (mappingsResult.ok && mappingsResult.data.length > 0) {
@@ -208,8 +214,8 @@ export async function hydrateProject(
 
   // Step 3 (Validation): needs grouped mappings + confirmation state
   if (targetStep <= MIGRATION_STEPS.VALIDATION) {
-    return { ok: true };
+    return { ok: true, ...(hydrationWarnings.length > 0 ? { warnings: hydrationWarnings } : {}) };
   }
 
-  return { ok: true };
+  return { ok: true, ...(hydrationWarnings.length > 0 ? { warnings: hydrationWarnings } : {}) };
 }

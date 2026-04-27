@@ -19,6 +19,7 @@ import { Spinner } from '@/shared/components/ui/Spinner';
 import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorFallback';
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
 import { useHydrateProject } from '../hooks/useHydrateProject';
+import { useSaveMappings } from '../hooks/useSaveMappings';
 import { useMigrationStore } from '../store/migration.store';
 import { useShallow } from 'zustand/react/shallow';
 import { selectMappingStats } from '../store/migration.selectors';
@@ -34,7 +35,7 @@ type MigrationNavProp = NativeStackNavigationProp<MigrationStackParamList>;
 const ICON_SIZE = 16;
 
 function getScoreColor(score: number): string {
-  if (score >= 90) return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30';
+  if (score >= 90) return 'text-primary dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30';
   if (score >= 70) return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30';
   return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30';
 }
@@ -56,9 +57,13 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
   const { projectId } = route.params;
   const { isHydrating, error, retry } = useHydrateProject(createProjectId(projectId));
 
+  // Read grouped mappings directly from the migration store — the Validation
+  // screen (via useMappingSuggestions → adaptSuggestionsToGroupedMappings)
+  // and the hydration service both populate this field, so it's already the
+  // authoritative dataset by the time the user reaches Final Preview.
+  const groupedMappings = useMigrationStore((s) => s.groupedMappings);
   const currentStep = useMigrationStore((s) => s.currentStep);
   const completedSteps = useMigrationStore((s) => s.completedSteps);
-  const groupedMappings = useMigrationStore((s) => s.groupedMappings);
   const sourceFile = useMigrationStore((s) => s.sourceFile);
   const confirmedHigh = useMigrationStore((s) => s.confirmedHigh);
   const confirmedMedium = useMigrationStore((s) => s.confirmedMedium);
@@ -66,26 +71,29 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
   const completeStep = useMigrationStore((s) => s.completeStep);
   const setStep = useMigrationStore((s) => s.setStep);
   const stats = useMigrationStore(useShallow(selectMappingStats));
+  const { save, isSaving } = useSaveMappings(projectId);
 
   const rows = useMemo((): readonly PreviewRow[] =>
     groupedMappings.flatMap((group) =>
-      group.accounts.map((account, idx) => {
-        const score = Math.round(account.score);
-        const isConfirmed =
-          (score >= 90 && confirmedHigh) ||
-          (score >= 70 && score < 90 && confirmedMedium) ||
-          (score < 70 && confirmedLow);
-        return {
-          key: `${group.source_type}-${account.source_number}-${idx}`,
-          sourceNumber: account.source_number,
-          sourceName: account.source_name,
-          sourceType: group.source_type,
-          targetName: account.target_name,
-          targetType: group.target_type,
-          score,
-          isConfirmed,
-        };
-      }),
+      group.accounts
+        .filter((account) => account.is_active !== false)
+        .map((account, idx) => {
+          const score = Math.round(account.score);
+          const isConfirmed =
+            (score >= 90 && confirmedHigh) ||
+            (score >= 70 && score < 90 && confirmedMedium) ||
+            (score < 70 && confirmedLow);
+          return {
+            key: `${group.source_type}-${account.source_number}-${idx}`,
+            sourceNumber: account.source_number,
+            sourceName: account.source_name,
+            sourceType: group.source_type,
+            targetName: account.target_name,
+            targetType: group.target_type,
+            score,
+            isConfirmed,
+          };
+        }),
     ),
   [groupedMappings, confirmedHigh, confirmedMedium, confirmedLow]);
 
@@ -96,11 +104,17 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
     navigation.goBack();
   }, [navigation]);
 
-  const handleContinueToExport = useCallback((): void => {
+  const handleContinueToExport = useCallback(async (): Promise<void> => {
+    // The user has reviewed the final mapping table — this is the commit
+    // point. Save (including is_active=false tombstones for deletes) before
+    // moving to the export screen. Bail on failure so the user stays here
+    // instead of exporting stale data.
+    const saved = await save();
+    if (!saved) return;
     completeStep(3);
     setStep(4);
     navigation.navigate('Preview', { projectId });
-  }, [completeStep, setStep, navigation, projectId]);
+  }, [save, completeStep, setStep, navigation, projectId]);
 
   const handleStepPress = useCallback(
     (step: number): void => {
@@ -153,9 +167,9 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
         />
 
         {/* COA Mapping header — same as ValidationScreen */}
-        <View className="mt-8 mb-4 flex-row items-start justify-between">
+        <View className="mt-4 mb-4 flex-row items-start justify-between">
           <View>
-            <Text className="font-heading text-2xl font-bold text-foreground">COA Mapping</Text>
+            <Text className="font-heading text-lg font-bold text-foreground">COA Mapping</Text>
             {sourceFile !== null && (
               <View className="mt-1 flex-row items-center gap-1.5">
                 <FileSpreadsheet size={14} color={colors.mutedForeground} />
@@ -171,12 +185,13 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
                 {stats.totalTypes} / {stats.totalTypes} types mapped
               </Text>
               <View className="h-2 w-32 rounded-full bg-gray-200 dark:bg-[#3E3E42] overflow-hidden">
-                <View className="h-full rounded-full bg-green-500" style={{ width: '100%' }} />
+                <View className="h-full rounded-full bg-primary" style={{ width: '100%' }} />
               </View>
             </View>
             <Button
-              className="bg-green-600"
               onPress={handleContinueToExport}
+              disabled={isSaving}
+              isLoading={isSaving}
               accessibilityLabel="Continue to export"
               testID="continue-to-export"
             >
@@ -196,10 +211,10 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
                 <Text className="font-heading text-lg font-semibold text-foreground">
                   Final Mapping Preview
                 </Text>
-                <Badge variant="outline" className="border-green-300 dark:border-green-800 bg-card px-2.5 py-1">
+                <Badge variant="outline" className="border-blue-200 dark:border-blue-800 bg-card px-2.5 py-1">
                   <View className="flex-row items-center gap-1.5">
-                    <CheckCircle2 size={12} color="#16A34A" />
-                    <Text className="text-xs font-medium text-green-700 dark:text-green-400">
+                    <CheckCircle2 size={12} color="#003399" />
+                    <Text className="text-xs font-medium text-primary dark:text-blue-400">
                       {confirmedCount} Confirmed
                     </Text>
                   </View>
@@ -309,13 +324,13 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
                           variant="outline"
                           className={cn(
                             'px-2 py-0.5 bg-card',
-                            row.isConfirmed ? 'border-green-300 dark:border-green-800' : 'border-red-300 dark:border-red-800',
+                            row.isConfirmed ? 'border-blue-200 dark:border-blue-800' : 'border-red-300 dark:border-red-800',
                           )}
                         >
                           <Text
                             className={cn(
                               'text-xs font-medium',
-                              row.isConfirmed ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400',
+                              row.isConfirmed ? 'text-primary dark:text-blue-400' : 'text-red-700 dark:text-red-400',
                             )}
                           >
                             {row.isConfirmed ? 'Confirmed' : 'Not Confirmed'}

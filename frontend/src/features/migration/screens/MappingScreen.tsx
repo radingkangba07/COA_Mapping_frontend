@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,17 +8,15 @@ import {
   X,
   ArrowLeft,
   ArrowRight,
-  Eye,
   Edit3,
   Plus,
   Download,
-  Save,
   Trash2,
 } from 'lucide-react-native';
 import { MigrationLayout } from '../components/MigrationLayout';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
-import { Select, type SelectOption } from '@/shared/components/ui/Select';
+import { MultiSelect } from '@/shared/components/ui/MultiSelect';
 import { Input } from '@/shared/components/ui/Input';
 import { Skeleton } from '@/shared/components/ui/Skeleton';
 import { Spinner } from '@/shared/components/ui/Spinner';
@@ -27,7 +25,13 @@ import { MigrationStepper } from '../components/MigrationStepper/MigrationSteppe
 import { MappingTableSkeleton } from '../components/MappingTableSkeleton';
 import { useHydrateProject } from '../hooks/useHydrateProject';
 import { useFuzzyMapper } from '../hooks/useFuzzyMapper';
+import { useSyncStep } from '../hooks/useSyncStep';
+import { useAccountTypeMappings } from '../hooks/useAccountTypeMappings';
 import { useMigrationStore } from '../store/migration.store';
+import { getHierarchicalMapping } from '../services/mapping.service';
+import { httpClient } from '@/shared/services/http/http.instance';
+import { useToast } from '@/shared/hooks/useToast';
+import { useConfirm } from '@/shared/hooks/useConfirm';
 import { selectTypeMappingSummary } from '../store/migration.selectors';
 import { useMigrationScreenRoute } from '@/navigation/types';
 import { createProjectId } from '@/shared/types/common.types';
@@ -66,19 +70,152 @@ export const MappingScreen = (): React.JSX.Element => {
   );
 
   const { runMapping, isMapping } = useFuzzyMapper();
+  const syncStep = useSyncStep();
+  const { showSuccess, showError } = useToast();
+  const { confirm } = useConfirm();
+  const accountTypeMappings = useAccountTypeMappings(projectId);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingMessage, setProcessingMessage] = useState('Submitting mapping job...');
+  const cancelledRef = useRef(false);
+
+  // Poll for a job's completion. Extracted so it can be called from both
+  // handleProceed (initial submit) and the focus listener (resume).
+  const pollJobStatus = useCallback(async (jobId: string): Promise<boolean> => {
+    setIsProcessing(true);
+    setProcessingMessage('Matching accounts — this may take a moment...');
+
+    const maxAttempts = 60;
+    for (let i = 0; i < maxAttempts; i++) {
+      if (cancelledRef.current) {
+        return false;
+      }
+
+      await new Promise((r) => setTimeout(r, 5000));
+
+      if (cancelledRef.current) {
+        return false;
+      }
+
+      try {
+        const resp = await httpClient.get<{
+          job_id: string;
+          status: string;
+          progress: number;
+          is_complete: boolean;
+          has_error: boolean;
+        }>(`/api/v1/jobs/${jobId}/status`);
+
+        if (cancelledRef.current) {
+          return false;
+        }
+
+        const { status, progress, is_complete, has_error } = resp.data;
+
+        if (has_error) {
+          console.error('[MAPPING] Job error — aborting');
+          showError('Mapping failed', 'The mapping job encountered an error.');
+          setIsProcessing(false);
+          return false;
+        }
+
+        if (is_complete) {
+          setProcessingMessage('Mapping complete — loading results...');
+          setIsProcessing(false);
+          return true;
+        }
+
+        const pct = Math.round(progress * 100);
+        setProcessingMessage(
+          status === 'processing'
+            ? `Processing account mappings... ${pct > 0 ? `${pct}%` : ''}`
+            : 'Waiting for job to start...',
+        );
+      } catch (pollErr) {
+        console.warn('[MAPPING] Poll network error, retrying...', pollErr);
+      }
+    }
+
+    setIsProcessing(false);
+    return false;
+  }, [showError]);
+
+  // Cancel polling on blur, resume on focus if there's an incomplete job.
+  // React Navigation keeps stack screens mounted in the background, so
+  // unmount/projectId-change cleanup never fires.
+  useEffect(() => {
+    const unsubBlur = navigation.addListener('blur', () => {
+      cancelledRef.current = true;
+      setIsProcessing(false);
+    });
+    const unsubFocus = navigation.addListener('focus', () => {
+      cancelledRef.current = false;
+
+      const store = useMigrationStore.getState();
+
+      // Fast path: local store already knows mapping has finished at least
+      // once — no overlay, no network call.
+      if (store.completedSteps.includes(2)) return;
+
+      if (!store.jobId || store.projectId !== projectId) return;
+
+      const jobId = store.jobId;
+
+      void (async () => {
+        // Source of truth lives on the backend. Ask whether this job is
+        // already complete before showing the "Processing Mappings"
+        // overlay — the store can be stale (hydration skew, other device,
+        // or navigation back after mapping already finished server-side).
+        try {
+          const resp = await httpClient.get<{
+            job_id: string;
+            status: string;
+            progress: number;
+            is_complete: boolean;
+            has_error: boolean;
+          }>(`/api/v1/jobs/${jobId}/status`);
+
+          if (cancelledRef.current) return;
+
+          if (resp.data.has_error) return;
+
+          if (resp.data.is_complete) {
+            // Sync the store so subsequent focuses take the fast path and
+            // any stepper UI reflects that step 2 is done. Stay on this
+            // screen — the user landed here intentionally.
+            useMigrationStore.getState().completeStep(2);
+            return;
+          }
+        } catch (err) {
+          console.warn('[MAPPING] focus status check failed, skipping auto-resume', err);
+          return;
+        }
+
+        // Job is genuinely running on the backend — resume polling.
+        const completed = await pollJobStatus(jobId);
+        if (completed && !cancelledRef.current) {
+          showSuccess('Mapping complete', 'Review your account mappings.');
+          useMigrationStore.getState().completeStep(2);
+          useMigrationStore.getState().setStep(3);
+          syncStep(3);
+          navigation.navigate('Validation', { projectId });
+        }
+      })();
+    });
+    return () => {
+      cancelledRef.current = true;
+      unsubBlur();
+      unsubFocus();
+    };
+  }, [navigation, projectId, pollJobStatus, showSuccess, syncStep]);
+
   const mappingSummary = useMigrationStore(useShallow(selectTypeMappingSummary));
 
-  const targetOptions = useMemo<SelectOption[]>(
-    () => [
-      { label: 'Unmatched', value: '' },
-      ...targetTypes.map((t) => ({ label: t, value: t })),
-    ],
-    [targetTypes],
-  );
-
   const handleUpdateRow = useCallback(
-    (id: string, field: 'sourceType' | 'targetType', value: string): void => {
-      actions.updateTypeMappingRow(id, field, value);
+    (
+      id: string,
+      update: Partial<Pick<TypeMappingRow, 'sourceType' | 'targetTypes'>>,
+    ): void => {
+      actions.updateTypeMappingRow(id, update);
     },
     [actions],
   );
@@ -100,20 +237,73 @@ export const MappingScreen = (): React.JSX.Element => {
   }, [actions, navigation, projectId]);
 
   const handleProceed = useCallback(async (): Promise<void> => {
-    await runMapping();
-    // runMapping sets step to 3 on success — navigate to Validation (COA Mapping) screen
-    const step = useMigrationStore.getState().currentStep;
-    if (step === 3) {
+    const store = useMigrationStore.getState();
+    const { sourceFile, targetFile, mappingFile } = store;
+
+    if (!projectId || !sourceFile || !targetFile) {
+      showError('Missing files', 'Go back to Upload and submit your files first.');
+      return;
+    }
+
+    // Persist any pending type-mapping edits before kicking off the job.
+    // The save mutation surfaces its own error toast via onError; if it
+    // rejects, bail so we don't run mapping against stale server state.
+    if (accountTypeMappings.isDirty && accountTypeMappings.rows.length > 0) {
+      try {
+        await accountTypeMappings.save();
+      } catch {
+        return;
+      }
+    }
+
+    cancelledRef.current = false;
+    setIsProcessing(true);
+    setProcessingMessage('Submitting mapping job...');
+
+    let jobId = store.jobId;
+
+    // Create the mapping job if one doesn't exist yet
+    if (!jobId) {
+      const result = await getHierarchicalMapping(
+        httpClient,
+        projectId,
+        sourceFile.fileId,
+        targetFile.fileId,
+        mappingFile?.fileId,
+      );
+
+      if (cancelledRef.current) return;
+
+      if (!result.ok) {
+        showError('Mapping failed', result.error.message);
+        setIsProcessing(false);
+        return;
+      }
+
+      jobId = result.data.job_id;
+      useMigrationStore.getState().setJobId(jobId);
+    }
+
+    // Poll until complete
+    const completed = await pollJobStatus(jobId);
+
+    if (completed && !cancelledRef.current) {
+      showSuccess('Mapping complete', 'Review your account mappings.');
+      useMigrationStore.getState().completeStep(2);
+      useMigrationStore.getState().setStep(3);
+      syncStep(3);
       navigation.navigate('Validation', { projectId });
     }
-  }, [runMapping, navigation, projectId]);
+  }, [navigation, projectId, showError, showSuccess, syncStep, pollJobStatus, accountTypeMappings]);
 
   const handleSaveCSV = useCallback((): void => {
     const csvContent =
       'Source Type,Target Type\n' +
       typeMappingRows
-        .filter((row) => row.sourceType && row.targetType.length > 0)
-        .map((row) => `"${row.sourceType}","${row.targetType}"`)
+        .filter((row) => row.sourceType && row.targetTypes.length > 0)
+        .flatMap((row) =>
+          row.targetTypes.map((target) => `"${row.sourceType}","${target}"`),
+        )
         .join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -126,6 +316,17 @@ export const MappingScreen = (): React.JSX.Element => {
     window.URL.revokeObjectURL(url);
   }, [typeMappingRows]);
 
+  const handleClearMappings = useCallback(async (): Promise<void> => {
+    const confirmed = await confirm({
+      title: 'Clear all mappings?',
+      message: 'This removes every account-type mapping saved for this project. Continue?',
+      confirmText: 'Clear',
+      cancelText: 'Cancel',
+    });
+    if (!confirmed) return;
+    await accountTypeMappings.clear();
+  }, [accountTypeMappings, confirm]);
+
   const handleStepPress = useCallback(
     (step: number): void => {
       actions.setStep(step);
@@ -136,10 +337,12 @@ export const MappingScreen = (): React.JSX.Element => {
   );
 
   const hasCompleteMappings = mappingSummary.matched > 0;
-  const canProceed = hasCompleteMappings && !isMapping;
+  const canProceed = hasCompleteMappings && !isMapping && !accountTypeMappings.isSaving;
 
   const sourceERPName = sourceERP?.name ?? 'Source';
   const targetERPName = targetERP?.name ?? 'Target';
+
+  const processingBarStyle = useMemo(() => ({ width: '60%' as const }), []);
 
   if (isHydrating) {
     return (
@@ -208,40 +411,141 @@ export const MappingScreen = (): React.JSX.Element => {
           onStepPress={handleStepPress}
         />
 
-        {/* Centered title */}
-        <View className="items-center">
-          <Text className="font-heading text-2xl font-bold text-foreground text-center">
+        {isProcessing && (
+          <View className="items-center px-6 py-8">
+            <View className="w-full max-w-sm items-center rounded-2xl border border-border bg-card p-8 shadow-sm">
+              <View className="mb-6 h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+                <Spinner size="lg" />
+              </View>
+              <Text className="font-heading text-lg font-semibold text-foreground text-center">
+                Processing Mappings
+              </Text>
+              <Text className="mt-2 font-body text-sm text-muted-foreground text-center">
+                {processingMessage}
+              </Text>
+              <View className="mt-6 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <View className="h-full rounded-full bg-primary animate-pulse" style={processingBarStyle} />
+              </View>
+              <Text className="mt-4 font-body text-xs text-muted-foreground text-center">
+                This usually takes 10–30 seconds. Please don't close this page.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {!isProcessing && (<>
+        <View className="mt-4 mb-2">
+          <Text className="font-heading text-lg font-bold text-foreground">
             Review Account Type Mapping
           </Text>
-          <Text className="mt-2 font-body text-sm text-muted-foreground text-center">
+          <Text className="mt-1 font-body text-sm text-muted-foreground">
             Map {sourceERPName} account types to {targetERPName} account types
             (multi-select supported)
           </Text>
         </View>
 
-        {/* Mapping Preview Card */}
-        <MappingPreviewCard
-          rows={typeMappingRows}
-          matched={mappingSummary.matched}
-          incomplete={mappingSummary.total - mappingSummary.matched}
-          sourceERPName={sourceERPName}
-          targetERPName={targetERPName}
-        />
+        {/* Single combined mapping card */}
+        <Card testID="account-type-mapping-card">
+          <Card.Header>
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-2">
+                <Edit3 size={18} color={colors.foreground} />
+                <Card.Title>Account Type Mapping</Card.Title>
+              </View>
+              <View className="flex-row items-center gap-4">
+                <View className="flex-row items-center gap-1.5">
+                  <View className="h-2.5 w-2.5 rounded-full bg-primary" />
+                  <Text className="font-body text-xs text-muted-foreground">
+                    {mappingSummary.matched} Complete
+                  </Text>
+                </View>
+                <View className="flex-row items-center gap-1.5">
+                  <View className="h-2.5 w-2.5 rounded-full bg-destructive" />
+                  <Text className="font-body text-xs text-muted-foreground">
+                    {mappingSummary.total - mappingSummary.matched} Incomplete
+                  </Text>
+                </View>
+              </View>
+            </View>
+            <Card.Description>
+              Map {sourceERPName} account types to {targetERPName} account types (multi-select supported)
+            </Card.Description>
+          </Card.Header>
 
-        {/* Account Type Mapping Card */}
-        <AccountTypeMappingCard
-          rows={typeMappingRows}
-          targetOptions={targetOptions}
-          sourceERPName={sourceERPName}
-          targetERPName={targetERPName}
-          onUpdateRow={handleUpdateRow}
-          onAddRow={handleAddRow}
-          onDeleteRow={handleDeleteRow}
-          onSaveCSV={handleSaveCSV}
-        />
+          <Card.Content testID="mapping-preview-card">
+            {/* Preview table */}
+            <MappingPreviewTable
+              rows={typeMappingRows}
+              sourceERPName={sourceERPName}
+              targetERPName={targetERPName}
+            />
+
+            {/* Divider */}
+            <View className="border-t border-border my-4" />
+
+            {/* Editable mapping table */}
+            <View className="flex-row items-center justify-between mb-2">
+              <Text className="font-heading text-sm font-semibold text-foreground">
+                Edit Mappings
+              </Text>
+              <View className="flex-row gap-2">
+                <Button variant="outline" size="sm" onPress={handleAddRow} testID="mapping-add-row">
+                  <View className="flex-row items-center gap-1.5">
+                    <Plus size={14} color={colors.foreground} />
+                    <Text className="font-body text-xs font-medium text-foreground">Add Row</Text>
+                  </View>
+                </Button>
+                <Button variant="outline" size="sm" onPress={handleSaveCSV} testID="mapping-download-csv">
+                  <View className="flex-row items-center gap-1.5">
+                    <Download size={14} color={colors.foreground} />
+                    <Text className="font-body text-xs font-medium text-foreground">Download CSV</Text>
+                  </View>
+                </Button>
+              </View>
+            </View>
+
+            {/* Editable rows header */}
+            <View className="hidden border-b border-border pb-2 mb-1 md:flex-row">
+              <View className="w-10" />
+              <View className="flex-1 px-2">
+                <Text className="text-xs font-semibold text-muted-foreground">
+                  Source Type ({sourceERPName})
+                </Text>
+              </View>
+              <View className="w-10" />
+              <View className="flex-1 px-2">
+                <Text className="text-xs font-semibold text-muted-foreground">
+                  Target Type(s) ({targetERPName})
+                </Text>
+              </View>
+              <View className="w-12 items-center">
+                <Text className="text-xs font-semibold text-muted-foreground">Actions</Text>
+              </View>
+            </View>
+
+            <ScrollView style={{ maxHeight: 350 }}>
+              {typeMappingRows.map((row) => (
+                <AccountMappingRow
+                  key={row.id}
+                  row={row}
+                  targetTypes={targetTypes}
+                  onUpdateRow={handleUpdateRow}
+                  onDeleteRow={handleDeleteRow}
+                />
+              ))}
+              {typeMappingRows.length === 0 && (
+                <View className="items-center py-8">
+                  <Text className="font-body text-sm text-muted-foreground">
+                    No type mappings. Press &quot;Add Row&quot; to create one.
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+          </Card.Content>
+        </Card>
 
         {/* Footer buttons */}
-        <View className="flex-row items-center justify-center gap-3 pt-2">
+        <View className="flex-row items-center justify-end gap-3 pt-2">
           <Button
             variant="outline"
             onPress={handleBack}
@@ -258,15 +562,15 @@ export const MappingScreen = (): React.JSX.Element => {
 
           <Button
             variant="outline"
-            onPress={handleSaveCSV}
-            disabled={!hasCompleteMappings}
-            accessibilityLabel="Save mapping as CSV"
-            testID="mapping-save-button"
+            onPress={() => void handleClearMappings()}
+            disabled={accountTypeMappings.isSaving}
+            accessibilityLabel="Clear all type mappings"
+            testID="mapping-clear-button"
           >
             <View className="flex-row items-center gap-1.5">
-              <Save size={16} color={hasCompleteMappings ? colors.foreground : colors.mutedForeground} />
+              <Trash2 size={16} color={colors.destructive} />
               <Text className="font-body text-sm font-medium text-foreground">
-                Save Mapping
+                Clear All
               </Text>
             </View>
           </Button>
@@ -274,7 +578,7 @@ export const MappingScreen = (): React.JSX.Element => {
           <Button
             onPress={() => void handleProceed()}
             disabled={!canProceed}
-            isLoading={isMapping}
+            isLoading={isMapping || accountTypeMappings.isSaving}
             accessibilityLabel="Continue to COA mapping"
             testID="mapping-proceed-button"
           >
@@ -286,233 +590,90 @@ export const MappingScreen = (): React.JSX.Element => {
             </View>
           </Button>
         </View>
+        </>)}
       </View>
     </MigrationLayout>
   );
 };
 
-// ─── Mapping Preview Card ───────────────────────────────────────────────────
+// ─── Mapping Preview Table (no card wrapper) ───────────────────────────────
 
-interface MappingPreviewCardProps {
+interface MappingPreviewTableProps {
   rows: readonly TypeMappingRow[];
-  matched: number;
-  incomplete: number;
   sourceERPName: string;
   targetERPName: string;
 }
 
-const MappingPreviewCard = React.memo(function MappingPreviewCard({
+const MappingPreviewTable = React.memo(function MappingPreviewTable({
   rows,
-  matched,
-  incomplete,
   sourceERPName,
   targetERPName,
-}: MappingPreviewCardProps) {
-  // Only show rows that have a source type (exclude empty custom rows)
+}: MappingPreviewTableProps) {
   const previewRows = useMemo(
     () => rows.filter((r) => r.sourceType.trim().length > 0),
     [rows],
   );
 
   return (
-    <Card testID="mapping-preview-card">
-      <Card.Header>
-        <View className="flex-row items-center justify-between">
-          <View className="flex-row items-center gap-2">
-            <Eye size={18} color={colors.foreground} />
-            <Card.Title>Mapping Preview</Card.Title>
-          </View>
-          <View className="flex-row items-center gap-4">
-            <View className="flex-row items-center gap-1.5">
-              <View className="h-2.5 w-2.5 rounded-full bg-green-500" />
-              <Text className="font-body text-xs text-muted-foreground">
-                {matched} Complete
-              </Text>
-            </View>
-            <View className="flex-row items-center gap-1.5">
-              <View className="h-2.5 w-2.5 rounded-full bg-red-500" />
-              <Text className="font-body text-xs text-muted-foreground">
-                {incomplete} Incomplete
-              </Text>
-            </View>
-          </View>
+    <View>
+      <Text className="font-heading text-sm font-semibold text-foreground mb-2">
+        Preview
+      </Text>
+      <View className="flex-row border-b border-border pb-2 mb-1">
+        <View className="w-10 items-center">
+          <Text className="text-xs font-semibold text-muted-foreground">#</Text>
         </View>
-      </Card.Header>
-
-      <Card.Content>
-        {/* Table header */}
-        <View className="flex-row border-b border-border pb-2 mb-1">
-          <View className="w-10 items-center">
-            <Text className="text-xs font-semibold text-muted-foreground">#</Text>
-          </View>
-          <View className="flex-1 px-2">
-            <Text className="text-xs font-semibold text-muted-foreground">
-              Source Type ({sourceERPName})
-            </Text>
-          </View>
-          <View className="w-10 items-center" />
-          <View className="flex-1 px-2">
-            <Text className="text-xs font-semibold text-muted-foreground">
-              Target Type(s) ({targetERPName})
-            </Text>
-          </View>
-          <View className="w-12 items-center">
-            <Text className="text-xs font-semibold text-muted-foreground">Status</Text>
-          </View>
+        <View className="flex-1 px-2">
+          <Text className="text-xs font-semibold text-muted-foreground">
+            Source Type ({sourceERPName})
+          </Text>
         </View>
+        <View className="w-10 items-center" />
+        <View className="flex-1 px-2">
+          <Text className="text-xs font-semibold text-muted-foreground">
+            Target Type(s) ({targetERPName})
+          </Text>
+        </View>
+        <View className="w-12 items-center">
+          <Text className="text-xs font-semibold text-muted-foreground">Status</Text>
+        </View>
+      </View>
 
-        {/* Scrollable rows */}
-        <ScrollView style={{ maxHeight: 200 }}>
-          {previewRows.map((row, idx) => {
-            const isMatched = row.targetType.length > 0;
-            return (
-              <View
-                key={row.id}
-                className={cn(
-                  'flex-row items-center py-2 rounded',
+      <ScrollView style={{ maxHeight: 200 }}>
+        {previewRows.map((row, idx) => {
+          const isMatched = row.targetTypes.length > 0;
+          return (
+            <View key={row.id} className="flex-row items-center py-2">
+              <View className="w-10 items-center">
+                <Text className="font-mono text-xs text-muted-foreground">{idx + 1}</Text>
+              </View>
+              <View className="flex-1 px-2">
+                <Text className="font-mono text-sm text-foreground">{row.sourceType}</Text>
+              </View>
+              <View className="w-10 items-center">
+                <ArrowRight size={14} color={colors.mutedForeground} />
+              </View>
+              <View className="flex-1 px-2">
+                {isMatched ? (
+                  <Text className="font-body text-sm text-foreground">
+                    {row.targetTypes.join(', ')}
+                  </Text>
+                ) : (
+                  <Text className="font-body text-sm italic text-muted-foreground">Not mapped</Text>
                 )}
-              >
-                <View className="w-10 items-center">
-                  <Text className="font-mono text-xs text-muted-foreground">
-                    {idx + 1}
-                  </Text>
-                </View>
-                <View className="flex-1 px-2">
-                  <Text className="font-mono text-sm text-foreground">
-                    {row.sourceType}
-                  </Text>
-                </View>
-                <View className="w-10 items-center">
-                  <ArrowRight
-                    size={14}
-                    color={isMatched ? colors.success : colors.destructive}
-                  />
-                </View>
-                <View className="flex-1 px-2">
-                  {isMatched ? (
-                    <Text className="font-body text-sm text-foreground">
-                      {row.targetType}
-                    </Text>
-                  ) : (
-                    <Text className="font-body text-sm italic text-red-500 dark:text-red-400">
-                      Not mapped
-                    </Text>
-                  )}
-                </View>
-                <View className="w-12 items-center">
-                  {isMatched ? (
-                    <CheckCircle2 size={16} color={colors.success} />
-                  ) : (
-                    <X size={16} color={colors.destructive} />
-                  )}
-                </View>
               </View>
-            );
-          })}
-        </ScrollView>
-      </Card.Content>
-    </Card>
-  );
-});
-
-// ─── Account Type Mapping Card ──────────────────────────────────────────────
-
-interface AccountTypeMappingCardProps {
-  rows: readonly TypeMappingRow[];
-  targetOptions: readonly SelectOption[];
-  sourceERPName: string;
-  targetERPName: string;
-  onUpdateRow: (id: string, field: 'sourceType' | 'targetType', value: string) => void;
-  onAddRow: () => void;
-  onDeleteRow: (id: string) => void;
-  onSaveCSV: () => void;
-}
-
-const AccountTypeMappingCard = React.memo(function AccountTypeMappingCard({
-  rows,
-  targetOptions,
-  sourceERPName,
-  targetERPName,
-  onUpdateRow,
-  onAddRow,
-  onDeleteRow,
-  onSaveCSV,
-}: AccountTypeMappingCardProps) {
-  return (
-    <Card testID="account-type-mapping-card">
-      <Card.Header>
-        <View className="flex-row items-center justify-between">
-          <View className="gap-1">
-            <View className="flex-row items-center gap-2">
-              <Edit3 size={18} color={colors.foreground} />
-              <Card.Title>Account Type Mapping</Card.Title>
+              <View className="w-12 items-center">
+                {isMatched ? (
+                  <CheckCircle2 size={16} color={colors.primary} />
+                ) : (
+                  <X size={16} color={colors.mutedForeground} />
+                )}
+              </View>
             </View>
-            <Card.Description>
-              Select one or more target types for each source type
-            </Card.Description>
-          </View>
-          <View className="flex-row gap-2">
-            <Button variant="outline" size="sm" onPress={onAddRow} testID="mapping-add-row">
-              <View className="flex-row items-center gap-1.5">
-                <Plus size={14} color={colors.foreground} />
-                <Text className="font-body text-xs font-medium text-foreground">
-                  Add Row
-                </Text>
-              </View>
-            </Button>
-            <Button variant="outline" size="sm" onPress={onSaveCSV} testID="mapping-download-csv">
-              <View className="flex-row items-center gap-1.5">
-                <Download size={14} color={colors.foreground} />
-                <Text className="font-body text-xs font-medium text-foreground">
-                  Download CSV
-                </Text>
-              </View>
-            </Button>
-          </View>
-        </View>
-      </Card.Header>
-
-      <Card.Content>
-        {/* Table header */}
-        <View className="hidden border-b border-border pb-2 mb-1 md:flex-row">
-          <View className="w-10" />
-          <View className="flex-1 px-2">
-            <Text className="text-xs font-semibold text-muted-foreground">
-              Source Type ({sourceERPName})
-            </Text>
-          </View>
-          <View className="w-10" />
-          <View className="flex-1 px-2">
-            <Text className="text-xs font-semibold text-muted-foreground">
-              Target Type(s) ({targetERPName})
-            </Text>
-          </View>
-          <View className="w-12 items-center">
-            <Text className="text-xs font-semibold text-muted-foreground">Actions</Text>
-          </View>
-        </View>
-
-        {/* Scrollable rows */}
-        <ScrollView style={{ maxHeight: 350 }}>
-          {rows.map((row) => (
-            <AccountMappingRow
-              key={row.id}
-              row={row}
-              targetOptions={targetOptions}
-              onUpdateRow={onUpdateRow}
-              onDeleteRow={onDeleteRow}
-            />
-          ))}
-          {rows.length === 0 && (
-            <View className="items-center py-8">
-              <Text className="font-body text-sm text-muted-foreground">
-                No type mappings. Press &quot;Add Row&quot; to create one.
-              </Text>
-            </View>
-          )}
-        </ScrollView>
-      </Card.Content>
-    </Card>
+          );
+        })}
+      </ScrollView>
+    </View>
   );
 });
 
@@ -520,26 +681,29 @@ const AccountTypeMappingCard = React.memo(function AccountTypeMappingCard({
 
 interface AccountMappingRowProps {
   row: TypeMappingRow;
-  targetOptions: readonly SelectOption[];
-  onUpdateRow: (id: string, field: 'sourceType' | 'targetType', value: string) => void;
+  targetTypes: readonly string[];
+  onUpdateRow: (
+    id: string,
+    update: Partial<Pick<TypeMappingRow, 'sourceType' | 'targetTypes'>>,
+  ) => void;
   onDeleteRow: (id: string) => void;
 }
 
 const AccountMappingRow = React.memo(function AccountMappingRow({
   row,
-  targetOptions,
+  targetTypes,
   onUpdateRow,
   onDeleteRow,
 }: AccountMappingRowProps) {
-  const isMatched = row.targetType.length > 0;
+  const isMatched = row.targetTypes.length > 0;
 
   const handleSourceChange = useCallback(
-    (text: string) => onUpdateRow(row.id, 'sourceType', text),
+    (text: string) => onUpdateRow(row.id, { sourceType: text }),
     [row.id, onUpdateRow],
   );
 
   const handleTargetChange = useCallback(
-    (value: string) => onUpdateRow(row.id, 'targetType', value),
+    (values: readonly string[]) => onUpdateRow(row.id, { targetTypes: values }),
     [row.id, onUpdateRow],
   );
 
@@ -557,7 +721,7 @@ const AccountMappingRow = React.memo(function AccountMappingRow({
       {/* Status icon */}
       <View className="flex-row items-center gap-2 md:w-10 md:justify-center">
         {isMatched ? (
-          <CheckCircle2 size={16} color={colors.success} />
+          <CheckCircle2 size={16} color={colors.primary} />
         ) : (
           <X size={16} color={colors.destructive} />
         )}
@@ -581,17 +745,17 @@ const AccountMappingRow = React.memo(function AccountMappingRow({
       <View className="w-10 items-center">
         <ArrowRight
           size={14}
-          color={isMatched ? colors.success : colors.destructive}
+          color={isMatched ? colors.primary : colors.destructive}
         />
       </View>
 
-      {/* Target type select */}
+      {/* Target types multi-select */}
       <View className="flex-1 px-1">
-        <Select
-          options={[...targetOptions]}
-          value={row.targetType.length > 0 ? row.targetType : ''}
-          onValueChange={handleTargetChange}
-          placeholder="Select target type"
+        <MultiSelect
+          values={row.targetTypes}
+          options={targetTypes}
+          onChange={handleTargetChange}
+          placeholder="Select target types"
         />
       </View>
 

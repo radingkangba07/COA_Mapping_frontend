@@ -73,9 +73,9 @@ export const MappingStatsBar = ({
       <StatCard
         count={highConfidence}
         label="High (90%+)"
-        textClass="text-green-700 dark:text-green-400"
-        borderClass="border-green-400 dark:border-green-600"
-        confirmedBadgeClass="bg-green-600"
+        textClass="text-primary dark:text-blue-400"
+        borderClass="border-primary dark:border-blue-600"
+        confirmedBadgeClass="bg-primary"
         confirmed={confirmedHigh}
         isActive={activeFilter === 'high'}
         onPress={() => handlePress('high')}

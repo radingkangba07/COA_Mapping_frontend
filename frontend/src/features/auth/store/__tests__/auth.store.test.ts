@@ -1,7 +1,7 @@
-import type { Session, User } from '@/features/auth/types/auth.types';
+import type { User, TokenPair } from '@/features/auth/types/auth.types';
 import type { AppError } from '@/shared/types/result.types';
 import { ok, err } from '@/shared/types/result.types';
-import { createUserId } from '@/shared/types/common.types';
+import { createUserId, createOrgId } from '@/shared/types/common.types';
 
 // ─── Mocks ─────────────────────────────────────────────────────────────────
 
@@ -11,52 +11,62 @@ jest.mock('@/shared/services/http/http.instance', () => ({
   configureHttpClient: jest.fn(),
 }));
 jest.mock('@/shared/services/storage/storage.service', () => ({
-  storageService: {},
+  storageService: {
+    get: jest.fn().mockResolvedValue(null),
+    set: jest.fn().mockResolvedValue(undefined),
+    remove: jest.fn().mockResolvedValue(undefined),
+    clear: jest.fn().mockResolvedValue(undefined),
+  },
 }));
 
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import * as authService from '@/features/auth/services/auth.service';
 
 const mockLogin = authService.login as jest.MockedFunction<typeof authService.login>;
+const mockFetchUserProfile = authService.fetchUserProfile as jest.MockedFunction<
+  typeof authService.fetchUserProfile
+>;
+const mockRefreshTokens = authService.refreshTokens as jest.MockedFunction<
+  typeof authService.refreshTokens
+>;
 const mockLogout = authService.logout as jest.MockedFunction<typeof authService.logout>;
-const mockRestoreSession = authService.restoreSession as jest.MockedFunction<
-  typeof authService.restoreSession
+const mockPersistTokens = authService.persistTokens as jest.MockedFunction<
+  typeof authService.persistTokens
 >;
-const mockPersistSession = authService.persistSession as jest.MockedFunction<
-  typeof authService.persistSession
+const mockClearTokens = authService.clearTokens as jest.MockedFunction<
+  typeof authService.clearTokens
 >;
-const mockClearSession = authService.clearSession as jest.MockedFunction<
-  typeof authService.clearSession
+const mockLoadTokens = authService.loadTokens as jest.MockedFunction<
+  typeof authService.loadTokens
 >;
 
 // ─── Fixtures ──────────────────────────────────────────────────────────────
 
 const mockUser: User = {
+  id: 'uuid-user-1',
   userId: createUserId('user-1'),
   name: 'Test User',
   email: 'test@example.com',
+  isVerified: true,
+  organizations: [
+    { orgId: createOrgId('org-1'), name: 'Acme Corp', role: 'owner' },
+  ],
 };
 
-const mockSession: Session = {
-  token: 'test-token-123',
-  user: mockUser,
+const mockTokens: TokenPair = {
+  accessToken: 'access-token-123',
+  refreshToken: 'refresh-token-456',
 };
 
-const mockAppError: AppError = {
-  code: 'AUTH_FAILED',
-  message: 'Invalid credentials',
+const mockNewTokens: TokenPair = {
+  accessToken: 'new-access-token',
+  refreshToken: 'new-refresh-token',
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 function resetStore(): void {
-  useAuthStore.setState({
-    user: null,
-    token: null,
-    isLoading: false,
-    isRestoring: true,
-    error: null,
-  });
+  useAuthStore.setState(useAuthStore.getInitialState(), true);
 }
 
 // ─── Tests ─────────────────────────────────────────────────────────────────
@@ -65,6 +75,9 @@ describe('useAuthStore', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     resetStore();
+    mockPersistTokens.mockResolvedValue(undefined);
+    mockClearTokens.mockResolvedValue(undefined);
+    mockLogout.mockResolvedValue(ok(undefined));
   });
 
   describe('initial state', () => {
@@ -72,7 +85,8 @@ describe('useAuthStore', () => {
       const state = useAuthStore.getState();
 
       expect(state.user).toBeNull();
-      expect(state.token).toBeNull();
+      expect(state.accessToken).toBeNull();
+      expect(state.refreshToken).toBeNull();
       expect(state.isLoading).toBe(false);
       expect(state.isRestoring).toBe(true);
       expect(state.error).toBeNull();
@@ -80,83 +94,198 @@ describe('useAuthStore', () => {
   });
 
   describe('login', () => {
-    it('sets user and token on success, calls persistSession', async () => {
-      mockLogin.mockResolvedValue(ok(mockSession));
-      mockPersistSession.mockResolvedValue(ok(undefined));
+    it('sets loading, calls authService.login, clears loading on success', async () => {
+      mockLogin.mockResolvedValue(ok(undefined));
 
-      await useAuthStore.getState().login('user-1');
+      await useAuthStore.getState().login('jane@acme.com');
 
       const state = useAuthStore.getState();
-      expect(state.user).toEqual(mockUser);
-      expect(state.token).toBe('test-token-123');
       expect(state.isLoading).toBe(false);
       expect(state.error).toBeNull();
-      expect(mockPersistSession).toHaveBeenCalledTimes(1);
+      expect(state.accessToken).toBeNull();
+      expect(state.refreshToken).toBeNull();
+      expect(mockLogin).toHaveBeenCalledWith(expect.anything(), 'jane@acme.com');
     });
 
-    it('sets error on failure, does not set user or token', async () => {
-      mockLogin.mockResolvedValue(err(mockAppError));
+    it('sets error on failure', async () => {
+      const appError: AppError = { code: 'HTTP_404', message: 'user not found' };
+      mockLogin.mockResolvedValue(err(appError));
 
-      await useAuthStore.getState().login('user-1');
+      await useAuthStore.getState().login('unknown@acme.com');
 
       const state = useAuthStore.getState();
-      expect(state.user).toBeNull();
-      expect(state.token).toBeNull();
+      expect(state.error).toEqual(appError);
+      expect(state.error?.code).toBe('HTTP_404');
       expect(state.isLoading).toBe(false);
-      expect(state.error).toEqual(mockAppError);
-      expect(mockPersistSession).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleAuthCallback', () => {
+    it('persists tokens and hydrates user on success', async () => {
+      mockFetchUserProfile.mockResolvedValue(ok(mockUser));
+
+      await useAuthStore.getState().handleAuthCallback(mockTokens);
+
+      const state = useAuthStore.getState();
+      expect(state.accessToken).toBe(mockTokens.accessToken);
+      expect(state.refreshToken).toBe(mockTokens.refreshToken);
+      expect(state.user).toEqual(mockUser);
+      expect(state.isLoading).toBe(false);
+      expect(state.error).toBeNull();
+      expect(mockPersistTokens).toHaveBeenCalledWith(expect.anything(), mockTokens);
+    });
+
+    it('clears tokens on /auth/me failure', async () => {
+      const profileError: AppError = { code: 'HTTP_401', message: 'unauthorized' };
+      mockFetchUserProfile.mockResolvedValue(err(profileError));
+
+      await useAuthStore.getState().handleAuthCallback(mockTokens);
+
+      const state = useAuthStore.getState();
+      expect(state.accessToken).toBeNull();
+      expect(state.refreshToken).toBeNull();
+      expect(state.user).toBeNull();
+      expect(state.error).toEqual(profileError);
+      expect(state.isLoading).toBe(false);
+      expect(mockClearTokens).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('refreshTokens', () => {
+    it('returns false when no refresh token present', async () => {
+      const result = await useAuthStore.getState().refreshTokens();
+
+      expect(result).toBe(false);
+      expect(mockRefreshTokens).not.toHaveBeenCalled();
+    });
+
+    it('updates state and persists on success', async () => {
+      useAuthStore.setState({
+        accessToken: mockTokens.accessToken,
+        refreshToken: mockTokens.refreshToken,
+      });
+      mockRefreshTokens.mockResolvedValue(ok(mockNewTokens));
+
+      const result = await useAuthStore.getState().refreshTokens();
+
+      expect(result).toBe(true);
+      const state = useAuthStore.getState();
+      expect(state.accessToken).toBe(mockNewTokens.accessToken);
+      expect(state.refreshToken).toBe(mockNewTokens.refreshToken);
+      expect(mockPersistTokens).toHaveBeenCalledWith(expect.anything(), mockNewTokens);
+    });
+
+    it('returns false and does not mutate state on failure', async () => {
+      useAuthStore.setState({
+        accessToken: mockTokens.accessToken,
+        refreshToken: mockTokens.refreshToken,
+      });
+      const refreshError: AppError = { code: 'HTTP_401', message: 'refresh expired' };
+      mockRefreshTokens.mockResolvedValue(err(refreshError));
+
+      const result = await useAuthStore.getState().refreshTokens();
+
+      expect(result).toBe(false);
+      const state = useAuthStore.getState();
+      expect(state.accessToken).toBe(mockTokens.accessToken);
+      expect(state.refreshToken).toBe(mockTokens.refreshToken);
+      expect(mockPersistTokens).not.toHaveBeenCalled();
+      expect(mockClearTokens).not.toHaveBeenCalled();
     });
   });
 
   describe('logout', () => {
-    it('clears state, calls logout service and clearSession, sets isRestoring=false', async () => {
-      mockLogin.mockResolvedValue(ok(mockSession));
-      mockPersistSession.mockResolvedValue(ok(undefined));
-      mockLogout.mockResolvedValue(ok(undefined));
-      mockClearSession.mockResolvedValue(ok(undefined));
+    it('sends refresh token and resets state', async () => {
+      useAuthStore.setState({
+        user: mockUser,
+        accessToken: mockTokens.accessToken,
+        refreshToken: mockTokens.refreshToken,
+        isRestoring: false,
+      });
 
-      await useAuthStore.getState().login('user-1');
       await useAuthStore.getState().logout();
 
       const state = useAuthStore.getState();
       expect(state.user).toBeNull();
-      expect(state.token).toBeNull();
+      expect(state.accessToken).toBeNull();
+      expect(state.refreshToken).toBeNull();
       expect(state.isRestoring).toBe(false);
       expect(state.error).toBeNull();
-      expect(mockLogout).toHaveBeenCalledTimes(1);
-      expect(mockClearSession).toHaveBeenCalledTimes(1);
+      expect(mockLogout).toHaveBeenCalledWith(expect.anything(), mockTokens.refreshToken);
+      expect(mockClearTokens).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('restoreSession', () => {
-    it('sets user and token when session is found, sets isRestoring=false', async () => {
-      mockRestoreSession.mockResolvedValue(ok(mockSession));
+    it('sets isRestoring=false when no stored tokens', async () => {
+      mockLoadTokens.mockResolvedValue(null);
+
+      await useAuthStore.getState().restoreSession();
+
+      const state = useAuthStore.getState();
+      expect(state.isRestoring).toBe(false);
+      expect(state.user).toBeNull();
+      expect(state.accessToken).toBeNull();
+    });
+
+    it('with valid stored tokens hydrates user', async () => {
+      mockLoadTokens.mockResolvedValue(mockTokens);
+      mockFetchUserProfile.mockResolvedValue(ok(mockUser));
 
       await useAuthStore.getState().restoreSession();
 
       const state = useAuthStore.getState();
       expect(state.user).toEqual(mockUser);
-      expect(state.token).toBe('test-token-123');
+      expect(state.accessToken).toBe(mockTokens.accessToken);
+      expect(state.refreshToken).toBe(mockTokens.refreshToken);
       expect(state.isRestoring).toBe(false);
     });
 
-    it('sets isRestoring=false only when no session is found', async () => {
-      mockRestoreSession.mockResolvedValue(ok(null));
+    it('triggers refresh when /auth/me 401s and retries', async () => {
+      const meError: AppError = { code: 'HTTP_401', message: 'unauthorized' };
+      mockLoadTokens.mockResolvedValue(mockTokens);
+      // First fetchUserProfile fails, second succeeds (after refresh)
+      mockFetchUserProfile
+        .mockResolvedValueOnce(err(meError))
+        .mockResolvedValueOnce(ok(mockUser));
+      mockRefreshTokens.mockResolvedValue(ok(mockNewTokens));
+
+      await useAuthStore.getState().restoreSession();
+
+      const state = useAuthStore.getState();
+      expect(state.user).toEqual(mockUser);
+      expect(state.accessToken).toBe(mockNewTokens.accessToken);
+      expect(state.refreshToken).toBe(mockNewTokens.refreshToken);
+      expect(state.isRestoring).toBe(false);
+      expect(mockRefreshTokens).toHaveBeenCalledTimes(1);
+      expect(mockFetchUserProfile).toHaveBeenCalledTimes(2);
+    });
+
+    it('clears tokens when refresh also fails', async () => {
+      const meError: AppError = { code: 'HTTP_401', message: 'unauthorized' };
+      mockLoadTokens.mockResolvedValue(mockTokens);
+      mockFetchUserProfile.mockResolvedValue(err(meError));
+      mockRefreshTokens.mockResolvedValue(
+        err({ code: 'HTTP_401', message: 'refresh expired' }),
+      );
 
       await useAuthStore.getState().restoreSession();
 
       const state = useAuthStore.getState();
       expect(state.user).toBeNull();
-      expect(state.token).toBeNull();
+      expect(state.accessToken).toBeNull();
+      expect(state.refreshToken).toBeNull();
       expect(state.isRestoring).toBe(false);
+      expect(mockClearTokens).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('clearError', () => {
     it('sets error to null', async () => {
-      mockLogin.mockResolvedValue(err(mockAppError));
-      await useAuthStore.getState().login('user-1');
-      expect(useAuthStore.getState().error).toEqual(mockAppError);
+      const appError: AppError = { code: 'HTTP_404', message: 'not found' };
+      mockLogin.mockResolvedValue(err(appError));
+      await useAuthStore.getState().login('test@example.com');
+      expect(useAuthStore.getState().error).toEqual(appError);
 
       useAuthStore.getState().clearError();
 

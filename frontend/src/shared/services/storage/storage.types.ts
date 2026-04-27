@@ -6,10 +6,11 @@ export interface StorageService {
 }
 
 export const STORAGE_KEYS = {
-  AUTH_TOKEN: 'coa_auth_token',
-  USER_DATA: 'coa_user_data',
+  ACCESS_TOKEN: 'coa_access_token',
+  REFRESH_TOKEN: 'coa_refresh_token',
   THEME: 'coa_theme',
   LOCALE: 'coa_locale',
+  ACTIVE_ORG_ID: 'coa_active_org_id',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

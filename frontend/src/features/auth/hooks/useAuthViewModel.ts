@@ -16,7 +16,7 @@ interface AuthViewModel {
   readonly isAuthenticated: boolean;
   readonly isLoading: boolean;
   readonly error: AppError | null;
-  readonly login: (userId: string) => Promise<void>;
+  readonly login: (email: string) => Promise<void>;
   readonly logout: () => Promise<void>;
   readonly clearError: () => void;
 }
@@ -29,8 +29,8 @@ export function useAuthViewModel(): AuthViewModel {
   const isLoading = useAuthStore(selectAuthLoading);
   const error = useAuthStore(selectAuthError);
 
-  const login = useCallback((userId: string): Promise<void> => {
-    return useAuthStore.getState().login(userId);
+  const login = useCallback((email: string): Promise<void> => {
+    return useAuthStore.getState().login(email);
   }, []);
 
   const logout = useCallback((): Promise<void> => {

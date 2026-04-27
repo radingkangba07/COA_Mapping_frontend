@@ -5,11 +5,9 @@ import type { ERPSystem } from '@/features/migration/types/erp.types';
 import type {
   UploadedFile,
   TypeMappingRow,
-  DeletedAccount,
 } from '@/features/migration/types/migration.types';
 import type {
   GroupedMapping,
-  AccountMapping,
   ConfidenceLevel,
 } from '@/features/migration/types/mapping.types';
 import type { AppError } from '@/shared/types/result.types';
@@ -33,20 +31,21 @@ interface MigrationState {
 
   typeMappingRows: TypeMappingRow[];
   hasUnsavedChanges: boolean;
+  hasUnsavedTypeMappings: boolean;
   targetTypes: string[];
 
   groupedMappings: GroupedMapping[];
-  confidenceFilter: ConfidenceLevel | null;
   confirmedHigh: boolean;
   confirmedMedium: boolean;
   confirmedLow: boolean;
-  deletedAccounts: DeletedAccount[];
+  confidenceFilter: ConfidenceLevel | null;
 
   pendingSourceRemoval: boolean;
   pendingTargetRemoval: boolean;
   pendingMappingRemoval: boolean;
 
   projectId: string | null;
+  jobId: string | null;
   isLoading: boolean;
   error: AppError | null;
 }
@@ -65,11 +64,17 @@ interface MigrationActions {
   setMappingData: (file: UploadedFile, data: Record<string, unknown>[]) => void;
 
   setTypeMappingRows: (rows: TypeMappingRow[]) => void;
-  updateTypeMappingRow: (id: string, field: 'sourceType' | 'targetType', value: string) => void;
+  hydrateTypeMappingRows: (rows: TypeMappingRow[]) => void;
+  updateTypeMappingRow: (
+    id: string,
+    update: Partial<Pick<TypeMappingRow, 'sourceType' | 'targetTypes'>>,
+  ) => void;
   addTypeMappingRow: () => void;
   deleteTypeMappingRow: (id: string) => void;
   markChangesSaved: () => void;
+  markTypeMappingsSaved: () => void;
 
+  setConfidenceFilter: (filter: ConfidenceLevel | null) => void;
   setGroupedMappings: (mappings: GroupedMapping[]) => void;
   updateTypeMapping: (sourceType: string, targetType: string) => void;
   updateAccountName: (
@@ -78,10 +83,10 @@ interface MigrationActions {
     newName: string,
     userName: string,
     sourceName?: string,
+    suggestionId?: string,
   ) => void;
-  setConfidenceFilter: (filter: ConfidenceLevel | null) => void;
   confirmConfidenceLevel: (level: ConfidenceLevel) => void;
-  deleteAccount: (sourceType: string, sourceName: string) => void;
+  deleteAccount: (sourceType: string, sourceName: string, suggestionId?: string) => void;
   restoreAccount: (deletedIdx: number) => void;
 
   clearTargetERP: () => void;
@@ -93,6 +98,7 @@ interface MigrationActions {
 
   invalidateFromStep: (step: number) => void;
   setProjectId: (id: string) => void;
+  setJobId: (jobId: string | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: AppError | null) => void;
   reset: () => void;
@@ -118,20 +124,21 @@ const initialState: MigrationState = {
 
   typeMappingRows: [],
   hasUnsavedChanges: false,
+  hasUnsavedTypeMappings: false,
   targetTypes: [],
 
   groupedMappings: [],
-  confidenceFilter: null,
   confirmedHigh: false,
   confirmedMedium: false,
   confirmedLow: false,
-  deletedAccounts: [],
+  confidenceFilter: null,
 
   pendingSourceRemoval: false,
   pendingTargetRemoval: false,
   pendingMappingRemoval: false,
 
   projectId: null,
+  jobId: null,
   isLoading: false,
   error: null,
 };
@@ -152,17 +159,17 @@ function clearDownstreamState(state: MigrationState, fromStep: number): void {
     state.mappingData = [];
   }
   if (fromStep <= 2) {
+    state.jobId = null;
     state.typeMappingRows = [];
     state.hasUnsavedChanges = false;
+    state.hasUnsavedTypeMappings = false;
     state.targetTypes = [];
   }
   if (fromStep <= 3) {
     state.groupedMappings = [];
-    state.confidenceFilter = null;
     state.confirmedHigh = false;
     state.confirmedMedium = false;
     state.confirmedLow = false;
-    state.deletedAccounts = [];
   }
 }
 
@@ -173,7 +180,6 @@ export const useMigrationStore = create<MigrationStore>()(
     ...initialState,
 
     setStep: (step: number): void => {
-      console.log('[MigrationStore] setStep', step, new Error().stack?.split('\n').slice(1, 4).join(' <- '));
       set((state) => {
         state.currentStep = step;
       });
@@ -188,7 +194,6 @@ export const useMigrationStore = create<MigrationStore>()(
     },
 
     setSourceERP: (erp: ERPSystem): void => {
-      console.log('[MigrationStore] setSourceERP', erp.id);
       set((state) => {
         const changed = state.sourceERP !== null && state.sourceERP.id !== erp.id;
         if (changed && state.completedSteps.includes(0)) {
@@ -246,43 +251,72 @@ export const useMigrationStore = create<MigrationStore>()(
 
     setTypeMappingRows: (rows: TypeMappingRow[]): void => {
       set((state) => {
-        state.typeMappingRows = rows;
+        state.hasUnsavedTypeMappings = true;
+        state.typeMappingRows = rows.map((r) => ({
+          ...r,
+          targetTypes: [...r.targetTypes],
+        }));
       });
     },
 
-    updateTypeMappingRow: (id: string, field: 'sourceType' | 'targetType', value: string): void => {
+    hydrateTypeMappingRows: (rows: TypeMappingRow[]): void => {
+      set((state) => {
+        state.typeMappingRows = rows.map((r) => ({
+          ...r,
+          targetTypes: [...r.targetTypes],
+        }));
+      });
+    },
+
+    updateTypeMappingRow: (
+      id: string,
+      update: Partial<Pick<TypeMappingRow, 'sourceType' | 'targetTypes'>>,
+    ): void => {
       set((state) => {
         const row = state.typeMappingRows.find((r) => r.id === id);
-        if (row) {
-          row[field] = value;
-          state.hasUnsavedChanges = true;
+        if (!row) return;
+        state.hasUnsavedTypeMappings = true;
+        state.hasUnsavedChanges = true;
+        if (update.sourceType !== undefined) {
+          row.sourceType = update.sourceType;
+        }
+        if (update.targetTypes !== undefined) {
+          row.targetTypes = [...update.targetTypes];
         }
       });
     },
 
     addTypeMappingRow: (): void => {
       set((state) => {
+        state.hasUnsavedTypeMappings = true;
+        state.hasUnsavedChanges = true;
         const newRow: TypeMappingRow = {
           id: Date.now().toString(),
           sourceType: '',
-          targetType: '',
+          targetTypes: [],
           isCustom: true,
         };
-        state.typeMappingRows.push(newRow);
-        state.hasUnsavedChanges = true;
+        state.typeMappingRows.push(castDraft(newRow));
       });
     },
 
     deleteTypeMappingRow: (id: string): void => {
       set((state) => {
-        state.typeMappingRows = state.typeMappingRows.filter((r) => r.id !== id);
+        state.hasUnsavedTypeMappings = true;
         state.hasUnsavedChanges = true;
+        state.typeMappingRows = state.typeMappingRows.filter((r) => r.id !== id);
       });
     },
 
     markChangesSaved: (): void => {
       set((state) => {
         state.hasUnsavedChanges = false;
+      });
+    },
+
+    markTypeMappingsSaved: (): void => {
+      set((state) => {
+        state.hasUnsavedTypeMappings = false;
       });
     },
 
@@ -310,29 +344,25 @@ export const useMigrationStore = create<MigrationStore>()(
       newName: string,
       userName: string,
       sourceName?: string,
+      suggestionId?: string,
     ): void => {
       set((state) => {
         const group = state.groupedMappings.find(
           (g) => g.source_type === sourceType,
         );
         if (!group) return;
-        const account = sourceName
+        const account = suggestionId
+          ? group.accounts.find((a) => a.suggestion_id === suggestionId)
+          : sourceName
           ? group.accounts.find((a) => a.source_name === sourceName)
           : group.accounts[accountIdx];
         if (account) {
           account.target_name = newName;
-          account.score = newName.length > 0 ? 100 : 0;
           account.user_changed = true;
           account.changed_by_name = userName;
           account.changed_at = new Date().toISOString();
           state.hasUnsavedChanges = true;
         }
-      });
-    },
-
-    setConfidenceFilter: (filter: ConfidenceLevel | null): void => {
-      set((state) => {
-        state.confidenceFilter = filter;
       });
     },
 
@@ -354,10 +384,11 @@ export const useMigrationStore = create<MigrationStore>()(
         const { HIGH, MEDIUM } = CONFIDENCE_THRESHOLDS;
         for (const group of state.groupedMappings) {
           for (const account of group.accounts) {
+            const s = Math.round(account.score);
             const inBand =
-              (level === 'high' && account.score >= HIGH) ||
-              (level === 'medium' && account.score >= MEDIUM && account.score < HIGH) ||
-              (level === 'low' && account.score < MEDIUM);
+              (level === 'high' && s >= HIGH) ||
+              (level === 'medium' && s >= MEDIUM && s < HIGH) ||
+              (level === 'low' && s < MEDIUM);
             if (inBand) {
               (account as { status: string }).status = newStatus;
             }
@@ -366,62 +397,35 @@ export const useMigrationStore = create<MigrationStore>()(
       });
     },
 
-    deleteAccount: (sourceType: string, sourceName: string): void => {
+    deleteAccount: (sourceType: string, sourceName: string, suggestionId?: string): void => {
       set((state) => {
         const group = state.groupedMappings.find(
           (g) => g.source_type === sourceType,
         );
         if (!group) return;
-
-        const accountIdx = group.accounts.findIndex(
-          (a) => a.source_name === sourceName,
-        );
-        if (accountIdx === -1) return;
-        const account = group.accounts[accountIdx]!;
-
-        const deleted: DeletedAccount = {
-          sourceType,
-          accountIndex: accountIdx,
-          sourceNumber: account.source_number,
-          sourceName: account.source_name,
-        };
-        state.deletedAccounts.push(deleted);
-        group.accounts.splice(accountIdx, 1);
+        const account = suggestionId
+          ? group.accounts.find((a) => a.suggestion_id === suggestionId)
+          : group.accounts.find((a) => a.source_name === sourceName);
+        if (!account) return;
+        (account as { is_active?: boolean }).is_active = false;
         state.hasUnsavedChanges = true;
       });
     },
 
     restoreAccount: (deletedIdx: number): void => {
       set((state) => {
-        const deleted = state.deletedAccounts[deletedIdx];
-        if (!deleted) return;
-
-        state.deletedAccounts.splice(deletedIdx, 1);
-
-        let group = state.groupedMappings.find(
-          (g) => g.source_type === deleted.sourceType,
-        );
-
-        if (!group) {
-          const newGroup: GroupedMapping = {
-            source_type: deleted.sourceType,
-            target_type: '',
-            confidence: 0,
-            accounts: [],
-          };
-          state.groupedMappings.push(castDraft(newGroup));
-          group = state.groupedMappings[state.groupedMappings.length - 1];
-        }
-
-        if (group) {
-          const restoredAccount: AccountMapping = {
-            source_number: deleted.sourceNumber,
-            source_name: deleted.sourceName,
-            target_name: '',
-            score: 0,
-            remark: 'Restored',
-          };
-          group.accounts.push(restoredAccount);
+        let seen = 0;
+        for (const group of state.groupedMappings) {
+          for (const account of group.accounts) {
+            if (account.is_active === false) {
+              if (seen === deletedIdx) {
+                (account as { is_active?: boolean }).is_active = true;
+                state.hasUnsavedChanges = true;
+                return;
+              }
+              seen += 1;
+            }
+          }
         }
       });
     },
@@ -487,7 +491,16 @@ export const useMigrationStore = create<MigrationStore>()(
 
     setProjectId: (id: string): void => {
       set((state) => {
+        if (state.projectId !== id) {
+          state.confidenceFilter = null;
+        }
         state.projectId = id;
+      });
+    },
+
+    setJobId: (jobId: string | null): void => {
+      set((state) => {
+        state.jobId = jobId;
       });
     },
 
@@ -503,9 +516,14 @@ export const useMigrationStore = create<MigrationStore>()(
       });
     },
 
+    setConfidenceFilter: (filter: ConfidenceLevel | null): void => {
+      set((state) => {
+        state.confidenceFilter = filter;
+      });
+    },
+
     reset: (): void => {
-      console.log('[MigrationStore] reset() called', new Error().stack?.split('\n').slice(1, 4).join(' <- '));
-      set(() => ({ ...initialState }));
+      set((state) => ({ ...initialState, confidenceFilter: state.confidenceFilter }));
     },
   })),
 );

@@ -29,13 +29,24 @@ function createMockClient(): jest.Mocked<Pick<AxiosInstance, 'get' | 'post'>> {
 
 // ─── Test Factories ────────────────────────────────────────────────────────
 
-function makeTypeMappingRow(overrides: Partial<TypeMappingRow> = {}): TypeMappingRow {
+interface TypeMappingRowFactoryInput {
+  readonly id?: string;
+  readonly sourceType?: string;
+  readonly targetType?: string;
+  readonly targetTypes?: readonly string[];
+  readonly isCustom?: boolean;
+}
+
+function makeTypeMappingRow(overrides: TypeMappingRowFactoryInput = {}): TypeMappingRow {
+  const { targetType, targetTypes, ...rest } = overrides;
+  const resolvedTargets =
+    targetTypes ?? (targetType !== undefined ? (targetType.length > 0 ? [targetType] : []) : ['Fixed Asset']);
   return {
     id: 'row-1',
     sourceType: 'Asset',
-    targetType: 'Fixed Asset',
+    targetTypes: resolvedTargets,
     isCustom: true,
-    ...overrides,
+    ...rest,
   };
 }
 
@@ -61,13 +72,9 @@ function makeHierarchicalResponse(
   overrides: Partial<HierarchicalMappingResponse> = {},
 ): HierarchicalMappingResponse {
   return {
-    type_column: 'Account Type',
-    name_column: 'Account Name',
-    number_column: 'Account Number',
-    target_types: ['Asset', 'Liability', 'Equity'],
-    grouped_mappings: [makeGroupedMapping()],
-    total_accounts: 10,
-    total_types: 3,
+    job_id: 'job-001',
+    project_id: 'proj-001',
+    status: 'pending',
     ...overrides,
   };
 }
@@ -157,6 +164,28 @@ describe('buildCustomTypeMappings', () => {
 
     const result = buildCustomTypeMappings(rows);
     expect(result).toEqual({ Asset: 'Second' });
+  });
+
+  it('flattens multi-target rows to the first target (hierarchical endpoint is single-target)', () => {
+    const rows: readonly TypeMappingRow[] = [
+      makeTypeMappingRow({
+        id: 'multi',
+        sourceType: 'Asset',
+        targetTypes: ['Primary Asset', 'Secondary Asset', 'Tertiary Asset'],
+      }),
+    ];
+
+    const result = buildCustomTypeMappings(rows);
+    expect(result).toEqual({ Asset: 'Primary Asset' });
+  });
+
+  it('skips multi-target rows with an empty first entry', () => {
+    const rows: readonly TypeMappingRow[] = [
+      makeTypeMappingRow({ sourceType: 'Asset', targetTypes: [] }),
+    ];
+
+    const result = buildCustomTypeMappings(rows);
+    expect(result).toEqual({});
   });
 });
 
@@ -265,18 +294,51 @@ describe('toMappingCreateDTOs', () => {
     expect((result[0] as unknown as Record<string, unknown>)['target_type']).toBeUndefined();
   });
 
-  it('maps confidence_score from account score', () => {
+  it('emits confidence_score on UPDATE rows (id + user_changed)', () => {
     const groups: readonly GroupedMapping[] = [
       makeGroupedMapping({
         accounts: [
-          { source_number: '1000', source_name: 'Cash', target_name: 'Cash Equiv', score: 45, remark: '' },
+          {
+            id: 'm-1',
+            source_number: '1000',
+            source_name: 'Cash',
+            target_name: 'Cash Equiv (edited)',
+            score: 45,
+            remark: '',
+            user_changed: true,
+          },
         ],
       }),
     ];
 
     const result = toMappingCreateDTOs('proj-1', groups);
 
+    expect(result).toHaveLength(1);
+    expect(result[0]?.id).toBe('m-1');
     expect(result[0]?.confidence_score).toBe(45);
+    expect(result[0]?.target_account_name).toBe('Cash Equiv (edited)');
+  });
+
+  it('skips UPDATE rows that were not edited by the user', () => {
+    const groups: readonly GroupedMapping[] = [
+      makeGroupedMapping({
+        accounts: [
+          {
+            id: 'm-1',
+            source_number: '1000',
+            source_name: 'Cash',
+            target_name: 'Cash Equiv',
+            score: 95,
+            remark: '',
+            // user_changed intentionally omitted — row is untouched
+          },
+        ],
+      }),
+    ];
+
+    const result = toMappingCreateDTOs('proj-1', groups);
+
+    expect(result).toHaveLength(0);
   });
 
   it('produces one DTO per account across all groups', () => {
@@ -304,6 +366,175 @@ describe('toMappingCreateDTOs', () => {
     expect(result[2]?.source_account_type).toBe('Liability');
     expect(result[2]?.target_account_type).toBe('Current Liability');
   });
+
+  it('never emits mapping_status from Save — status changes go through bulk-status', () => {
+    const groups: readonly GroupedMapping[] = [
+      makeGroupedMapping({
+        accounts: [
+          {
+            source_number: '1000',
+            source_name: 'Cash',
+            target_name: 'Cash Equiv',
+            score: 95,
+            remark: '',
+            status: 'confirmed', // present on the domain entity, must NOT propagate
+          },
+          {
+            id: 'm-2',
+            source_number: '1001',
+            source_name: 'AR',
+            target_name: 'AR edited',
+            score: 55,
+            remark: '',
+            status: 'pending',
+            user_changed: true,
+          },
+        ],
+      }),
+    ];
+
+    const result = toMappingCreateDTOs('proj-1', groups);
+
+    for (const dto of result) {
+      expect(dto.mapping_status).toBeUndefined();
+    }
+  });
+
+  it('emits a minimal tombstone DTO for a deleted confirmed mapping (id + is_active:false)', () => {
+    const groups: readonly GroupedMapping[] = [
+      makeGroupedMapping({
+        accounts: [
+          {
+            id: 'm-1',
+            source_number: '1000',
+            source_name: 'Cash',
+            target_name: 'Cash Equiv',
+            score: 95,
+            remark: '',
+            is_active: false,
+          },
+        ],
+      }),
+    ];
+
+    const result = toMappingCreateDTOs('proj-1', groups);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({
+      project_id: 'proj-1',
+      id: 'm-1',
+      is_active: false,
+    });
+  });
+
+  it('emits a minimal tombstone DTO for a deleted suggestion (suggestion_id + is_active:false)', () => {
+    const groups: readonly GroupedMapping[] = [
+      makeGroupedMapping({
+        accounts: [
+          {
+            suggestion_id: 'sug-1',
+            source_number: '1000',
+            source_name: 'Cash',
+            target_name: 'Cash Equiv',
+            score: 90,
+            remark: '',
+            is_active: false,
+          },
+        ],
+      }),
+    ];
+
+    const result = toMappingCreateDTOs('proj-1', groups);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({
+      project_id: 'proj-1',
+      suggestion_id: 'sug-1',
+      is_active: false,
+    });
+  });
+
+  it('drops deletions of brand-new local rows that never reached the server', () => {
+    const groups: readonly GroupedMapping[] = [
+      makeGroupedMapping({
+        accounts: [
+          {
+            source_number: '1000',
+            source_name: 'Cash',
+            target_name: 'Cash Equiv',
+            score: 0,
+            remark: '',
+            is_active: false,
+          },
+        ],
+      }),
+    ];
+
+    const result = toMappingCreateDTOs('proj-1', groups);
+
+    expect(result).toHaveLength(0);
+  });
+
+  it('never sets is_active on edit/insert DTOs (backend default = true)', () => {
+    const groups: readonly GroupedMapping[] = [
+      makeGroupedMapping({
+        accounts: [
+          {
+            id: 'm-1',
+            source_name: 'Cash',
+            source_number: '1000',
+            target_name: 'Cash Equiv (edited)',
+            score: 95,
+            remark: '',
+            user_changed: true,
+          },
+          {
+            suggestion_id: 'sug-1',
+            source_name: 'AR',
+            source_number: '1100',
+            target_name: 'Receivable',
+            score: 88,
+            remark: '',
+          },
+        ],
+      }),
+    ];
+
+    const result = toMappingCreateDTOs('proj-1', groups);
+
+    for (const dto of result) {
+      expect(dto.is_active).toBeUndefined();
+    }
+  });
+
+  it('promotes a suggestion with suggestion_id but no id to an INSERT DTO', () => {
+    const groups: readonly GroupedMapping[] = [
+      makeGroupedMapping({
+        source_type: 'Asset',
+        target_type: 'Fixed Asset',
+        accounts: [
+          {
+            suggestion_id: 'sug-1',
+            source_number: '1000',
+            source_name: 'Cash',
+            target_name: 'Cash Equiv',
+            score: 90,
+            remark: '',
+          },
+        ],
+      }),
+    ];
+
+    const result = toMappingCreateDTOs('proj-1', groups);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.suggestion_id).toBe('sug-1');
+    expect(result[0]?.id).toBeUndefined();
+    expect(result[0]?.source_account_name).toBe('Cash');
+    expect(result[0]?.target_account_name).toBe('Cash Equiv');
+    expect(result[0]?.source_account_type).toBe('Asset');
+    expect(result[0]?.target_account_type).toBe('Fixed Asset');
+  });
 });
 
 // ─── getHierarchicalMapping ────────────────────────────────────────────────
@@ -314,21 +545,17 @@ describe('getHierarchicalMapping', () => {
     const responseData = makeHierarchicalResponse();
     mockClient.post.mockResolvedValue(makeAxiosResponse(responseData));
 
-    const sourceData = [{ 'Account Name': 'Cash' }];
-
     const result = await getHierarchicalMapping(
       mockClient as unknown as AxiosInstance,
-      sourceData,
-      undefined,
-      'sap',
-      'xero',
+      'proj-001',
+      'src-file-001',
+      'tgt-file-001',
     );
 
     expect(mockClient.post).toHaveBeenCalledWith('/api/v1/mappings/hierarchical', {
-      source_data: sourceData,
-      target_data: undefined,
-      source_erp: 'sap',
-      target_erp: 'xero',
+      project_id: 'proj-001',
+      source_file_id: 'src-file-001',
+      target_file_id: 'tgt-file-001',
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -336,26 +563,23 @@ describe('getHierarchicalMapping', () => {
     }
   });
 
-  it('sends target_data when provided', async () => {
+  it('sends mapping_file_id when provided', async () => {
     const mockClient = createMockClient();
     mockClient.post.mockResolvedValue(makeAxiosResponse(makeHierarchicalResponse()));
 
-    const sourceData = [{ name: 'Cash' }];
-    const targetData = [{ name: 'Cash and Equivalents' }];
-
     await getHierarchicalMapping(
       mockClient as unknown as AxiosInstance,
-      sourceData,
-      targetData,
-      'sap',
-      'xero',
+      'proj-001',
+      'src-001',
+      'tgt-001',
+      'map-001',
     );
 
     expect(mockClient.post).toHaveBeenCalledWith('/api/v1/mappings/hierarchical', {
-      source_data: sourceData,
-      target_data: targetData,
-      source_erp: 'sap',
-      target_erp: 'xero',
+      project_id: 'proj-001',
+      source_file_id: 'src-001',
+      target_file_id: 'tgt-001',
+      mapping_file_id: 'map-001',
     });
   });
 
@@ -366,7 +590,9 @@ describe('getHierarchicalMapping', () => {
 
     const result = await getHierarchicalMapping(
       mockClient as unknown as AxiosInstance,
-      [],
+      'proj-001',
+      'src-001',
+      'tgt-001',
     );
 
     expect(result.ok).toBe(false);
@@ -391,7 +617,9 @@ describe('getHierarchicalMapping', () => {
 
     const result = await getHierarchicalMapping(
       mockClient as unknown as AxiosInstance,
-      [],
+      'proj-001',
+      'src-001',
+      'tgt-001',
     );
 
     expect(result.ok).toBe(false);
@@ -405,14 +633,14 @@ describe('getHierarchicalMapping', () => {
 // ─── saveMappings ──────────────────────────────────────────────────────────
 
 describe('saveMappings', () => {
-  it('posts to /api/v1/mappings/bulk and returns ok result', async () => {
+  it('posts to /api/v1/mappings/project/{projectId} and returns ok result', async () => {
     const mockClient = createMockClient();
     const responseData: BulkSaveResponseDTO = {
-      created: 2,
-      mappings: [
-        makeMappingResponseDTO({ id: 'mapping-1' }),
-        makeMappingResponseDTO({ id: 'mapping-2' }),
-      ],
+      success: true,
+      mapping_count: 2,
+      project_id: 'p-001',
+      inserted: 1,
+      updated: 1,
     };
     mockClient.post.mockResolvedValue(makeAxiosResponse(responseData));
 
@@ -422,7 +650,7 @@ describe('saveMappings', () => {
         source_account_name: 'Cash',
         target_account_name: 'Cash and Equivalents',
         confidence_score: 92,
-        status: 'confirmed',
+        mapping_status: 'confirmed',
       },
     ];
 
@@ -432,11 +660,11 @@ describe('saveMappings', () => {
       mappings,
     );
 
-    expect(mockClient.post).toHaveBeenCalledWith('/api/v1/mappings/bulk', mappings, { params: { project_id: 'p-001' } });
+    expect(mockClient.post).toHaveBeenCalledWith('/api/v1/mappings/project/p-001', mappings);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.data.created).toBe(2);
-      expect(result.data.mappings).toHaveLength(2);
+      expect(result.data.inserted).toBe(1);
+      expect(result.data.updated).toBe(1);
     }
   });
 

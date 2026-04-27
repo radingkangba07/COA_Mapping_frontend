@@ -34,7 +34,7 @@ function getLineColor(
   completedSteps: readonly number[],
 ): string {
   return completedSteps.includes(leftIndex)
-    ? colors.success
+    ? colors.primary
     : colors.border;
 }
 
@@ -97,8 +97,8 @@ export const MigrationStepper = ({
                 key={label}
                 className={cn(
                   'h-2 w-2 rounded-full',
-                  status === 'completed' && 'bg-success',
-                  status === 'active' && 'bg-primary',
+                  status === 'completed' && 'bg-primary',
+                  status === 'active' && 'bg-accent',
                   status === 'upcoming' && 'bg-border',
                 )}
               />

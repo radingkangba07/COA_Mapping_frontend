@@ -1,56 +1,118 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { AuthState, AuthStore } from '../types/auth.types';
+import { castDraft } from 'immer';
+import type { AuthState, AuthStore, TokenPair } from '../types/auth.types';
 import * as authService from '../services/auth.service';
 import { httpClient, configureHttpClient } from '@/shared/services/http/http.instance';
 import { storageService } from '@/shared/services/storage/storage.service';
+import { useAppStore } from '@/shared/store/app.store';
 
 // ─── Initial State ───────────────────────────────────────────────────────────
 
 const initialState: AuthState = {
   user: null,
-  token: null,
+  accessToken: null,
+  refreshToken: null,
   isLoading: false,
   isRestoring: true,
+  sessionExpired: false,
   error: null,
 };
 
 // ─── Store ───────────────────────────────────────────────────────────────────
 
 export const useAuthStore = create<AuthStore>()(
-  immer((set) => ({
+  immer((set, get) => ({
     ...initialState,
 
-    login: async (userId: string): Promise<void> => {
+    login: async (email: string): Promise<void> => {
       set((state) => {
         state.isLoading = true;
         state.error = null;
       });
 
-      const result = await authService.login(httpClient, userId);
+      const result = await authService.login(httpClient, email);
 
-      if (result.ok) {
-        set((state) => {
-          state.user = result.data.user;
-          state.token = result.data.token;
-          state.isLoading = false;
-        });
-        await authService.persistSession(storageService, result.data);
-      } else {
+      if (!result.ok) {
         set((state) => {
           state.error = result.error;
+          state.isLoading = false;
+        });
+      } else {
+        set((state) => {
           state.isLoading = false;
         });
       }
     },
 
+    handleAuthCallback: async (tokens: TokenPair): Promise<void> => {
+      set((state) => {
+        state.accessToken = tokens.accessToken;
+        state.refreshToken = tokens.refreshToken;
+        state.isLoading = true;
+        state.error = null;
+      });
+
+      await authService.persistTokens(storageService, tokens);
+
+      const profileResult = await authService.fetchUserProfile(httpClient);
+
+      if (profileResult.ok) {
+        set((state) => {
+          state.user = castDraft(profileResult.data);
+          state.isLoading = false;
+        });
+      } else {
+        await authService.clearTokens(storageService);
+        set((state) => {
+          state.accessToken = null;
+          state.refreshToken = null;
+          state.user = null;
+          state.error = profileResult.error;
+          state.isLoading = false;
+        });
+      }
+    },
+
+    refreshTokens: async (): Promise<boolean> => {
+      const current = get().refreshToken;
+
+      if (current === null) {
+        return false;
+      }
+
+      const result = await authService.refreshTokens(httpClient, current);
+
+      if (!result.ok) {
+        return false;
+      }
+
+      set((state) => {
+        state.accessToken = result.data.accessToken;
+        state.refreshToken = result.data.refreshToken;
+      });
+
+      await authService.persistTokens(storageService, result.data);
+
+      return true;
+    },
+
     logout: async (): Promise<void> => {
-      await authService.logout(httpClient);
-      await authService.clearSession(storageService);
+      const current = get().refreshToken;
+      await authService.logout(httpClient, current);
+      await authService.clearTokens(storageService);
+      useAppStore.getState().setActiveOrg(null);
       set(() => ({
         ...initialState,
         isRestoring: false,
+        sessionExpired: false,
       }));
+    },
+
+    markSessionExpired: (): void => {
+      set((state) => {
+        state.sessionExpired = true;
+      });
     },
 
     restoreSession: async (): Promise<void> => {
@@ -58,22 +120,56 @@ export const useAuthStore = create<AuthStore>()(
         state.isRestoring = true;
       });
 
-      const result = await authService.restoreSession(storageService);
+      const tokens = await authService.loadTokens(storageService);
 
-      if (result.ok && result.data !== null) {
-        const { user, token } = result.data;
+      if (tokens === null) {
         set((state) => {
-          state.user = user;
-          state.token = token;
+          state.isRestoring = false;
+        });
+        return;
+      }
+
+      set((state) => {
+        state.accessToken = tokens.accessToken;
+        state.refreshToken = tokens.refreshToken;
+      });
+
+      const profileResult = await authService.fetchUserProfile(httpClient);
+
+      if (profileResult.ok) {
+        set((state) => {
+          state.user = castDraft(profileResult.data);
+          state.isRestoring = false;
+        });
+        return;
+      }
+
+      // /auth/me failed — attempt a token refresh
+      const refreshed = await get().refreshTokens();
+
+      if (!refreshed) {
+        await authService.clearTokens(storageService);
+        set(() => ({
+          ...initialState,
+          isRestoring: false,
+        }));
+        return;
+      }
+
+      // Retry profile fetch after successful refresh
+      const retryResult = await authService.fetchUserProfile(httpClient);
+
+      if (retryResult.ok) {
+        set((state) => {
+          state.user = castDraft(retryResult.data);
           state.isRestoring = false;
         });
       } else {
-        set((state) => {
-          state.isRestoring = false;
-          if (!result.ok) {
-            state.error = result.error;
-          }
-        });
+        await authService.clearTokens(storageService);
+        set(() => ({
+          ...initialState,
+          isRestoring: false,
+        }));
       }
     },
 
@@ -88,6 +184,10 @@ export const useAuthStore = create<AuthStore>()(
 // ─── Wire HTTP Client ───────────────────────────────────────────────────────
 
 configureHttpClient({
-  getToken: () => useAuthStore.getState().token,
-  onUnauthorized: () => void useAuthStore.getState().logout(),
+  getAccessToken: () => useAuthStore.getState().accessToken,
+  refresh: () => useAuthStore.getState().refreshTokens(),
+  onLogout: () => {
+    if (useAuthStore.getState().user === null) return;
+    useAuthStore.getState().markSessionExpired();
+  },
 });

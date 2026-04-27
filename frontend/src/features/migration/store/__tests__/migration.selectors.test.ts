@@ -5,7 +5,6 @@ import {
   selectTargetERP,
   selectTypeMappingSummary,
   selectMappingStats,
-  selectFilteredMappings,
   selectAllConfirmed,
 } from '@/features/migration/store/migration.selectors';
 import type { MigrationStore } from '@/features/migration/store/migration.store';
@@ -27,14 +26,18 @@ function createMockState(overrides: Partial<MigrationStore> = {}): MigrationStor
     mappingData: [],
     typeMappingRows: [],
     hasUnsavedChanges: false,
+    hasUnsavedTypeMappings: false,
     targetTypes: [],
     groupedMappings: [],
-    confidenceFilter: null,
     confirmedHigh: false,
     confirmedMedium: false,
     confirmedLow: false,
-    deletedAccounts: [],
+    confidenceFilter: null,
+    pendingSourceRemoval: false,
+    pendingTargetRemoval: false,
+    pendingMappingRemoval: false,
     projectId: null,
+    jobId: null,
     isLoading: false,
     error: null,
     setStep: jest.fn(),
@@ -45,14 +48,15 @@ function createMockState(overrides: Partial<MigrationStore> = {}): MigrationStor
     setTargetData: jest.fn(),
     setMappingData: jest.fn(),
     setTypeMappingRows: jest.fn(),
+    hydrateTypeMappingRows: jest.fn(),
     updateTypeMappingRow: jest.fn(),
     addTypeMappingRow: jest.fn(),
     deleteTypeMappingRow: jest.fn(),
     markChangesSaved: jest.fn(),
+    markTypeMappingsSaved: jest.fn(),
     setGroupedMappings: jest.fn(),
     updateTypeMapping: jest.fn(),
     updateAccountName: jest.fn(),
-    setConfidenceFilter: jest.fn(),
     confirmConfidenceLevel: jest.fn(),
     deleteAccount: jest.fn(),
     restoreAccount: jest.fn(),
@@ -60,10 +64,14 @@ function createMockState(overrides: Partial<MigrationStore> = {}): MigrationStor
     clearSourceFile: jest.fn(),
     clearTargetFile: jest.fn(),
     clearMappingFile: jest.fn(),
+    clearPendingRemovals: jest.fn(),
     setTargetTypes: jest.fn(),
+    invalidateFromStep: jest.fn(),
     setProjectId: jest.fn(),
+    setJobId: jest.fn(),
     setLoading: jest.fn(),
     setError: jest.fn(),
+    setConfidenceFilter: jest.fn(),
     reset: jest.fn(),
     ...overrides,
   } as MigrationStore;
@@ -161,9 +169,9 @@ describe('selectTypeMappingSummary', () => {
   it('counts total and matched rows correctly', () => {
     const state = createMockState({
       typeMappingRows: [
-        { id: '1', sourceType: 'Asset', targetType: 'Assets', isCustom: false },
-        { id: '2', sourceType: 'Liability', targetType: '', isCustom: false },
-        { id: '3', sourceType: 'Revenue', targetType: 'Income', isCustom: false },
+        { id: '1', sourceType: 'Asset', targetTypes: ['Assets'], isCustom: false },
+        { id: '2', sourceType: 'Liability', targetTypes: [], isCustom: false },
+        { id: '3', sourceType: 'Revenue', targetTypes: ['Income'], isCustom: false },
       ],
     });
     const result = selectTypeMappingSummary(state);
@@ -172,11 +180,16 @@ describe('selectTypeMappingSummary', () => {
     expect(result.allMatched).toBe(false);
   });
 
-  it('sets allMatched true when all rows have non-empty targetType', () => {
+  it('sets allMatched true when all rows have at least one targetType', () => {
     const state = createMockState({
       typeMappingRows: [
-        { id: '1', sourceType: 'Asset', targetType: 'Assets', isCustom: false },
-        { id: '2', sourceType: 'Liability', targetType: 'Liabilities', isCustom: false },
+        { id: '1', sourceType: 'Asset', targetTypes: ['Assets'], isCustom: false },
+        {
+          id: '2',
+          sourceType: 'Liability',
+          targetTypes: ['Liabilities', 'Other Liability'],
+          isCustom: false,
+        },
       ],
     });
     const result = selectTypeMappingSummary(state);
@@ -318,86 +331,6 @@ describe('selectMappingStats', () => {
     });
 
     expect(selectMappingStats(state).lowConfidence).toBe(1);
-  });
-});
-
-// ─── selectFilteredMappings ─────────────────────────────────────────────────
-
-describe('selectFilteredMappings', () => {
-  const groupedMappings: GroupedMapping[] = [
-    createGroup({
-      source_type: 'Asset',
-      accounts: [
-        createAccount({ score: 95 }),
-        createAccount({ score: 80 }),
-        createAccount({ score: 50 }),
-      ],
-    }),
-    createGroup({
-      source_type: 'Liability',
-      accounts: [
-        createAccount({ score: 92 }),
-        createAccount({ score: 72 }),
-      ],
-    }),
-    createGroup({
-      source_type: 'Expense',
-      accounts: [
-        createAccount({ score: 40 }),
-      ],
-    }),
-  ];
-
-  it('returns all groups when confidenceFilter is null', () => {
-    const state = createMockState({ groupedMappings, confidenceFilter: null });
-    const result = selectFilteredMappings(state);
-    expect(result).toEqual(groupedMappings);
-  });
-
-  it('returns empty array for empty groupedMappings', () => {
-    const state = createMockState({ groupedMappings: [], confidenceFilter: 'high' });
-    expect(selectFilteredMappings(state)).toEqual([]);
-  });
-
-  it('filters to only high confidence accounts (>= 90)', () => {
-    const state = createMockState({ groupedMappings, confidenceFilter: 'high' });
-    const result = selectFilteredMappings(state);
-
-    expect(result).toHaveLength(2);
-    expect(result[0]?.accounts).toHaveLength(1);
-    expect(result[0]?.accounts[0]?.score).toBe(95);
-    expect(result[1]?.accounts).toHaveLength(1);
-    expect(result[1]?.accounts[0]?.score).toBe(92);
-  });
-
-  it('filters to only medium confidence accounts (>= 70 and < 90)', () => {
-    const state = createMockState({ groupedMappings, confidenceFilter: 'medium' });
-    const result = selectFilteredMappings(state);
-
-    expect(result).toHaveLength(2);
-    expect(result[0]?.accounts).toHaveLength(1);
-    expect(result[0]?.accounts[0]?.score).toBe(80);
-    expect(result[1]?.accounts).toHaveLength(1);
-    expect(result[1]?.accounts[0]?.score).toBe(72);
-  });
-
-  it('filters to only low confidence accounts (< 70)', () => {
-    const state = createMockState({ groupedMappings, confidenceFilter: 'low' });
-    const result = selectFilteredMappings(state);
-
-    expect(result).toHaveLength(2);
-    expect(result[0]?.accounts).toHaveLength(1);
-    expect(result[0]?.accounts[0]?.score).toBe(50);
-    expect(result[1]?.accounts).toHaveLength(1);
-    expect(result[1]?.accounts[0]?.score).toBe(40);
-  });
-
-  it('removes groups with no matching accounts after filtering', () => {
-    const state = createMockState({ groupedMappings, confidenceFilter: 'high' });
-    const result = selectFilteredMappings(state);
-    const sourceTypes = result.map((g) => g.source_type);
-
-    expect(sourceTypes).not.toContain('Expense');
   });
 });
 

@@ -2,14 +2,14 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable, ScrollView, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { CheckCircle, Circle, Eye, X } from 'lucide-react-native';
+import { CheckCircle, Circle, Eye, Info, X } from 'lucide-react-native';
 import { Button } from '@/shared/components/ui/Button';
+import { Card } from '@/shared/components/ui/Card';
 import { Spinner } from '@/shared/components/ui/Spinner';
 import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorFallback';
 import { MigrationLayout } from '../components/MigrationLayout';
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
 import { FileUploader } from '../components/FileUploader/FileUploader';
-import { ERPSummaryCard } from '../components/ERPSummaryCard';
 import { SampleFilesTable } from '../components/SampleFilesTable';
 import { useMigrationViewModel } from '../hooks/useMigrationViewModel';
 import { useMigrationStore } from '../store/migration.store';
@@ -21,6 +21,7 @@ import type { MigrationStackParamList } from '@/navigation/types';
 import type { PickedFile } from '../hooks/useFileUpload';
 import { STEP_TO_SCREEN } from '@/shared/constants/migration-steps';
 import type { MigrationStepValue } from '@/shared/constants/migration-steps';
+import { useToast } from '@/shared/hooks/useToast';
 
 type MigrationNavigation = NativeStackNavigationProp<MigrationStackParamList>;
 
@@ -173,8 +174,8 @@ export function UploadScreen(): React.JSX.Element {
       scroll
       testID="upload-screen"
     >
-      <View className="flex-1 max-w-4xl lg:max-w-6xl self-center w-full py-6 gap-6 lg:gap-8">
-        <View className="flex-1 gap-6 lg:gap-8">
+      <View className="flex-1 max-w-5xl lg:max-w-6xl self-center w-full py-4 gap-4">
+        <View className="flex-1 gap-4">
           <MigrationStepper
             currentStep={currentStep}
             completedSteps={completedSteps}
@@ -185,8 +186,9 @@ export function UploadScreen(): React.JSX.Element {
             }}
           />
 
-          <View className="items-center gap-1">
-            <Text className="font-heading text-xl font-bold text-foreground" testID="upload-screen-title">
+          {/* Title */}
+          <View className="gap-0.5">
+            <Text className="font-heading text-lg font-bold text-foreground" testID="upload-screen-title">
               Upload COA Files
             </Text>
             <Text className="font-body text-sm text-muted-foreground">
@@ -194,49 +196,53 @@ export function UploadScreen(): React.JSX.Element {
             </Text>
           </View>
 
-          <ERPSummaryCard
-            sourceName={sourceERP?.name ?? 'Not selected'}
-            targetName={targetERP?.name ?? 'Not selected'}
-            sourceErpId={sourceERP?.id}
-            targetErpId={targetERP?.id}
-          />
+          {/* Single card: ERP info + File upload + Sample files */}
+          <Card testID="upload-files-card">
+            <Card.Content className="gap-0">
+              {sourceERP && targetERP ? (
+                <View testID="upload-erp-summary" className="flex-row items-center gap-1.5 rounded-md px-3 py-2 mb-4" style={{ backgroundColor: 'rgba(0,51,153,0.05)' }}>
+                  <Info size={14} color="#003399" />
+                  <Text className="font-body text-sm text-muted-foreground">
+                    Migrating from <Text className="font-medium" style={{ color: '#003399' }}>{sourceERP.name}</Text>
+                    {' → '}
+                    <Text className="font-medium" style={{ color: '#003399' }}>{targetERP.name}</Text>
+                  </Text>
+                </View>
+              ) : null}
+              <FileUploader
+                sourceFile={sourceFileInfo}
+                targetFile={targetFileInfo}
+                mappingFile={mappingFileInfo}
+                onSourceFilePicked={onSourceFilePicked}
+                onTargetFilePicked={onTargetFilePicked}
+                onMappingFilePicked={onMappingFilePicked}
+                onSourceRemove={handleRemoveSourceFile}
+                onTargetRemove={handleRemoveTargetFile}
+                onMappingRemove={handleRemoveMappingFile}
+                onSourcePreview={onSourcePreview}
+                onTargetPreview={onTargetPreview}
+                onMappingPreview={onMappingPreview}
+                isUploading={isLoading}
+                testID="upload-file-uploader"
+              />
 
-          <FileUploader
-            sourceFile={sourceFileInfo}
-            targetFile={targetFileInfo}
-            mappingFile={mappingFileInfo}
-            onSourceFilePicked={onSourceFilePicked}
-            onTargetFilePicked={onTargetFilePicked}
-            onMappingFilePicked={onMappingFilePicked}
-            onSourceRemove={handleRemoveSourceFile}
-            onTargetRemove={handleRemoveTargetFile}
-            onMappingRemove={handleRemoveMappingFile}
-            onSourcePreview={onSourcePreview}
-            onTargetPreview={onTargetPreview}
-            onMappingPreview={onMappingPreview}
-            isUploading={isLoading}
-            testID="upload-file-uploader"
-          />
+              <View className="border-t border-border mt-4 pt-4">
+                <SampleFilesTable
+                  sourceErpId={sourceERP?.id}
+                  sourceErpName={sourceERP?.name}
+                  targetErpId={targetERP?.id}
+                  targetErpName={targetERP?.name}
+                  onDownload={onDownloadSample}
+                  onPreview={onPreviewSample}
+                  onLoadAll={handleLoadAllSamples}
+                  isLoading={isLoading}
+                  testID="sample-files-table"
+                />
+              </View>
+            </Card.Content>
+          </Card>
 
-          <SampleFilesTable
-            sourceErpId={sourceERP?.id}
-            sourceErpName={sourceERP?.name}
-            targetErpId={targetERP?.id}
-            targetErpName={targetERP?.name}
-            onDownload={onDownloadSample}
-            onPreview={onPreviewSample}
-            onLoadAll={handleLoadAllSamples}
-            isLoading={isLoading}
-            testID="sample-files-table"
-          />
-
-          <UploadStatusCard
-            sourceFile={sourceFileInfo}
-            targetFile={targetFileInfo}
-            mappingFile={mappingFileInfo}
-          />
-
-          <View className="flex-row items-center justify-center gap-3 pt-2">
+          <View className="flex-row items-center justify-end gap-3 pt-2">
             <Button
               variant="outline"
               onPress={handleBack}
@@ -409,13 +415,13 @@ function UploadStatusCard({ sourceFile, targetFile, mappingFile }: UploadStatusC
             )}
             <Text
               className={`font-body text-xs font-medium ${
-                item.file !== null ? 'text-green-800 dark:text-green-400' : 'text-muted-foreground'
+                item.file !== null ? 'text-foreground' : 'text-muted-foreground'
               }`}
             >
               {item.label}
             </Text>
             {item.file !== null && (
-              <Text className="font-mono text-xs text-green-700 dark:text-green-500">
+              <Text className="font-mono text-xs text-muted-foreground">
                 {item.file.rowCount} {item.unit}
               </Text>
             )}

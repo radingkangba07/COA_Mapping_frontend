@@ -11,7 +11,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ClipboardList, X } from 'lucide-react-native';
 import { colors } from '@/config/theme';
 import { BREAKPOINTS } from '@/shared/utils/platform.utils';
-import { MigrationTopBar } from './MigrationTopBar';
 import { SidebarContent } from './ProjectSidebar/SidebarContent';
 import { useSidebarData } from '../hooks/useSidebarData';
 import { useMigrationFlowDetector } from '@/navigation/hooks/useMigrationFlowDetector';
@@ -60,14 +59,6 @@ export const MigrationLayout = ({
 
   return (
     <SafeAreaView className="flex-1 bg-background" testID={testID}>
-      <MigrationTopBar
-        title={title}
-        subtitle={subtitle}
-        onBack={onBack}
-        rightActions={rightActions}
-        testID={testID ? `${testID}-topbar` : undefined}
-      />
-
       <View className="flex-1 flex-row">
         {isDesktop ? (
           <View className="w-64 border-r border-border bg-card">
