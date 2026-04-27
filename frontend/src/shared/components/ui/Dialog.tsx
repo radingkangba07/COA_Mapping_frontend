@@ -29,25 +29,27 @@ const DialogRoot = React.forwardRef<View, DialogRootProps>(
       onRequestClose={onClose}
       testID={testID}
     >
-      <Pressable
-        className="flex-1 items-center justify-center bg-black/50"
-        onPress={onClose}
-        accessibilityRole="button"
-        accessibilityLabel="Close dialog"
-      >
+      <View className="flex-1 items-center justify-center">
+        <Pressable
+          className="absolute inset-0 bg-black/50"
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close dialog"
+        />
+
         <Pressable
           ref={ref}
           onPress={(e) => e.stopPropagation()}
           accessibilityRole="none"
           className={cn(
-            'rounded-lg border border-border bg-card shadow-lg',
+            'z-10 rounded-lg border border-border bg-card shadow-lg',
             isWeb ? 'max-w-lg w-full' : 'mx-4 w-full',
             className,
           )}
         >
           {children}
         </Pressable>
-      </Pressable>
+      </View>
     </Modal>
   ),
 );

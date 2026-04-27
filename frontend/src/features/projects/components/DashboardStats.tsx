@@ -4,7 +4,7 @@ import { FolderOpen, Building2, CheckCircle } from 'lucide-react-native';
 import { colors } from '@/config/theme';
 
 interface StatCardProps {
-  icon: React.ReactNode;
+  icon: React.ReactElement;
   value: number;
   label: string;
   testID?: string;
@@ -13,14 +13,18 @@ interface StatCardProps {
 function StatCard({ icon, value, label, testID }: StatCardProps) {
   return (
     <View
-      className="flex-1 rounded-lg border border-border bg-card p-4 flex-row items-center gap-3"
+      className="flex-1 bg-card rounded-xl border border-border px-5 py-4"
       testID={testID}
     >
-      {icon}
-      <View>
-        <Text className="text-2xl font-bold text-foreground">{value}</Text>
-        <Text className="text-sm text-muted-foreground">{label}</Text>
+      <View className="flex-row items-center justify-between">
+        <Text className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {label}
+        </Text>
+        {icon}
       </View>
+      <Text className="font-heading text-3xl font-bold text-foreground mt-2">
+        {value}
+      </Text>
     </View>
   );
 }
@@ -32,54 +36,28 @@ interface DashboardStatsProps {
   testID?: string;
 }
 
-const PURPLE = '#7C3AED';
-
 export function DashboardStats({
   totalProjects,
   totalCompanies,
   completedProjects,
   testID,
 }: DashboardStatsProps) {
-  const accentColor = colors.accent;
-  const successColor = colors.success;
-
   return (
     <View className="flex-row gap-4" testID={testID}>
       <StatCard
-        icon={
-          <View
-            className="h-10 w-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: `${accentColor}26` }}
-          >
-            <FolderOpen size={20} color={accentColor} />
-          </View>
-        }
+        icon={<FolderOpen size={16} color={colors.mutedForeground} />}
         value={totalProjects}
         label="Projects"
         testID={testID ? `${testID}-projects` : undefined}
       />
       <StatCard
-        icon={
-          <View
-            className="h-10 w-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: `${PURPLE}26` }}
-          >
-            <Building2 size={20} color={PURPLE} />
-          </View>
-        }
+        icon={<Building2 size={16} color={colors.mutedForeground} />}
         value={totalCompanies}
         label="Companies"
         testID={testID ? `${testID}-companies` : undefined}
       />
       <StatCard
-        icon={
-          <View
-            className="h-10 w-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: `${successColor}26` }}
-          >
-            <CheckCircle size={20} color={successColor} />
-          </View>
-        }
+        icon={<CheckCircle size={16} color={colors.mutedForeground} />}
         value={completedProjects}
         label="Completed"
         testID={testID ? `${testID}-completed` : undefined}

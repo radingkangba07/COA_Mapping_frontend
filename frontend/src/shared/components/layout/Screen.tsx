@@ -19,7 +19,7 @@ export const Screen = ({
   testID,
 }: ScreenProps): React.JSX.Element => {
   const content = (
-    <View className="mx-auto w-full px-4 md:px-6 lg:max-w-7xl lg:px-8 flex-1">
+    <View className="mx-auto w-full px-4 md:px-6 lg:px-8 flex-1">
       {children}
     </View>
   );

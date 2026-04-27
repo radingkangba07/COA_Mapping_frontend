@@ -2,13 +2,17 @@ import { AxiosError, AxiosHeaders } from 'axios';
 import type { HttpClient } from '@/shared/services/http/http.types';
 import type { StorageService } from '@/shared/services/storage/storage.types';
 import { STORAGE_KEYS } from '@/shared/services/storage/storage.types';
-import { createUserId } from '@/shared/types/common.types';
+import { createUserId, createOrgId } from '@/shared/types/common.types';
 import {
   login,
+  fetchUserProfile,
+  refreshTokens,
   logout,
-  restoreSession,
-  persistSession,
-  clearSession,
+  persistTokens,
+  loadTokens,
+  clearTokens,
+  register,
+  resendVerification,
 } from '@/features/auth/services/auth.service';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -61,104 +65,214 @@ function createAxiosError(status: number, message: string): AxiosError {
   );
 }
 
-// ─── login ──────────────────────────────────────────────────────────────────
+// ─── Valid DTOs ──────────────────────────────────────────────────────────────
 
-describe('login', () => {
-  it('returns Session with correct user mapping on success', async () => {
-    const apiResponse = {
-      user: { user_id: 'usr-123', name: 'Jane Doe', email: 'jane@example.com' },
-      token: 'jwt-token-abc',
-    };
+const validMeResponse = {
+  id: 'uuid-usr-123',
+  user_id: 'usr-123',
+  name: 'Jane Doe',
+  email: 'jane@example.com',
+  is_verified: true,
+  orgs: [
+    { id: 'org-1', name: 'Acme Inc', role: 'owner' as const },
+    { id: 'org-2', name: 'Beta Corp', role: 'member' as const },
+  ],
+};
+
+const validTokenPairResponse = {
+  access_token: 'new-access-tok',
+  refresh_token: 'new-refresh-tok',
+};
+
+// ─── login (magic link) ────────────────────────────────────────────────────
+
+describe('login (magic link)', () => {
+  it('returns ok on 200', async () => {
     const client = createMockHttpClient({
-      post: jest.fn().mockResolvedValue({ data: apiResponse }),
+      post: jest.fn().mockResolvedValue({ data: { message: 'Login link sent' } }),
     });
 
-    const result = await login(client, 'usr-123');
+    const result = await login(client, 'jane@acme.com');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data).toBeUndefined();
+    expect(client.post).toHaveBeenCalledWith(
+      '/api/v1/auth/login',
+      { email: 'jane@acme.com' },
+    );
+  });
+
+  it('returns mapped AppError on 404', async () => {
+    const client = createMockHttpClient({
+      post: jest.fn().mockRejectedValue(createAxiosError(404, 'user not found')),
+    });
+
+    const result = await login(client, 'unknown@acme.com');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('HTTP_404');
+    expect(result.error.message).toBe('user not found');
+  });
+
+  it('returns mapped AppError on 403', async () => {
+    const client = createMockHttpClient({
+      post: jest.fn().mockRejectedValue(createAxiosError(403, 'email not verified')),
+    });
+
+    const result = await login(client, 'unverified@acme.com');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('HTTP_403');
+    expect(result.error.message).toBe('email not verified');
+  });
+});
+
+// ─── fetchUserProfile ──────────────────────────────────────────────────────
+
+describe('fetchUserProfile', () => {
+  it('returns parsed User with organizations on 200', async () => {
+    const client = createMockHttpClient({
+      get: jest.fn().mockResolvedValue({ data: validMeResponse }),
+    });
+
+    const result = await fetchUserProfile(client);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.data).toEqual({
-      token: 'jwt-token-abc',
-      user: {
-        userId: createUserId('usr-123'),
-        name: 'Jane Doe',
-        email: 'jane@example.com',
-      },
+      id: 'uuid-usr-123',
+      userId: createUserId('usr-123'),
+      name: 'Jane Doe',
+      email: 'jane@example.com',
+      isVerified: true,
+      organizations: [
+        { orgId: createOrgId('org-1'), name: 'Acme Inc', role: 'owner' },
+        { orgId: createOrgId('org-2'), name: 'Beta Corp', role: 'member' },
+      ],
     });
-    expect(client.post).toHaveBeenCalledWith(
-      '/api/v1/auth/login',
-      { user_id: 'usr-123' },
-    );
+    expect(result.data.organizations).toHaveLength(2);
+    expect(client.get).toHaveBeenCalledWith('/api/v1/auth/me');
   });
 
-  it('returns AppError when HTTP request fails', async () => {
+  it('returns INVALID_RESPONSE on schema mismatch', async () => {
     const client = createMockHttpClient({
-      post: jest.fn().mockRejectedValue(createAxiosError(401, 'Unauthorized')),
+      get: jest.fn().mockResolvedValue({ data: { wrong_field: true } }),
     });
 
-    const result = await login(client, 'usr-bad');
-
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.code).toBe('HTTP_401');
-    expect(result.error.message).toBe('Unauthorized');
-  });
-
-  it('returns INVALID_RESPONSE error when response shape is invalid', async () => {
-    const client = createMockHttpClient({
-      post: jest.fn().mockResolvedValue({
-        data: { wrong_field: true },
-      }),
-    });
-
-    const result = await login(client, 'usr-123');
+    const result = await fetchUserProfile(client);
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe('INVALID_RESPONSE');
-    expect(result.error.message).toBe('Login response failed validation');
+    expect(result.error.message).toBe('User profile response failed validation');
     expect(result.error.details).toHaveProperty('issues');
   });
 
-  it('maps user_id to branded UserId type', async () => {
-    const apiResponse = {
-      user: { user_id: 'uid-456', name: 'Bob' },
-      token: 'tok',
-    };
+  it('returns AppError on network error', async () => {
     const client = createMockHttpClient({
-      post: jest.fn().mockResolvedValue({ data: apiResponse }),
+      get: jest.fn().mockRejectedValue(new Error('Network Error')),
     });
 
-    const result = await login(client, 'uid-456');
+    const result = await fetchUserProfile(client);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('UNKNOWN_ERROR');
+    expect(result.error.message).toBe('Network Error');
+  });
+});
+
+// ─── refreshTokens ─────────────────────────────────────────────────────────
+
+describe('refreshTokens', () => {
+  it('returns ok with new TokenPair on 200', async () => {
+    const client = createMockHttpClient({
+      post: jest.fn().mockResolvedValue({ data: validTokenPairResponse }),
+    });
+
+    const result = await refreshTokens(client, 'old-refresh-tok');
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data.user.userId).toBe('uid-456');
+    expect(result.data).toEqual({
+      accessToken: 'new-access-tok',
+      refreshToken: 'new-refresh-tok',
+    });
+    expect(client.post).toHaveBeenCalledWith(
+      '/api/v1/auth/refresh',
+      { refresh_token: 'old-refresh-tok' },
+    );
+  });
+
+  it('returns INVALID_RESPONSE on schema mismatch', async () => {
+    const client = createMockHttpClient({
+      post: jest.fn().mockResolvedValue({ data: { foo: 'bar' } }),
+    });
+
+    const result = await refreshTokens(client, 'old-refresh-tok');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('INVALID_RESPONSE');
+    expect(result.error.message).toBe('Token refresh response failed validation');
+    expect(result.error.details).toHaveProperty('issues');
+  });
+
+  it('returns AppError on 401 (refresh token expired)', async () => {
+    const client = createMockHttpClient({
+      post: jest.fn().mockRejectedValue(createAxiosError(401, 'Token expired')),
+    });
+
+    const result = await refreshTokens(client, 'expired-refresh-tok');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('HTTP_401');
+    expect(result.error.message).toBe('Token expired');
   });
 });
 
 // ─── logout ─────────────────────────────────────────────────────────────────
 
 describe('logout', () => {
-  it('returns ok(undefined) on successful logout', async () => {
+  it('sends refresh_token in body when provided', async () => {
     const client = createMockHttpClient({
       post: jest.fn().mockResolvedValue({ data: {} }),
     });
 
-    const result = await logout(client);
+    const result = await logout(client, 'rt-abc');
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.data).toBeUndefined();
-    expect(client.post).toHaveBeenCalledWith('/api/v1/auth/logout');
+    expect(client.post).toHaveBeenCalledWith(
+      '/api/v1/auth/logout',
+      { refresh_token: 'rt-abc' },
+    );
   });
 
-  it('returns ok(undefined) even when API throws', async () => {
+  it('sends undefined body when refreshToken is null', async () => {
+    const client = createMockHttpClient({
+      post: jest.fn().mockResolvedValue({ data: {} }),
+    });
+
+    await logout(client, null);
+
+    expect(client.post).toHaveBeenCalledWith(
+      '/api/v1/auth/logout',
+      undefined,
+    );
+  });
+
+  it('swallows network errors and still returns ok', async () => {
     const client = createMockHttpClient({
       post: jest.fn().mockRejectedValue(createAxiosError(500, 'Server error')),
     });
 
-    const result = await logout(client);
+    const result = await logout(client, 'rt-abc');
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -166,156 +280,163 @@ describe('logout', () => {
   });
 });
 
-// ─── restoreSession ─────────────────────────────────────────────────────────
+// ─── persistTokens / loadTokens / clearTokens ──────────────────────────────
 
-describe('restoreSession', () => {
-  it('returns null when no token in storage', async () => {
+describe('persistTokens / loadTokens / clearTokens', () => {
+  it('round-trips tokens through persist and load', async () => {
+    const storage = createMockStorage();
+    const tokens = { accessToken: 'at-123', refreshToken: 'rt-456' };
+
+    await persistTokens(storage, tokens);
+
+    const loaded = await loadTokens(storage);
+
+    expect(loaded).toEqual(tokens);
+    expect(storage.set).toHaveBeenCalledWith(STORAGE_KEYS.ACCESS_TOKEN, 'at-123');
+    expect(storage.set).toHaveBeenCalledWith(STORAGE_KEYS.REFRESH_TOKEN, 'rt-456');
+  });
+
+  it('loadTokens returns null when no tokens stored', async () => {
     const storage = createMockStorage();
 
-    const result = await restoreSession(storage);
+    const loaded = await loadTokens(storage);
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.data).toBeNull();
+    expect(loaded).toBeNull();
   });
 
-  it('returns null when token exists but user data is missing', async () => {
+  it('loadTokens returns null when only access token stored', async () => {
     const storage = createMockStorage({
-      [STORAGE_KEYS.AUTH_TOKEN]: 'stored-token',
+      [STORAGE_KEYS.ACCESS_TOKEN]: 'at-only',
     });
 
-    const result = await restoreSession(storage);
+    const loaded = await loadTokens(storage);
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.data).toBeNull();
+    expect(loaded).toBeNull();
   });
 
-  it('returns Session when valid data exists in storage', async () => {
-    const userData = JSON.stringify({
-      userId: 'usr-789',
-      name: 'Alice',
-      email: 'alice@example.com',
-    });
+  it('loadTokens returns null when only refresh token stored', async () => {
     const storage = createMockStorage({
-      [STORAGE_KEYS.AUTH_TOKEN]: 'stored-token',
-      [STORAGE_KEYS.USER_DATA]: userData,
+      [STORAGE_KEYS.REFRESH_TOKEN]: 'rt-only',
     });
 
-    const result = await restoreSession(storage);
+    const loaded = await loadTokens(storage);
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.data).toEqual({
-      token: 'stored-token',
-      user: {
-        userId: createUserId('usr-789'),
-        name: 'Alice',
-        email: 'alice@example.com',
-      },
-    });
+    expect(loaded).toBeNull();
   });
 
-  it('returns null when stored user data is invalid JSON', async () => {
+  it('clearTokens removes both token keys', async () => {
     const storage = createMockStorage({
-      [STORAGE_KEYS.AUTH_TOKEN]: 'stored-token',
-      [STORAGE_KEYS.USER_DATA]: '{{not-json',
+      [STORAGE_KEYS.ACCESS_TOKEN]: 'at-123',
+      [STORAGE_KEYS.REFRESH_TOKEN]: 'rt-456',
     });
 
-    const result = await restoreSession(storage);
+    await clearTokens(storage);
 
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.code).toBeDefined();
-  });
+    expect(storage.remove).toHaveBeenCalledWith(STORAGE_KEYS.ACCESS_TOKEN);
+    expect(storage.remove).toHaveBeenCalledWith(STORAGE_KEYS.REFRESH_TOKEN);
 
-  it('returns null when stored user data fails schema validation', async () => {
-    const storage = createMockStorage({
-      [STORAGE_KEYS.AUTH_TOKEN]: 'stored-token',
-      [STORAGE_KEYS.USER_DATA]: JSON.stringify({ wrong: 'shape' }),
-    });
-
-    const result = await restoreSession(storage);
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.data).toBeNull();
+    const loaded = await loadTokens(storage);
+    expect(loaded).toBeNull();
   });
 });
 
-// ─── persistSession ─────────────────────────────────────────────────────────
+// ─── register ──────────────────────────────────────────────────────────────
 
-describe('persistSession', () => {
-  it('saves token and user JSON to storage', async () => {
-    const storage = createMockStorage();
-    const session = {
-      token: 'jwt-persist',
-      user: {
-        userId: createUserId('usr-100'),
-        name: 'Charlie',
-        email: 'charlie@example.com' as string | undefined,
-      },
-    };
+describe('register', () => {
+  const validData = { name: 'Jane Doe', email: 'jane@acme.com', orgName: 'Acme Inc' };
 
-    const result = await persistSession(storage, session);
+  it('returns ok with parsed user_id and message on 201', async () => {
+    const client = createMockHttpClient({
+      post: jest.fn().mockResolvedValue({
+        data: { user_id: 'u1', message: 'Verification email sent' },
+      }),
+    });
+
+    const result = await register(client, validData);
 
     expect(result.ok).toBe(true);
-    expect(storage.set).toHaveBeenCalledWith(
-      STORAGE_KEYS.AUTH_TOKEN,
-      'jwt-persist',
-    );
-    expect(storage.set).toHaveBeenCalledWith(
-      STORAGE_KEYS.USER_DATA,
-      JSON.stringify(session.user),
+    if (!result.ok) return;
+    expect(result.data).toEqual({ userId: 'u1', message: 'Verification email sent' });
+    expect(client.post).toHaveBeenCalledWith(
+      '/api/v1/auth/register',
+      { name: 'Jane Doe', email: 'jane@acme.com', org_name: 'Acme Inc' },
     );
   });
 
-  it('returns error when storage.set fails', async () => {
-    const storage = createMockStorage();
-    (storage.set as jest.Mock).mockRejectedValue(new Error('Storage full'));
-    const session = {
-      token: 'jwt-fail',
-      user: {
-        userId: createUserId('usr-101'),
-        name: 'Dave',
-        email: undefined,
-      },
-    };
+  it('returns INVALID_RESPONSE error on schema mismatch', async () => {
+    const client = createMockHttpClient({
+      post: jest.fn().mockResolvedValue({ data: { foo: 'bar' } }),
+    });
 
-    const result = await persistSession(storage, session);
+    const result = await register(client, validData);
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error.message).toBe('Storage full');
+    expect(result.error.code).toBe('INVALID_RESPONSE');
+    expect(result.error.message).toBe('Register response failed validation');
+    expect(result.error.details).toHaveProperty('issues');
+  });
+
+  it('returns mapped AppError on 409 email duplicate', async () => {
+    const client = createMockHttpClient({
+      post: jest.fn().mockRejectedValue(
+        createAxiosError(409, 'Email already registered'),
+      ),
+    });
+
+    const result = await register(client, validData);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('HTTP_409');
+    expect(result.error.message).toBe('Email already registered');
+  });
+
+  it('returns mapped AppError on 409 org duplicate', async () => {
+    const client = createMockHttpClient({
+      post: jest.fn().mockRejectedValue(
+        createAxiosError(409, 'Organization name already taken'),
+      ),
+    });
+
+    const result = await register(client, validData);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('HTTP_409');
+    expect(result.error.message).toBe('Organization name already taken');
   });
 });
 
-// ─── clearSession ───────────────────────────────────────────────────────────
+// ─── resendVerification ────────────────────────────────────────────────────
 
-describe('clearSession', () => {
-  it('removes both auth keys from storage', async () => {
-    const storage = createMockStorage({
-      [STORAGE_KEYS.AUTH_TOKEN]: 'old-token',
-      [STORAGE_KEYS.USER_DATA]: '{}',
+describe('resendVerification', () => {
+  it('returns ok on 200', async () => {
+    const client = createMockHttpClient({
+      post: jest.fn().mockResolvedValue({ data: {} }),
     });
 
-    const result = await clearSession(storage);
+    const result = await resendVerification(client, 'jane@acme.com');
 
     expect(result.ok).toBe(true);
-    expect(storage.remove).toHaveBeenCalledWith(STORAGE_KEYS.AUTH_TOKEN);
-    expect(storage.remove).toHaveBeenCalledWith(STORAGE_KEYS.USER_DATA);
+    if (!result.ok) return;
+    expect(result.data).toBeUndefined();
+    expect(client.post).toHaveBeenCalledWith(
+      '/api/v1/auth/resend-verification',
+      { email: 'jane@acme.com' },
+    );
   });
 
-  it('returns error when storage.remove fails', async () => {
-    const storage = createMockStorage();
-    (storage.remove as jest.Mock).mockRejectedValue(
-      new Error('Permission denied'),
-    );
+  it('returns mapped AppError on network failure', async () => {
+    const client = createMockHttpClient({
+      post: jest.fn().mockRejectedValue(new Error('Network Error')),
+    });
 
-    const result = await clearSession(storage);
+    const result = await resendVerification(client, 'jane@acme.com');
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error.message).toBe('Permission denied');
+    expect(result.error.code).toBe('UNKNOWN_ERROR');
+    expect(result.error.message).toBe('Network Error');
   });
 });

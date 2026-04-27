@@ -1,13 +1,29 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, Text } from 'react-native';
 import { Building2 } from 'lucide-react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Screen } from '@/shared/components/layout/Screen';
 import { LoginForm } from '../components/LoginForm';
 import { useAuthViewModel } from '../hooks/useAuthViewModel';
+import { useAuthStore } from '../store/auth.store';
 import { colors } from '@/config/theme';
+import type { AuthStackParamList } from '@/navigation/types';
 
-export const LoginScreen = (): React.JSX.Element => {
+type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
+
+export const LoginScreen = ({ navigation }: Props): React.JSX.Element => {
   const { login, isLoading, error, clearError } = useAuthViewModel();
+
+  const handleLogin = useCallback(
+    async (email: string): Promise<void> => {
+      await login(email);
+      const storeError = useAuthStore.getState().error;
+      if (storeError === null) {
+        navigation.navigate('CheckEmail', { email });
+      }
+    },
+    [login, navigation],
+  );
 
   return (
     <Screen scroll className="bg-background" testID="login-screen">
@@ -28,12 +44,19 @@ export const LoginScreen = (): React.JSX.Element => {
           <LoginForm
             isLoading={isLoading}
             error={error}
-            onLogin={login}
+            onLogin={handleLogin}
             onClearError={clearError}
           />
 
-          <Text className="mt-6 text-center text-xs text-muted-foreground">
-            New users are automatically registered on first login
+          <Text className="mt-6 text-center text-sm text-muted-foreground">
+            Don't have an account?{' '}
+            <Text
+              className="text-sm font-medium text-primary"
+              onPress={() => navigation.navigate('Register')}
+              testID="login-register-link"
+            >
+              Register
+            </Text>
           </Text>
         </View>
       </View>

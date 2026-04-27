@@ -14,18 +14,29 @@ export type RootStackParamList = {
 export type AuthStackParamList = {
   Login: undefined;
   Register: undefined;
+  CheckEmail: { email: string };
+  // Params use snake_case because React Navigation v7 populates `route.params`
+  // from the magic-link URL query string as-is, and the backend emits the
+  // tokens as `?access_token=...&refresh_token=...` (see backend
+  // auth/routes.py:91). Mapping to camelCase happens inside AuthCallbackScreen
+  // at the boundary to the Zustand store.
+  AuthCallback: { access_token?: string; refresh_token?: string; error?: string };
   ForgotPassword: undefined;
+};
+
+export type SettingsStackParamList = {
+  SettingsHome: undefined;
+  Members: undefined;
 };
 
 export type AppTabsParamList = {
   ProjectsTab: undefined;
   MigrationTab: NavigatorScreenParams<MigrationStackParamList>;
-  SettingsTab: undefined;
+  SettingsTab: NavigatorScreenParams<SettingsStackParamList>;
 };
 
 export type ProjectsStackParamList = {
   ProjectsList: undefined;
-  ProjectDetail: { projectId: string };
   NewProject: undefined;
 };
 
@@ -49,8 +60,8 @@ export const useAppNavigation = (): NativeStackNavigationProp<RootStackParamList
 export const useAppDrawerNavigation = (): DrawerNavigationProp<AppDrawerParamList> =>
   useNavigation<DrawerNavigationProp<AppDrawerParamList>>();
 
-export const useProjectDetailRoute = (): RouteProp<ProjectsStackParamList, 'ProjectDetail'> =>
-  useRoute<RouteProp<ProjectsStackParamList, 'ProjectDetail'>>();
+export const useSettingsNavigation = (): NativeStackNavigationProp<SettingsStackParamList> =>
+  useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
 
 export function useMigrationScreenRoute<T extends keyof MigrationStackParamList>(
 ): RouteProp<MigrationStackParamList, T> {

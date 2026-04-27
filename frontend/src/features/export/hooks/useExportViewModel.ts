@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useExportStore } from '@/features/export/store/export.store';
 import { selectIsExporting, selectExportFormat, selectExportError } from '@/features/export/store/export.selectors';
 import { httpClient } from '@/shared/services/http/http.instance';
@@ -39,6 +39,7 @@ export function useExportViewModel({ groupedMappings, projectId }: UseExportView
   const setError = useExportStore((s) => s.setError);
 
   const { showSuccess, showError } = useToast();
+  const [isCompleting, setIsCompleting] = useState(false);
 
   const performExport = useCallback(async (): Promise<boolean> => {
     if (!projectId) {
@@ -70,17 +71,34 @@ export function useExportViewModel({ groupedMappings, projectId }: UseExportView
       }
 
       showSuccess('Export completed successfully!');
-
-      await updateProject(httpClient, createProjectId(projectId), {
-        status: 'completed',
-        currentStep: MIGRATION_STEPS.PREVIEW,
-      });
-
       return true;
     } finally {
       setExporting(false);
     }
   }, [exportFormat, groupedMappings, projectId, setError, setExporting, showError, showSuccess]);
+
+  const markComplete = useCallback(async (): Promise<boolean> => {
+    if (!projectId) {
+      showError('No project selected');
+      return false;
+    }
+
+    setIsCompleting(true);
+    try {
+      const result = await updateProject(httpClient, createProjectId(projectId), {
+        status: 'completed',
+        currentStep: MIGRATION_STEPS.PREVIEW,
+      });
+      if (!isOk(result)) {
+        showError(result.error.message);
+        return false;
+      }
+      showSuccess('Migration marked as complete');
+      return true;
+    } finally {
+      setIsCompleting(false);
+    }
+  }, [projectId, showError, showSuccess]);
 
   const changeFormat = useCallback(
     (format: ExportFormat) => {
@@ -91,8 +109,10 @@ export function useExportViewModel({ groupedMappings, projectId }: UseExportView
 
   return {
     performExport,
+    markComplete,
     changeFormat,
     isExporting,
+    isCompleting,
     exportFormat,
     error,
   };

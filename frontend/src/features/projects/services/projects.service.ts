@@ -3,7 +3,7 @@ import type { Result } from '@/shared/types/result.types';
 import type { AppError } from '@/shared/types/result.types';
 import { ok, err } from '@/shared/types/result.types';
 import { toAppError } from '@/shared/services/http/http.client';
-import type { ProjectId } from '@/shared/types/common.types';
+import type { OrgId, ProjectId } from '@/shared/types/common.types';
 import type { Project, ProjectCreate, ProjectUpdate } from '../types/projects.types';
 import {
   projectResponseSchema,
@@ -19,11 +19,14 @@ export async function getProjects(
   client: HttpClient,
   skip = 0,
   limit = 100,
+  orgId?: OrgId,
 ): Promise<Result<{ projects: Project[]; total: number }, AppError>> {
   try {
-    const { data } = await client.get<unknown>(
-      `/api/v1/projects?skip=${String(skip)}&limit=${String(limit)}`,
-    );
+    let url = `/api/v1/projects?skip=${String(skip)}&limit=${String(limit)}`;
+    if (orgId) {
+      url += `&org_id=${orgId}`;
+    }
+    const { data } = await client.get<unknown>(url);
 
     const parsed = projectListResponseSchema.safeParse(data);
 

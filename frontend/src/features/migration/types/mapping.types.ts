@@ -12,15 +12,27 @@ export interface ConfidenceScore {
 // ─── Domain Entities (snake_case — matches API response shape) ──────────────
 
 export interface AccountMapping {
+  readonly id?: string | undefined;
+  readonly suggestion_id?: string | undefined;
   readonly source_number: string;
   readonly source_name: string;
   readonly target_name: string;
   readonly score: number;
   readonly remark: string;
+  readonly mapping_source?: string | null | undefined;
+  // Raw value of the backend's `mapping_status` DB column. Preserves the
+  // original string (e.g. 'suggested', 'pending', 'confirmed',
+  // 'auto_matched', 'user_edited', …) without normalisation so the UI can
+  // display it verbatim. Use `status` below when you only care about the
+  // normalised pending/confirmed distinction.
+  readonly mapping_status?: string | undefined;
   readonly status?: 'pending' | 'confirmed' | undefined;
   readonly user_changed?: boolean | undefined;
   readonly changed_by_name?: string | undefined;
   readonly changed_at?: string | undefined;
+  // Absent/true = active. `false` = tombstoned locally; row is sent to
+  // bulk-save with is_active:false on the next Save.
+  readonly is_active?: boolean | undefined;
 }
 
 export interface GroupedMapping {
@@ -33,13 +45,9 @@ export interface GroupedMapping {
 // ─── API Response Types ────────────────────────────────────────────────────
 
 export interface HierarchicalMappingResponse {
-  readonly type_column: string | null;
-  readonly name_column: string | null;
-  readonly number_column: string | null;
-  readonly target_types: readonly string[];
-  readonly grouped_mappings: readonly GroupedMapping[];
-  readonly total_accounts: number;
-  readonly total_types: number;
+  readonly job_id: string;
+  readonly project_id: string;
+  readonly status: string;
 }
 
 // ─── Field Mapping ─────────────────────────────────────────────────────────
@@ -59,15 +67,28 @@ export interface MappingRule {
 
 // ─── DTO Contracts (mutations) ─────────────────────────────────────────────
 
+/**
+ * Upsert payload row for POST /api/v1/mappings/project/{projectId}.
+ * Backend uses exclude_unset semantics — every included field overwrites.
+ *
+ * - With `id`: UPDATE — only changed fields should be present
+ * - With `suggestion_id` only: INSERT + auto-link, `source_account_name` required
+ * - With neither: brand-new manual row, `source_account_name` required
+ */
 export interface MappingCreateDTO {
+  readonly id?: string | undefined;
+  readonly suggestion_id?: string;
   readonly project_id: string;
-  readonly source_account_name: string;
+  readonly source_account_name?: string | undefined;
   readonly source_account_number?: string | undefined;
   readonly target_account_name?: string | undefined;
   readonly confidence_score?: number | undefined;
-  readonly status?: string | undefined;
+  readonly mapping_status?: string | undefined;
+  readonly mapping_source?: string | undefined;
   readonly source_account_type?: string | undefined;
   readonly target_account_type?: string | undefined;
+  // Only set on deletes. Omit for edits/confirms — backend defaults to true.
+  readonly is_active?: boolean | undefined;
 }
 
 export interface MappingUpdateDTO {
@@ -82,10 +103,11 @@ export interface MappingBulkUpdateDTO {
 }
 
 export interface HierarchicalMappingRequestDTO {
-  readonly source_data: Record<string, unknown>[];
-  readonly target_data?: Record<string, unknown>[] | undefined;
-  readonly source_erp?: string | undefined;
-  readonly target_erp?: string | undefined;
+  readonly project_id: string;
+  readonly source_file_id: string;
+  readonly target_file_id: string;
+  readonly mapping_file_id?: string | undefined;
+  readonly account_type_mapping_file_id?: string | undefined;
 }
 
 export interface MappingResponseDTO {
@@ -102,6 +124,9 @@ export interface MappingResponseDTO {
 }
 
 export interface BulkSaveResponseDTO {
-  readonly created: number;
-  readonly mappings: readonly MappingResponseDTO[];
+  readonly success: boolean;
+  readonly mapping_count: number;
+  readonly project_id: string;
+  readonly inserted: number;
+  readonly updated: number;
 }

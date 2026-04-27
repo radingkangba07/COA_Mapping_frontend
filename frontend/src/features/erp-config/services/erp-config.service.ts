@@ -134,9 +134,9 @@ export async function fuzzyMatchColumns(
   threshold?: number,
 ): Promise<Result<FuzzyMatchResult, AppError>> {
   try {
-    const payload: { source_columns: string[]; target_erp: string; threshold?: number } = {
+    const payload: { source_columns: string[]; target_system: string; threshold?: number } = {
       source_columns: sourceColumns,
-      target_erp: targetErp,
+      target_system: targetErp,
     };
     if (threshold !== undefined) {
       payload.threshold = threshold;

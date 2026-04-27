@@ -22,8 +22,9 @@ export function buildCustomTypeMappings(
 ): Record<string, string> {
   const mappings: Record<string, string> = {};
   for (const row of rows) {
-    if (row.sourceType && row.targetType) {
-      mappings[row.sourceType] = row.targetType;
+    const firstTarget = row.targetTypes[0];
+    if (row.sourceType && firstTarget) {
+      mappings[row.sourceType] = firstTarget;
     }
   }
   return mappings;
@@ -72,47 +73,114 @@ export function normalizeGroupedMappings(
 }
 
 /**
- * Flat-map grouped mappings into an array of MappingCreateDTO for bulk save.
+ * Build the payload for POST /api/v1/mappings/project/{projectId}.
+ *
+ * Backend uses exclude_unset semantics — every included field overwrites.
+ * So we send only what the user actually changed:
+ *
+ *   - UPDATE (id present): only include `target_account_name` + `confidence_score`
+ *     when `user_changed` is true. Untouched rows are omitted entirely.
+ *   - INSERT from suggestion (suggestion_id, no id): always send
+ *     `source_account_name` (required) + `target_account_name` so the suggestion
+ *     is promoted to a real mapping. Source/target type carry the group context.
+ *   - Brand-new manual row (no id, no suggestion_id): send the full identifying
+ *     payload.
+ *
+ * `mapping_status` is NEVER sent from Save — status changes go through the
+ * dedicated bulk-status endpoint via the Confirm action.
  */
 export function toMappingCreateDTOs(
   projectId: string,
   groupedMappings: readonly GroupedMapping[],
 ): MappingCreateDTO[] {
-  return groupedMappings.flatMap((group) =>
-    group.accounts.map(
-      (account): MappingCreateDTO => ({
+  const dtos: MappingCreateDTO[] = [];
+
+  for (const group of groupedMappings) {
+    for (const account of group.accounts) {
+      const isDeleted = account.is_active === false;
+
+      // DELETE path — tombstone the row by id or suggestion_id.
+      // Brand-new local rows (no id, no suggestion_id) that were deleted
+      // before Save never existed on the server — skip them entirely.
+      if (isDeleted) {
+        if (account.id) {
+          dtos.push({ project_id: projectId, id: account.id, is_active: false });
+        } else if (account.suggestion_id) {
+          dtos.push({
+            project_id: projectId,
+            suggestion_id: account.suggestion_id,
+            is_active: false,
+          });
+        }
+        continue;
+      }
+
+      // INSERT path — promote a suggestion to a mapping.
+      if (!account.id && account.suggestion_id) {
+        const dto: MappingCreateDTO = {
+          project_id: projectId,
+          suggestion_id: account.suggestion_id,
+          source_account_name: account.source_name,
+          target_account_name: account.target_name,
+          source_account_type: group.source_type,
+          target_account_type: group.target_type,
+        };
+        if (account.user_changed === true) {
+          dtos.push({ ...dto, mapping_source: 'user' });
+        } else {
+          dtos.push(dto);
+        }
+        continue;
+      }
+
+      // UPDATE path — only emit a row when the user actually edited it.
+      if (account.id) {
+        if (account.user_changed === true) {
+          dtos.push({
+            project_id: projectId,
+            id: account.id,
+            target_account_name: account.target_name,
+            confidence_score: account.score,
+            mapping_source: 'user',
+          });
+        }
+        continue;
+      }
+
+      // Brand-new manual row — no id, no suggestion_id.
+      dtos.push({
         project_id: projectId,
         source_account_name: account.source_name,
         source_account_number: account.source_number || undefined,
         target_account_name: account.target_name,
-        confidence_score: account.score,
-        status: 'pending',
         source_account_type: group.source_type,
         target_account_type: group.target_type,
-      }),
-    ),
-  );
+      });
+    }
+  }
+
+  return dtos;
 }
 
 // ─── Service Functions ──────────────────────────────────────────────────────
 
 /**
- * POST to /api/v1/mappings/hierarchical — get grouped account mappings.
- * Port of App.js:1486-1530 (handleProceedToMapping).
+ * POST to /api/v1/mappings/hierarchical — submit a mapping job using file references.
+ * Returns a job reference ({job_id, project_id, status}), not inline results.
  */
 export async function getHierarchicalMapping(
   client: HttpClient,
-  sourceData: Record<string, unknown>[],
-  targetData?: Record<string, unknown>[],
-  sourceErp?: string,
-  targetErp?: string,
+  projectId: string,
+  sourceFileId: string,
+  targetFileId: string,
+  mappingFileId?: string,
 ): Promise<Result<HierarchicalMappingResponse, AppError>> {
   try {
     const body: HierarchicalMappingRequestDTO = {
-      source_data: sourceData,
-      target_data: targetData,
-      source_erp: sourceErp,
-      target_erp: targetErp,
+      project_id: projectId,
+      source_file_id: sourceFileId,
+      target_file_id: targetFileId,
+      mapping_file_id: mappingFileId,
     };
 
     const response = await client.post<HierarchicalMappingResponse>(
@@ -126,7 +194,9 @@ export async function getHierarchicalMapping(
 }
 
 /**
- * POST to /api/v1/mappings/bulk — save multiple mappings at once.
+ * POST to /api/v1/mappings/project/{projectId} — upsert mappings.
+ * Each row with `id` is updated; rows with only `suggestion_id` are inserted
+ * and auto-linked to the suggestion.
  */
 export async function saveMappings(
   client: HttpClient,
@@ -135,9 +205,8 @@ export async function saveMappings(
 ): Promise<Result<BulkSaveResponseDTO, AppError>> {
   try {
     const response = await client.post<BulkSaveResponseDTO>(
-      '/api/v1/mappings/bulk',
+      `/api/v1/mappings/project/${projectId}`,
       mappings,
-      { params: { project_id: projectId } },
     );
     return ok(response.data);
   } catch (error: unknown) {
@@ -168,9 +237,6 @@ export async function updateMappingStatus(
   }
 }
 
-/**
- * GET from /api/v1/mappings/project/{projectId} — fetch all mappings for a project.
- */
 export async function getMappings(
   client: HttpClient,
   projectId: string,

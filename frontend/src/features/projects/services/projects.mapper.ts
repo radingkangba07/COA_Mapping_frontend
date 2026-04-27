@@ -11,8 +11,8 @@ import type { Project, ProjectCreate, ProjectUpdate } from '../types/projects.ty
 export const projectResponseSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  source_erp: z.string(),
-  target_erp: z.string(),
+  source_system: z.string(),
+  target_system: z.string(),
   status: z.enum(['draft', 'in_progress', 'pending_review', 'completed']),
   company_id: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
@@ -20,6 +20,8 @@ export const projectResponseSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   updated_by: z.string().nullable().optional(),
+  created_by_name: z.string().nullable().optional(),
+  updated_by_name: z.string().nullable().optional(),
   current_step: z.number().int().min(0).default(0),
 });
 
@@ -36,8 +38,8 @@ export function toProject(dto: ProjectResponseDTO): Project {
   return {
     projectId: createProjectId(dto.id),
     name: dto.name,
-    sourceErp: dto.source_erp,
-    targetErp: dto.target_erp,
+    sourceErp: dto.source_system,
+    targetErp: dto.target_system,
     status: dto.status,
     companyId: dto.company_id ? createCompanyId(dto.company_id) : undefined,
     description: dto.description ?? undefined,
@@ -45,6 +47,8 @@ export function toProject(dto: ProjectResponseDTO): Project {
     createdAt: new Date(dto.created_at),
     updatedAt: new Date(dto.updated_at),
     updatedBy: dto.updated_by ? createUserId(dto.updated_by) : undefined,
+    createdByName: dto.created_by_name ?? undefined,
+    updatedByName: dto.updated_by_name ?? undefined,
     currentStep: dto.current_step,
   };
 }
@@ -57,11 +61,11 @@ export function toCreatePayload(
   };
 
   if (data.sourceErp !== undefined) {
-    payload.source_erp = data.sourceErp;
+    payload.source_system = data.sourceErp;
   }
 
   if (data.targetErp !== undefined) {
-    payload.target_erp = data.targetErp;
+    payload.target_system = data.targetErp;
   }
 
   if (data.companyId !== undefined) {
@@ -76,6 +80,7 @@ export function toCreatePayload(
     payload.description = data.description;
   }
 
+  console.log('[toCreatePayload] Final API payload:', payload);
   return payload;
 }
 
@@ -88,10 +93,10 @@ export function toUpdatePayload(
     payload.name = data.name;
   }
   if (data.sourceErp !== undefined) {
-    payload.source_erp = data.sourceErp;
+    payload.source_system = data.sourceErp;
   }
   if (data.targetErp !== undefined) {
-    payload.target_erp = data.targetErp;
+    payload.target_system = data.targetErp;
   }
   if (data.description !== undefined) {
     payload.description = data.description;

@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react';
 import { Dialog } from '@/shared/components/ui/Dialog';
 import { useCreateProject } from '../hooks/useCreateProject';
+import { useUserOrgs } from '../hooks/useUserOrgs';
 import { ProjectForm } from './ProjectForm';
 import type { ProjectCreate } from '../types/projects.types';
 import type { CompanyId } from '@/shared/types/common.types';
@@ -19,6 +20,7 @@ export const NewProjectDialog = ({
   testID,
 }: NewProjectDialogProps): React.JSX.Element => {
   const mutation = useCreateProject(onClose);
+  const { orgs } = useUserOrgs(visible);
 
   const handleSubmit = useCallback(
     (data: ProjectCreate) => {
@@ -40,6 +42,7 @@ export const NewProjectDialog = ({
           isPending={mutation.isPending}
           onCancel={onClose}
           defaultCompanyId={companyId}
+          companyOptions={orgs}
           testID="new-project-form"
         />
       </Dialog.Content>

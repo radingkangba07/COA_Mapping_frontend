@@ -108,12 +108,21 @@ function findColumnValue(row: Record<string, unknown>, search: string): string {
 export function buildTypeMappingRows(
   mappingData: Record<string, unknown>[],
 ): TypeMappingRow[] {
-  return mappingData.map((row, index) => ({
-    id: String(index),
-    sourceType: findColumnValue(row, 'source_type'),
-    targetType: findColumnValue(row, 'target_type'),
-    isCustom: false,
-  }));
+  return mappingData.map((row, index) => {
+    const rawTarget = findColumnValue(row, 'target_type');
+    const targetTypes = rawTarget.length > 0
+      ? rawTarget
+          .split(/[;,]/)
+          .map((part) => part.trim())
+          .filter((part) => part.length > 0)
+      : [];
+    return {
+      id: String(index),
+      sourceType: findColumnValue(row, 'source_type'),
+      targetTypes,
+      isCustom: false,
+    };
+  });
 }
 
 export async function createBlobFromPickedFile(

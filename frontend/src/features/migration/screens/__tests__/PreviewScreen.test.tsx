@@ -9,7 +9,7 @@ jest.mock('lucide-react-native', () => {
     R.createElement(RN.View, { testID: `${name}-icon`, ...props });
   return {
     Download: icon('Download'),
-    RefreshCw: icon('RefreshCw'),
+    CheckCircle2: icon('CheckCircle2'),
     ArrowLeft: icon('ArrowLeft'),
     __esModule: true,
   };
@@ -96,10 +96,13 @@ jest.mock('../../hooks/useHydrateProject', () => ({
 
 // ─── Export ViewModel mock ──────────────────────────────────────────────────
 const mockPerformExport = jest.fn();
+const mockMarkComplete = jest.fn().mockResolvedValue(true);
 const mockExportVM = {
   performExport: mockPerformExport,
+  markComplete: mockMarkComplete,
   changeFormat: jest.fn(),
   isExporting: false,
+  isCompleting: false,
   exportFormat: 'xlsx',
 };
 
@@ -159,6 +162,8 @@ describe('PreviewScreen', () => {
     jest.clearAllMocks();
     mockIsOnline = true;
     mockExportVM.isExporting = false;
+    mockExportVM.isCompleting = false;
+    mockMarkComplete.mockResolvedValue(true);
     mockPreviewVM.groupedMappings = [
       {
         source_type: 'Asset',
@@ -223,11 +228,35 @@ describe('PreviewScreen', () => {
     expect(button.props.accessibilityState?.disabled).toBe(true);
   });
 
-  it('calls resetMigration when Start New Migration is pressed', () => {
+  it('does not render a Start New button', () => {
     render(<PreviewScreen />);
-    const button = screen.getByTestId('start-new-button');
+    expect(screen.queryByTestId('start-new-button')).toBeNull();
+  });
+
+  it('renders a Complete button', () => {
+    render(<PreviewScreen />);
+    expect(screen.getByTestId('complete-button')).toBeTruthy();
+  });
+
+  it('calls markComplete when Complete button is pressed', () => {
+    render(<PreviewScreen />);
+    const button = screen.getByTestId('complete-button');
     fireEvent.press(button);
-    expect(mockResetMigration).toHaveBeenCalled();
+    expect(mockMarkComplete).toHaveBeenCalled();
+  });
+
+  it('disables Complete button when not online', () => {
+    mockIsOnline = false;
+    render(<PreviewScreen />);
+    const button = screen.getByTestId('complete-button');
+    expect(button.props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it('disables Complete button while completing', () => {
+    mockExportVM.isCompleting = true;
+    render(<PreviewScreen />);
+    const button = screen.getByTestId('complete-button');
+    expect(button.props.accessibilityState?.disabled).toBe(true);
   });
 
   it('renders ExportFormatPicker', () => {

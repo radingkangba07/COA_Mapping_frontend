@@ -1,11 +1,12 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { Calendar, Clock } from 'lucide-react-native';
-import { Card } from '@/shared/components/ui/Card';
-import { formatDate } from '@/shared/utils/date.utils';
+import { ArrowRight, Clock } from 'lucide-react-native';
+import { formatDate, formatRelative } from '@/shared/utils/date.utils';
 import { getERPById } from '@/shared/constants/erp-systems';
+import { colors } from '@/config/theme';
+import { useAppStore } from '@/shared/store/app.store';
+import { useAuthStore } from '@/features/auth/store/auth.store';
 import { StatusBadge } from './StatusBadge';
-import { MemberBadge } from './MemberBadge';
 import type { Project } from '../types/projects.types';
 
 interface ProjectCardProps {
@@ -14,64 +15,78 @@ interface ProjectCardProps {
   testID?: string;
 }
 
-export const ProjectCard = React.memo(({
+function useResolveUserName(
+  displayName: string | undefined,
+  fallbackId: string | undefined,
+): string {
+  const currentUser = useAuthStore((s) => s.user);
+  if (displayName !== undefined) return displayName;
+  if (fallbackId !== undefined) return fallbackId;
+  return currentUser?.name ?? '—';
+}
+
+const DOT = '\u00A0\u00B7\u00A0';
+
+export const ProjectCard = ({
   project,
   onPress,
   testID,
 }: ProjectCardProps): React.JSX.Element => {
+  useAppStore((s) => s.theme);
   const sourceErpName = getERPById(project.sourceErp)?.name ?? project.sourceErp;
   const targetErpName = getERPById(project.targetErp)?.name ?? project.targetErp;
+  const updatedByName = useResolveUserName(project.updatedByName, project.updatedBy);
 
   return (
-    <Pressable onPress={() => onPress(project)} testID={testID}>
-      <Card className="w-full mb-2">
-        <Card.Content>
-          {/* Row 1: Project name + status badge */}
-          <View className="flex-row items-center justify-between mb-1">
-            <Text
-              className="font-heading text-base font-semibold text-card-foreground flex-1 mr-2"
-              numberOfLines={1}
-            >
-              {project.name}
-            </Text>
-            <View className="flex-row gap-1.5">
-              <StatusBadge status={project.status} />
-            </View>
-          </View>
+    <Pressable
+      onPress={() => onPress(project)}
+      testID={testID}
+      // @ts-expect-error -- web-only style for hover cursor
+      style={({ hovered }: { hovered?: boolean }) => ({
+        backgroundColor: hovered === true ? colors.surfaceHighlight : 'transparent',
+        cursor: 'pointer',
+      })}
+    >
+      <View
+        className="border-b border-border px-5 py-3.5"
+      >
+        {/* Row 1: Name + Status */}
+        <View className="flex-row items-center gap-2.5 mb-1.5">
+          <Text
+            className="font-heading text-sm font-semibold"
+            style={{ color: colors.foreground }}
+            numberOfLines={1}
+          >
+            {project.name}
+          </Text>
+          <StatusBadge status={project.status} />
+        </View>
 
-          {/* Row 2: ERP path + created date */}
-          <View className="flex-row items-center gap-1 mb-1 flex-wrap">
-            <Text className="font-body text-xs text-muted-foreground">
-              {sourceErpName} {'\u2192'} {targetErpName}
-            </Text>
-            <Text className="font-body text-xs text-muted-foreground">{'\u00B7'}</Text>
-            <Calendar size={12} className="text-muted-foreground" />
-            <Text className="font-body text-xs text-muted-foreground">
-              {formatDate(project.createdAt)}
-            </Text>
-          </View>
+        {/* Row 2: ERP path + date */}
+        <View className="flex-row items-center mb-1">
+          <Text className="font-body text-xs" style={{ color: colors.mutedForeground }}>
+            {sourceErpName}
+          </Text>
+          <ArrowRight size={10} color={colors.mutedForeground} style={{ marginHorizontal: 4 }} />
+          <Text className="font-body text-xs" style={{ color: colors.mutedForeground }}>
+            {targetErpName}
+          </Text>
+          <Text className="font-body text-xs" style={{ color: colors.mutedForeground }}>
+            {DOT}
+          </Text>
+          <Clock size={11} color={colors.mutedForeground} />
+          <Text className="font-body text-xs" style={{ color: colors.mutedForeground, marginLeft: 2 }}>
+            {formatDate(project.createdAt)}
+          </Text>
+        </View>
 
-          {/* Row 3: Creator */}
-          {project.createdBy !== undefined && (
-            <View className="flex-row items-center gap-2 mb-1">
-              <MemberBadge name={project.createdBy} size="sm" />
-              <Text className="font-body text-xs text-muted-foreground">
-                {project.createdBy}
-              </Text>
-            </View>
-          )}
-
-          {/* Row 4: Last edited by */}
-          <View className="flex-row items-center gap-1 mt-0.5">
-            <Clock size={12} className="text-muted-foreground" />
-            <Text className="font-body text-xs text-muted-foreground">
-              Last edited by:{project.updatedBy ? ` ${project.updatedBy}` : ` ${project.createdBy ?? 'unknown'}`} {'\u00B7'} {formatDate(project.updatedAt)}
-            </Text>
-          </View>
-        </Card.Content>
-      </Card>
+        {/* Row 3: Last edited */}
+        <View className="flex-row items-center mt-0.5">
+          <Text className="font-body text-xs" style={{ color: colors.mutedForeground }}>
+            Last edited by {updatedByName}{DOT}{formatRelative(project.updatedAt)}
+          </Text>
+        </View>
+      </View>
     </Pressable>
   );
-});
-
-ProjectCard.displayName = 'ProjectCard';
+};

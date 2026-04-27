@@ -6,10 +6,10 @@ import { toAppError } from '@/shared/services/http/http.client';
 // ─── API Response Interfaces (snake_case from backend) ──────────────────────
 
 interface ApiFileUploadResponse {
-  file_id: string;
   file_name: string;
   row_count: number;
   sample_data: Record<string, unknown>[];
+  file: { id: string };
 }
 
 interface ApiFileDataResponse {
@@ -75,7 +75,7 @@ function toProjectFile(dto: ApiProjectFileDTO): ProjectFile {
 
 function toFileUploadResponse(api: ApiFileUploadResponse): FileUploadResponse {
   return {
-    fileId: api.file_id,
+    fileId: api.file.id,
     fileName: api.file_name,
     rowCount: api.row_count,
     sampleData: api.sample_data,
@@ -101,8 +101,8 @@ export async function uploadFile(
     formData.append('file', file);
 
     const params: Record<string, string> = {};
-    if (options?.sourceErp) params.source_erp = options.sourceErp;
-    if (options?.targetErp) params.target_erp = options.targetErp;
+    if (options?.sourceErp) params.source_system = options.sourceErp;
+    if (options?.targetErp) params.target_system = options.targetErp;
     if (options?.projectId) params.project_id = options.projectId;
     if (options?.fileType) params.file_type = options.fileType;
 

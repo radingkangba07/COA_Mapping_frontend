@@ -32,8 +32,8 @@ const mockSourceData: Record<string, unknown>[] = [
 ];
 
 const mockTypeMappingRows: TypeMappingRow[] = [
-  { id: 'row-1', sourceType: 'Asset', targetType: 'Assets', isCustom: false },
-  { id: 'row-2', sourceType: 'Liability', targetType: 'Liabilities', isCustom: false },
+  { id: 'row-1', sourceType: 'Asset', targetTypes: ['Assets'], isCustom: false },
+  { id: 'row-2', sourceType: 'Liability', targetTypes: ['Liabilities'], isCustom: false },
 ];
 
 const mockGroupedMappings: GroupedMapping[] = [
@@ -150,19 +150,31 @@ describe('useMigrationStore', () => {
       expect(useMigrationStore.getState().typeMappingRows).toEqual(mockTypeMappingRows);
     });
 
-    it('updateTypeMappingRow updates field and marks hasUnsavedChanges', () => {
+    it('updateTypeMappingRow updates targetTypes and marks hasUnsavedChanges', () => {
       const { setTypeMappingRows, updateTypeMappingRow } = useMigrationStore.getState();
 
       setTypeMappingRows(mockTypeMappingRows);
-      updateTypeMappingRow('row-1', 'targetType', 'Fixed Assets');
+      updateTypeMappingRow('row-1', { targetTypes: ['Fixed Assets', 'Other Assets'] });
 
       const state = useMigrationStore.getState();
       const updated = state.typeMappingRows.find((r) => r.id === 'row-1');
-      expect(updated?.targetType).toBe('Fixed Assets');
+      expect(updated?.targetTypes).toEqual(['Fixed Assets', 'Other Assets']);
       expect(state.hasUnsavedChanges).toBe(true);
     });
 
-    it('addTypeMappingRow adds a custom row', () => {
+    it('updateTypeMappingRow updates sourceType and marks hasUnsavedChanges', () => {
+      const { setTypeMappingRows, updateTypeMappingRow } = useMigrationStore.getState();
+
+      setTypeMappingRows(mockTypeMappingRows);
+      updateTypeMappingRow('row-1', { sourceType: 'Revenue' });
+
+      const state = useMigrationStore.getState();
+      const updated = state.typeMappingRows.find((r) => r.id === 'row-1');
+      expect(updated?.sourceType).toBe('Revenue');
+      expect(state.hasUnsavedChanges).toBe(true);
+    });
+
+    it('addTypeMappingRow adds a custom row with empty targetTypes', () => {
       const { setTypeMappingRows, addTypeMappingRow } = useMigrationStore.getState();
 
       setTypeMappingRows(mockTypeMappingRows);
@@ -173,7 +185,7 @@ describe('useMigrationStore', () => {
       const newRow = state.typeMappingRows[2];
       expect(newRow?.isCustom).toBe(true);
       expect(newRow?.sourceType).toBe('');
-      expect(newRow?.targetType).toBe('');
+      expect(newRow?.targetTypes).toEqual([]);
       expect(state.hasUnsavedChanges).toBe(true);
     });
 
@@ -194,11 +206,83 @@ describe('useMigrationStore', () => {
         useMigrationStore.getState();
 
       setTypeMappingRows(mockTypeMappingRows);
-      updateTypeMappingRow('row-1', 'sourceType', 'Revenue');
+      updateTypeMappingRow('row-1', { sourceType: 'Revenue' });
       expect(useMigrationStore.getState().hasUnsavedChanges).toBe(true);
 
       markChangesSaved();
       expect(useMigrationStore.getState().hasUnsavedChanges).toBe(false);
+    });
+  });
+
+  describe('hasUnsavedTypeMappings', () => {
+    it('starts false', () => {
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(false);
+    });
+
+    it('is set true by setTypeMappingRows', () => {
+      useMigrationStore.getState().setTypeMappingRows(mockTypeMappingRows);
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(true);
+    });
+
+    it('is NOT set true by hydrateTypeMappingRows', () => {
+      // Hydration paths (server fetch, file upload) populate the rows without
+      // marking the table dirty — only explicit user edits should flip this.
+      useMigrationStore.getState().hydrateTypeMappingRows(mockTypeMappingRows);
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(false);
+      expect(useMigrationStore.getState().typeMappingRows).toEqual(mockTypeMappingRows);
+    });
+
+    it('hydrateTypeMappingRows preserves existing dirty flag when true', () => {
+      const store = useMigrationStore.getState();
+      store.setTypeMappingRows(mockTypeMappingRows);
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(true);
+
+      // Hydration must not silently clear the dirty flag either; the contract
+      // is "no effect on dirty", not "flip to false".
+      store.hydrateTypeMappingRows(mockTypeMappingRows);
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(true);
+    });
+
+    it('is set true by addTypeMappingRow', () => {
+      useMigrationStore.getState().addTypeMappingRow();
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(true);
+    });
+
+    it('is set true by updateTypeMappingRow', () => {
+      const store = useMigrationStore.getState();
+      store.setTypeMappingRows(mockTypeMappingRows);
+      store.markTypeMappingsSaved();
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(false);
+
+      store.updateTypeMappingRow('row-1', { targetTypes: ['X'] });
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(true);
+    });
+
+    it('is set true by deleteTypeMappingRow', () => {
+      const store = useMigrationStore.getState();
+      store.setTypeMappingRows(mockTypeMappingRows);
+      store.markTypeMappingsSaved();
+
+      store.deleteTypeMappingRow('row-1');
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(true);
+    });
+
+    it('markTypeMappingsSaved flips it back to false', () => {
+      const store = useMigrationStore.getState();
+      store.setTypeMappingRows(mockTypeMappingRows);
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(true);
+
+      store.markTypeMappingsSaved();
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(false);
+    });
+
+    it('reset() resets hasUnsavedTypeMappings to false', () => {
+      const store = useMigrationStore.getState();
+      store.setTypeMappingRows(mockTypeMappingRows);
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(true);
+
+      store.reset();
+      expect(useMigrationStore.getState().hasUnsavedTypeMappings).toBe(false);
     });
   });
 
@@ -239,47 +323,34 @@ describe('useMigrationStore', () => {
       expect(account?.changed_at).toBeDefined();
     });
 
-    it('updateAccountName sets score to 100 when target name is non-empty', () => {
+    it('updateAccountName preserves the original score when target name is non-empty', () => {
       const { setGroupedMappings, updateAccountName } = useMigrationStore.getState();
 
       setGroupedMappings(mockGroupedMappings);
+      const originalScore = useMigrationStore.getState().groupedMappings.find(
+        (g) => g.source_type === 'Asset',
+      )?.accounts[0]?.score;
       updateAccountName('Asset', 0, 'Petty Cash', 'TestUser');
 
       const group = useMigrationStore.getState().groupedMappings.find(
         (g) => g.source_type === 'Asset',
       );
-      expect(group?.accounts[0]?.score).toBe(100);
+      expect(group?.accounts[0]?.score).toBe(originalScore);
     });
 
-    it('updateAccountName sets score to 0 when target name is empty', () => {
+    it('updateAccountName preserves the original score when target name is empty', () => {
       const { setGroupedMappings, updateAccountName } = useMigrationStore.getState();
 
       setGroupedMappings(mockGroupedMappings);
+      const originalScore = useMigrationStore.getState().groupedMappings.find(
+        (g) => g.source_type === 'Asset',
+      )?.accounts[0]?.score;
       updateAccountName('Asset', 0, '', 'TestUser');
 
       const group = useMigrationStore.getState().groupedMappings.find(
         (g) => g.source_type === 'Asset',
       );
-      expect(group?.accounts[0]?.score).toBe(0);
-    });
-  });
-
-  describe('confidence filter', () => {
-    it('setConfidenceFilter sets the filter value', () => {
-      const { setConfidenceFilter } = useMigrationStore.getState();
-
-      setConfidenceFilter('high');
-
-      expect(useMigrationStore.getState().confidenceFilter).toBe('high');
-    });
-
-    it('setConfidenceFilter accepts null to clear', () => {
-      const { setConfidenceFilter } = useMigrationStore.getState();
-
-      setConfidenceFilter('medium');
-      setConfidenceFilter(null);
-
-      expect(useMigrationStore.getState().confidenceFilter).toBeNull();
+      expect(group?.accounts[0]?.score).toBe(originalScore);
     });
   });
 
@@ -298,7 +369,7 @@ describe('useMigrationStore', () => {
   });
 
   describe('delete/restore accounts', () => {
-    it('deleteAccount moves account to deletedAccounts and splices from group', () => {
+    it('deleteAccount tombstones the row in place with is_active=false and marks unsaved', () => {
       const { setGroupedMappings, deleteAccount } = useMigrationStore.getState();
 
       setGroupedMappings(mockGroupedMappings);
@@ -306,13 +377,14 @@ describe('useMigrationStore', () => {
 
       const state = useMigrationStore.getState();
       const assetGroup = state.groupedMappings.find((g) => g.source_type === 'Asset');
-      expect(assetGroup?.accounts).toHaveLength(1);
-      expect(state.deletedAccounts).toHaveLength(1);
-      expect(state.deletedAccounts[0]?.sourceNumber).toBe('1000');
-      expect(state.deletedAccounts[0]?.sourceName).toBe('Cash');
+      // Row stays in the group — Save will ship it with is_active:false.
+      expect(assetGroup?.accounts).toHaveLength(2);
+      const tombstoned = assetGroup?.accounts.find((a) => a.source_name === 'Cash');
+      expect(tombstoned?.is_active).toBe(false);
+      expect(state.hasUnsavedChanges).toBe(true);
     });
 
-    it('restoreAccount moves account back with score=0 and remark=Restored', () => {
+    it('restoreAccount flips is_active back to true', () => {
       const { setGroupedMappings, deleteAccount, restoreAccount } =
         useMigrationStore.getState();
 
@@ -321,14 +393,11 @@ describe('useMigrationStore', () => {
       restoreAccount(0);
 
       const state = useMigrationStore.getState();
-      expect(state.deletedAccounts).toHaveLength(0);
-
       const assetGroup = state.groupedMappings.find((g) => g.source_type === 'Asset');
-      const restoredAccount = assetGroup?.accounts[assetGroup.accounts.length - 1];
-      expect(restoredAccount?.source_number).toBe('1000');
-      expect(restoredAccount?.source_name).toBe('Cash');
-      expect(restoredAccount?.score).toBe(0);
-      expect(restoredAccount?.remark).toBe('Restored');
+      const cash = assetGroup?.accounts.find((a) => a.source_name === 'Cash');
+      expect(cash?.is_active).toBe(true);
+      // Score + target_name must be preserved — we didn't splice and re-create.
+      expect(cash?.source_number).toBe('1000');
     });
   });
 
@@ -375,7 +444,6 @@ describe('useMigrationStore', () => {
       expect(state.targetTypes).toEqual([]);
       expect(state.groupedMappings).toEqual([]);
       expect(state.confirmedHigh).toBe(false);
-      expect(state.deletedAccounts).toEqual([]);
     });
 
     it('changing target ERP invalidates steps 1+ and clears downstream data', () => {
@@ -530,13 +598,48 @@ describe('useMigrationStore', () => {
       expect(state.sourceFile).toBeNull();
       expect(state.sourceData).toEqual([]);
       expect(state.groupedMappings).toEqual([]);
-      expect(state.confidenceFilter).toBeNull();
       expect(state.confirmedHigh).toBe(false);
       expect(state.confirmedMedium).toBe(false);
       expect(state.confirmedLow).toBe(false);
-      expect(state.deletedAccounts).toEqual([]);
       expect(state.isLoading).toBe(false);
       expect(state.error).toBeNull();
+    });
+
+    it('reset() preserves confidenceFilter so it survives hydration cycles', () => {
+      const store = useMigrationStore.getState();
+      store.setConfidenceFilter('high');
+      store.reset();
+      expect(useMigrationStore.getState().confidenceFilter).toBe('high');
+    });
+  });
+
+  describe('confidenceFilter', () => {
+    it('setConfidenceFilter stores the selected level', () => {
+      useMigrationStore.getState().setConfidenceFilter('medium');
+      expect(useMigrationStore.getState().confidenceFilter).toBe('medium');
+    });
+
+    it('setConfidenceFilter accepts null to clear the filter', () => {
+      const store = useMigrationStore.getState();
+      store.setConfidenceFilter('high');
+      store.setConfidenceFilter(null);
+      expect(useMigrationStore.getState().confidenceFilter).toBeNull();
+    });
+
+    it('setProjectId clears confidenceFilter when switching to a new project', () => {
+      const store = useMigrationStore.getState();
+      store.setProjectId('project-a');
+      store.setConfidenceFilter('low');
+      store.setProjectId('project-b');
+      expect(useMigrationStore.getState().confidenceFilter).toBeNull();
+    });
+
+    it('setProjectId does NOT clear confidenceFilter when setting the same project', () => {
+      const store = useMigrationStore.getState();
+      store.setProjectId('project-a');
+      store.setConfidenceFilter('high');
+      store.setProjectId('project-a');
+      expect(useMigrationStore.getState().confidenceFilter).toBe('high');
     });
   });
 });

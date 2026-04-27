@@ -1,7 +1,6 @@
 import React, { useCallback } from 'react';
 import { View, Text } from 'react-native';
 import { FileText } from 'lucide-react-native';
-import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { colors } from '@/config/theme';
 
@@ -75,74 +74,69 @@ export const SampleFilesTable = ({
   );
 
   return (
-    <Card testID={testID ?? 'sample-files-table'}>
-      <Card.Header>
-        <View className="flex-row items-center justify-between">
-          <Text className="font-heading text-base font-semibold text-card-foreground">
-            Sample Files
-          </Text>
-          {onLoadAll && (
-            <Button
-              size="sm"
-              className="bg-accent"
-              textClassName="text-accent-foreground"
-              onPress={onLoadAll}
-              isLoading={isLoading}
-              testID="sample-load-all"
-            >
-              Load All
-            </Button>
-          )}
-        </View>
-        <Text className="text-xs text-muted-foreground mt-1">
-          Preview or download sample files for testing
+    <View testID={testID ?? 'sample-files-table'}>
+      <View className="flex-row items-center justify-between mb-2">
+        <Text className="font-heading text-sm font-semibold text-foreground">
+          Sample Files
         </Text>
-      </Card.Header>
-      <Card.Content>
-        {rows.map((row, index) => (
-          <View
-            key={row.name}
-            className={`flex-row items-center py-3 gap-3 ${
-              index < rows.length - 1 ? 'border-b border-border' : ''
-            }`}
-            testID={`sample-file-row-${index}`}
+        {onLoadAll && (
+          <Button
+            variant="outline"
+            size="sm"
+            onPress={onLoadAll}
+            isLoading={isLoading}
+            testID="sample-load-all"
           >
-            <FileText size={16} color={colors.mutedForeground} />
-            <View className="flex-1">
-              <Text className="text-sm font-medium text-foreground">
-                {row.name}
-              </Text>
-            </View>
-            <View className="flex-1 hidden md:flex">
-              <Text className="text-xs text-muted-foreground">
-                {row.description}
-              </Text>
-            </View>
-            <View className="flex-row gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                textClassName="text-xs"
-                onPress={() => handlePreview(row)}
-                disabled={!row.erpId}
-                testID={`sample-preview-${index}`}
-              >
-                Preview
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                textClassName="text-xs"
-                onPress={() => handleDownload(row)}
-                disabled={!row.erpId}
-                testID={`sample-download-${index}`}
-              >
-                Download
-              </Button>
-            </View>
+            Load All
+          </Button>
+        )}
+      </View>
+      <Text className="text-xs text-muted-foreground mb-2">
+        Preview or download sample files for testing
+      </Text>
+      {rows.map((row, index) => (
+        <View
+          key={row.name}
+          className={`flex-row items-center py-2.5 gap-3 ${
+            index < rows.length - 1 ? 'border-b border-border' : ''
+          }`}
+          testID={`sample-file-row-${index}`}
+        >
+          <FileText size={16} color={colors.mutedForeground} />
+          <View className="flex-1">
+            <Text className="text-sm font-medium text-foreground">
+              {row.name}
+            </Text>
           </View>
-        ))}
-      </Card.Content>
-    </Card>
+          <View className="flex-1 hidden md:flex">
+            <Text className="text-xs text-muted-foreground">
+              {row.description}
+            </Text>
+          </View>
+          <View className="flex-row gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              textClassName="text-xs"
+              onPress={() => handlePreview(row)}
+              disabled={!row.erpId}
+              testID={`sample-preview-${index}`}
+            >
+              Preview
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              textClassName="text-xs"
+              onPress={() => handleDownload(row)}
+              disabled={!row.erpId}
+              testID={`sample-download-${index}`}
+            >
+              Download
+            </Button>
+          </View>
+        </View>
+      ))}
+    </View>
   );
 };

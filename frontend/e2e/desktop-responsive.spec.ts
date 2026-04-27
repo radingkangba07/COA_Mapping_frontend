@@ -23,11 +23,15 @@ test.describe('Desktop (1280px)', () => {
     await waitForApp(page);
 
     if (await isLoginVisible(page)) {
-      const loginBox = await page.locator(SELECTORS.loginScreen).boundingBox();
-      expect(loginBox).not.toBeNull();
-      if (loginBox) {
-        // max-w-7xl (80rem = 1280px) plus padding means content is narrower than viewport
-        expect(loginBox.width).toBeLessThan(1280);
+      // The login SCREEN wrapper spans the full viewport on purpose; the
+      // bounded element is the login FORM CARD (max-w-md). Assert on the
+      // card instead.
+      const loginCard = page.locator('[data-testid="login-form-card"]');
+      const cardBox = await loginCard.boundingBox();
+      expect(cardBox).not.toBeNull();
+      if (cardBox) {
+        // max-w-md = 28rem = 448px, well under the 1280px viewport
+        expect(cardBox.width).toBeLessThan(1280);
       }
       return;
     }

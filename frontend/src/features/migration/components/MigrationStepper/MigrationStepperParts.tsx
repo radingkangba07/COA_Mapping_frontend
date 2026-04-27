@@ -6,8 +6,8 @@ import { cn } from '@/shared/utils/string.utils';
 
 export type StepStatus = 'completed' | 'active' | 'upcoming';
 
-export const CIRCLE_SIZE = Platform.OS === 'web' ? 40 : 32;
-export const ICON_SIZE = Platform.OS === 'web' ? 18 : 14;
+export const CIRCLE_SIZE = Platform.OS === 'web' ? 32 : 28;
+export const ICON_SIZE = Platform.OS === 'web' ? 14 : 12;
 
 interface StepItemProps {
   index: number;
@@ -71,8 +71,8 @@ const StepCircle = React.memo(function StepCircle({
     <View
       className={cn(
         'items-center justify-center rounded-full',
-        status === 'completed' && 'bg-success',
-        status === 'active' && 'bg-primary',
+        status === 'completed' && 'bg-primary',
+        status === 'active' && 'bg-accent',
         status === 'upcoming' && 'border-2 border-border bg-background',
       )}
       style={{ width: CIRCLE_SIZE, height: CIRCLE_SIZE }}
@@ -80,7 +80,7 @@ const StepCircle = React.memo(function StepCircle({
       {status === 'completed' ? (
         <Check
           size={ICON_SIZE}
-          color={colors.successForeground}
+          color={colors.primaryForeground}
           strokeWidth={3}
         />
       ) : (
@@ -89,7 +89,7 @@ const StepCircle = React.memo(function StepCircle({
             'font-body font-semibold',
             Platform.OS === 'web' ? 'text-sm' : 'text-xs',
             status === 'active'
-              ? 'text-primary-foreground'
+              ? 'text-accent-foreground'
               : 'text-muted-foreground',
           )}
         >
