@@ -1,0 +1,156 @@
+import React, { useCallback, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  Modal,
+  ActivityIndicator,
+  type LayoutRectangle,
+} from 'react-native';
+import { ChevronDown, Check } from 'lucide-react-native';
+import { isWeb } from '@/shared/utils/platform.utils';
+import { cn } from '@/shared/utils/string.utils';
+import { colors } from '@/config/theme';
+import {
+  PROJECT_PERMISSIONS,
+  type ProjectPermission,
+} from '../types/project-access.types';
+
+const PILL_BG: Record<ProjectPermission, string> = {
+  viewer: 'bg-secondary',
+  editor: 'bg-accent',
+  approver: 'bg-warning',
+  admin: 'bg-success',
+};
+
+const PILL_TEXT: Record<ProjectPermission, string> = {
+  viewer: 'text-secondary-foreground',
+  editor: 'text-accent-foreground',
+  approver: 'text-warning-foreground',
+  admin: 'text-success-foreground',
+};
+
+const PILL_ICON: Record<ProjectPermission, string> = {
+  viewer: '#18181B',
+  editor: '#FFFFFF',
+  approver: '#FFFFFF',
+  admin: '#FFFFFF',
+};
+
+const MENU_WIDTH = 132;
+
+interface RolePillSelectorProps {
+  readonly value: ProjectPermission;
+  readonly onChange: (next: ProjectPermission) => void;
+  readonly disabled?: boolean;
+  readonly isLoading?: boolean;
+  readonly testID?: string;
+}
+
+export function RolePillSelector({
+  value,
+  onChange,
+  disabled = false,
+  isLoading = false,
+  testID,
+}: RolePillSelectorProps): React.JSX.Element {
+  const [isOpen, setIsOpen] = useState(false);
+  const [layout, setLayout] = useState<LayoutRectangle | null>(null);
+  const triggerRef = useRef<View>(null);
+
+  const handleOpen = useCallback((): void => {
+    if (disabled || isLoading) return;
+    triggerRef.current?.measureInWindow((x, y, width, height) => {
+      setLayout({ x, y, width, height });
+      setIsOpen(true);
+    });
+  }, [disabled, isLoading]);
+
+  const handleSelect = useCallback(
+    (next: ProjectPermission): void => {
+      setIsOpen(false);
+      if (next !== value) onChange(next);
+    },
+    [onChange, value],
+  );
+
+  const handleClose = useCallback((): void => setIsOpen(false), []);
+
+  return (
+    <>
+      <Pressable
+        ref={triggerRef}
+        onPress={handleOpen}
+        disabled={disabled || isLoading}
+        accessibilityRole="button"
+        accessibilityLabel={`Permission: ${value}. Tap to change.`}
+        className={cn(
+          'flex-row items-center gap-1 rounded-full px-2.5 py-1',
+          PILL_BG[value],
+          (disabled || isLoading) && 'opacity-60',
+        )}
+        testID={testID}
+      >
+        <Text className={cn('text-xs font-semibold capitalize', PILL_TEXT[value])}>
+          {value}
+        </Text>
+        {isLoading ? (
+          <ActivityIndicator size="small" color={PILL_ICON[value]} />
+        ) : (
+          <ChevronDown size={12} color={PILL_ICON[value]} />
+        )}
+      </Pressable>
+
+      <Modal
+        visible={isOpen}
+        transparent
+        animationType={isWeb ? 'none' : 'fade'}
+        onRequestClose={handleClose}
+      >
+        <Pressable
+          className={cn('flex-1', isWeb ? 'bg-transparent' : 'bg-black/30')}
+          onPress={handleClose}
+        >
+          <View
+            className="absolute overflow-hidden rounded-md border border-border bg-background py-1 shadow-lg"
+            style={
+              layout !== null
+                ? {
+                    top: layout.y + layout.height + 4,
+                    left: Math.max(8, layout.x + layout.width - MENU_WIDTH),
+                    width: MENU_WIDTH,
+                  }
+                : undefined
+            }
+            onStartShouldSetResponder={() => true}
+          >
+            {PROJECT_PERMISSIONS.map((p) => {
+              const isSelected = p === value;
+              return (
+                <Pressable
+                  key={p}
+                  onPress={() => handleSelect(p)}
+                  className={cn(
+                    'flex-row items-center justify-between px-3 py-2',
+                    isSelected && 'bg-accent/10',
+                  )}
+                  testID={testID !== undefined ? `${testID}-option-${p}` : undefined}
+                >
+                  <Text
+                    className={cn(
+                      'font-body text-sm capitalize',
+                      isSelected ? 'font-medium text-accent' : 'text-foreground',
+                    )}
+                  >
+                    {p}
+                  </Text>
+                  {isSelected ? <Check size={14} color={colors.accent} /> : null}
+                </Pressable>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}

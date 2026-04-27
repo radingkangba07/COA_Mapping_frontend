@@ -87,13 +87,13 @@ export function toAppError(error: unknown): AppError {
   if (error instanceof AxiosError) {
     const status = error.response?.status ?? 0;
     const responseData: unknown = error.response?.data;
-    const serverMessage =
-      typeof responseData === 'object' &&
-      responseData !== null &&
-      'message' in responseData &&
-      typeof (responseData as Record<string, unknown>).message === 'string'
-        ? (responseData as Record<string, unknown>).message as string // justified: narrowed above
-        : undefined;
+    const pickStringField = (key: string): string | undefined => {
+      if (typeof responseData !== 'object' || responseData === null) return undefined;
+      const value = (responseData as Record<string, unknown>)[key];
+      return typeof value === 'string' ? value : undefined;
+    };
+    // Backend may return either { message } (custom) or { detail } (FastAPI default).
+    const serverMessage = pickStringField('message') ?? pickStringField('detail');
 
     return {
       code: `HTTP_${String(status)}`,
