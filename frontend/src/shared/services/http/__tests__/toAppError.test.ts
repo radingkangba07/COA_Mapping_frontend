@@ -51,6 +51,19 @@ describe('toAppError', () => {
     expect(appError.message).toBe('Internal Server Error');
   });
 
+  it('extracts message from FastAPI-style { detail } response body', () => {
+    const appError = toAppError(
+      makeAxiosError({
+        status: 409,
+        data: { detail: 'Organization name already taken' },
+        message: 'Request failed with status code 409',
+      }),
+    );
+
+    expect(appError.code).toBe('HTTP_409');
+    expect(appError.message).toBe('Organization name already taken');
+  });
+
   it('handles AxiosError without response (network error)', () => {
     const error = new AxiosError(
       'Network Error',
