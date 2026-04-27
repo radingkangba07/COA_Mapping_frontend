@@ -1,19 +1,24 @@
 import React, { useCallback, useEffect } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
+import { Trash2 } from 'lucide-react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { ProjectId } from '@/shared/types/common.types';
+import type { ProjectId, UserId } from '@/shared/types/common.types';
 import { Dialog } from '@/shared/components/ui/Dialog';
 import { Input } from '@/shared/components/ui/Input';
 import { Select, type SelectOption } from '@/shared/components/ui/Select';
 import { Button } from '@/shared/components/ui/Button';
 import { Badge } from '@/shared/components/ui/Badge';
 import { Spinner } from '@/shared/components/ui/Spinner';
+import { useConfirm } from '@/shared/hooks/useConfirm';
+import { colors } from '@/config/theme';
+import { cn } from '@/shared/utils/string.utils';
 import { PROJECT_PERMISSIONS, type ProjectPermission } from '../types/project-access.types';
 import { useProjectAccess } from '../hooks/useProjectAccess';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { MemberBadge } from './MemberBadge';
+import { RolePillSelector } from './RolePillSelector';
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
@@ -60,9 +65,22 @@ export function AddMemberDialog({
   projectId,
   testID = 'add-member-dialog',
 }: AddMemberDialogProps) {
-  const { grantAsync, isGranting, members, isLoading, error, currentUserId } =
-    useProjectAccess(projectId);
+  const {
+    grantAsync,
+    isGranting,
+    members,
+    isLoading,
+    error,
+    currentUserId,
+    canManage,
+    updateAsync,
+    updatingUserId,
+    revokeAsync,
+    revokingUserId,
+  } = useProjectAccess(projectId);
   const currentUserEmail = useAuthStore((s) => s.user?.email ?? null);
+  const { confirm, isVisible: confirmVisible, confirmOptions, onConfirm, onCancel } =
+    useConfirm();
 
   const {
     control,
@@ -128,6 +146,20 @@ export function AddMemberDialog({
     [grantAsync, onClose, currentUserEmail, members, setError],
   );
 
+  const handleRemoveMember = useCallback(
+    async (userId: UserId, name: string): Promise<void> => {
+      const ok = await confirm({
+        title: 'Remove member?',
+        message: `${name} will lose access to this project. You can re-add them later.`,
+        confirmText: 'Remove',
+        cancelText: 'Cancel',
+      });
+      if (!ok) return;
+      await revokeAsync(userId);
+    },
+    [confirm, revokeAsync],
+  );
+
   return (
     <Dialog visible={visible} onClose={onClose} testID={testID}>
       <Dialog.Header>
@@ -154,33 +186,68 @@ export function AddMemberDialog({
               </Text>
             ) : (
               <View className="gap-2">
-                {members.map((member) => (
-                  <View
-                    key={member.userId}
-                    className="flex-row items-center gap-3"
-                    testID={`add-member-dialog-row-${member.userId}`}
-                  >
-                    <MemberBadge name={member.name} size="sm" />
-                    <View className="flex-1 min-w-0">
-                      <Text
-                        className="font-body text-sm font-medium text-foreground"
-                        numberOfLines={1}
-                      >
-                        {member.name}
-                        {member.userId === currentUserId ? ' (you)' : ''}
-                      </Text>
-                      <Text
-                        className="font-body text-xs text-muted-foreground"
-                        numberOfLines={1}
-                      >
-                        {member.email}
-                      </Text>
+                {members.map((member) => {
+                  const isSelf = member.userId === currentUserId;
+                  const isEditable = canManage && !isSelf;
+                  return (
+                    <View
+                      key={member.userId}
+                      className="flex-row items-center gap-3"
+                      testID={`add-member-dialog-row-${member.userId}`}
+                    >
+                      <MemberBadge name={member.name} size="sm" />
+                      <View className="flex-1 min-w-0">
+                        <Text
+                          className="font-body text-sm font-medium text-foreground"
+                          numberOfLines={1}
+                        >
+                          {member.name}
+                          {isSelf ? ' (you)' : ''}
+                        </Text>
+                        <Text
+                          className="font-body text-xs text-muted-foreground"
+                          numberOfLines={1}
+                        >
+                          {member.email}
+                        </Text>
+                      </View>
+                      {isEditable ? (
+                        <RolePillSelector
+                          value={member.permission}
+                          onChange={(next) => {
+                            void updateAsync({
+                              userId: member.userId,
+                              permission: next,
+                            });
+                          }}
+                          isLoading={updatingUserId === member.userId}
+                          testID={`add-member-dialog-permission-${member.userId}`}
+                        />
+                      ) : (
+                        <Badge variant={ROLE_VARIANT[member.permission]}>
+                          {member.permission}
+                        </Badge>
+                      )}
+                      {isEditable ? (
+                        <Pressable
+                          onPress={() => {
+                            void handleRemoveMember(member.userId, member.name);
+                          }}
+                          disabled={revokingUserId === member.userId}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Remove ${member.name}`}
+                          className={cn(
+                            'h-8 w-8 items-center justify-center rounded-md',
+                            revokingUserId === member.userId && 'opacity-60',
+                          )}
+                          testID={`add-member-dialog-remove-${member.userId}`}
+                        >
+                          <Trash2 size={16} color={colors.destructive} />
+                        </Pressable>
+                      ) : null}
                     </View>
-                    <Badge variant={ROLE_VARIANT[member.permission]}>
-                      {member.permission}
-                    </Badge>
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             )}
           </View>
@@ -241,6 +308,39 @@ export function AddMemberDialog({
           Add
         </Button>
       </Dialog.Footer>
+
+      {confirmVisible && confirmOptions !== null ? (
+        <Dialog
+          visible={confirmVisible}
+          onClose={onCancel}
+          testID="add-member-dialog-confirm"
+        >
+          <Dialog.Header>
+            <Dialog.Title>{confirmOptions.title}</Dialog.Title>
+          </Dialog.Header>
+          <Dialog.Content>
+            <Text className="font-body text-sm text-foreground">
+              {confirmOptions.message}
+            </Text>
+          </Dialog.Content>
+          <Dialog.Footer>
+            <Button
+              variant="outline"
+              onPress={onCancel}
+              testID="add-member-dialog-confirm-cancel"
+            >
+              {confirmOptions.cancelText ?? 'Cancel'}
+            </Button>
+            <Button
+              variant="destructive"
+              onPress={onConfirm}
+              testID="add-member-dialog-confirm-ok"
+            >
+              {confirmOptions.confirmText ?? 'Confirm'}
+            </Button>
+          </Dialog.Footer>
+        </Dialog>
+      ) : null}
     </Dialog>
   );
 }

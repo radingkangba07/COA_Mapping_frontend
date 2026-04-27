@@ -2,15 +2,26 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { useToast } from '@/shared/hooks/useToast';
-import type { ProjectId } from '@/shared/types/common.types';
+import type { ProjectId, UserId } from '@/shared/types/common.types';
 import type { AppError, Result } from '@/shared/types/result.types';
 import { toAppError } from '@/shared/services/http/http.client';
-import type { AccessResponse, AccessGrant } from '../types/project-access.types';
+import type {
+  AccessResponse,
+  AccessGrant,
+  ProjectPermission,
+} from '../types/project-access.types';
 import { canManageMembers } from '../types/project-access.types';
 import {
   getProjectMembers,
   grantProjectAccess,
+  updateProjectAccess,
+  revokeProjectAccess,
 } from '../services/project-access.service';
+
+interface UpdateAccessArgs {
+  readonly userId: UserId;
+  readonly permission: ProjectPermission;
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -28,6 +39,12 @@ interface ProjectAccessViewModel {
   readonly grant: (grant: AccessGrant) => void;
   readonly grantAsync: (grant: AccessGrant) => Promise<Result<void, AppError>>;
   readonly isGranting: boolean;
+  readonly updateAsync: (args: UpdateAccessArgs) => Promise<Result<void, AppError>>;
+  readonly isUpdating: boolean;
+  readonly updatingUserId: UserId | null;
+  readonly revokeAsync: (userId: UserId) => Promise<Result<void, AppError>>;
+  readonly isRevoking: boolean;
+  readonly revokingUserId: UserId | null;
 }
 
 // ─── Error Messages ───────────────────────────────────────────────────────────
@@ -92,6 +109,55 @@ export function useProjectAccess(
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: (args: UpdateAccessArgs) => {
+      if (projectId === null) {
+        return Promise.reject(
+          toAppError(new Error('Cannot update access without a project')),
+        );
+      }
+      return updateProjectAccess(
+        httpClient,
+        projectId,
+        args.userId,
+        args.permission,
+      );
+    },
+    onSuccess: (result) => {
+      if (!result.ok) {
+        showError(getGrantErrorMessage(result.error));
+        return;
+      }
+      showSuccess('Permission updated');
+      void queryClient.invalidateQueries({ queryKey });
+    },
+    onError: () => {
+      showError('Failed to update permission');
+    },
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: (userId: UserId) => {
+      if (projectId === null) {
+        return Promise.reject(
+          toAppError(new Error('Cannot revoke access without a project')),
+        );
+      }
+      return revokeProjectAccess(httpClient, projectId, userId);
+    },
+    onSuccess: (result) => {
+      if (!result.ok) {
+        showError(getGrantErrorMessage(result.error));
+        return;
+      }
+      showSuccess('Member removed');
+      void queryClient.invalidateQueries({ queryKey });
+    },
+    onError: () => {
+      showError('Failed to remove member');
+    },
+  });
+
   const myPermission =
     query.data?.find((m) => String(m.userId) === currentUserUUID)?.permission ?? null;
 
@@ -107,5 +173,15 @@ export function useProjectAccess(
     grant: grantMutation.mutate,
     grantAsync: grantMutation.mutateAsync,
     isGranting: grantMutation.isPending,
+    updateAsync: updateMutation.mutateAsync,
+    isUpdating: updateMutation.isPending,
+    updatingUserId: updateMutation.isPending
+      ? (updateMutation.variables?.userId ?? null)
+      : null,
+    revokeAsync: revokeMutation.mutateAsync,
+    isRevoking: revokeMutation.isPending,
+    revokingUserId: revokeMutation.isPending
+      ? (revokeMutation.variables ?? null)
+      : null,
   };
 }

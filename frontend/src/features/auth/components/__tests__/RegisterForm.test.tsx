@@ -127,7 +127,11 @@ describe('RegisterForm', () => {
     fireEvent.press(screen.getByTestId('register-submit-btn'));
 
     await waitFor(() => {
-      expect(screen.getByText('Organization name already taken')).toBeTruthy();
+      expect(
+        screen.getByText(
+          'This organization is already registered. Please contact the organization admin for an invite.',
+        ),
+      ).toBeTruthy();
     });
   });
 
