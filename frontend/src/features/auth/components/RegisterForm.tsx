@@ -73,7 +73,10 @@ export const RegisterForm = ({
       if (message.includes('email already registered')) {
         setError('email', { message: 'Email already registered' });
       } else if (message.includes('organization name already taken')) {
-        setError('orgName', { message: 'Organization name already taken' });
+        setError('orgName', {
+          message:
+            'This organization is already registered. Please contact the organization admin for an invite.',
+        });
       } else {
         setServerError(result.error);
       }
