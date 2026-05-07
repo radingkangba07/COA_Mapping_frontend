@@ -149,8 +149,8 @@ describe('fetchUserProfile', () => {
       email: 'jane@example.com',
       isVerified: true,
       organizations: [
-        { orgId: createOrgId('org-1'), name: 'Acme Inc', role: 'owner' },
-        { orgId: createOrgId('org-2'), name: 'Beta Corp', role: 'member' },
+        { orgId: createOrgId('org-1'), name: 'Acme Inc', role: 'owner', orgType: 'employer' },
+        { orgId: createOrgId('org-2'), name: 'Beta Corp', role: 'member', orgType: 'employer' },
       ],
     });
     expect(result.data.organizations).toHaveLength(2);
