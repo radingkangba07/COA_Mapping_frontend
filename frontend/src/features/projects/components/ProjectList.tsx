@@ -199,10 +199,17 @@ const WebProjectList = ({
   const allItems = useMemo(() => flattenProjects(groups), [groups]);
   const totalItems = allItems.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const visiblePage = Math.min(currentPage, totalPages);
+
+  React.useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   // Paginate the flat list, then re-group for rendering
   const pagedGroups = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
+    const start = (visiblePage - 1) * PAGE_SIZE;
     const pagedItems = allItems.slice(start, start + PAGE_SIZE);
 
     const groupMap = new Map<string, { group: ProjectGroup; projects: Project[] }>();
@@ -220,7 +227,7 @@ const WebProjectList = ({
       ...group,
       projects,
     }));
-  }, [allItems, currentPage]);
+  }, [allItems, visiblePage]);
 
   return (
     <ScrollView
@@ -256,7 +263,7 @@ const WebProjectList = ({
           );
         })}
         <Pagination
-          currentPage={currentPage}
+          currentPage={visiblePage}
           totalPages={totalPages}
           totalItems={totalItems}
           pageSize={PAGE_SIZE}

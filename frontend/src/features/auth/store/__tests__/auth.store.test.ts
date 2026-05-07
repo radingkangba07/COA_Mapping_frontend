@@ -49,7 +49,7 @@ const mockUser: User = {
   email: 'test@example.com',
   isVerified: true,
   organizations: [
-    { orgId: createOrgId('org-1'), name: 'Acme Corp', role: 'owner' },
+    { orgId: createOrgId('org-1'), name: 'Acme Corp', role: 'owner', orgType: 'employer' },
   ],
 };
 

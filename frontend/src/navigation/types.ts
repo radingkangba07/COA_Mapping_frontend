@@ -38,6 +38,8 @@ export type AppTabsParamList = {
 export type ProjectsStackParamList = {
   ProjectsList: undefined;
   NewProject: undefined;
+  ClientOrgs: undefined;
+  ClientOrgDetail: { clientOrgId: string };
 };
 
 export type MigrationStackParamList = {

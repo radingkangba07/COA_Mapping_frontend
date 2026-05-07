@@ -4,7 +4,9 @@ import { createOrgId, createUserId } from '@/shared/types/common.types';
 
 // ─── Value Objects ──────────────────────────────────────────────────────────
 
-export type OrgRole = 'owner' | 'admin' | 'member';
+export type OrgType = 'employer' | 'client';
+
+export type OrgRole = 'owner' | 'admin' | 'member' | 'client_admin' | 'client_member';
 
 // ─── Domain Entities ────────────────────────────────────────────────────────
 
@@ -12,6 +14,7 @@ export interface Org {
   readonly id: OrgId;
   readonly name: string;
   readonly role: OrgRole;
+  readonly orgType: OrgType;
   readonly createdAt: string | null;
 }
 
@@ -29,16 +32,45 @@ export interface OrgInvitation {
   readonly role: OrgRole;
   readonly status: string;
   readonly invitedAt: string;
+  readonly expiresAt: string | null;
+}
+
+export interface ClientOrg {
+  readonly id: OrgId;
+  readonly name: string;
+  readonly slug: string;
+  readonly description: string | null;
+  readonly orgType: 'client';
+  readonly parentOrgId: OrgId;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface ClientOrgCreate {
+  readonly name: string;
+  readonly description?: string;
+}
+
+export interface ClientOrgUpdate {
+  readonly name?: string;
+  readonly description?: string;
 }
 
 // ─── Zod Schemas ─────────────────────────────────────────────────────────────
 
-export const orgRoleSchema = z.enum(['owner', 'admin', 'member']);
+export const orgRoleSchema = z.enum([
+  'owner',
+  'admin',
+  'member',
+  'client_admin',
+  'client_member',
+]);
 
 export const orgResponseSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   role: orgRoleSchema,
+  org_type: z.enum(['employer', 'client']).default('employer'),
   created_at: z.string().optional(),
 });
 
@@ -66,6 +98,7 @@ export const orgInvitationResponseSchema = z.object({
   role: orgRoleSchema,
   status: z.string(),
   invited_at: z.string(),
+  expires_at: z.string().nullable().optional(),
 });
 
 export type OrgInvitationDTO = z.infer<typeof orgInvitationResponseSchema>;
@@ -79,6 +112,21 @@ export const createInvitationResponseSchema = z.object({
 // Backend returns a flat array, not wrapped.
 export const orgInvitationListResponseSchema = z.array(orgInvitationResponseSchema);
 
+export const clientOrgResponseSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  slug: z.string(),
+  description: z.string().nullable().optional(),
+  org_type: z.literal('client'),
+  parent_org_id: z.string().min(1),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+export type ClientOrgDTO = z.infer<typeof clientOrgResponseSchema>;
+
+export const clientOrgListResponseSchema = z.array(clientOrgResponseSchema);
+
 // ─── Mappers ────────────────────────────────────────────────────────────────
 
 export function toOrg(dto: OrgDTO): Org {
@@ -86,6 +134,7 @@ export function toOrg(dto: OrgDTO): Org {
     id: createOrgId(dto.id),
     name: dto.name,
     role: dto.role,
+    orgType: dto.org_type,
     createdAt: dto.created_at ?? null,
   };
 }
@@ -107,5 +156,19 @@ export function toOrgInvitation(dto: OrgInvitationDTO): OrgInvitation {
     role: dto.role,
     status: dto.status,
     invitedAt: dto.invited_at,
+    expiresAt: dto.expires_at ?? null,
+  };
+}
+
+export function toClientOrg(dto: ClientOrgDTO): ClientOrg {
+  return {
+    id: createOrgId(dto.id),
+    name: dto.name,
+    slug: dto.slug,
+    description: dto.description ?? null,
+    orgType: 'client',
+    parentOrgId: createOrgId(dto.parent_org_id),
+    createdAt: dto.created_at,
+    updatedAt: dto.updated_at,
   };
 }

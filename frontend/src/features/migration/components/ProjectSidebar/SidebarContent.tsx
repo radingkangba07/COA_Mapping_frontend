@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
-import { ArrowRight, ClipboardList, Pencil, Users } from 'lucide-react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ArrowRight, ChevronDown, ChevronRight, ClipboardList, Pencil, Users } from 'lucide-react-native';
 import { colors } from '@/config/theme';
-import { createProjectId } from '@/shared/types/common.types';
+import { createOrgId, createProjectId } from '@/shared/types/common.types';
 import { Button } from '@/shared/components/ui/Button';
 import { AddMemberDialog } from '@/features/projects/components/AddMemberDialog';
 import { useProjectAccess } from '@/features/projects/hooks/useProjectAccess';
+import { MemberBadge } from '@/features/projects/components/MemberBadge';
 import { getERPBadgeColor, getERPInitial } from './ERPBadge';
 import type { SidebarContentProps } from './sidebar.types';
 
@@ -30,6 +31,7 @@ function SidebarRow({ label, value }: { label: string; value: string }) {
 
 export function SidebarContent({
   projectId,
+  orgId,
   projectName,
   createdAt,
   createdByName,
@@ -41,8 +43,11 @@ export function SidebarContent({
   testID,
 }: SidebarContentProps) {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [isMembersExpanded, setIsMembersExpanded] = useState(true);
   const brandedId = projectId !== null ? createProjectId(projectId) : null;
-  const { canManage } = useProjectAccess(brandedId);
+  const { canManage, members, isLoading: membersLoading } = useProjectAccess(brandedId);
+  const visibleMembers = members.slice(0, 15);
+  const remainingMembers = Math.max(0, members.length - visibleMembers.length);
 
   return (
   <ScrollView className="flex-1 px-4 pb-4 pt-3" testID={testID}>
@@ -83,6 +88,63 @@ export function SidebarContent({
           <Text className="text-xs font-medium text-foreground">Members</Text>
         </View>
       </Button>
+    )}
+
+    {brandedId !== null && (
+      <View className="mb-4 gap-2" testID="sidebar-members-list">
+        <Pressable
+          onPress={() => setIsMembersExpanded((value) => !value)}
+          className="flex-row items-center justify-between"
+          accessibilityRole="button"
+          accessibilityLabel={isMembersExpanded ? 'Collapse members' : 'Expand members'}
+          testID="sidebar-members-toggle"
+        >
+          <View className="flex-row items-center gap-1">
+            {isMembersExpanded ? (
+              <ChevronDown size={12} color={colors.mutedForeground} />
+            ) : (
+              <ChevronRight size={12} color={colors.mutedForeground} />
+            )}
+            <Text className="font-body text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Members
+            </Text>
+          </View>
+          <Text className="font-body text-[10px] text-muted-foreground">
+            {members.length}
+          </Text>
+        </Pressable>
+
+        {isMembersExpanded && membersLoading ? (
+          <Text className="font-body text-xs text-muted-foreground">Loading members...</Text>
+        ) : isMembersExpanded && visibleMembers.length === 0 ? (
+          <Text className="font-body text-xs text-muted-foreground">No members yet</Text>
+        ) : isMembersExpanded ? (
+          <View className="gap-2">
+            {visibleMembers.map((member) => (
+              <View
+                key={member.userId}
+                className="flex-row items-center gap-2"
+                testID={`sidebar-member-${member.userId}`}
+              >
+                <MemberBadge name={member.name || member.email} size="sm" />
+                <View className="min-w-0 flex-1">
+                  <Text className="font-body text-xs font-medium text-foreground" numberOfLines={1}>
+                    {member.name || member.email}
+                  </Text>
+                  <Text className="font-body text-[10px] text-muted-foreground" numberOfLines={1}>
+                    {member.permission}
+                  </Text>
+                </View>
+              </View>
+            ))}
+            {remainingMembers > 0 && (
+              <Text className="font-body text-xs text-muted-foreground">
+                +{remainingMembers} more
+              </Text>
+            )}
+          </View>
+        ) : null}
+      </View>
     )}
 
     {/* Details */}
@@ -153,6 +215,7 @@ export function SidebarContent({
         visible={isInviteOpen}
         onClose={() => setIsInviteOpen(false)}
         projectId={brandedId}
+        orgId={orgId !== undefined ? createOrgId(orgId) : undefined}
         testID="sidebar-add-member-dialog"
       />
     )}

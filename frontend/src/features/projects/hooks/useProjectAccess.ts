@@ -98,7 +98,9 @@ export function useProjectAccess(
     },
     onSuccess: (result) => {
       if (!result.ok) {
-        showError(getGrantErrorMessage(result.error));
+        if (result.error.code !== 'HTTP_404') {
+          showError(getGrantErrorMessage(result.error));
+        }
         return;
       }
       showSuccess('User added to project');

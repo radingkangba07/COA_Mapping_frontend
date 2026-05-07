@@ -11,6 +11,7 @@ export interface CurrentUserInfo {
 
 export interface SidebarContentProps {
   readonly projectId: string | null;
+  readonly orgId?: string;
   readonly projectName?: string;
   readonly createdAt?: Date;
   readonly createdByName?: string;
