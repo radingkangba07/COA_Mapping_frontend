@@ -1,4 +1,4 @@
-import type { ProjectId, UserId, CompanyId } from '@/shared/types/common.types';
+import type { ProjectId, UserId, CompanyId, OrgId } from '@/shared/types/common.types';
 import type { AppError } from '@/shared/types/result.types';
 
 // ─── Value Objects ──────────────────────────────────────────────────────────
@@ -19,6 +19,7 @@ export interface Project {
   readonly sourceErp: string;
   readonly targetErp: string;
   readonly status: ProjectStatus;
+  readonly orgId: OrgId | undefined;
   readonly companyId: CompanyId | undefined;
   readonly description: string | undefined;
   readonly createdBy: UserId | undefined;
@@ -28,6 +29,7 @@ export interface Project {
   readonly createdByName: string | undefined;
   readonly updatedByName: string | undefined;
   readonly currentStep: number;
+  readonly effectivePermission: string | undefined;
 }
 
 export interface ProjectMember {
@@ -48,6 +50,7 @@ export interface ProjectCreate {
   readonly name: string;
   readonly sourceErp?: string | undefined;
   readonly targetErp?: string | undefined;
+  readonly orgId?: string | undefined;
   readonly companyId?: string | undefined;
   readonly companyName?: string | undefined;
   readonly description?: string | undefined;

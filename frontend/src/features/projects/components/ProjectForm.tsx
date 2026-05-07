@@ -3,7 +3,7 @@ import { FlatList, Pressable, ScrollView, Text, TextInput, View } from 'react-na
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ChevronDown } from 'lucide-react-native';
+import { ChevronDown, Plus } from 'lucide-react-native';
 import { Input } from '@/shared/components/ui/Input';
 import { Button } from '@/shared/components/ui/Button';
 import { FormField } from '@/shared/components/forms/FormField';
@@ -106,6 +106,7 @@ interface ProjectFormProps {
   onSubmit: (data: ProjectCreate) => void;
   isPending: boolean;
   onCancel?: () => void;
+  onCreateCompany?: () => void;
   defaultCompanyId?: string;
   companyOptions?: ProjectGroup[];
   testID?: string;
@@ -115,6 +116,7 @@ export const ProjectForm = ({
   onSubmit,
   isPending,
   onCancel,
+  onCreateCompany,
   defaultCompanyId,
   companyOptions = [],
   testID,
@@ -132,14 +134,12 @@ export const ProjectForm = ({
   const selectedCompanyId = watch('companyId');
 
   const dropdownOptions = useMemo((): CompanyOption[] => {
-    const opts = companyOptions
+    return companyOptions
       .filter((g) => g.companyId !== null)
       .map((g) => ({
         id: g.companyId as string,
         label: g.companyName,
       }));
-    console.log('[ProjectForm] Dropdown options:', opts);
-    return opts;
   }, [companyOptions]);
 
   const selectedLabel = useMemo(() => {
@@ -149,23 +149,19 @@ export const ProjectForm = ({
 
   const handleCompanySelect = useCallback(
     (id: string) => {
-      const match = dropdownOptions.find((o) => o.id === id);
-      console.log('[ProjectForm] Company selected:', { id, label: match?.label });
       setValue('companyId', id);
       setValue('companyName', '');
     },
-    [setValue, dropdownOptions],
+    [setValue],
   );
 
   const handleFormSubmit = useCallback(
     (data: NewProjectFormData) => {
-      const payload = {
+      onSubmit({
         name: data.name,
         companyId: data.companyId || undefined,
         description: data.description || undefined,
-      };
-      console.log('[ProjectForm] Submitting:', payload);
-      onSubmit(payload);
+      });
     },
     [onSubmit],
   );
@@ -173,13 +169,29 @@ export const ProjectForm = ({
   return (
     <View className="gap-4" testID={testID}>
       <FormField label="Company">
-        <CompanyDropdown
-          options={dropdownOptions}
-          selectedId={selectedCompanyId ?? ''}
-          selectedLabel={selectedLabel}
-          onSelect={handleCompanySelect}
-          testID="new-project-company-dropdown"
-        />
+        <View className="gap-2">
+          <CompanyDropdown
+            options={dropdownOptions}
+            selectedId={selectedCompanyId ?? ''}
+            selectedLabel={selectedLabel}
+            onSelect={handleCompanySelect}
+            testID="new-project-company-dropdown"
+          />
+          {onCreateCompany !== undefined && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onPress={onCreateCompany}
+              className="self-start px-0"
+              testID="new-project-create-company-btn"
+            >
+              <View className="flex-row items-center gap-1">
+                <Plus size={14} color={colors.primary} />
+                <Text className="text-xs font-medium text-primary">New company</Text>
+              </View>
+            </Button>
+          )}
+        </View>
       </FormField>
 
       <Controller

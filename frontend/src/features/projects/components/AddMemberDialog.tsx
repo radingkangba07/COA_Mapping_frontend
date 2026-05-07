@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Trash2 } from 'lucide-react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { ProjectId, UserId } from '@/shared/types/common.types';
+import type { OrgId, ProjectId, UserId } from '@/shared/types/common.types';
 import { Dialog } from '@/shared/components/ui/Dialog';
 import { Input } from '@/shared/components/ui/Input';
 import { Select, type SelectOption } from '@/shared/components/ui/Select';
@@ -17,8 +17,13 @@ import { cn } from '@/shared/utils/string.utils';
 import { PROJECT_PERMISSIONS, type ProjectPermission } from '../types/project-access.types';
 import { useProjectAccess } from '../hooks/useProjectAccess';
 import { useAuthStore } from '@/features/auth/store/auth.store';
+import { httpClient } from '@/shared/services/http/http.instance';
+import { useToast } from '@/shared/hooks/useToast';
+import { inviteMember } from '../services/org.service';
 import { MemberBadge } from './MemberBadge';
 import { RolePillSelector } from './RolePillSelector';
+import { useOrgsViewModel } from '../hooks/useOrgsViewModel';
+import type { OrgRole } from '../types/org.types';
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
@@ -54,6 +59,7 @@ interface AddMemberDialogProps {
   readonly visible: boolean;
   readonly onClose: () => void;
   readonly projectId: ProjectId;
+  readonly orgId?: OrgId;
   readonly testID?: string;
 }
 
@@ -63,6 +69,7 @@ export function AddMemberDialog({
   visible,
   onClose,
   projectId,
+  orgId,
   testID = 'add-member-dialog',
 }: AddMemberDialogProps) {
   const {
@@ -78,7 +85,10 @@ export function AddMemberDialog({
     revokeAsync,
     revokingUserId,
   } = useProjectAccess(projectId);
+  const { orgs, activeOrgType } = useOrgsViewModel();
   const currentUserEmail = useAuthStore((s) => s.user?.email ?? null);
+  const { showSuccess } = useToast();
+  const [isInviting, setIsInviting] = useState(false);
   const { confirm, isVisible: confirmVisible, confirmOptions, onConfirm, onCancel } =
     useConfirm();
 
@@ -98,6 +108,56 @@ export function AddMemberDialog({
       reset(DEFAULT_VALUES);
     }
   }, [visible, reset]);
+
+  const inviteRoleForPermission = useCallback(
+    (permission: ProjectPermission): OrgRole => {
+      const targetOrgType =
+        orgId !== undefined
+          ? orgs.find((org) => org.id === orgId)?.orgType
+          : activeOrgType;
+      const isClientOrg = targetOrgType === 'client';
+
+      if (isClientOrg) {
+        return permission === 'admin' ? 'client_admin' : 'client_member';
+      }
+
+      return permission === 'admin' ? 'admin' : 'member';
+    },
+    [activeOrgType, orgId, orgs],
+  );
+
+  const inviteProjectMember = useCallback(
+    async (email: string, permission: ProjectPermission): Promise<void> => {
+      if (orgId === undefined) {
+        setError('email', {
+          type: 'manual',
+          message: 'Could not send invite because this project has no organization.',
+        });
+        return;
+      }
+
+      setIsInviting(true);
+      try {
+        const result = await inviteMember(
+          httpClient,
+          orgId,
+          email,
+          inviteRoleForPermission(permission),
+        );
+
+        if (result.ok) {
+          showSuccess('Invitation sent', `Invitation sent to ${email}`);
+          onClose();
+          return;
+        }
+
+        setError('email', { type: 'manual', message: result.error.message });
+      } finally {
+        setIsInviting(false);
+      }
+    },
+    [inviteRoleForPermission, onClose, orgId, setError, showSuccess],
+  );
 
   const onSubmit = useCallback(
     async (values: AddMemberFormValues): Promise<void> => {
@@ -134,6 +194,10 @@ export function AddMemberDialog({
           onClose();
           return;
         }
+        if (result.error.code === 'HTTP_404') {
+          await inviteProjectMember(submittedEmail, values.permission);
+          return;
+        }
         // Surface the server error inline under the email field so the user
         // doesn't have to look at the floating toast.
         setError('email', { type: 'manual', message: result.error.message });
@@ -143,7 +207,7 @@ export function AddMemberDialog({
         setError('email', { type: 'manual', message });
       }
     },
-    [grantAsync, onClose, currentUserEmail, members, setError],
+    [grantAsync, inviteProjectMember, onClose, currentUserEmail, members, setError],
   );
 
   const handleRemoveMember = useCallback(
@@ -301,11 +365,11 @@ export function AddMemberDialog({
         </Button>
         <Button
           onPress={handleSubmit(onSubmit)}
-          isLoading={isGranting}
-          disabled={isGranting}
+          isLoading={isGranting || isInviting}
+          disabled={isGranting || isInviting}
           testID="add-member-submit-btn"
         >
-          Add
+          Invite
         </Button>
       </Dialog.Footer>
 

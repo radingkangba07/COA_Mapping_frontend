@@ -3,6 +3,7 @@ import {
   createProjectId,
   createUserId,
   createCompanyId,
+  createOrgId,
 } from '@/shared/types/common.types';
 import type { Project, ProjectCreate, ProjectUpdate } from '../types/projects.types';
 
@@ -14,6 +15,7 @@ export const projectResponseSchema = z.object({
   source_system: z.string(),
   target_system: z.string(),
   status: z.enum(['draft', 'in_progress', 'pending_review', 'completed']),
+  org_id: z.string().nullable().optional(),
   company_id: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   created_by: z.string().nullable().optional(),
@@ -23,6 +25,7 @@ export const projectResponseSchema = z.object({
   created_by_name: z.string().nullable().optional(),
   updated_by_name: z.string().nullable().optional(),
   current_step: z.number().int().min(0).default(0),
+  effective_permission: z.string().nullable().optional(),
 });
 
 export type ProjectResponseDTO = z.infer<typeof projectResponseSchema>;
@@ -41,6 +44,7 @@ export function toProject(dto: ProjectResponseDTO): Project {
     sourceErp: dto.source_system,
     targetErp: dto.target_system,
     status: dto.status,
+    orgId: dto.org_id ? createOrgId(dto.org_id) : undefined,
     companyId: dto.company_id ? createCompanyId(dto.company_id) : undefined,
     description: dto.description ?? undefined,
     createdBy: dto.created_by ? createUserId(dto.created_by) : undefined,
@@ -50,6 +54,7 @@ export function toProject(dto: ProjectResponseDTO): Project {
     createdByName: dto.created_by_name ?? undefined,
     updatedByName: dto.updated_by_name ?? undefined,
     currentStep: dto.current_step,
+    effectivePermission: dto.effective_permission ?? undefined,
   };
 }
 
@@ -68,6 +73,10 @@ export function toCreatePayload(
     payload.target_system = data.targetErp;
   }
 
+  if (data.orgId !== undefined) {
+    payload.org_id = data.orgId;
+  }
+
   if (data.companyId !== undefined) {
     payload.company_id = data.companyId;
   }
@@ -80,7 +89,6 @@ export function toCreatePayload(
     payload.description = data.description;
   }
 
-  console.log('[toCreatePayload] Final API payload:', payload);
   return payload;
 }
 

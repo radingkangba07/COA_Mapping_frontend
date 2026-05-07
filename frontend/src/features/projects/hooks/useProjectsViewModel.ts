@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Project } from '../types/projects.types';
-import type { ProjectId } from '@/shared/types/common.types';
+import type { ProjectId, OrgId } from '@/shared/types/common.types';
 import type { AppError } from '@/shared/types/result.types';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { toAppError } from '@/shared/services/http/http.client';
@@ -29,16 +29,18 @@ interface ProjectsViewModel {
 
 // ─── Hook ───────────────────────────────────────────────────────────────────
 
-export function useProjectsViewModel(): ProjectsViewModel {
+export function useProjectsViewModel(orgIdOverride?: OrgId): ProjectsViewModel {
   const selectedProject = useProjectsStore(selectSelectedProject);
   const storeLoading = useProjectsStore(selectProjectsLoading);
   const storeError = useProjectsStore(selectProjectsError);
   const activeOrgId = useAppStore(selectActiveOrgId);
 
+  const effectiveOrgId = orgIdOverride ?? activeOrgId;
+
   const query = useQuery({
-    queryKey: ['projects', activeOrgId] as const,
+    queryKey: ['projects', effectiveOrgId] as const,
     queryFn: async (): Promise<{ projects: Project[]; total: number }> => {
-      const result = await getProjects(httpClient, 0, 100, activeOrgId ?? undefined);
+      const result = await getProjects(httpClient, 0, 100, effectiveOrgId ?? undefined);
 
       if (!result.ok) {
         throw result.error;
@@ -46,7 +48,7 @@ export function useProjectsViewModel(): ProjectsViewModel {
 
       return result.data;
     },
-    enabled: !!activeOrgId,
+    enabled: !!effectiveOrgId,
   });
 
   const queryError: AppError | null =

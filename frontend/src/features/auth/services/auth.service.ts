@@ -25,7 +25,8 @@ const meResponseSchema = z.object({
     z.object({
       id: z.string(),
       name: z.string(),
-      role: z.enum(['owner', 'admin', 'member']),
+      role: z.enum(['owner', 'admin', 'member', 'client_admin', 'client_member']),
+      org_type: z.enum(['employer', 'client']).default('employer'),
     }),
   ),
 });
@@ -48,6 +49,7 @@ function toUser(dto: z.infer<typeof meResponseSchema>): User {
       orgId: createOrgId(org.id),
       name: org.name,
       role: org.role,
+      orgType: org.org_type,
     })),
   };
 }

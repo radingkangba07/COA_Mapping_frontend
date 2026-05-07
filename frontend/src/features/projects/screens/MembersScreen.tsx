@@ -67,6 +67,7 @@ export const MembersScreen = (): React.JSX.Element => {
       <InviteMemberDialog
         visible={inviteVisible}
         onClose={handleInviteClose}
+        orgType={activeOrg?.orgType}
         testID="invite-dialog"
       />
 
