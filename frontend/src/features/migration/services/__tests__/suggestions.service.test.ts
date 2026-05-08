@@ -29,6 +29,7 @@ const group: SuggestionGroupDTO = {
     {
       id: 'a1',
       suggestion_id: 's1',
+      source_account_number: '1000',
       source_name: 'Cash',
       target_name: 'Cash at Bank',
       score: 0.97,
@@ -119,6 +120,7 @@ describe('listMappingSuggestions — success', () => {
     expect(result.data.groups).toHaveLength(1);
     expect(result.data.groups[0]?.sourceType).toBe('Asset');
     expect(result.data.groups[0]?.targetType).toBe('Fixed Asset');
+    expect(result.data.groups[0]?.accounts[0]?.sourceNumber).toBe('1000');
     expect(result.data.groups[0]?.accounts[0]?.sourceName).toBe('Cash');
     expect(result.data.groups[0]?.accounts[0]?.suggestionId).toBe('s1');
     expect(result.data.groups[0]?.accounts[0]?.mappingSource).toBe('fuzzy');

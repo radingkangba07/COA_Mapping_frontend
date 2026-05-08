@@ -123,24 +123,33 @@ export async function hydrateProject(
 
   if (sourceFileDTO) {
     const rows = sourceDataResult?.data?.ok ? sourceDataResult.data.data.data : [];
+    const rowCount = sourceDataResult?.data?.ok
+      ? sourceDataResult.data.data.rowCount
+      : sourceFileDTO.rowCount;
     store.setSourceData(
-      { name: sourceFileDTO.fileName, rowCount: rows.length, fileId: createFileId(sourceFileDTO.fileId) },
+      { name: sourceFileDTO.fileName, rowCount, fileId: createFileId(sourceFileDTO.fileId) },
       rows,
     );
   }
 
   if (targetFileDTO) {
     const rows = targetDataResult?.data?.ok ? targetDataResult.data.data.data : [];
+    const rowCount = targetDataResult?.data?.ok
+      ? targetDataResult.data.data.rowCount
+      : targetFileDTO.rowCount;
     store.setTargetData(
-      { name: targetFileDTO.fileName, rowCount: rows.length, fileId: createFileId(targetFileDTO.fileId) },
+      { name: targetFileDTO.fileName, rowCount, fileId: createFileId(targetFileDTO.fileId) },
       rows,
     );
   }
 
   if (mappingFileDTO) {
     const rows = mappingDataResult?.data?.ok ? mappingDataResult.data.data.data : [];
+    const rowCount = mappingDataResult?.data?.ok
+      ? mappingDataResult.data.data.rowCount
+      : mappingFileDTO.rowCount;
     store.setMappingData(
-      { name: mappingFileDTO.fileName, rowCount: rows.length, fileId: createFileId(mappingFileDTO.fileId) },
+      { name: mappingFileDTO.fileName, rowCount, fileId: createFileId(mappingFileDTO.fileId) },
       rows,
     );
   }

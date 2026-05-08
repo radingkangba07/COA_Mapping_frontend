@@ -45,7 +45,7 @@ interface ValidationScreenViewModel {
   readonly confirmedLow: boolean;
   readonly deletedAccounts: readonly { sourceType: string; sourceNumber: string; sourceName: string }[];
   readonly targetTypes: readonly string[];
-  readonly targetAccountNames: readonly string[];
+  readonly targetAccounts: readonly { name: string; number: string }[];
   readonly stats: MappingStats;
   readonly filteredMappings: GroupedMapping[];
   readonly allConfirmed: boolean;
@@ -56,7 +56,7 @@ interface ValidationScreenViewModel {
   readonly handleFilterPress: (filter: ConfidenceLevel | null) => void;
   readonly handleConfirm: (level: ConfidenceLevel) => Promise<void>;
   readonly handleTypeChange: (sourceType: string, newTargetType: string) => void;
-  readonly handleAccountNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string, suggestionId?: string) => void;
+  readonly handleAccountNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string, suggestionId?: string, targetNumber?: string | null) => void;
   readonly handleDeleteAccount: (sourceType: string, accountIndex: number, account: AccountMapping) => void;
   readonly handleRestoreAccount: (deletedIndex: number) => void;
   readonly handleToggleDeleted: () => void;
@@ -149,16 +149,29 @@ export function useValidationScreenViewModel(
     });
   }, [queryClient, projectId]);
 
-  const targetAccountNames = useMemo<string[]>(() => {
+  const targetAccounts = useMemo<{ name: string; number: string }[]>(() => {
     const firstRow = targetData[0];
     if (!firstRow) return [];
-    const nameCol = Object.keys(firstRow).find(
+    const keys = Object.keys(firstRow);
+    const nameCol = keys.find(
       (k) => k.toLowerCase().includes('name') || k.toLowerCase().includes('title'),
     );
+    const numberCol = keys.find(
+      (k) => k.toLowerCase().includes('number') || k.toLowerCase().includes('code') || k.toLowerCase().includes('account_id'),
+    );
     if (!nameCol) return [];
-    return [...new Set(
-      targetData.map((r) => String(r[nameCol] ?? '').trim()).filter(Boolean),
-    )].sort();
+    const seen = new Set<string>();
+    return targetData
+      .map((r) => ({
+        name: String(r[nameCol] ?? '').trim(),
+        number: numberCol ? String(r[numberCol] ?? '').trim() : '',
+      }))
+      .filter(({ name }) => {
+        if (!name || seen.has(name)) return false;
+        seen.add(name);
+        return true;
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [targetData]);
 
   const handleStepPress = useCallback(
@@ -219,8 +232,8 @@ export function useValidationScreenViewModel(
   const handleTypeChange = useCallback(
     (sourceType: string, newTargetType: string): void => { actions.updateTypeMapping(sourceType, newTargetType); }, [actions]);
   const handleAccountNameChange = useCallback(
-    (sourceType: string, accountIndex: number, newName: string, sourceName?: string, suggestionId?: string): void => {
-      actions.updateAccountName(sourceType, accountIndex, newName, 'User', sourceName, suggestionId);
+    (sourceType: string, accountIndex: number, newName: string, sourceName?: string, suggestionId?: string, targetNumber?: string | null): void => {
+      actions.updateAccountName(sourceType, accountIndex, newName, 'User', sourceName, suggestionId, targetNumber);
     }, [actions]);
   const handleDeleteAccount = useCallback(
     (sourceType: string, _accountIndex: number, account: AccountMapping): void => {
@@ -268,7 +281,7 @@ export function useValidationScreenViewModel(
   return {
     currentStep, completedSteps, sourceFile, sourceERP, targetERP, confidenceFilter,
     confirmedHigh, confirmedMedium, confirmedLow, deletedAccounts, targetTypes,
-    targetAccountNames, stats, filteredMappings, allConfirmed, errors, warnings,
+    targetAccounts, stats, filteredMappings, allConfirmed, errors, warnings,
     isDeletedOpen, handleStepPress, handleFilterPress, handleConfirm, handleTypeChange,
     handleAccountNameChange, handleDeleteAccount, handleRestoreAccount,
     handleToggleDeleted, handleBack, handleContinue, handleSaveMappings,

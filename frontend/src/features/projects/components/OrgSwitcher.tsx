@@ -4,11 +4,11 @@ import {
   Text,
   Pressable,
   Modal,
-  FlatList,
+  ScrollView,
+  TextInput,
   type LayoutRectangle,
-  type ListRenderItemInfo,
 } from 'react-native';
-import { Check, ChevronDown } from 'lucide-react-native';
+import { Check, Search } from 'lucide-react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from '@/shared/components/ui/Skeleton';
 import { useOrgsViewModel } from '../hooks/useOrgsViewModel';
@@ -21,9 +21,9 @@ import { colors } from '@/config/theme';
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const POPOVER_GAP = 4;
-const POPOVER_WIDTH = 220;
-const POPOVER_MAX_HEIGHT = 300;
-const BOTTOM_SHEET_MAX_HEIGHT = '60%';
+const POPOVER_WIDTH = 240;
+const POPOVER_MAX_HEIGHT = 360;
+const BOTTOM_SHEET_MAX_HEIGHT = '65%';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -33,36 +33,150 @@ interface OrgSwitcherProps {
   testID?: string;
 }
 
-// ─── Sub-component: Popover item ────────────────────────────────────────────
+// ─── Sub-components ──────────────────────────────────────────────────────────
 
-interface PopoverItemProps {
-  item: Org;
-  isSelected: boolean;
-  onPress: (id: string) => void;
-  testID: string;
+function SectionHeader({ label }: { label: string }): React.JSX.Element {
+  return (
+    <View className="px-4 pt-3 pb-1.5">
+      <Text className="font-body text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+        {label}
+      </Text>
+    </View>
+  );
 }
 
-function PopoverItem({ item, isSelected, onPress, testID }: PopoverItemProps): React.JSX.Element {
+interface OrgItemProps {
+  org: Org;
+  isSelected: boolean;
+  onPress: (id: string) => void;
+  testID?: string;
+}
+
+function OrgItem({ org, isSelected, onPress, testID }: OrgItemProps): React.JSX.Element {
   return (
     <Pressable
-      className={cn(
-        'flex-row items-center justify-between px-3 py-2.5',
-        isSelected && 'bg-accent/10',
-      )}
-      onPress={() => onPress(item.id)}
+      className={cn('flex-row items-center justify-between px-4 py-2.5')}
+      onPress={() => onPress(org.id)}
       testID={testID}
     >
       <Text
         className={cn(
-          'font-body text-sm',
-          isSelected ? 'font-medium text-accent' : 'text-foreground',
+          'font-body text-sm flex-1 mr-2',
+          isSelected ? 'font-semibold text-accent' : 'text-foreground',
         )}
         numberOfLines={1}
       >
-        {item.name}
+        {org.name}
       </Text>
       {isSelected && <Check size={16} color={colors.accent} />}
     </Pressable>
+  );
+}
+
+// ─── Dropdown content ────────────────────────────────────────────────────────
+
+interface DropdownContentProps {
+  employerOrgs: Org[];
+  clientOrgs: Org[];
+  activeOrgId: string | null;
+  onSelect: (id: string) => void;
+  testID: string;
+}
+
+function DropdownContent({
+  employerOrgs,
+  clientOrgs,
+  activeOrgId,
+  onSelect,
+  testID,
+}: DropdownContentProps): React.JSX.Element {
+  const [query, setQuery] = useState('');
+
+  const filteredEmployer = useMemo(() => {
+    if (query.trim() === '') return employerOrgs;
+    const q = query.toLowerCase();
+    return employerOrgs.filter((o) => o.name.toLowerCase().includes(q));
+  }, [employerOrgs, query]);
+
+  const filteredClient = useMemo(() => {
+    if (query.trim() === '') return clientOrgs;
+    const q = query.toLowerCase();
+    return clientOrgs.filter((o) => o.name.toLowerCase().includes(q));
+  }, [clientOrgs, query]);
+
+  const hasResults = filteredEmployer.length > 0 || filteredClient.length > 0;
+  const hasGroups = clientOrgs.length > 0;
+
+  return (
+    <>
+      {/* Search input */}
+      <View className="flex-row items-center border-b border-border px-3 py-2 gap-2">
+        <Search size={14} color={colors.mutedForeground} />
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search workspaces..."
+          placeholderTextColor={colors.mutedForeground}
+          className="flex-1 font-body text-sm text-foreground h-7 focus:outline-none"
+          autoCorrect={false}
+          autoCapitalize="none"
+          testID={`${testID}-search`}
+        />
+      </View>
+
+      {/* List */}
+      <ScrollView bounces={false} keyboardShouldPersistTaps="handled">
+        {!hasGroups ? (
+          // Flat list — no client orgs
+          filteredEmployer.map((org) => (
+            <OrgItem
+              key={org.id}
+              org={org}
+              isSelected={org.id === activeOrgId}
+              onPress={onSelect}
+              testID={`${testID}-option-${org.id}`}
+            />
+          ))
+        ) : (
+          <>
+            {filteredEmployer.length > 0 && (
+              <>
+                <SectionHeader label="Your Workspace" />
+                {filteredEmployer.map((org) => (
+                  <OrgItem
+                    key={org.id}
+                    org={org}
+                    isSelected={org.id === activeOrgId}
+                    onPress={onSelect}
+                    testID={`${testID}-option-${org.id}`}
+                  />
+                ))}
+              </>
+            )}
+            {filteredClient.length > 0 && (
+              <>
+                <SectionHeader label="Client Workspaces" />
+                {filteredClient.map((org) => (
+                  <OrgItem
+                    key={org.id}
+                    org={org}
+                    isSelected={org.id === activeOrgId}
+                    onPress={onSelect}
+                    testID={`${testID}-option-${org.id}`}
+                  />
+                ))}
+              </>
+            )}
+          </>
+        )}
+
+        {!hasResults && (
+          <View className="px-4 py-4">
+            <Text className="font-body text-sm text-muted-foreground">No workspaces found</Text>
+          </View>
+        )}
+      </ScrollView>
+    </>
   );
 }
 
@@ -96,75 +210,22 @@ export function OrgSwitcher({
     });
   }, []);
 
-  const handleClose = useCallback(() => {
-    setIsOpen(false);
-  }, []);
+  const handleClose = useCallback(() => setIsOpen(false), []);
 
   const badgeInitial = activeOrg?.name.charAt(0).toUpperCase() ?? '?';
 
-  const renderSectionHeader = (label: string): React.JSX.Element => (
-    <View className="px-3 pt-3 pb-1">
-      <Text className="font-body text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </Text>
-    </View>
-  );
-
-  const renderPopoverItem = useCallback(
-    ({ item }: ListRenderItemInfo<Org>) => {
-      const isSelected = item.id === activeOrgId;
-      return (
-        <PopoverItem
-          item={item}
-          isSelected={isSelected}
-          onPress={handleChange}
-          testID={`${testID}-popover-option-${item.id}`}
-        />
-      );
-    },
-    [activeOrgId, handleChange, testID],
-  );
-
-  // Build grouped list: employer orgs first, then client orgs with a section header
-  const groupedData = useMemo((): Org[] => {
-    if (clientOrgs.length === 0) return orgs;
-    return [...employerOrgs, ...clientOrgs];
-  }, [orgs, employerOrgs, clientOrgs]);
-
-  const renderGroupedPopover = (): React.JSX.Element => (
-    <>
-      {employerOrgs.length > 0 && (
-        <>
-          {renderSectionHeader('Your Workspace')}
-          {employerOrgs.map((org) => (
-            <PopoverItem
-              key={org.id}
-              item={org}
-              isSelected={org.id === activeOrgId}
-              onPress={handleChange}
-              testID={`${testID}-popover-option-${org.id}`}
-            />
-          ))}
-        </>
-      )}
-      {clientOrgs.length > 0 && (
-        <>
-          {renderSectionHeader('Client Workspaces')}
-          {clientOrgs.map((org) => (
-            <PopoverItem
-              key={org.id}
-              item={org}
-              isSelected={org.id === activeOrgId}
-              onPress={handleChange}
-              testID={`${testID}-popover-option-${org.id}`}
-            />
-          ))}
-        </>
-      )}
-    </>
-  );
-
-  const keyExtractor = useCallback((item: Org) => item.id, []);
+  const popoverStyle = useMemo(() => {
+    if (!isWeb) return { maxHeight: BOTTOM_SHEET_MAX_HEIGHT as `${number}%` };
+    if (triggerLayout !== null) {
+      return {
+        top: triggerLayout.y + triggerLayout.height + POPOVER_GAP,
+        left: triggerLayout.x,
+        width: collapsed ? POPOVER_WIDTH : triggerLayout.width,
+        maxHeight: POPOVER_MAX_HEIGHT,
+      };
+    }
+    return { maxHeight: POPOVER_MAX_HEIGHT };
+  }, [triggerLayout, collapsed]);
 
   if (isLoading) {
     return (
@@ -178,90 +239,36 @@ export function OrgSwitcher({
     );
   }
 
-  if (orgs.length === 0) {
-    return null;
-  }
+  if (orgs.length === 0) return null;
 
-  const hasGroups = clientOrgs.length > 0;
-
-  if (!collapsed) {
-    return (
-      <View className={className} testID={testID}>
-        <Pressable
-          ref={triggerRef}
-          onPress={handleTriggerPress}
-          className="h-10 flex-row items-center justify-between rounded-md border border-input bg-background px-3"
-          testID={`${testID}-trigger`}
-        >
-          <Text className="font-body text-sm text-foreground" numberOfLines={1}>
-            {activeOrg?.name ?? 'Select organization'}
-          </Text>
-          <ChevronDown size={16} color={colors.mutedForeground} />
-        </Pressable>
-
-        <Modal
-          visible={isOpen}
-          transparent
-          animationType={isWeb ? 'none' : 'slide'}
-          onRequestClose={handleClose}
-        >
-          <Pressable
-            className={cn('flex-1', isWeb ? 'bg-transparent' : 'bg-black/40')}
-            onPress={handleClose}
-          >
-            <View
-              className={cn(
-                'overflow-hidden rounded-md border border-border bg-background shadow-lg',
-                isWeb ? 'absolute' : 'absolute bottom-0 left-0 right-0 rounded-t-xl pb-8',
-              )}
-              style={
-                isWeb && triggerLayout !== null
-                  ? {
-                      top: triggerLayout.y + triggerLayout.height + POPOVER_GAP,
-                      left: triggerLayout.x,
-                      width: triggerLayout.width,
-                      maxHeight: POPOVER_MAX_HEIGHT,
-                    }
-                  : isWeb
-                    ? { maxHeight: POPOVER_MAX_HEIGHT }
-                    : { maxHeight: BOTTOM_SHEET_MAX_HEIGHT }
-              }
-              onStartShouldSetResponder={() => true}
-            >
-              {!isWeb && (
-                <View className="items-center py-3">
-                  <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
-                </View>
-              )}
-              {hasGroups ? (
-                renderGroupedPopover()
-              ) : (
-                <FlatList
-                  data={groupedData}
-                  keyExtractor={keyExtractor}
-                  renderItem={renderPopoverItem}
-                  bounces={false}
-                />
-              )}
-            </View>
-          </Pressable>
-        </Modal>
-      </View>
-    );
-  }
+  const trigger = collapsed ? (
+    <Pressable
+      ref={triggerRef}
+      onPress={handleTriggerPress}
+      className="h-10 w-10 items-center justify-center rounded-full bg-primary"
+      testID={`${testID}-badge`}
+    >
+      <Text className="font-heading text-base font-semibold text-primary-foreground">
+        {badgeInitial}
+      </Text>
+    </Pressable>
+  ) : (
+    <Pressable
+      ref={triggerRef}
+      onPress={handleTriggerPress}
+      className="h-10 flex-row items-center justify-between rounded-md border border-input bg-background px-3"
+      testID={`${testID}-trigger`}
+    >
+      <Text className="font-body text-sm text-foreground flex-1 mr-2" numberOfLines={1}>
+        {activeOrg?.name ?? 'Select workspace'}
+      </Text>
+      <Search size={14} color={colors.mutedForeground} />
+    </Pressable>
+  );
 
   return (
     <View className={className} testID={testID}>
-      <Pressable
-        ref={triggerRef}
-        onPress={handleTriggerPress}
-        className="h-10 w-10 items-center justify-center rounded-full bg-primary"
-        testID={`${testID}-badge`}
-      >
-        <Text className="font-heading text-base font-semibold text-primary-foreground">
-          {badgeInitial}
-        </Text>
-      </Pressable>
+      {trigger}
 
       <Modal
         visible={isOpen}
@@ -276,20 +283,10 @@ export function OrgSwitcher({
           <View
             className={cn(
               'overflow-hidden rounded-md border border-border bg-background shadow-lg',
-              isWeb ? 'absolute' : 'absolute bottom-0 left-0 right-0 rounded-t-xl pb-8',
+              !isWeb && 'absolute bottom-0 left-0 right-0 rounded-t-xl pb-8',
+              isWeb && 'absolute',
             )}
-            style={
-              isWeb && triggerLayout !== null
-                ? {
-                    top: triggerLayout.y + triggerLayout.height + POPOVER_GAP,
-                    left: triggerLayout.x,
-                    width: POPOVER_WIDTH,
-                    maxHeight: POPOVER_MAX_HEIGHT,
-                  }
-                : isWeb
-                  ? { maxHeight: POPOVER_MAX_HEIGHT }
-                  : { maxHeight: BOTTOM_SHEET_MAX_HEIGHT }
-            }
+            style={popoverStyle}
             onStartShouldSetResponder={() => true}
           >
             {!isWeb && (
@@ -297,16 +294,13 @@ export function OrgSwitcher({
                 <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
               </View>
             )}
-            {hasGroups ? (
-              renderGroupedPopover()
-            ) : (
-              <FlatList
-                data={groupedData}
-                keyExtractor={keyExtractor}
-                renderItem={renderPopoverItem}
-                bounces={false}
-              />
-            )}
+            <DropdownContent
+              employerOrgs={employerOrgs}
+              clientOrgs={clientOrgs}
+              activeOrgId={activeOrgId}
+              onSelect={handleChange}
+              testID={testID}
+            />
           </View>
         </Pressable>
       </Modal>

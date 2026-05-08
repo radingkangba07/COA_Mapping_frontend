@@ -39,6 +39,8 @@ export function SidebarContent({
   lastEditedBy,
   sourceERP,
   targetERP,
+  sourceRowCount,
+  targetRowCount,
   currentUser,
   testID,
 }: SidebarContentProps) {
@@ -174,25 +176,32 @@ export function SidebarContent({
         <Text className="font-body text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
           Migration
         </Text>
-        <View className="flex-row items-center gap-2">
-          <View className={`h-6 w-6 items-center justify-center rounded-full ${getERPBadgeColor(sourceERP.id)}`}>
-            <Text className="font-body text-[10px] font-bold text-white">{getERPInitial(sourceERP.id)}</Text>
+        <View className="flex-row items-start">
+          <View className="min-w-0 flex-1">
+            <View className="flex-row items-center gap-2">
+              <View className={`h-6 w-6 items-center justify-center rounded-full ${getERPBadgeColor(sourceERP.id)}`}>
+                <Text className="font-body text-[10px] font-bold text-white">{getERPInitial(sourceERP.id)}</Text>
+              </View>
+              <Text className="min-w-0 flex-1 font-body text-xs font-medium text-foreground">{sourceERP.name}</Text>
+            </View>
+            <Text className="ml-8 mt-1 font-mono text-[10px] text-muted-foreground">
+              {sourceRowCount ?? 0} source rows
+            </Text>
           </View>
-          <Text className="font-body text-xs font-medium text-foreground">{sourceERP.name}</Text>
-          <ArrowRight size={10} color={colors.mutedForeground} />
-          <View className={`h-6 w-6 items-center justify-center rounded-full ${getERPBadgeColor(targetERP.id)}`}>
-            <Text className="font-body text-[10px] font-bold text-white">{getERPInitial(targetERP.id)}</Text>
+          <View className="w-6 items-center pt-2">
+            <ArrowRight size={10} color={colors.mutedForeground} />
           </View>
-          <Text className="font-body text-xs font-medium text-foreground">{targetERP.name}</Text>
-        </View>
-
-        <View className="flex-row justify-between mt-2">
-          {sourceERP.fieldCount !== undefined && (
-            <Text className="font-mono text-[10px] text-muted-foreground">{sourceERP.fieldCount} source fields</Text>
-          )}
-          {targetERP.fieldCount !== undefined && (
-            <Text className="font-mono text-[10px] text-muted-foreground">{targetERP.fieldCount} target fields</Text>
-          )}
+          <View className="min-w-0 flex-1">
+            <View className="flex-row items-center gap-2">
+              <View className={`h-6 w-6 items-center justify-center rounded-full ${getERPBadgeColor(targetERP.id)}`}>
+                <Text className="font-body text-[10px] font-bold text-white">{getERPInitial(targetERP.id)}</Text>
+              </View>
+              <Text className="min-w-0 flex-1 font-body text-xs font-medium text-foreground">{targetERP.name}</Text>
+            </View>
+            <Text className="ml-8 mt-1 font-mono text-[10px] text-muted-foreground">
+              {targetRowCount ?? 0} target rows
+            </Text>
+          </View>
         </View>
       </View>
     ) : sourceERP ? (
