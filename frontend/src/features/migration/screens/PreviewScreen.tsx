@@ -116,7 +116,7 @@ export const PreviewScreen = (): React.JSX.Element => {
 
   if (isHydrating) {
     return (
-      <MigrationLayout title="COA Migration" projectId={projectId} onBack={() => navigation.goBack()} testID="preview-screen">
+      <MigrationLayout title="DataPortation" projectId={projectId} onBack={() => navigation.goBack()} testID="preview-screen">
         <View className="flex-1 items-center justify-center">
           <Spinner size="lg" />
           <Text className="mt-4 font-body text-sm text-muted-foreground">Loading project data...</Text>
@@ -127,7 +127,7 @@ export const PreviewScreen = (): React.JSX.Element => {
 
   if (error) {
     return (
-      <MigrationLayout title="COA Migration" projectId={projectId} onBack={() => navigation.goBack()} testID="preview-screen">
+      <MigrationLayout title="DataPortation" projectId={projectId} onBack={() => navigation.goBack()} testID="preview-screen">
         <NetworkErrorFallback error={new Error(error.message)} onRetry={retry} testID="preview-error" />
       </MigrationLayout>
     );
@@ -135,7 +135,7 @@ export const PreviewScreen = (): React.JSX.Element => {
 
   return (
     <MigrationLayout
-      title="COA Migration"
+      title="DataPortation"
       subtitle="Preview and export mapped data"
       projectId={projectId}
       onBack={() => navigation.goBack()}

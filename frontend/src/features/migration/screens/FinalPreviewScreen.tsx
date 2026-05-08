@@ -127,7 +127,7 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
 
   if (isHydrating) {
     return (
-      <MigrationLayout title="COA Migration" projectId={projectId} onBack={handleBack} testID="final-preview-screen">
+      <MigrationLayout title="DataPortation" projectId={projectId} onBack={handleBack} testID="final-preview-screen">
         <View className="flex-1 items-center justify-center">
           <Spinner size="lg" />
           <Text className="mt-4 font-body text-sm text-muted-foreground">
@@ -140,7 +140,7 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
 
   if (error) {
     return (
-      <MigrationLayout title="COA Migration" projectId={projectId} onBack={handleBack} testID="final-preview-screen">
+      <MigrationLayout title="DataPortation" projectId={projectId} onBack={handleBack} testID="final-preview-screen">
         <NetworkErrorFallback
           error={new Error(error.message)}
           onRetry={retry}
@@ -152,7 +152,7 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
 
   return (
     <MigrationLayout
-      title="COA Migration"
+      title="DataPortation"
       subtitle="Final review before export"
       projectId={projectId}
       onBack={() => navigation.goBack()}

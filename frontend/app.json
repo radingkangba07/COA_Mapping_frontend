@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "COA Migration",
+    "name": "DataPortation",
     "slug": "coa-migration",
     "scheme": "coa-migration",
     "version": "1.0.0",

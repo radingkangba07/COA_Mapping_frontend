@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { FlatList, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -18,12 +18,43 @@ const newProjectSchema = z.object({
 });
 
 type NewProjectFormData = z.infer<typeof newProjectSchema>;
+type CompanyOrgType = 'employer' | 'client';
 
 // ─── Company Dropdown ──────────────────────────────────────────────────────
 
 interface CompanyOption {
   id: string;
   label: string;
+  orgType?: CompanyOrgType;
+}
+
+const COMPANY_TYPE_META: Record<CompanyOrgType, { label: string; backgroundColor: string; color: string }> = {
+  client: {
+    label: 'Client',
+    backgroundColor: 'rgba(0, 102, 204, 0.10)',
+    color: '#0057AD',
+  },
+  employer: {
+    label: 'Employer',
+    backgroundColor: 'rgba(88, 64, 0, 0.12)',
+    color: '#6B4E00',
+  },
+};
+
+function CompanyTypeBadge({ orgType }: { orgType?: CompanyOrgType }): React.JSX.Element | null {
+  if (orgType === undefined) return null;
+
+  const meta = COMPANY_TYPE_META[orgType];
+  return (
+    <View
+      className="rounded-full px-2 py-0.5"
+      style={{ backgroundColor: meta.backgroundColor }}
+    >
+      <Text className="font-body text-[11px] font-semibold" style={{ color: meta.color }}>
+        {meta.label}
+      </Text>
+    </View>
+  );
 }
 
 interface CompanyDropdownProps {
@@ -41,8 +72,16 @@ function CompanyDropdown({ options, selectedId, selectedLabel, onSelect, testID 
   const filtered = useMemo(() => {
     if (searchText.trim() === '') return options;
     const q = searchText.toLowerCase();
-    return options.filter((o) => o.label.toLowerCase().includes(q));
+    return options.filter((o) => {
+      const typeLabel = o.orgType !== undefined ? COMPANY_TYPE_META[o.orgType].label : '';
+      return `${o.label} ${typeLabel}`.toLowerCase().includes(q);
+    });
   }, [options, searchText]);
+
+  const selectedOption = useMemo(
+    () => options.find((o) => o.id === selectedId),
+    [options, selectedId],
+  );
 
   return (
     <View testID={testID}>
@@ -50,12 +89,16 @@ function CompanyDropdown({ options, selectedId, selectedLabel, onSelect, testID 
         onPress={() => setOpen(!open)}
         className="h-10 flex-row items-center justify-between rounded-md border border-input bg-background px-3"
       >
-        <Text
-          className="font-body text-sm"
-          style={{ color: selectedLabel !== '' ? colors.foreground : colors.mutedForeground }}
-        >
-          {selectedLabel !== '' ? selectedLabel : 'Select company...'}
-        </Text>
+        <View className="min-w-0 flex-1 flex-row items-center gap-2">
+          <Text
+            className="font-body text-sm"
+            numberOfLines={1}
+            style={{ color: selectedLabel !== '' ? colors.foreground : colors.mutedForeground }}
+          >
+            {selectedLabel !== '' ? selectedLabel : 'Select company...'}
+          </Text>
+          <CompanyTypeBadge orgType={selectedOption?.orgType} />
+        </View>
         <ChevronDown size={14} color={colors.mutedForeground} />
       </Pressable>
 
@@ -80,12 +123,13 @@ function CompanyDropdown({ options, selectedId, selectedLabel, onSelect, testID 
                   setOpen(false);
                   setSearchText('');
                 }}
-                className="px-3 py-2.5"
+                className="flex-row items-center justify-between gap-3 px-3 py-2.5"
                 style={item.id === selectedId ? { backgroundColor: 'rgba(0,51,153,0.08)' } : undefined}
               >
-                <Text className="font-body text-sm text-foreground">
+                <Text className="min-w-0 flex-1 font-body text-sm text-foreground" numberOfLines={1}>
                   {item.label}
                 </Text>
+                <CompanyTypeBadge orgType={item.orgType} />
               </Pressable>
             ))}
             {filtered.length === 0 && (
@@ -139,6 +183,7 @@ export const ProjectForm = ({
       .map((g) => ({
         id: g.companyId as string,
         label: g.companyName,
+        orgType: g.companyOrgType,
       }));
   }, [companyOptions]);
 

@@ -41,6 +41,7 @@ export interface ProjectMember {
 export interface ProjectGroup {
   readonly companyId: CompanyId | null;
   readonly companyName: string;
+  readonly companyOrgType?: 'employer' | 'client';
   readonly projects: readonly Project[];
 }
 
