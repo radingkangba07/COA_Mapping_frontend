@@ -346,7 +346,7 @@ export const MappingScreen = (): React.JSX.Element => {
 
   if (isHydrating) {
     return (
-      <MigrationLayout title="COA Migration" projectId={projectId} onBack={() => navigation.goBack()} testID="mapping-screen">
+      <MigrationLayout title="DataPortation" projectId={projectId} onBack={() => navigation.goBack()} testID="mapping-screen">
         <View className="flex-1 items-center justify-center">
           <Spinner size="lg" />
           <Text className="mt-4 font-body text-sm text-muted-foreground">
@@ -359,7 +359,7 @@ export const MappingScreen = (): React.JSX.Element => {
 
   if (error) {
     return (
-      <MigrationLayout title="COA Migration" projectId={projectId} onBack={() => navigation.goBack()} testID="mapping-screen">
+      <MigrationLayout title="DataPortation" projectId={projectId} onBack={() => navigation.goBack()} testID="mapping-screen">
         <NetworkErrorFallback
           error={new Error(error.message)}
           onRetry={retry}
@@ -372,7 +372,7 @@ export const MappingScreen = (): React.JSX.Element => {
   if (isLoading && typeMappingRows.length === 0) {
     return (
       <MigrationLayout
-        title="COA Migration"
+        title="DataPortation"
         subtitle="Review and edit field mappings"
         projectId={projectId}
         onBack={() => navigation.goBack()}
@@ -397,7 +397,7 @@ export const MappingScreen = (): React.JSX.Element => {
 
   return (
     <MigrationLayout
-      title="COA Migration"
+      title="DataPortation"
       subtitle="Review and edit field mappings"
       projectId={projectId}
       onBack={() => navigation.goBack()}

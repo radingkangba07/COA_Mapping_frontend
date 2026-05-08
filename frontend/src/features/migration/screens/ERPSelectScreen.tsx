@@ -88,7 +88,7 @@ export const ERPSelectScreen = (): React.JSX.Element => {
 
   if (isHydrating) {
     return (
-      <MigrationLayout title="COA Migration" projectId={projectId} onBack={() => navigation.goBack()} testID="erp-select-screen">
+      <MigrationLayout title="DataPortation" projectId={projectId} onBack={() => navigation.goBack()} testID="erp-select-screen">
         <View className="flex-1 items-center justify-center">
           <Spinner size="lg" />
           <Text className="mt-4 font-body text-sm text-muted-foreground">
@@ -101,7 +101,7 @@ export const ERPSelectScreen = (): React.JSX.Element => {
 
   if (error) {
     return (
-      <MigrationLayout title="COA Migration" projectId={projectId} onBack={() => navigation.goBack()} testID="erp-select-screen">
+      <MigrationLayout title="DataPortation" projectId={projectId} onBack={() => navigation.goBack()} testID="erp-select-screen">
         <NetworkErrorFallback
           error={new Error(error.message)}
           onRetry={retry}
@@ -113,7 +113,7 @@ export const ERPSelectScreen = (): React.JSX.Element => {
 
   return (
     <MigrationLayout
-      title="COA Migration"
+      title="DataPortation"
       subtitle="Select source and target ERP systems"
       projectId={projectId}
       onBack={() => navigation.goBack()}

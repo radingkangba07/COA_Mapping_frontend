@@ -153,7 +153,7 @@ const AppTopBar = (): React.JSX.Element => {
       style={{ backgroundColor: colors.surface }}
     >
       <Text className="font-heading text-sm font-bold" style={{ color: colors.foreground }}>
-        COA Migration
+        DataPortation
       </Text>
       <ProfileDropdown
         name={user?.name ?? 'User'}

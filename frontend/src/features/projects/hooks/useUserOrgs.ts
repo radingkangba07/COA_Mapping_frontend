@@ -41,21 +41,23 @@ export function useUserOrgs(enabled = true): UseUserOrgsResult {
     },
   });
 
-  const toProjectGroup = (org: Pick<Org | ClientOrg, 'id' | 'name'>): ProjectGroup => ({
+  const toProjectGroup = (org: Pick<Org | ClientOrg, 'id' | 'name' | 'orgType'>): ProjectGroup => ({
     companyId: createCompanyId(org.id),
     companyName: org.name,
+    companyOrgType: org.orgType,
     projects: [],
   });
 
   // ProjectGroup[] for backwards-compatible use in NewProjectDialog/ProjectForm.
-  // Employer admins should only see client companies here; the employer org itself
-  // is not a project company.
+  // Include employer orgs first, then any managed client companies.
   const managedClientOrgs = clientOrgsQuery.data ?? [];
-  const groups: ProjectGroup[] = managedClientOrgs.length > 0
-    ? managedClientOrgs.map(toProjectGroup)
-    : clientOrgs.length > 0
-      ? clientOrgs.map(toProjectGroup)
-      : employerOrgs.length > 0 ? [] : allOrgs.map(toProjectGroup);
+  const visibleClientOrgs = managedClientOrgs.length > 0 ? managedClientOrgs : clientOrgs;
+  const groups: ProjectGroup[] = employerOrgs.length > 0 || visibleClientOrgs.length > 0
+    ? [
+        ...employerOrgs.map(toProjectGroup),
+        ...visibleClientOrgs.map(toProjectGroup),
+      ]
+    : allOrgs.map(toProjectGroup);
 
   return {
     orgs: groups,

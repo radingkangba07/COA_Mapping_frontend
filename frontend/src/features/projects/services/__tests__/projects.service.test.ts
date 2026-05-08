@@ -1,6 +1,6 @@
 import { AxiosError, AxiosHeaders } from 'axios';
 import type { HttpClient } from '@/shared/services/http/http.types';
-import { createProjectId } from '@/shared/types/common.types';
+import { createProjectId, createOrgId } from '@/shared/types/common.types';
 import type { ProjectCreate, ProjectUpdate } from '@/features/projects/types/projects.types';
 import {
   getProjects,
@@ -110,6 +110,31 @@ describe('getProjects', () => {
 
     expect(client.get).toHaveBeenCalledWith(
       '/api/v1/projects?skip=20&limit=50',
+    );
+  });
+
+  it('appends org_id query param when orgId is provided', async () => {
+    client.get.mockResolvedValue({
+      data: { projects: [], total: 0 },
+    });
+
+    const orgId = createOrgId('org-abc');
+    await getProjects(client, 0, 100, orgId);
+
+    expect(client.get).toHaveBeenCalledWith(
+      '/api/v1/projects?skip=0&limit=100&org_id=org-abc',
+    );
+  });
+
+  it('does not append org_id when orgId is undefined', async () => {
+    client.get.mockResolvedValue({
+      data: { projects: [], total: 0 },
+    });
+
+    await getProjects(client, 0, 100, undefined);
+
+    expect(client.get).toHaveBeenCalledWith(
+      '/api/v1/projects?skip=0&limit=100',
     );
   });
 
