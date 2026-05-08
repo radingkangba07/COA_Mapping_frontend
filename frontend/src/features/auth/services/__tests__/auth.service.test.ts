@@ -149,12 +149,74 @@ describe('fetchUserProfile', () => {
       email: 'jane@example.com',
       isVerified: true,
       organizations: [
-        { orgId: createOrgId('org-1'), name: 'Acme Inc', role: 'owner' },
-        { orgId: createOrgId('org-2'), name: 'Beta Corp', role: 'member' },
+        { orgId: createOrgId('org-1'), name: 'Acme Inc', role: 'owner', orgType: 'employer' },
+        { orgId: createOrgId('org-2'), name: 'Beta Corp', role: 'member', orgType: 'employer' },
       ],
     });
     expect(result.data.organizations).toHaveLength(2);
     expect(client.get).toHaveBeenCalledWith('/api/v1/auth/me');
+  });
+
+  it('maps client org correctly — org_type: client and client_admin role', async () => {
+    const client = createMockHttpClient({
+      get: jest.fn().mockResolvedValue({
+        data: {
+          id: 'uuid-usr-456',
+          user_id: 'usr-456',
+          name: 'Carol',
+          email: 'carol@client.com',
+          is_verified: true,
+          orgs: [
+            { id: 'client-org-1', name: 'Retail Corp', role: 'client_admin', org_type: 'client' },
+          ],
+        },
+      }),
+    });
+
+    const result = await fetchUserProfile(client);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.organizations).toHaveLength(1);
+    expect(result.data.organizations[0]?.role).toBe('client_admin');
+    expect(result.data.organizations[0]?.orgType).toBe('client');
+  });
+
+  it('maps client_member role correctly', async () => {
+    const client = createMockHttpClient({
+      get: jest.fn().mockResolvedValue({
+        data: {
+          ...validMeResponse,
+          orgs: [
+            { id: 'client-org-2', name: 'Finance Ltd', role: 'client_member', org_type: 'client' },
+          ],
+        },
+      }),
+    });
+
+    const result = await fetchUserProfile(client);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.organizations[0]?.role).toBe('client_member');
+    expect(result.data.organizations[0]?.orgType).toBe('client');
+  });
+
+  it('defaults org_type to employer when field is absent', async () => {
+    const client = createMockHttpClient({
+      get: jest.fn().mockResolvedValue({
+        data: {
+          ...validMeResponse,
+          orgs: [{ id: 'org-1', name: 'Acme', role: 'owner' }],
+        },
+      }),
+    });
+
+    const result = await fetchUserProfile(client);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.organizations[0]?.orgType).toBe('employer');
   });
 
   it('returns INVALID_RESPONSE on schema mismatch', async () => {

@@ -6,7 +6,8 @@ import type { AppError } from '@/shared/types/result.types';
 export interface Organization {
   readonly orgId: OrgId;
   readonly name: string;
-  readonly role: 'owner' | 'admin' | 'member';
+  readonly role: 'owner' | 'admin' | 'member' | 'client_admin' | 'client_member';
+  readonly orgType: 'employer' | 'client';
 }
 
 export interface User {

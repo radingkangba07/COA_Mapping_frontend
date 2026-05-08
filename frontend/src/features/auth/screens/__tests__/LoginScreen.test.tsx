@@ -133,9 +133,9 @@ describe('LoginScreen', () => {
     expect(screen.getByTestId('login-screen')).toBeTruthy();
   });
 
-  it('shows "COA Migration System" heading', () => {
+  it('shows "DataPortation" heading', () => {
     render(<LoginScreen {...createMockProps()} />);
-    expect(screen.getByText('COA Migration System')).toBeTruthy();
+    expect(screen.getByText('DataPortation')).toBeTruthy();
   });
 
   it('shows subtitle text', () => {

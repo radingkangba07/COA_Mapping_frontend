@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useRef } from 'react';
-import { View, Text } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Pressable, View, Text } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -12,6 +12,9 @@ import {
   AlertTriangle,
   CheckCircle2,
   Edit3,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
 } from 'lucide-react-native';
 import { MigrationLayout } from '../components/MigrationLayout';
 import { Card } from '@/shared/components/ui/Card';
@@ -24,6 +27,7 @@ import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorF
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
 import { MappingStatsBar } from '../components/MappingStatsBar/MappingStatsBar';
 import { AccountTypeGroup } from '../components/AccountTypeGroup/AccountTypeGroup';
+import type { ScoreSortDirection } from '../components/AccountTypeGroup/AccountTypeGroup';
 import { ValidationSkeleton } from '../components/ValidationSkeleton';
 import { useHydrateProject } from '../hooks/useHydrateProject';
 import { useValidationScreenViewModel } from '../hooks/useValidationScreenViewModel';
@@ -79,6 +83,7 @@ export const ValidationScreen = (): React.JSX.Element => {
   const navigation = useNavigation<MigrationNavProp>();
   const route = useMigrationScreenRoute<'Validation'>();
   const { projectId } = route.params;
+  const [scoreSortDirection, setScoreSortDirection] = useState<ScoreSortDirection>('none');
   const { isHydrating, error, retry } = useHydrateProject(createProjectId(projectId));
 
   const handleGoBack = useCallback(() => navigation.goBack(), [navigation]);
@@ -163,9 +168,24 @@ export const ValidationScreen = (): React.JSX.Element => {
     [vm, navigation, projectId],
   );
 
+  const handleToggleScoreSort = useCallback(() => {
+    setScoreSortDirection((current) => {
+      if (current === 'none') return 'desc';
+      if (current === 'desc') return 'asc';
+      return 'none';
+    });
+  }, []);
+
+  const ScoreSortIcon =
+    scoreSortDirection === 'desc'
+      ? ArrowDown
+      : scoreSortDirection === 'asc'
+        ? ArrowUp
+        : ArrowUpDown;
+
   if (isHydrating) {
     return (
-      <MigrationLayout title="COA Migration" projectId={projectId} onBack={handleGoBack} testID="validation-screen">
+      <MigrationLayout title="DataPortation" projectId={projectId} onBack={handleGoBack} testID="validation-screen">
         <View className="flex-1 items-center justify-center">
           <Spinner size="lg" />
           <Text className="mt-4 font-body text-sm text-muted-foreground">Loading project data...</Text>
@@ -176,7 +196,7 @@ export const ValidationScreen = (): React.JSX.Element => {
 
   if (error) {
     return (
-      <MigrationLayout title="COA Migration" projectId={projectId} onBack={handleGoBack} testID="validation-screen">
+      <MigrationLayout title="DataPortation" projectId={projectId} onBack={handleGoBack} testID="validation-screen">
         <NetworkErrorFallback error={new Error(error.message)} onRetry={retry} testID="validation-error" />
       </MigrationLayout>
     );
@@ -189,7 +209,7 @@ export const ValidationScreen = (): React.JSX.Element => {
   if (isLoadingData) {
     return (
       <MigrationLayout
-        title="COA Migration"
+        title="DataPortation"
         subtitle="Review validation results"
         projectId={projectId}
         onBack={handleGoBack}
@@ -214,7 +234,7 @@ export const ValidationScreen = (): React.JSX.Element => {
 
   return (
     <MigrationLayout
-      title="COA Migration"
+      title="DataPortation"
       subtitle="Review validation results"
       projectId={projectId}
       onBack={handleGoBack}
@@ -416,7 +436,16 @@ export const ValidationScreen = (): React.JSX.Element => {
             </Text>
           </View>
           <View className="w-[10%] items-center">
-            <Text className="text-xs font-semibold text-muted-foreground">Score</Text>
+            <Pressable
+              onPress={handleToggleScoreSort}
+              className="flex-row items-center gap-1 rounded px-1 py-0.5"
+              accessibilityRole="button"
+              accessibilityLabel="Sort account mappings by score within each account type"
+              testID="score-sort-button"
+            >
+              <Text className="text-xs font-semibold text-muted-foreground">Score</Text>
+              <ScoreSortIcon size={12} color={colors.mutedForeground} />
+            </Pressable>
           </View>
           <View className="w-[20%] items-center">
             <Text className="text-xs font-semibold text-muted-foreground">Remark</Text>
@@ -442,6 +471,7 @@ export const ValidationScreen = (): React.JSX.Element => {
                 onTypeChange={vm.handleTypeChange}
                 onAccountNameChange={vm.handleAccountNameChange}
                 onDeleteAccount={vm.handleDeleteAccount}
+                scoreSortDirection={scoreSortDirection}
                 testID={`group-${groupKey}`}
               />
             );

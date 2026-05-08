@@ -51,6 +51,21 @@ jest.mock('../../hooks/useProjectAccess', () => ({
   useProjectAccess: (...args: unknown[]) => mockUseProjectAccess(...args),
 }));
 
+jest.mock('../../hooks/useOrgsViewModel', () => ({
+  useOrgsViewModel: () => ({
+    orgs: [],
+    employerOrgs: [],
+    clientOrgs: [],
+    activeOrg: null,
+    activeOrgId: null,
+    activeOrgType: null,
+    isLoading: false,
+    error: null,
+    setActiveOrg: jest.fn(),
+    refetch: jest.fn(),
+  }),
+}));
+
 // ─── Imports (after mocks) ──────────────────────────────────────────────────
 
 import { AddMemberDialog } from '../AddMemberDialog';

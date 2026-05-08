@@ -8,6 +8,8 @@ import { colors } from '@/config/theme';
 import { cn } from '@/shared/utils/string.utils';
 import type { AccountMapping } from '@/features/migration/types/mapping.types';
 
+export type ScoreSortDirection = 'none' | 'asc' | 'desc';
+
 // ─── Score & Remark Helpers ─────────────────────────────────────────────────
 
 function getScoreColor(score: number): string {
@@ -53,6 +55,7 @@ interface AccountTypeGroupProps {
   onTypeChange: (sourceType: string, newTargetType: string) => void;
   onAccountNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string, suggestionId?: string) => void;
   onDeleteAccount: (sourceType: string, accountIndex: number, account: AccountMapping) => void;
+  scoreSortDirection?: ScoreSortDirection;
   testID?: string;
 }
 
@@ -219,6 +222,7 @@ export const AccountTypeGroup = ({
   onTypeChange,
   onAccountNameChange,
   onDeleteAccount,
+  scoreSortDirection = 'none',
   testID,
 }: AccountTypeGroupProps) => {
   const [isOpen, setIsOpen] = useState(true);
@@ -247,6 +251,21 @@ export const AccountTypeGroup = ({
   );
 
   const isMapped = targetType.length > 0 && targetType !== 'unmatched';
+  const sortedAccounts = useMemo(
+    () => {
+      const indexed = accounts.map((account, index) => ({ account, index }));
+      if (scoreSortDirection === 'none') return indexed;
+
+      return [...indexed].sort((a, b) => {
+        const scoreDiff = scoreSortDirection === 'asc'
+          ? a.account.score - b.account.score
+          : b.account.score - a.account.score;
+        if (scoreDiff !== 0) return scoreDiff;
+        return a.index - b.index;
+      });
+    },
+    [accounts, scoreSortDirection],
+  );
 
   return (
     <View className="mt-2" testID={testID}>
@@ -311,7 +330,7 @@ export const AccountTypeGroup = ({
       {/* Expanded account rows */}
       {isOpen && accounts.length > 0 && (
         <View>
-          {accounts.map((account, index) => (
+          {sortedAccounts.map(({ account, index }, displayIndex) => (
             <AccountRow
               key={account.suggestion_id ?? `${account.source_number ?? ''}-${account.source_name}-${index}`}
               account={account}
@@ -322,7 +341,7 @@ export const AccountTypeGroup = ({
               onEditClick={handleEditClick}
               onNameChange={onAccountNameChange}
               onDelete={onDeleteAccount}
-              testID={testID !== undefined ? `${testID}-row-${index}` : undefined}
+              testID={testID !== undefined ? `${testID}-row-${displayIndex}` : undefined}
             />
           ))}
         </View>
