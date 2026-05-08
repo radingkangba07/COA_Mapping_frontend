@@ -3,7 +3,9 @@
 export interface SuggestionAccountDTO {
   readonly id: string | null;
   readonly suggestion_id: string;
+  readonly source_account_number?: string | null | undefined;
   readonly source_name: string;
+  readonly target_account_number?: string | null | undefined;
   readonly target_name: string;
   readonly score: number;
   readonly status: string;
@@ -29,7 +31,9 @@ export interface SuggestionListResponseDTO {
 export interface SuggestionAccount {
   readonly id: string | null;
   readonly suggestionId: string;
+  readonly sourceNumber: string;
   readonly sourceName: string;
+  readonly targetNumber?: string | null | undefined;
   readonly targetName: string;
   readonly score: number;
   readonly status: string;

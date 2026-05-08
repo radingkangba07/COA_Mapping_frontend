@@ -142,4 +142,18 @@ describe('SidebarContent — Invite flow', () => {
     // After press, dialog should receive visible=true
     expect(capturedDialogProps.visible).toBe(true);
   });
+
+  it('shows uploaded COA row counts in the migration path', () => {
+    renderSidebar({
+      sourceERP: { id: 'oracle_netsuite', name: 'Oracle NetSuite', fieldCount: 12 },
+      targetERP: { id: 'sap', name: 'SAP', fieldCount: 8 },
+      sourceRowCount: 125,
+      targetRowCount: 98,
+    });
+
+    expect(screen.getByText('125 source rows')).toBeTruthy();
+    expect(screen.getByText('98 target rows')).toBeTruthy();
+    expect(screen.queryByText('12 source fields')).toBeNull();
+    expect(screen.queryByText('8 target fields')).toBeNull();
+  });
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, act } from '@testing-library/react-native';
+import { render, screen, act, fireEvent } from '@testing-library/react-native';
 
 // ─── Icon mock ──────────────────────────────────────────────────────────────
 jest.mock('lucide-react-native', () => {
@@ -142,7 +142,7 @@ const mockVM = {
     sourceType: string;
   }>,
   targetTypes: ['Asset', 'Liability'],
-  targetAccountNames: [],
+  targetAccounts: [],
   stats: {
     totalTypes: 2,
     totalAccounts: 5,
@@ -492,6 +492,26 @@ describe('ValidationScreen', () => {
       mockJobStream.error = null;
       render(<ValidationScreen />);
       expect(mockShowWarning).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('expand/collapse all groups button', () => {
+    it('renders "Collapse All" button by default', () => {
+      render(<ValidationScreen />);
+      expect(screen.getByText('Collapse All')).toBeTruthy();
+    });
+
+    it('toggles button label to "Expand All" after press', () => {
+      render(<ValidationScreen />);
+      fireEvent.press(screen.getByText('Collapse All'));
+      expect(screen.getByText('Expand All')).toBeTruthy();
+    });
+
+    it('toggles back to "Collapse All" on second press', () => {
+      render(<ValidationScreen />);
+      fireEvent.press(screen.getByText('Collapse All'));
+      fireEvent.press(screen.getByText('Expand All'));
+      expect(screen.getByText('Collapse All')).toBeTruthy();
     });
   });
 });

@@ -19,6 +19,8 @@ export interface SidebarContentProps {
   readonly lastEditedBy?: string;
   readonly sourceERP: ERPInfo | null;
   readonly targetERP: ERPInfo | null;
+  readonly sourceRowCount?: number;
+  readonly targetRowCount?: number;
   readonly currentUser: CurrentUserInfo | null;
   readonly testID?: string;
 }

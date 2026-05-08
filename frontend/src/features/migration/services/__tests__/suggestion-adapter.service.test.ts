@@ -5,6 +5,7 @@ function makeAccount(overrides: Partial<SuggestionGroup['accounts'][number]> = {
   return {
     id: 'a1',
     suggestionId: 's1',
+    sourceNumber: '1000',
     sourceName: 'Cash',
     targetName: 'Cash at Bank',
     score: 97,
@@ -43,6 +44,7 @@ describe('adaptSuggestionsToGroupedMappings', () => {
     const account = group.accounts[0];
     expect(account).toBeDefined();
     if (!account) return;
+    expect(account.source_number).toBe('1000');
     expect(account.source_name).toBe('Cash');
     expect(account.target_name).toBe('Cash at Bank');
     expect(account.score).toBe(97);
@@ -91,13 +93,13 @@ describe('adaptSuggestionsToGroupedMappings', () => {
     expect(group?.confidence).toBe(0.42);
   });
 
-  it('sets source_number to empty string (not provided by suggestions endpoint)', () => {
+  it('keeps source_number empty when it is not provided by suggestions endpoint', () => {
     const groups: readonly SuggestionGroup[] = [
       {
         sourceType: 'Asset',
         targetType: 'Asset',
         confidence: 1,
-        accounts: [makeAccount({ status: 'confirmed', mappingSource: null })],
+        accounts: [makeAccount({ sourceNumber: '', status: 'confirmed', mappingSource: null })],
       },
     ];
 

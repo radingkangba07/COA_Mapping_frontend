@@ -23,6 +23,8 @@ export function useSidebarData(projectId: string): SidebarContentProps {
   const user = useAuthStore((s) => s.user);
   const sourceERP = useMigrationStore((s) => s.sourceERP);
   const targetERP = useMigrationStore((s) => s.targetERP);
+  const sourceFile = useMigrationStore((s) => s.sourceFile);
+  const targetFile = useMigrationStore((s) => s.targetFile);
   const erpSystems = useERPConfigStore((s) => s.erpSystems);
 
   const resolvedSourceERP = sourceERP
@@ -47,6 +49,8 @@ export function useSidebarData(projectId: string): SidebarContentProps {
     lastEditedBy: project?.updatedByName ?? project?.createdByName ?? user?.name,
     sourceERP: resolvedSourceERP,
     targetERP: resolvedTargetERP,
+    sourceRowCount: sourceFile?.rowCount ?? 0,
+    targetRowCount: targetFile?.rowCount ?? 0,
     currentUser: user
       ? { name: user.name, userId: user.userId }
       : null,

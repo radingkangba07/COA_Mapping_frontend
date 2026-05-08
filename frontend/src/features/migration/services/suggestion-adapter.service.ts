@@ -25,8 +25,9 @@ function toAccountMapping(account: SuggestionAccount): AccountMapping {
   const base: AccountMapping = {
     id: account.id || undefined,
     suggestion_id: account.suggestionId,
-    source_number: '',
+    source_number: account.sourceNumber,
     source_name: account.sourceName,
+    target_number: account.targetNumber,
     target_name: account.targetName,
     score: account.score,
     remark: account.mappingSource ?? '',
@@ -62,6 +63,7 @@ function toGroupedMapping(group: SuggestionGroup): GroupedMapping {
  *   sourceType        -> source_type
  *   targetType        -> target_type
  *   confidence        -> confidence
+ *   account.sourceNumber -> source_number
  *   account.sourceName -> source_name
  *   account.targetName -> target_name
  *   account.score     -> score
@@ -70,8 +72,8 @@ function toGroupedMapping(group: SuggestionGroup): GroupedMapping {
  *   account.status (raw string) -> mapping_status (undefined when empty)
  *   account.status ('pending'|'confirmed') -> status (other values dropped)
  *
- * `source_number` is not provided by the suggestions endpoint, so it is
- * left as an empty string. Group order is preserved.
+ * `source_number` is empty when the suggestions endpoint omits
+ * `source_account_number`. Group order is preserved.
  */
 export function adaptSuggestionsToGroupedMappings(
   groups: readonly SuggestionGroup[],

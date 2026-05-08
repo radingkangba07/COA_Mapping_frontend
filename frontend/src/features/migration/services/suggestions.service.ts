@@ -17,7 +17,9 @@ import type {
 const suggestionAccountSchema = z.object({
   id: z.string().nullable(),
   suggestion_id: z.string(),
+  source_account_number: z.string().nullable().optional(),
   source_name: z.string(),
+  target_account_number: z.string().nullable().optional(),
   target_name: z.string(),
   score: z.number(),
   status: z.string(),
@@ -43,7 +45,9 @@ function toAccount(dto: SuggestionAccountDTO): SuggestionAccount {
   return {
     id: dto.id,
     suggestionId: dto.suggestion_id,
+    sourceNumber: dto.source_account_number ?? '',
     sourceName: dto.source_name,
+    targetNumber: dto.target_account_number ?? null,
     targetName: dto.target_name,
     score: dto.score,
     status: dto.status,
