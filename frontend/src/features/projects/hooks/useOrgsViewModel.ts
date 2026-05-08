@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { Org } from '../types/org.types';
+import type { Org, OrgType } from '../types/org.types';
 import type { OrgId } from '@/shared/types/common.types';
 import type { AppError } from '@/shared/types/result.types';
 import { isAppError } from '@/shared/types/result.types';
@@ -14,8 +14,11 @@ import { selectActiveOrgId } from '@/shared/store/app.selectors';
 
 interface OrgsViewModel {
   readonly orgs: Org[];
+  readonly employerOrgs: Org[];
+  readonly clientOrgs: Org[];
   readonly activeOrg: Org | null;
   readonly activeOrgId: OrgId | null;
+  readonly activeOrgType: OrgType | null;
   readonly isLoading: boolean;
   readonly error: AppError | null;
   readonly setActiveOrg: (orgId: OrgId | null) => void;
@@ -46,9 +49,11 @@ export function useOrgsViewModel(): OrgsViewModel {
       : null;
 
   const orgs = query.data ?? [];
-  const firstOrgId = orgs[0]?.id ?? null;
+  const employerOrgs = orgs.filter((o) => o.orgType === 'employer');
+  const clientOrgs = orgs.filter((o) => o.orgType === 'client');
+  const firstOrgId = employerOrgs[0]?.id ?? orgs[0]?.id ?? null;
 
-  // Default to first org when no active org is set and orgs are loaded
+  // Default to first employer org when no active org is set and orgs are loaded
   useEffect(() => {
     if (activeOrgId === null && firstOrgId !== null) {
       useAppStore.getState().setActiveOrg(firstOrgId);
@@ -56,6 +61,7 @@ export function useOrgsViewModel(): OrgsViewModel {
   }, [activeOrgId, firstOrgId]);
 
   const activeOrg = orgs.find((o) => o.id === activeOrgId) ?? null;
+  const activeOrgType: OrgType | null = activeOrg?.orgType ?? null;
 
   const setActiveOrg = useCallback((orgId: OrgId | null): void => {
     useAppStore.getState().setActiveOrg(orgId);
@@ -67,8 +73,11 @@ export function useOrgsViewModel(): OrgsViewModel {
 
   return {
     orgs,
+    employerOrgs,
+    clientOrgs,
     activeOrg,
     activeOrgId,
+    activeOrgType,
     isLoading: query.isLoading,
     error: queryError,
     setActiveOrg,

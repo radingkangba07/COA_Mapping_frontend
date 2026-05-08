@@ -75,6 +75,7 @@ const pendingInvitation: OrgInvitation = {
   role: 'member',
   status: 'pending',
   invitedAt: '2024-03-01',
+  expiresAt: null,
 };
 
 interface MembersViewModelReturn {

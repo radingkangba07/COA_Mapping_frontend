@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */
 // ---------------------------------------------------------------------------
-// Jest setup file for the COA Migration Expo project.
+// Jest setup file for the DataPortation Expo project.
 // Mocks platform-specific Expo modules and NativeWind so tests run in Node.
 // ---------------------------------------------------------------------------
 

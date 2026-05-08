@@ -3,6 +3,7 @@ import { View, Text, TextInput } from 'react-native';
 import { Plus, Search } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useQueries } from '@tanstack/react-query';
 import { colors } from '@/config/theme';
 import { Screen } from '@/shared/components/layout/Screen';
 import { Button } from '@/shared/components/ui/Button';
@@ -10,6 +11,8 @@ import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorF
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { useProjectsViewModel } from '../hooks/useProjectsViewModel';
 import { useOrgsViewModel } from '../hooks/useOrgsViewModel';
+import { getProjects } from '../services/projects.service';
+import { httpClient } from '@/shared/services/http/http.instance';
 import { ProjectList } from '../components/ProjectList';
 import { ProjectListSkeleton } from '../components/ProjectListSkeleton';
 import { DashboardStats } from '../components/DashboardStats';
@@ -19,6 +22,7 @@ import type { CompanyId } from '@/shared/types/common.types';
 import type { ProjectsStackParamList } from '@/navigation/types';
 import { STEP_TO_SCREEN, MIGRATION_STEPS } from '@/shared/constants/migration-steps';
 import type { MigrationStepValue } from '@/shared/constants/migration-steps';
+import type { Org } from '../types/org.types';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -29,18 +33,25 @@ type ProjectsNav = NativeStackNavigationProp<ProjectsStackParamList, 'ProjectsLi
 function groupProjectsByCompany(
   projects: readonly Project[],
   orgNameMap: ReadonlyMap<string, string>,
+  clientOrgIds: ReadonlySet<string>,
+  activeClientCompanyId: CompanyId | null,
 ): ProjectGroup[] {
   const map = new Map<string, { companyId: CompanyId | null; projects: Project[] }>();
 
   for (const project of projects) {
-    const key = project.companyId ?? '__unassigned__';
+    const fallbackCompanyId =
+      project.orgId !== undefined && clientOrgIds.has(project.orgId as string)
+        ? (project.orgId as string as CompanyId)
+        : activeClientCompanyId;
+    const companyId = project.companyId ?? fallbackCompanyId;
+    const key = companyId ?? '__unassigned__';
     const existing = map.get(key);
 
     if (existing !== undefined) {
       existing.projects.push(project);
     } else {
       map.set(key, {
-        companyId: project.companyId ?? null,
+        companyId,
         projects: [project],
       });
     }
@@ -63,10 +74,10 @@ function groupProjectsByCompany(
     return (a.companyId as string).localeCompare(b.companyId as string);
   });
 
-  return unsorted.map((entry, idx) => ({
+  return unsorted.map((entry) => ({
     companyId: entry.companyId,
     companyName: entry.companyId !== null
-      ? orgNameMap.get(entry.companyId as string) ?? `Company ${String(idx + 1)}`
+      ? orgNameMap.get(entry.companyId as string) ?? (entry.companyId as string)
       : 'Unassigned',
     projects: entry.projects,
   }));
@@ -76,21 +87,86 @@ function groupProjectsByCompany(
 
 export const ProjectsScreen = (): React.JSX.Element => {
   const navigation = useNavigation<ProjectsNav>();
-  const { projects, isLoading, error, refetch } = useProjectsViewModel();
-  const { orgs } = useOrgsViewModel();
+  const { projects, total, isLoading, error, refetch } = useProjectsViewModel();
+  const { orgs, clientOrgs, activeOrg, activeOrgType } = useOrgsViewModel();
   const [dialogVisible, setDialogVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const showProjectBreakdown = activeOrgType === 'employer';
+
+  const clientProjectTotalQueries = useQueries({
+    queries: clientOrgs.map((org) => ({
+      queryKey: ['projects', org.id, 'total'] as const,
+      enabled: showProjectBreakdown,
+      queryFn: async (): Promise<number> => {
+        const result = await getProjects(httpClient, 0, 1, org.id);
+        if (!result.ok) throw result.error;
+        return result.data.total;
+      },
+    })),
+  });
 
   const orgNameMap = useMemo(
     () => new Map(orgs.map((o) => [o.id as string, o.name])),
     [orgs],
   );
-  const groups = useMemo(() => groupProjectsByCompany(projects, orgNameMap), [projects, orgNameMap]);
+  const clientOrgIds = useMemo(
+    () => {
+      const ids = new Set(clientOrgs.map((o: Org) => o.id as string));
+      if (activeOrgType === 'client' && activeOrg !== null) {
+        ids.add(activeOrg.id as string);
+      }
+      return ids;
+    },
+    [activeOrg, activeOrgType, clientOrgs],
+  );
+  const activeClientCompanyId = useMemo(
+    () => activeOrgType === 'client' && activeOrg !== null
+      ? (activeOrg.id as string as CompanyId)
+      : null,
+    [activeOrg, activeOrgType],
+  );
+  const groups = useMemo(
+    () => groupProjectsByCompany(projects, orgNameMap, clientOrgIds, activeClientCompanyId),
+    [projects, orgNameMap, clientOrgIds, activeClientCompanyId],
+  );
+  const filteredGroups = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (query.length === 0) return groups;
 
-  const totalProjects = projects.length;
+    return groups
+      .map((group) => ({
+        ...group,
+        projects: group.projects.filter((project) => {
+          const source = [
+            project.name,
+            project.sourceErp,
+            project.targetErp,
+            project.status,
+            project.createdByName,
+            project.updatedByName,
+            group.companyName,
+          ]
+            .filter((value): value is string => value !== undefined)
+            .join(' ')
+            .toLowerCase();
+          return source.includes(query);
+        }),
+      }))
+      .filter((group) => group.projects.length > 0);
+  }, [groups, searchQuery]);
+
+  const employerProjectCount = showProjectBreakdown ? total : projects.length;
+  const clientProjectCount = showProjectBreakdown
+    ? clientProjectTotalQueries.reduce((sum, query) => sum + (query.data ?? 0), 0)
+    : 0;
+  const totalProjects = showProjectBreakdown
+    ? employerProjectCount + clientProjectCount
+    : total;
   const totalCompanies = useMemo(
-    () => new Set(projects.filter((p) => p.companyId !== undefined).map((p) => p.companyId)).size,
-    [projects],
+    () => activeOrgType === 'employer'
+      ? clientOrgs.length
+      : groups.filter((group) => group.companyId !== null).length,
+    [activeOrgType, clientOrgs.length, groups],
   );
   const completedProjects = useMemo(
     () => projects.filter((p) => p.status === 'completed').length,
@@ -169,11 +245,21 @@ export const ProjectsScreen = (): React.JSX.Element => {
           Dashboard
         </Text>
         <Text className="font-body text-xs text-muted-foreground mt-0.5">
+          {searchQuery.trim().length > 0
+            ? `${filteredGroups.reduce((sum, group) => sum + group.projects.length, 0)} found · `
+            : ''}
           {totalProjects} total {'\u00B7'} {completedProjects} completed {'\u00B7'} {totalCompanies} {totalCompanies === 1 ? 'company' : 'companies'}
         </Text>
       </View>
 
-      <DashboardStats totalProjects={totalProjects} totalCompanies={totalCompanies} completedProjects={completedProjects} testID="dashboard-stats" />
+      <DashboardStats
+        totalProjects={totalProjects}
+        employerProjects={showProjectBreakdown ? employerProjectCount : undefined}
+        clientProjects={showProjectBreakdown ? clientProjectCount : undefined}
+        totalCompanies={totalCompanies}
+        completedProjects={completedProjects}
+        testID="dashboard-stats"
+      />
 
       {/* Actions row: Search left, Create right */}
       <View className="flex-row items-center justify-between pt-2 pb-4">
@@ -204,7 +290,7 @@ export const ProjectsScreen = (): React.JSX.Element => {
 
       {/* Project table */}
       <ProjectList
-        groups={groups}
+        groups={filteredGroups}
         isRefreshing={isLoading}
         onRefresh={refetch}
         onProjectPress={handleProjectPress}

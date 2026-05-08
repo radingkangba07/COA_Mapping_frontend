@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AppError } from '@/shared/types/result.types';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
@@ -69,8 +70,11 @@ jest.mock('../../hooks/useProjectsViewModel', () => ({
 jest.mock('../../hooks/useOrgsViewModel', () => ({
   useOrgsViewModel: () => ({
     orgs: [],
+    employerOrgs: [],
+    clientOrgs: [],
     activeOrg: null,
     activeOrgId: null,
+    activeOrgType: null,
     isLoading: false,
     error: null,
     setActiveOrg: jest.fn(),
@@ -156,6 +160,19 @@ jest.mock('@/shared/components/ui/Skeleton', () => ({
 
 import { ProjectsScreen } from '../ProjectsScreen';
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function renderScreen(): ReturnType<typeof render> {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <ProjectsScreen />
+    </QueryClientProvider>,
+  );
+}
+
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe('ProjectsScreen', () => {
@@ -165,12 +182,12 @@ describe('ProjectsScreen', () => {
   });
 
   it('renders the screen with testID', () => {
-    render(<ProjectsScreen />);
+    renderScreen();
     expect(screen.getByTestId('projects-screen')).toBeTruthy();
   });
 
   it('shows empty state when no projects exist', () => {
-    render(<ProjectsScreen />);
+    renderScreen();
     expect(screen.getByTestId('projects-empty')).toBeTruthy();
     expect(screen.getByText('No projects yet')).toBeTruthy();
   });
@@ -181,7 +198,7 @@ describe('ProjectsScreen', () => {
       projects: [{ projectId: 'p1', name: 'Test', status: 'draft' }],
       total: 1,
     });
-    render(<ProjectsScreen />);
+    renderScreen();
     expect(screen.getByText('Dashboard')).toBeTruthy();
   });
 
@@ -191,7 +208,7 @@ describe('ProjectsScreen', () => {
       projects: [{ projectId: 'p1', name: 'Test', status: 'draft' }],
       total: 1,
     });
-    render(<ProjectsScreen />);
+    renderScreen();
     expect(screen.getByTestId('dashboard-stats')).toBeTruthy();
   });
 
@@ -201,7 +218,7 @@ describe('ProjectsScreen', () => {
       projects: [{ projectId: 'p1', name: 'Test', status: 'draft' }],
       total: 1,
     });
-    render(<ProjectsScreen />);
+    renderScreen();
     expect(screen.getByTestId('projects-list')).toBeTruthy();
   });
 
@@ -211,7 +228,7 @@ describe('ProjectsScreen', () => {
       projects: [{ projectId: 'p1', name: 'Test', status: 'draft' }],
       total: 1,
     });
-    render(<ProjectsScreen />);
+    renderScreen();
     expect(screen.getByTestId('new-project-dialog')).toBeTruthy();
   });
 
@@ -222,7 +239,7 @@ describe('ProjectsScreen', () => {
       projects: [],
     });
 
-    render(<ProjectsScreen />);
+    renderScreen();
     expect(screen.getByTestId('projects-screen')).toBeTruthy();
     expect(screen.getByTestId('projects-skeleton')).toBeTruthy();
     expect(screen.queryByText('Dashboard')).toBeNull();
@@ -235,7 +252,7 @@ describe('ProjectsScreen', () => {
       projects: [],
     });
 
-    render(<ProjectsScreen />);
+    renderScreen();
     expect(screen.getByTestId('projects-screen')).toBeTruthy();
     expect(screen.getByTestId('projects-error')).toBeTruthy();
     expect(screen.getByText('Network Error')).toBeTruthy();
@@ -250,7 +267,7 @@ describe('ProjectsScreen', () => {
       total: 1,
     });
 
-    render(<ProjectsScreen />);
+    renderScreen();
     expect(screen.getByText('Dashboard')).toBeTruthy();
     expect(screen.getByTestId('projects-list')).toBeTruthy();
   });
@@ -263,7 +280,7 @@ describe('ProjectsScreen', () => {
       total: 1,
     });
 
-    render(<ProjectsScreen />);
+    renderScreen();
     expect(screen.getByText('Dashboard')).toBeTruthy();
     expect(screen.queryByTestId('projects-skeleton')).toBeNull();
   });
