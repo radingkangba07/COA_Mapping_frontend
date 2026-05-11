@@ -1,3 +1,6 @@
+
+
+
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Trash2 } from 'lucide-react-native';
@@ -208,6 +211,20 @@ export function AddMemberDialog({
       }
     },
     [grantAsync, inviteProjectMember, onClose, currentUserEmail, members, setError],
+  );
+
+  const handleRemoveMember = useCallback(
+    async (userId: UserId, name: string): Promise<void> => {
+      const ok = await confirm({
+        title: 'Remove member?',
+        message: `${name} will lose access to this project. You can re-add them later.`,
+        confirmText: 'Remove',
+        cancelText: 'Cancel',
+      });
+      if (!ok) return;
+      await revokeAsync(userId);
+    },
+    [confirm, revokeAsync],
   );
 
   const handleRemoveMember = useCallback(
