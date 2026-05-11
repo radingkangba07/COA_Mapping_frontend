@@ -36,7 +36,8 @@ function getScoreClasses(score: number): string {
 
 interface TableRowData {
   readonly sourceNumber: string; readonly sourceName: string;
-  readonly targetName: string; readonly score: number;
+  readonly targetNumber?: string | null | undefined; readonly targetName: string;
+  readonly score: number;
   readonly sourceType: string; readonly targetType: string;
   readonly key: string;
 }
@@ -93,6 +94,7 @@ export const PreviewScreen = (): React.JSX.Element => {
         .map((account, idx) => ({
           sourceNumber: account.source_number,
           sourceName: account.source_name,
+          targetNumber: account.target_number,
           targetName: account.target_name,
           score: Math.round(account.score),
           sourceType: group.source_type,
@@ -221,6 +223,7 @@ export const PreviewScreen = (): React.JSX.Element => {
                           >
                             <Text className="w-[80px] lg:w-[100px] font-mono text-xs text-foreground">{row.sourceNumber}</Text>
                             <Text className="flex-1 text-xs text-foreground" numberOfLines={1}>{row.sourceName}</Text>
+                            <Text className="w-[60px] lg:w-[80px] font-mono text-xs text-muted-foreground" numberOfLines={1}>{row.targetNumber ?? ''}</Text>
                             <Text className="flex-1 text-xs text-foreground" numberOfLines={1}>{row.targetName}</Text>
                             <View className="w-[60px] lg:w-[100px]">
                               <View className={cn('rounded-full px-1.5 py-0.5 self-start', getScoreClasses(row.score))}>

@@ -84,6 +84,7 @@ interface MigrationActions {
     userName: string,
     sourceName?: string,
     suggestionId?: string,
+    targetNumber?: string | null,
   ) => void;
   confirmConfidenceLevel: (level: ConfidenceLevel) => void;
   deleteAccount: (sourceType: string, sourceName: string, suggestionId?: string) => void;
@@ -345,6 +346,7 @@ export const useMigrationStore = create<MigrationStore>()(
       userName: string,
       sourceName?: string,
       suggestionId?: string,
+      targetNumber?: string | null,
     ): void => {
       set((state) => {
         const group = state.groupedMappings.find(
@@ -358,6 +360,7 @@ export const useMigrationStore = create<MigrationStore>()(
           : group.accounts[accountIdx];
         if (account) {
           account.target_name = newName;
+          if (targetNumber !== undefined) account.target_number = targetNumber;
           account.user_changed = true;
           account.changed_by_name = userName;
           account.changed_at = new Date().toISOString();

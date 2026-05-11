@@ -489,3 +489,183 @@ describe('useValidationScreenViewModel.filteredMappings', () => {
   });
 });
 
+// ─── targetAccounts ─────────────────────────────────────────────────────────
+
+describe('useValidationScreenViewModel.targetAccounts', () => {
+  const projectId = 'proj-1';
+  const navigateBack = jest.fn();
+  const navigateForward = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockStoreState.groupedMappings = [];
+    mockStoreState.confidenceFilter = null;
+  });
+
+  it('returns empty array when targetData is empty', () => {
+    mockStoreState.targetData = [];
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
+    );
+    expect(result.current.targetAccounts).toEqual([]);
+  });
+
+  it('extracts name and number from targetData rows', () => {
+    mockStoreState.targetData = [
+      { account_name: 'Cash', account_number: '1000' },
+      { account_name: 'Revenue', account_number: '4000' },
+    ];
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
+    );
+    expect(result.current.targetAccounts).toEqual(
+      expect.arrayContaining([
+        { name: 'Cash', number: '1000' },
+        { name: 'Revenue', number: '4000' },
+      ]),
+    );
+  });
+
+  it('deduplicates entries with the same name', () => {
+    mockStoreState.targetData = [
+      { account_name: 'Cash', account_number: '1000' },
+      { account_name: 'Cash', account_number: '1001' }, // duplicate name
+      { account_name: 'Revenue', account_number: '4000' },
+    ];
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
+    );
+    expect(result.current.targetAccounts).toHaveLength(2);
+    expect(result.current.targetAccounts.map((a) => a.name)).toEqual(['Cash', 'Revenue']);
+  });
+
+  it('returns empty number string when no number column is found', () => {
+    mockStoreState.targetData = [
+      { account_name: 'Cash' }, // no number column
+    ];
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
+    );
+    expect(result.current.targetAccounts).toEqual([{ name: 'Cash', number: '' }]);
+  });
+
+  it('sorts targetAccounts alphabetically by name', () => {
+    mockStoreState.targetData = [
+      { account_name: 'Zebra Account', account_number: '9000' },
+      { account_name: 'Alpha Account', account_number: '1000' },
+      { account_name: 'Middle Account', account_number: '5000' },
+    ];
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
+    );
+    expect(result.current.targetAccounts.map((a) => a.name)).toEqual([
+      'Alpha Account',
+      'Middle Account',
+      'Zebra Account',
+    ]);
+  });
+
+  it('filters out blank names from targetData', () => {
+    mockStoreState.targetData = [
+      { account_name: 'Cash', account_number: '1000' },
+      { account_name: '', account_number: '0000' },
+      { account_name: '   ', account_number: '0001' },
+    ];
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
+    );
+    expect(result.current.targetAccounts).toHaveLength(1);
+    expect(result.current.targetAccounts[0]?.name).toBe('Cash');
+  });
+});
+
+// ─── handleAccountNameChange with targetNumber ───────────────────────────────
+
+describe('useValidationScreenViewModel.handleAccountNameChange', () => {
+  const projectId = 'proj-1';
+  const navigateBack = jest.fn();
+  const navigateForward = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockStoreState.groupedMappings = [];
+    mockStoreState.confidenceFilter = null;
+  });
+
+  it('calls updateAccountName with targetNumber when provided', () => {
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
+    );
+
+    act(() => {
+      result.current.handleAccountNameChange(
+        'Asset',
+        0,
+        'Cash and Bank',
+        'Cash',
+        'suggestion-1',
+        '1234',
+      );
+    });
+
+    expect(mockStoreState.updateAccountName).toHaveBeenCalledWith(
+      'Asset',
+      0,
+      'Cash and Bank',
+      'User',
+      'Cash',
+      'suggestion-1',
+      '1234',
+    );
+  });
+
+  it('calls updateAccountName with null targetNumber when clearing selection', () => {
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
+    );
+
+    act(() => {
+      result.current.handleAccountNameChange('Asset', 0, '', 'Cash', undefined, null);
+    });
+
+    expect(mockStoreState.updateAccountName).toHaveBeenCalledWith(
+      'Asset',
+      0,
+      '',
+      'User',
+      'Cash',
+      undefined,
+      null,
+    );
+  });
+
+  it('calls updateAccountName without targetNumber when arg is omitted', () => {
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      { wrapper: createWrapper() },
+    );
+
+    act(() => {
+      result.current.handleAccountNameChange('Asset', 0, 'New Name');
+    });
+
+    expect(mockStoreState.updateAccountName).toHaveBeenCalledWith(
+      'Asset',
+      0,
+      'New Name',
+      'User',
+      undefined,
+      undefined,
+      undefined,
+    );
+  });
+});
+

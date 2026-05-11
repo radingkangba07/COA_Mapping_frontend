@@ -25,6 +25,7 @@ interface ApiProjectFileDTO {
   file_type: 'sourcecoa' | 'targetcoa' | 'typemapping';
   size_bytes: number;
   created_at: string;
+  row_count?: number;
 }
 
 interface ApiProjectFilesResponse {
@@ -51,6 +52,7 @@ interface FileUploadResponse {
 
 interface FileDataResponse {
   fileId: string;
+  rowCount: number;
   data: Record<string, unknown>[];
 }
 
@@ -69,7 +71,7 @@ function toProjectFile(dto: ApiProjectFileDTO): ProjectFile {
     fileId: dto.id,
     fileName: dto.original_filename,
     fileType: dto.file_type,
-    rowCount: 0,
+    rowCount: dto.row_count ?? 0,
   };
 }
 
@@ -85,6 +87,7 @@ function toFileUploadResponse(api: ApiFileUploadResponse): FileUploadResponse {
 function toFileDataResponse(api: ApiFileDataResponse): FileDataResponse {
   return {
     fileId: api.file_id,
+    rowCount: api.row_count,
     data: api.sample_data,
   };
 }

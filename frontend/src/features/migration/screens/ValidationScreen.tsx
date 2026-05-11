@@ -15,6 +15,8 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  ChevronsUpDown,
+  ChevronsDownUp,
 } from 'lucide-react-native';
 import { MigrationLayout } from '../components/MigrationLayout';
 import { Card } from '@/shared/components/ui/Card';
@@ -84,6 +86,8 @@ export const ValidationScreen = (): React.JSX.Element => {
   const route = useMigrationScreenRoute<'Validation'>();
   const { projectId } = route.params;
   const [scoreSortDirection, setScoreSortDirection] = useState<ScoreSortDirection>('none');
+  const [allExpanded, setAllExpanded] = useState(true);
+  const handleToggleAllGroups = useCallback(() => setAllExpanded((v) => !v), []);
   const { isHydrating, error, retry } = useHydrateProject(createProjectId(projectId));
 
   const handleGoBack = useCallback(() => navigation.goBack(), [navigation]);
@@ -202,8 +206,6 @@ export const ValidationScreen = (): React.JSX.Element => {
     );
   }
 
-  const sourceERPName = vm.sourceERP?.name ?? 'Source';
-  const targetERPName = vm.targetERP?.name ?? 'Target';
   const isLoadingData = suggestions.isLoading && vm.stats.totalAccounts === 0 && vm.filteredMappings.length === 0;
 
   if (isLoadingData) {
@@ -403,79 +405,97 @@ export const ValidationScreen = (): React.JSX.Element => {
           <View className="flex-row items-center gap-2">
             <FolderTree size={18} color={colors.primary} />
             <Text className="font-heading text-base font-semibold text-foreground">
-              Account Type Mappings
+              Account Name Mappings
             </Text>
-          </View>
-          <View className="flex-row items-center gap-2">
-            <Badge variant="outline" className="bg-card border-border">
-              <Text className="text-xs text-muted-foreground">90%+ High</Text>
-            </Badge>
-            <Badge variant="outline" className="bg-card border-border">
-              <Text className="text-xs text-muted-foreground">70-89% Med</Text>
-            </Badge>
-            <Badge variant="outline" className="bg-card border-border">
-              <Text className="text-xs text-muted-foreground">&lt;70% Low</Text>
-            </Badge>
-          </View>
-        </View>
-
-        {/* Table header */}
-        <View className="flex-row rounded-t-lg bg-gray-100 dark:bg-[#2D2D2D] border border-border px-4 py-2">
-          <View className="w-[8%]">
-            <Text className="text-xs font-semibold text-muted-foreground">Account #</Text>
-          </View>
-          <View className="w-[25%]">
-            <Text className="text-xs font-semibold text-muted-foreground">
-              Source Account ({sourceERPName})
-            </Text>
-          </View>
-          <View className="w-[5%] items-center" />
-          <View className="w-[22%]">
-            <Text className="text-xs font-semibold text-muted-foreground">
-              Target Account ({targetERPName})
-            </Text>
-          </View>
-          <View className="w-[10%] items-center">
-            <Pressable
-              onPress={handleToggleScoreSort}
-              className="flex-row items-center gap-1 rounded px-1 py-0.5"
-              accessibilityRole="button"
-              accessibilityLabel="Sort account mappings by score within each account type"
-              testID="score-sort-button"
+            <Button
+              size="sm"
+              variant="outline"
+              onPress={handleToggleAllGroups}
+              className="h-7 px-2 ml-1"
+              accessibilityLabel={allExpanded ? 'Collapse all groups' : 'Expand all groups'}
             >
-              <Text className="text-xs font-semibold text-muted-foreground">Score</Text>
-              <ScoreSortIcon size={12} color={colors.mutedForeground} />
-            </Pressable>
-          </View>
-          <View className="w-[20%] items-center">
-            <Text className="text-xs font-semibold text-muted-foreground">Remark</Text>
-          </View>
-          <View className="w-[10%] items-center">
-            <Text className="text-xs font-semibold text-muted-foreground">Action</Text>
+              <View className="flex-row items-center gap-1">
+                {allExpanded ? (
+                  <ChevronsDownUp size={13} color={colors.mutedForeground} />
+                ) : (
+                  <ChevronsUpDown size={13} color={colors.mutedForeground} />
+                )}
+                <Text className="text-xs text-muted-foreground">
+                  {allExpanded ? 'Collapse All' : 'Expand All'}
+                </Text>
+              </View>
+            </Button>
           </View>
         </View>
 
-        {/* Account type groups */}
-        <View className="gap-0">
-          {vm.filteredMappings.map((group) => {
-            const groupKey = `${group.source_type}__${group.target_type}`;
-            return (
-              <AccountTypeGroup
-                key={groupKey}
-                sourceType={group.source_type}
-                targetType={group.target_type}
-                confidence={group.confidence}
-                accounts={group.accounts}
-                targetTypes={vm.targetTypes}
-                targetAccountNames={vm.targetAccountNames}
-                onTypeChange={vm.handleTypeChange}
-                onAccountNameChange={vm.handleAccountNameChange}
-                onDeleteAccount={vm.handleDeleteAccount}
-                scoreSortDirection={scoreSortDirection}
-                testID={`group-${groupKey}`}
-              />
-            );
-          })}
+        {/* Table — single bordered container: header + all groups */}
+        <View className="rounded-lg border border-border overflow-hidden">
+          {/* Table header */}
+          <View className="flex-row bg-gray-100 dark:bg-[#2D2D2D] border-b border-border px-6 py-2.5">
+            <View className="w-[8%] pr-2">
+              <Text className="text-sm font-semibold text-muted-foreground" numberOfLines={1}>
+                Src #
+              </Text>
+            </View>
+            <View className="w-[26%] pr-4">
+              <Text className="text-sm font-semibold text-muted-foreground" numberOfLines={1}>
+                Source Account
+              </Text>
+            </View>
+            <View className="w-[2%] items-center" />
+            <View className="w-[7%] pl-2 pr-1">
+              <Text className="text-sm font-semibold text-muted-foreground" numberOfLines={1}>
+                Tgt #
+              </Text>
+            </View>
+            <View className="w-[26%] pr-4">
+              <Text className="text-sm font-semibold text-muted-foreground" numberOfLines={1}>
+                Target Account
+              </Text>
+            </View>
+            <View className="w-[8%] items-center">
+              <Pressable
+                onPress={handleToggleScoreSort}
+                className="flex-row items-center gap-1 rounded px-1 py-0.5"
+                accessibilityRole="button"
+                accessibilityLabel="Sort account mappings by score within each account type"
+                testID="score-sort-button"
+              >
+                <Text className="text-sm font-semibold text-muted-foreground">Score</Text>
+                <ScoreSortIcon size={12} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+            <View className="w-[13%] items-center">
+              <Text className="text-sm font-semibold text-muted-foreground">Remark</Text>
+            </View>
+            <View className="w-[10%] items-center">
+              <Text className="text-sm font-semibold text-muted-foreground">Action</Text>
+            </View>
+          </View>
+
+          {/* Account type groups — no outer border, share the container */}
+          <View>
+            {vm.filteredMappings.map((group) => {
+              const groupKey = `${group.source_type}__${group.target_type}`;
+              return (
+                <AccountTypeGroup
+                  key={groupKey}
+                  sourceType={group.source_type}
+                  targetType={group.target_type}
+                  confidence={group.confidence}
+                  accounts={group.accounts}
+                  targetTypes={vm.targetTypes}
+                  targetAccounts={vm.targetAccounts}
+                  onTypeChange={vm.handleTypeChange}
+                  onAccountNameChange={vm.handleAccountNameChange}
+                  onDeleteAccount={vm.handleDeleteAccount}
+                  forceOpen={allExpanded}
+                  scoreSortDirection={scoreSortDirection}
+                  testID={`group-${groupKey}`}
+                />
+              );
+            })}
+          </View>
         </View>
 
         {/* Footer buttons */}

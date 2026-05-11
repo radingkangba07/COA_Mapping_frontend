@@ -45,6 +45,7 @@ interface PreviewRow {
   readonly sourceNumber: string;
   readonly sourceName: string;
   readonly sourceType: string;
+  readonly targetNumber?: string | null | undefined;
   readonly targetName: string;
   readonly targetType: string;
   readonly score: number;
@@ -88,6 +89,7 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
             sourceNumber: account.source_number,
             sourceName: account.source_name,
             sourceType: group.source_type,
+            targetNumber: account.target_number,
             targetName: account.target_name,
             targetType: group.target_type,
             score,
@@ -271,7 +273,10 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
                 <View className="w-[12%]">
                   <Text className="text-xs font-semibold text-muted-foreground">Source Type</Text>
                 </View>
-                <View className="w-[20%]">
+                <View className="w-[8%]">
+                  <Text className="text-xs font-semibold text-muted-foreground">Target #</Text>
+                </View>
+                <View className="w-[12%]">
                   <Text className="text-xs font-semibold text-muted-foreground">Target Account Name</Text>
                 </View>
                 <View className="w-[12%]">
@@ -306,7 +311,10 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
                       <View className="w-[12%]">
                         <Text className="text-xs text-muted-foreground" numberOfLines={1}>{row.sourceType}</Text>
                       </View>
-                      <View className="w-[20%]">
+                      <View className="w-[8%]">
+                        <Text className="font-mono text-xs text-muted-foreground" numberOfLines={1}>{row.targetNumber ?? ''}</Text>
+                      </View>
+                      <View className="w-[12%]">
                         <Text className="text-xs text-foreground" numberOfLines={1}>{row.targetName}</Text>
                       </View>
                       <View className="w-[12%]">

@@ -51,10 +51,11 @@ interface AccountTypeGroupProps {
   confidence: number;
   accounts: readonly AccountMapping[];
   targetTypes: readonly string[];
-  targetAccountNames: readonly string[];
+  targetAccounts: readonly { name: string; number: string }[];
   onTypeChange: (sourceType: string, newTargetType: string) => void;
-  onAccountNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string, suggestionId?: string) => void;
+  onAccountNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string, suggestionId?: string, targetNumber?: string | null) => void;
   onDeleteAccount: (sourceType: string, accountIndex: number, account: AccountMapping) => void;
+  forceOpen?: boolean;
   scoreSortDirection?: ScoreSortDirection;
   testID?: string;
 }
@@ -67,8 +68,9 @@ interface AccountRowProps {
   sourceType: string;
   isEditing: boolean;
   targetAccountOptions: readonly SelectOption[];
+  targetNumberByName: Record<string, string>;
   onEditClick: (index: number) => void;
-  onNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string, suggestionId?: string) => void;
+  onNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string, suggestionId?: string, targetNumber?: string | null) => void;
   onDelete: (sourceType: string, accountIndex: number, account: AccountMapping) => void;
   testID?: string;
 }
@@ -79,6 +81,7 @@ const AccountRow = memo(({
   sourceType,
   isEditing,
   targetAccountOptions,
+  targetNumberByName,
   onEditClick,
   onNameChange,
   onDelete,
@@ -86,10 +89,12 @@ const AccountRow = memo(({
 }: AccountRowProps) => {
   const handleSelectChange = useCallback(
     (value: string) => {
-      onNameChange(sourceType, index, value === 'unmatched' ? '' : value, account.source_name, account.suggestion_id);
+      const name = value === 'unmatched' ? '' : value;
+      const targetNumber = name ? (targetNumberByName[name] ?? null) : null;
+      onNameChange(sourceType, index, name, account.source_name, account.suggestion_id, targetNumber);
       onEditClick(index); // close editing
     },
-    [onNameChange, onEditClick, sourceType, index, account.source_name, account.suggestion_id],
+    [onNameChange, onEditClick, targetNumberByName, sourceType, index, account.source_name, account.suggestion_id],
   );
 
   const handleEdit = useCallback(() => {
@@ -107,30 +112,37 @@ const AccountRow = memo(({
 
   return (
     <View
-      className="flex-row items-center py-2 px-4 hover:bg-surface-highlight"
+      className="flex-row items-center px-6 py-2.5 border-t border-border hover:bg-muted/20"
       testID={testID}
     >
       {/* Account # */}
-      <View className="w-[8%]">
+      <View className="w-[8%] pr-2">
         <Text className="font-mono text-xs text-muted-foreground">
           {account.source_number || '-'}
         </Text>
       </View>
 
       {/* Source Account */}
-      <View className="w-[25%]">
-        <Text className="text-sm text-foreground" numberOfLines={1}>
+      <View className="w-[26%] pr-4">
+        <Text className="text-sm text-foreground">
           {account.source_name}
         </Text>
       </View>
 
       {/* Arrow */}
-      <View className="w-[5%] items-center">
-        <ArrowRight size={18} color={colors.mutedForeground} strokeWidth={2.5} />
+      <View className="w-[2%] items-center">
+        <ArrowRight size={16} color={colors.mutedForeground} strokeWidth={2} />
+      </View>
+
+      {/* Target Account # */}
+      <View className="w-[7%] pl-2 pr-1">
+        <Text className="font-mono text-xs text-muted-foreground" numberOfLines={1}>
+          {account.target_number || ''}
+        </Text>
       </View>
 
       {/* Target Account */}
-      <View className="w-[22%]">
+      <View className="w-[26%] pr-4">
         {isEditing ? (
           <Select
             options={[...targetAccountOptions]}
@@ -146,7 +158,6 @@ const AccountRow = memo(({
               'text-sm',
               account.target_name ? 'text-foreground' : 'text-muted-foreground italic',
             )}
-            numberOfLines={1}
           >
             {account.target_name || 'Not mapped'}
           </Text>
@@ -154,7 +165,7 @@ const AccountRow = memo(({
       </View>
 
       {/* Score */}
-      <View className="w-[10%] items-center">
+      <View className="w-[8%] items-center">
         <Badge className={cn(scoreColor, 'px-1.5 py-0.5')}>
           <Text className={cn('text-xs font-mono font-medium', scoreColor)}>
             {score}%
@@ -163,7 +174,7 @@ const AccountRow = memo(({
       </View>
 
       {/* Remark */}
-      <View className="w-[20%] items-center">
+      <View className="w-[13%] items-center">
         <Badge variant="outline" className={cn('px-1.5 py-0.5', remarkColor)}>
           <Text className={cn('text-xs', remarkColor)}>
             {remarkText}
@@ -218,15 +229,21 @@ export const AccountTypeGroup = ({
   confidence,
   accounts,
   targetTypes,
-  targetAccountNames,
+  targetAccounts,
   onTypeChange,
   onAccountNameChange,
   onDeleteAccount,
+  forceOpen,
   scoreSortDirection = 'none',
   testID,
 }: AccountTypeGroupProps) => {
   const [isOpen, setIsOpen] = useState(true);
   const [editingRow, setEditingRow] = useState<number | null>(null);
+
+  // Sync with global expand/collapse all signal.
+  useEffect(() => {
+    if (forceOpen !== undefined) setIsOpen(forceOpen);
+  }, [forceOpen]);
 
   // Reset editing state when the accounts array changes (e.g. filter applied)
   // so a stale editingRow index doesn't open the Select for the wrong row.
@@ -245,9 +262,14 @@ export const AccountTypeGroup = ({
   const targetAccountOptions = useMemo<SelectOption[]>(
     () => [
       { label: '-- Select Account --', value: 'unmatched' },
-      ...targetAccountNames.map((n) => ({ label: n, value: n })),
+      ...targetAccounts.map(({ name }) => ({ label: name, value: name })),
     ],
-    [targetAccountNames],
+    [targetAccounts],
+  );
+
+  const targetNumberByName = useMemo<Record<string, string>>(
+    () => Object.fromEntries(targetAccounts.map(({ name, number }) => [name, number])),
+    [targetAccounts],
   );
 
   const isMapped = targetType.length > 0 && targetType !== 'unmatched';
@@ -268,16 +290,16 @@ export const AccountTypeGroup = ({
   );
 
   return (
-    <View className="mt-2" testID={testID}>
-      {/* Group header row — card with border */}
+    <View className="border-t border-border" testID={testID}>
+      {/* Group header row */}
       <Pressable
         onPress={handleToggle}
-        className="flex-row items-center rounded-lg border border-border bg-card px-4 py-3 hover:bg-surface-highlight"
+        className="flex-row items-center bg-muted/40 px-6 py-2.5 hover:bg-muted/60"
         accessibilityRole="button"
         accessibilityLabel={`${sourceType} group, ${accounts.length} accounts`}
       >
-        {/* Left side: chevron + folder + source type + count (spans Account # + Source Account columns) */}
-        <View className="flex-row items-center gap-2 w-[33%]">
+        {/* Left side: chevron + folder + source type + count (spans Src # + Source Account columns) */}
+        <View className="flex-row items-center gap-2 w-[34%]">
           {isOpen ? (
             <ChevronDown size={16} color={colors.mutedForeground} />
           ) : (
@@ -294,8 +316,8 @@ export const AccountTypeGroup = ({
           </Badge>
         </View>
 
-        {/* Middle: blank (Arrow + Target Account + Score + Remark columns) */}
-        <View className="w-[57%]" />
+        {/* Middle: blank (Arrow + Tgt# + Target Account + Score + Remark columns) */}
+        <View className="w-[56%]" />
 
         {/* Right side: target type badge + Mapped/Unmapped badge (Action column) */}
         <View className="w-[10%] flex-row items-center justify-end gap-2">
@@ -338,6 +360,7 @@ export const AccountTypeGroup = ({
               sourceType={sourceType}
               isEditing={editingRow === index}
               targetAccountOptions={targetAccountOptions}
+              targetNumberByName={targetNumberByName}
               onEditClick={handleEditClick}
               onNameChange={onAccountNameChange}
               onDelete={onDeleteAccount}

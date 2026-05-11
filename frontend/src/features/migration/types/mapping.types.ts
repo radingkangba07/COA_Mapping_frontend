@@ -16,6 +16,7 @@ export interface AccountMapping {
   readonly suggestion_id?: string | undefined;
   readonly source_number: string;
   readonly source_name: string;
+  readonly target_number?: string | null | undefined;
   readonly target_name: string;
   readonly score: number;
   readonly remark: string;

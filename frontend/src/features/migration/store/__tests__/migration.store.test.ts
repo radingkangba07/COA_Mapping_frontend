@@ -352,6 +352,76 @@ describe('useMigrationStore', () => {
       );
       expect(group?.accounts[0]?.score).toBe(originalScore);
     });
+
+    it('updateAccountName sets target_number when targetNumber arg is provided', () => {
+      const { setGroupedMappings, updateAccountName } = useMigrationStore.getState();
+
+      setGroupedMappings(mockGroupedMappings);
+      updateAccountName('Asset', 0, 'Petty Cash', 'TestUser', undefined, undefined, '9999');
+
+      const group = useMigrationStore.getState().groupedMappings.find(
+        (g) => g.source_type === 'Asset',
+      );
+      expect(group?.accounts[0]?.target_number).toBe('9999');
+    });
+
+    it('updateAccountName sets target_number to null when targetNumber is null', () => {
+      const { setGroupedMappings, updateAccountName } = useMigrationStore.getState();
+
+      setGroupedMappings(mockGroupedMappings);
+      updateAccountName('Asset', 0, 'Petty Cash', 'TestUser', undefined, undefined, null);
+
+      const group = useMigrationStore.getState().groupedMappings.find(
+        (g) => g.source_type === 'Asset',
+      );
+      expect(group?.accounts[0]?.target_number).toBeNull();
+    });
+
+    it('updateAccountName leaves target_number unchanged when targetNumber is undefined', () => {
+      const { setGroupedMappings, updateAccountName } = useMigrationStore.getState();
+
+      const mappingsWithNumber: GroupedMapping[] = [
+        {
+          source_type: 'Asset',
+          target_type: 'Assets',
+          confidence: 95,
+          accounts: [
+            {
+              source_number: '1000',
+              source_name: 'Cash',
+              target_name: 'Cash and Bank',
+              target_number: 'existing-123',
+              score: 92,
+              remark: 'Auto',
+            },
+          ],
+        },
+      ];
+      setGroupedMappings(mappingsWithNumber);
+      updateAccountName('Asset', 0, 'New Name', 'TestUser'); // no targetNumber arg
+
+      const group = useMigrationStore.getState().groupedMappings.find(
+        (g) => g.source_type === 'Asset',
+      );
+      expect(group?.accounts[0]?.target_number).toBe('existing-123');
+    });
+
+    it('updateAccountName still sets user_changed and changed_at alongside target_number', () => {
+      const { setGroupedMappings, updateAccountName } = useMigrationStore.getState();
+
+      setGroupedMappings(mockGroupedMappings);
+      updateAccountName('Asset', 0, 'Updated Cash', 'Alice', undefined, undefined, '8888');
+
+      const account = useMigrationStore
+        .getState()
+        .groupedMappings.find((g) => g.source_type === 'Asset')
+        ?.accounts[0];
+      expect(account?.target_name).toBe('Updated Cash');
+      expect(account?.target_number).toBe('8888');
+      expect(account?.user_changed).toBe(true);
+      expect(account?.changed_by_name).toBe('Alice');
+      expect(account?.changed_at).toBeDefined();
+    });
   });
 
   describe('confirmConfidenceLevel', () => {
