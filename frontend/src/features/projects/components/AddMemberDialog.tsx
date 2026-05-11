@@ -227,20 +227,6 @@ export function AddMemberDialog({
     [confirm, revokeAsync],
   );
 
-  const handleRemoveMember = useCallback(
-    async (userId: UserId, name: string): Promise<void> => {
-      const ok = await confirm({
-        title: 'Remove member?',
-        message: `${name} will lose access to this project. You can re-add them later.`,
-        confirmText: 'Remove',
-        cancelText: 'Cancel',
-      });
-      if (!ok) return;
-      await revokeAsync(userId);
-    },
-    [confirm, revokeAsync],
-  );
-
   return (
     <Dialog visible={visible} onClose={onClose} testID={testID}>
       <Dialog.Header>
