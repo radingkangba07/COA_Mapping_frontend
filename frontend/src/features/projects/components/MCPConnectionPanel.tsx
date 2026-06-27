@@ -1,12 +1,8 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text } from 'react-native';
-import { Info } from 'lucide-react-native';
+import { View } from 'react-native';
 import { Collapsible } from '@/shared/components/ui/Collapsible';
-import { Badge } from '@/shared/components/ui/Badge';
-import { Tooltip } from '@/shared/components/ui/Tooltip';
 import { Tabs } from '@/shared/components/ui/Tabs';
 import { Input } from '@/shared/components/ui/Input';
-import { colors } from '@/config/theme';
 import {
   createInitialMcpForm,
   isValidMcpUrl,
@@ -17,12 +13,9 @@ import {
 import { McpScopeSelector } from './McpScopeSelector';
 import { McpAuthFields } from './McpAuthFields';
 import { McpHeadersEditor } from './McpHeadersEditor';
+import { McpAdvancedSettings } from './McpAdvancedSettings';
+import { McpPanelTitle } from './McpPanelTitle';
 import type { McpFormHeader } from '../services/mcp.service';
-
-const INFO_ICON_SIZE = 16;
-
-const TOOLTIP_CONTENT =
-  'Configure an MCP server connection to fetch Chart of Accounts directly from the source/target ERP.';
 
 interface MCPConnectionPanelProps {
   value?: McpConnectionForm;
@@ -138,30 +131,11 @@ export const MCPConnectionPanel = ({
     ],
   );
 
-  const title = (
-    <View className="flex-row items-center gap-2">
-      <Text className="font-heading text-base font-semibold text-card-foreground">
-        MCP Connection Details
-      </Text>
-      <Badge variant="success" testID={`${testID}-enabled-badge`}>
-        Enabled
-      </Badge>
-      <Tooltip content={TOOLTIP_CONTENT} testID={`${testID}-info-tooltip`}>
-        <View
-          accessibilityRole="image"
-          accessibilityLabel={TOOLTIP_CONTENT}
-        >
-          <Info size={INFO_ICON_SIZE} color={colors.mutedForeground} />
-        </View>
-      </Tooltip>
-    </View>
-  );
-
   return (
     <Collapsible
       isOpen={isOpen}
       onToggle={handleToggle}
-      title={title}
+      title={<McpPanelTitle testID={testID} />}
       testID={testID}
     >
       <View className="gap-4" testID={`${testID}-body`}>
@@ -191,6 +165,14 @@ export const MCPConnectionPanel = ({
 
           <Tabs.Content value="target">{renderFields('target')}</Tabs.Content>
         </Tabs>
+
+        <McpAdvancedSettings
+          skipSSL={form.skipSSL}
+          proxy={form.proxy}
+          timeout={form.timeout}
+          onPatch={applyPatch}
+          testID="mcp-advanced"
+        />
       </View>
     </Collapsible>
   );
