@@ -5,7 +5,7 @@ import {
   fireEvent,
   waitFor,
 } from '@testing-library/react-native';
-import { ok } from '@/shared/types/result.types';
+import { ok, err } from '@/shared/types/result.types';
 import {
   createInitialMcpForm,
   testConnection,
@@ -19,6 +19,7 @@ jest.mock('@/config/theme', () => ({
     primaryForeground: '#FAFAFA',
     primary: '#003399',
     success: '#15803D',
+    destructive: '#D72222',
   },
 }));
 
@@ -104,5 +105,25 @@ describe('TestConnectionFlow', () => {
         expect.any(String),
       ]);
     });
+  });
+
+  it('shows the failure panel with actionable text after a failed test', async () => {
+    (testConnection as jest.Mock).mockResolvedValue(
+      err({
+        code: 'HTTP_401',
+        message: 'Request failed with status code 401',
+        details: {},
+      }),
+    );
+
+    render(<TestConnectionFlow connection={validBearerForm} />);
+
+    fireEvent.press(screen.getByTestId('test-connection-button'));
+
+    const panel = await screen.findByTestId('test-connection-failure');
+    expect(panel).toBeTruthy();
+
+    const message = screen.getByTestId('test-connection-failure-message');
+    expect(message.props.children).toMatch(/Authentication failed/);
   });
 });
