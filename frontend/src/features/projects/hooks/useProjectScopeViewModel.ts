@@ -28,7 +28,9 @@ import {
  */
 export function buildCreatePayload(draft: ProjectScopeDraft): ProjectCreate {
   return {
+    // manual name from entry modal -> draft.name -> create payload (NO generation)
     name: draft.name,
+    description: draft.description !== '' ? draft.description : undefined,
     companyId: draft.companyId ?? undefined,
     // The create endpoint requires org_id; the company id doubles as the org
     // id here, mirroring the existing useCreateProject fallback.
@@ -43,6 +45,9 @@ export function buildCreatePayload(draft: ProjectScopeDraft): ProjectCreate {
 export interface ProjectScopeViewModel {
   // Draft state
   readonly draft: ProjectScopeDraft;
+  // manual name from entry modal -> draft.name (NO generation); description likewise
+  readonly name: string;
+  readonly description: string;
   readonly companyId: string | null;
   readonly source: string | null;
   readonly target: string | null;
@@ -133,6 +138,9 @@ export function useProjectScopeViewModel(
 
   return {
     draft,
+    // manual name/description from entry modal -> draft (NO generation)
+    name: draft.name,
+    description: draft.description,
     // company carried from entry modal -> draft.companyId -> create payload
     companyId: draft.companyId,
     source,

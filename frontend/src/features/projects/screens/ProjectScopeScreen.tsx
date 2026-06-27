@@ -60,6 +60,7 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
         <View className="flex-col gap-6 lg:flex-row lg:gap-6">
           <View className="lg:flex-1 gap-6">
             {/* No Project Details/Company section — company comes from the entry modal (DA-142) */}
+            {/* No name field — name is entered manually in the entry modal (DA-143); displayed read-only only */}
             <SectionPlaceholder
               title="Project Summary"
               body={name}
