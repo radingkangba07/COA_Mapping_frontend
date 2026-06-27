@@ -1,6 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
+import { httpClient } from '@/shared/services/http/http.instance';
 import {
+  buildTestConnectionPayload,
   hasConnectionErrors,
+  testConnection,
   validateConnection,
   type McpConnectionForm,
 } from '../services/mcp.service';
@@ -44,7 +47,30 @@ export function useTestConnectionViewModel(
 
     setError(null);
     setStatus('testing');
-    // DA-69: call mcp.service.testConnection and resolve success/failure
+
+    const result = await testConnection(
+      httpClient,
+      buildTestConnectionPayload(connection),
+    );
+
+    if (result.ok) {
+      setConnectedAt(result.data.connectedAt);
+      setLogs(result.data.logs);
+      setError(null);
+      setStatus('success');
+      return;
+    }
+
+    const detailLogs = result.error.details?.logs;
+    const serverLogs =
+      Array.isArray(detailLogs) &&
+      detailLogs.every((line): line is string => typeof line === 'string')
+        ? detailLogs
+        : [];
+    setLogs(serverLogs);
+    setError(result.error.message);
+    setConnectedAt(null);
+    setStatus('failure');
   }, [connection]);
 
   return {

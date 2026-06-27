@@ -1,12 +1,15 @@
 // Pure unit tests for the MCP connection form model + service (DA-49/DA-67).
 // No RNTL — these are plain TS functions.
 
+import { AxiosError } from 'axios';
+import type { HttpClient } from '@/shared/services/http/http.types';
 import {
   isValidMcpUrl,
   createInitialMcpForm,
   validateConnection,
   hasConnectionErrors,
   buildTestConnectionPayload,
+  testConnection,
   type McpConnectionForm,
 } from '../mcp.service';
 
@@ -305,5 +308,102 @@ describe('buildTestConnectionPayload', () => {
       }),
     );
     expect(payload.headers).toEqual([{ key: 'X-Real', value: 'v1' }]);
+  });
+});
+
+// ─── testConnection (DA-69) ───────────────────────────────────────────────────
+
+describe('testConnection', () => {
+  function makeClient(post: jest.Mock): HttpClient {
+    // Only `post` is exercised; cast the partial mock to HttpClient.
+    return { post } as unknown as HttpClient;
+  }
+
+  const validForm = makeForm({
+    url: 'https://mcp.example.com',
+    authType: 'bearer',
+    token: 'abc',
+  });
+
+  it('maps a success response with timestamp + logs', async () => {
+    const post = jest.fn().mockResolvedValue({
+      data: { timestamp: '2026-06-28T10:00:00Z', logs: ['line a'] },
+    });
+    const client = makeClient(post);
+    const payload = buildTestConnectionPayload(validForm);
+
+    const result = await testConnection(client, payload);
+
+    expect(post).toHaveBeenCalledWith('/mcp/test-connection', payload);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.connectedAt).toBe('2026-06-28T10:00:00Z');
+      expect(result.data.logs).toEqual(['line a']);
+    }
+  });
+
+  it('falls back to connected_at and defaults logs to []', async () => {
+    const post = jest.fn().mockResolvedValue({
+      data: { connected_at: '2026-06-28T11:30:00Z' },
+    });
+
+    const result = await testConnection(makeClient(post), {
+      ...buildTestConnectionPayload(validForm),
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.connectedAt).toBe('2026-06-28T11:30:00Z');
+      expect(result.data.logs).toEqual([]);
+    }
+  });
+
+  it('returns INVALID_RESPONSE when logs is not a string array', async () => {
+    const post = jest.fn().mockResolvedValue({ data: { logs: 'nope' } });
+
+    const result = await testConnection(
+      makeClient(post),
+      buildTestConnectionPayload(validForm),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe('INVALID_RESPONSE');
+    }
+  });
+
+  it('returns INVALID_RESPONSE when the body is not an object', async () => {
+    const post = jest.fn().mockResolvedValue({ data: 123 });
+
+    const result = await testConnection(
+      makeClient(post),
+      buildTestConnectionPayload(validForm),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe('INVALID_RESPONSE');
+    }
+  });
+
+  it('surfaces server message + logs from an AxiosError', async () => {
+    const axiosError = new AxiosError('Request failed');
+    // @ts-expect-error — response is partially constructed for the test.
+    axiosError.response = {
+      status: 502,
+      data: { message: 'boom', logs: ['err1'] },
+    };
+    const post = jest.fn().mockRejectedValue(axiosError);
+
+    const result = await testConnection(
+      makeClient(post),
+      buildTestConnectionPayload(validForm),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toBe('boom');
+      expect(result.error.details?.logs).toEqual(['err1']);
+    }
   });
 });

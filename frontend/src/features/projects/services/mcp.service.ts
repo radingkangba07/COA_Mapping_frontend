@@ -3,6 +3,13 @@
 // `MCPConnection` is leaner; the panel needs a richer model (OAuth2, per-auth
 // credentials, applicability scope), so it owns its own form type here. Pure TS.
 
+import { AxiosError } from 'axios';
+import { z } from 'zod';
+import type { HttpClient } from '@/shared/services/http/http.types';
+import type { AppError, Result } from '@/shared/types/result.types';
+import { ok, err } from '@/shared/types/result.types';
+import { toAppError } from '@/shared/services/http/http.client';
+
 export type McpFormAuthType = 'bearer' | 'apiKey' | 'basic' | 'oauth2';
 
 export type McpConfigureScope = 'source' | 'target' | 'both';
@@ -186,4 +193,73 @@ export function createInitialMcpForm(): McpConnectionForm {
     proxy: false,
     timeout: DEFAULT_TIMEOUT_SECONDS,
   };
+}
+
+// ─── Test Connection (DA-69) ──────────────────────────────────────────────────
+
+// The backend returns a timestamp plus optional logs. Be tolerant of field
+// naming: accept `timestamp` OR `connected_at`, and treat logs as optional.
+const testConnectionResponseSchema = z.object({
+  timestamp: z.string().optional(),
+  connected_at: z.string().optional(),
+  logs: z.array(z.string()).optional(),
+});
+
+export interface McpTestConnectionResult {
+  readonly connectedAt: string; // ISO timestamp (from timestamp ?? connected_at)
+  readonly logs: readonly string[]; // [] when absent
+}
+
+// Extracts server-provided log lines from a failed request so the failure
+// panel/drawer can render them. Narrows safely without `any`.
+function extractErrorLogs(error: unknown): string[] {
+  if (!(error instanceof AxiosError)) {
+    return [];
+  }
+  const responseData: unknown = error.response?.data;
+  if (typeof responseData !== 'object' || responseData === null) {
+    return [];
+  }
+  const logs: unknown = (responseData as Record<string, unknown>).logs;
+  if (!Array.isArray(logs)) {
+    return [];
+  }
+  return logs.every((line): line is string => typeof line === 'string')
+    ? logs
+    : [];
+}
+
+// POSTs the test-connection request to the MCP surface (NOT under /api/v1) and
+// resolves the parsed result. DA-70+ render the success/failure UI from this.
+export async function testConnection(
+  client: HttpClient,
+  payload: McpTestConnectionPayload,
+): Promise<Result<McpTestConnectionResult, AppError>> {
+  try {
+    const { data } = await client.post<unknown>(
+      '/mcp/test-connection',
+      payload,
+    );
+    const parsed = testConnectionResponseSchema.safeParse(data);
+    if (!parsed.success) {
+      return err({
+        code: 'INVALID_RESPONSE',
+        message: 'Test connection response failed validation',
+        details: { issues: parsed.error.issues },
+      });
+    }
+    const connectedAt =
+      parsed.data.timestamp ??
+      parsed.data.connected_at ??
+      new Date().toISOString();
+    return ok({ connectedAt, logs: parsed.data.logs ?? [] });
+  } catch (error: unknown) {
+    const appError = toAppError(error);
+    const serverLogs = extractErrorLogs(error);
+    return err(
+      serverLogs.length > 0
+        ? { ...appError, details: { ...appError.details, logs: serverLogs } }
+        : appError,
+    );
+  }
 }
