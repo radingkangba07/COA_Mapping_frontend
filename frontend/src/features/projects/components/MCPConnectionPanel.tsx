@@ -16,6 +16,8 @@ import {
 } from '../services/mcp.service';
 import { McpScopeSelector } from './McpScopeSelector';
 import { McpAuthFields } from './McpAuthFields';
+import { McpHeadersEditor } from './McpHeadersEditor';
+import type { McpFormHeader } from '../services/mcp.service';
 
 const INFO_ICON_SIZE = 16;
 
@@ -85,6 +87,13 @@ export const MCPConnectionPanel = ({
     setUrlTouched(true);
   }, []);
 
+  const handleHeadersChange = useCallback(
+    (headers: readonly McpFormHeader[]): void => {
+      applyPatch({ headers });
+    },
+    [applyPatch],
+  );
+
   const urlError =
     urlTouched && form.url.length > 0 && !isValidMcpUrl(form.url)
       ? 'Enter a valid http(s) URL'
@@ -112,9 +121,21 @@ export const MCPConnectionPanel = ({
           onPatch={applyPatch}
           testID="mcp-auth-fields"
         />
+        <McpHeadersEditor
+          headers={form.headers}
+          onChange={handleHeadersChange}
+          testID="mcp-headers"
+        />
       </View>
     ),
-    [form, handleUrlChange, handleUrlBlur, applyPatch, urlError],
+    [
+      form,
+      handleUrlChange,
+      handleUrlBlur,
+      applyPatch,
+      urlError,
+      handleHeadersChange,
+    ],
   );
 
   const title = (
