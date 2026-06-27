@@ -115,6 +115,46 @@ describe('useTestConnectionViewModel', () => {
     expect(useProjectScopeStore.getState().testStatus).toBe('idle');
   });
 
+  it('success survives an unrelated re-render with a content-equal connection', async () => {
+    mockTestConnection.mockResolvedValue(
+      ok({ connectedAt: '2026-06-28T10:00:00Z', logs: ['x'] }),
+    );
+
+    const { result, rerender } = renderHook(
+      ({ connection }: { connection: McpConnectionForm }) =>
+        useTestConnectionViewModel(connection),
+      { initialProps: { connection: validForm } },
+    );
+
+    await act(async () => {
+      await result.current.onTestConnection();
+    });
+
+    expect(result.current.status).toBe('success');
+    expect(useProjectScopeStore.getState().connectionReady).toBe(true);
+
+    // New object, identical field values — must NOT reset the gate.
+    act(() => {
+      rerender({ connection: { ...validForm } });
+    });
+
+    expect(result.current.status).toBe('success');
+    expect(useProjectScopeStore.getState().connectionReady).toBe(true);
+    expect(useProjectScopeStore.getState().testStatus).toBe('success');
+  });
+
+  it('mount does not reset an already-established gate', () => {
+    // Global beforeEach resets the store; establish the gate AFTER that reset,
+    // before the hook mounts, to prove the first (mount) run is skipped.
+    useProjectScopeStore.getState().setConnectionReady(true);
+    useProjectScopeStore.getState().setTestStatus('success');
+
+    renderHook(() => useTestConnectionViewModel(validForm));
+
+    expect(useProjectScopeStore.getState().connectionReady).toBe(true);
+    expect(useProjectScopeStore.getState().testStatus).toBe('success');
+  });
+
   it('does not call the service for an invalid form', async () => {
     const { result } = renderHook(() =>
       useTestConnectionViewModel(invalidForm),

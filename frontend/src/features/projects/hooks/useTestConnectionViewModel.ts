@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { httpClient } from '@/shared/services/http/http.instance';
 import {
   buildTestConnectionPayload,
@@ -40,19 +40,36 @@ export function useTestConnectionViewModel(
   const isTesting = status === 'testing';
   const canTest = isFormValid && status !== 'testing';
 
-  // GATE HYGIENE: any credential/URL edit produces a fresh `connection` object,
-  // which invalidates a prior successful test and forces a re-test before Create.
-  // A successful test does NOT mutate `connection`, so this never wipes a fresh
-  // success. Deps are limited to `connection` and only constant idle values are
-  // written, so this cannot loop.
+  // Content signature of the test-relevant fields (normalized via the payload
+  // builder). Two referentially-different but content-equal connection objects
+  // produce the SAME signature, so a parent re-render cannot wipe a fresh success.
+  const connectionSignature = useMemo(
+    () => JSON.stringify(buildTestConnectionPayload(connection)),
+    [connection],
+  );
+
+  const lastSignatureRef = useRef<string | null>(null);
+
+  // GATE HYGIENE: a real credential/URL edit (signature change) invalidates a
+  // prior successful test and forces a re-test before Create. The first run
+  // (mount) is skipped so mounting never stomps a gate a draft restore already
+  // established. Same-signature re-renders are no-ops, so this cannot loop.
   useEffect(() => {
+    if (lastSignatureRef.current === null) {
+      lastSignatureRef.current = connectionSignature;
+      return;
+    }
+    if (lastSignatureRef.current === connectionSignature) {
+      return;
+    }
+    lastSignatureRef.current = connectionSignature;
     setStatus('idle');
     setConnectedAt(null);
     setLogs([]);
     setError(null);
     useProjectScopeStore.getState().setConnectionReady(false);
     useProjectScopeStore.getState().setTestStatus('idle');
-  }, [connection]);
+  }, [connectionSignature]);
 
   const onTestConnection = useCallback(async (): Promise<void> => {
     if (hasConnectionErrors(validateConnection(connection))) {
