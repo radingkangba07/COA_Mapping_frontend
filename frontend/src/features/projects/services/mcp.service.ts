@@ -42,6 +42,22 @@ export interface McpConnectionForm {
 
 const DEFAULT_TIMEOUT_SECONDS = 60;
 
+// Single source of truth for MCP server URL validity. Later subtasks'
+// validate(conn) reuse this rather than re-implementing the rule.
+export function isValidMcpUrl(value: string): boolean {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return false;
+  }
+  try {
+    const parsed = new URL(trimmed);
+    const isHttp = parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    return isHttp && parsed.host.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 export function createInitialMcpForm(): McpConnectionForm {
   return {
     scope: 'both',

@@ -5,9 +5,11 @@ import { Collapsible } from '@/shared/components/ui/Collapsible';
 import { Badge } from '@/shared/components/ui/Badge';
 import { Tooltip } from '@/shared/components/ui/Tooltip';
 import { Tabs } from '@/shared/components/ui/Tabs';
+import { Input } from '@/shared/components/ui/Input';
 import { colors } from '@/config/theme';
 import {
   createInitialMcpForm,
+  isValidMcpUrl,
   type McpActiveTab,
   type McpConfigureScope,
   type McpConnectionForm,
@@ -31,6 +33,7 @@ export const MCPConnectionPanel = ({
   testID = 'mcp-connection-panel',
 }: MCPConnectionPanelProps): React.JSX.Element => {
   const [isOpen, setIsOpen] = useState(true);
+  const [urlTouched, setUrlTouched] = useState(false);
   const [form, setForm] = useState<McpConnectionForm>(
     () => value ?? createInitialMcpForm(),
   );
@@ -68,6 +71,44 @@ export const MCPConnectionPanel = ({
       applyPatch({ activeTab: tab as McpActiveTab });
     },
     [applyPatch],
+  );
+
+  const handleUrlChange = useCallback(
+    (url: string): void => {
+      applyPatch({ url });
+    },
+    [applyPatch],
+  );
+
+  const handleUrlBlur = useCallback((): void => {
+    setUrlTouched(true);
+  }, []);
+
+  const urlError =
+    urlTouched && form.url.length > 0 && !isValidMcpUrl(form.url)
+      ? 'Enter a valid http(s) URL'
+      : undefined;
+
+  const renderFields = useCallback(
+    (context: McpActiveTab): React.JSX.Element => (
+      <View
+        className="gap-3 rounded-md border border-border bg-muted/30 p-3"
+        testID={`mcp-fields-${context}`}
+      >
+        <Input
+          label="MCP Server URL"
+          placeholder="https://mcp.example.com"
+          value={form.url}
+          onChangeText={handleUrlChange}
+          onBlur={handleUrlBlur}
+          error={urlError}
+          autoCapitalize="none"
+          keyboardType="url"
+          testID="mcp-url-input"
+        />
+      </View>
+    ),
+    [form.url, handleUrlChange, handleUrlBlur, urlError],
   );
 
   const title = (
@@ -119,27 +160,9 @@ export const MCPConnectionPanel = ({
             </Tabs.List>
           )}
 
-          <Tabs.Content value="source">
-            <View
-              className="rounded-md border border-border bg-muted/30 p-3"
-              testID="mcp-fields-source"
-            >
-              <Text className="font-body text-sm text-muted-foreground">
-                Connection fields for source
-              </Text>
-            </View>
-          </Tabs.Content>
+          <Tabs.Content value="source">{renderFields('source')}</Tabs.Content>
 
-          <Tabs.Content value="target">
-            <View
-              className="rounded-md border border-border bg-muted/30 p-3"
-              testID="mcp-fields-target"
-            >
-              <Text className="font-body text-sm text-muted-foreground">
-                Connection fields for target
-              </Text>
-            </View>
-          </Tabs.Content>
+          <Tabs.Content value="target">{renderFields('target')}</Tabs.Content>
         </Tabs>
       </View>
     </Collapsible>
