@@ -6,6 +6,7 @@ import type {
   ProjectScopeDraft,
   ProjectScopeSeed,
 } from '../types/project-scope.types';
+import type { ProjectCreate } from '../types/projects.types';
 import { useProjectScopeStore } from '../store/project-scope.store';
 import {
   selectCanCreateProject,
@@ -17,11 +18,32 @@ import {
   selectTarget,
 } from '../store/project-scope.selectors';
 
+// ─── Pure Payload Builder ───────────────────────────────────────────────────
+
+/**
+ * Maps the company + ERP identity portion of the scope draft into the
+ * deferred Create payload. Pure + exported for unit testing.
+ *
+ * company carried from entry modal -> draft.companyId -> create payload
+ */
+export function buildCreatePayload(draft: ProjectScopeDraft): ProjectCreate {
+  return {
+    name: draft.name,
+    companyId: draft.companyId ?? undefined,
+    // The create endpoint requires org_id; the company id doubles as the org
+    // id here, mirroring the existing useCreateProject fallback.
+    orgId: draft.companyId ?? undefined,
+    sourceErp: draft.source ?? undefined,
+    targetErp: draft.target ?? undefined,
+  };
+}
+
 // ─── ViewModel Contract ─────────────────────────────────────────────────────
 
 export interface ProjectScopeViewModel {
   // Draft state
   readonly draft: ProjectScopeDraft;
+  readonly companyId: string | null;
   readonly source: string | null;
   readonly target: string | null;
   readonly method: ConnectionMethod;
@@ -111,6 +133,8 @@ export function useProjectScopeViewModel(
 
   return {
     draft,
+    // company carried from entry modal -> draft.companyId -> create payload
+    companyId: draft.companyId,
     source,
     target,
     method,
