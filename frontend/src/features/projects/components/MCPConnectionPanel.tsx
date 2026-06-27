@@ -15,6 +15,7 @@ import {
   type McpConnectionForm,
 } from '../services/mcp.service';
 import { McpScopeSelector } from './McpScopeSelector';
+import { McpSecretInput } from './McpSecretInput';
 
 const INFO_ICON_SIZE = 16;
 
@@ -84,6 +85,13 @@ export const MCPConnectionPanel = ({
     setUrlTouched(true);
   }, []);
 
+  const handleTokenChange = useCallback(
+    (token: string): void => {
+      applyPatch({ token });
+    },
+    [applyPatch],
+  );
+
   const urlError =
     urlTouched && form.url.length > 0 && !isValidMcpUrl(form.url)
       ? 'Enter a valid http(s) URL'
@@ -106,9 +114,17 @@ export const MCPConnectionPanel = ({
           keyboardType="url"
           testID="mcp-url-input"
         />
+        <McpSecretInput
+          label="Access Token"
+          value={form.token}
+          onChangeText={handleTokenChange}
+          placeholder="Paste access token"
+          secretLabel="token"
+          testID="mcp-token-input"
+        />
       </View>
     ),
-    [form.url, handleUrlChange, handleUrlBlur, urlError],
+    [form.url, form.token, handleUrlChange, handleUrlBlur, handleTokenChange, urlError],
   );
 
   const title = (
