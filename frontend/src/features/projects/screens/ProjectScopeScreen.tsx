@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import { View, Text } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -6,6 +6,7 @@ import { Screen } from '@/shared/components/layout/Screen';
 import type { ProjectsStackParamList } from '@/navigation/types';
 import { ProjectScopeHeader } from '../components/ProjectScopeHeader';
 import { CompatibilityBanner } from '../components/CompatibilityBanner';
+import { useProjectScopeViewModel } from '../hooks/useProjectScopeViewModel';
 
 interface SectionPlaceholderProps {
   title: string;
@@ -35,19 +36,24 @@ const SectionPlaceholder = ({
 
 export const ProjectScopeScreen = (): React.JSX.Element => {
   const route = useRoute<RouteProp<ProjectsStackParamList, 'ProjectScope'>>();
-  const { name } = route.params;
+  const params = route.params;
+  const { name } = params;
 
-  const noop = useCallback(() => {}, []);
+  const seed = {
+    companyId: params.companyId ?? null,
+    name: params.name,
+    description: params.description,
+  };
+  const vm = useProjectScopeViewModel(seed);
 
   return (
     <Screen scroll testID="project-scope-screen">
       <View className="py-4 gap-6">
         <ProjectScopeHeader
-          onSaveDraft={noop}
-          onCreate={noop}
-          isSavingDraft={false}
-          isCreating={false}
-          createDisabled
+          onSaveDraft={vm.saveDraft}
+          onCreate={vm.create}
+          isSavingDraft={vm.isSavingDraft}
+          createDisabled={vm.createDisabled}
           testID="project-scope-header"
         />
 
@@ -81,9 +87,9 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
         </View>
 
         <CompatibilityBanner
-          source={null}
-          target={null}
-          isCompatible={false}
+          source={vm.sourceName}
+          target={vm.targetName}
+          isCompatible={vm.isCompatible}
           testID="project-scope-compatibility"
         />
       </View>
