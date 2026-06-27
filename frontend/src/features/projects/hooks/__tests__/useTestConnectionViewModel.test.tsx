@@ -18,6 +18,7 @@ import {
   testConnection,
   type McpConnectionForm,
 } from '../../services/mcp.service';
+import { useProjectScopeStore } from '../../store/project-scope.store';
 import { useTestConnectionViewModel } from '../useTestConnectionViewModel';
 
 const mockTestConnection = testConnection as jest.MockedFunction<
@@ -40,6 +41,7 @@ const invalidForm: McpConnectionForm = {
 
 beforeEach(() => {
   mockTestConnection.mockReset();
+  useProjectScopeStore.getState().reset();
 });
 
 describe('useTestConnectionViewModel', () => {
@@ -58,6 +60,8 @@ describe('useTestConnectionViewModel', () => {
     expect(result.current.connectedAt).toBe('2026-06-28T10:00:00Z');
     expect(result.current.logs).toEqual(['x']);
     expect(result.current.error).toBeNull();
+    expect(useProjectScopeStore.getState().connectionReady).toBe(true);
+    expect(useProjectScopeStore.getState().testStatus).toBe('success');
   });
 
   it('resolves to failure with server message + logs', async () => {
@@ -75,6 +79,40 @@ describe('useTestConnectionViewModel', () => {
     expect(result.current.error).toBe('boom');
     expect(result.current.logs).toEqual(['e1']);
     expect(result.current.connectedAt).toBeNull();
+    expect(useProjectScopeStore.getState().connectionReady).toBe(false);
+    expect(useProjectScopeStore.getState().testStatus).toBe('error');
+  });
+
+  it('invalidates a prior success when the connection is edited', async () => {
+    mockTestConnection.mockResolvedValue(
+      ok({ connectedAt: '2026-06-28T10:00:00Z', logs: ['x'] }),
+    );
+
+    const { result, rerender } = renderHook(
+      ({ connection }: { connection: McpConnectionForm }) =>
+        useTestConnectionViewModel(connection),
+      { initialProps: { connection: validForm } },
+    );
+
+    await act(async () => {
+      await result.current.onTestConnection();
+    });
+
+    expect(result.current.status).toBe('success');
+    expect(useProjectScopeStore.getState().connectionReady).toBe(true);
+
+    const editedForm: McpConnectionForm = {
+      ...validForm,
+      url: 'https://mcp.changed.example.com',
+    };
+
+    act(() => {
+      rerender({ connection: editedForm });
+    });
+
+    expect(result.current.status).toBe('idle');
+    expect(useProjectScopeStore.getState().connectionReady).toBe(false);
+    expect(useProjectScopeStore.getState().testStatus).toBe('idle');
   });
 
   it('does not call the service for an invalid form', async () => {

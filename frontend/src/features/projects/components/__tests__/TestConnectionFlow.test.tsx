@@ -37,6 +37,7 @@ jest.mock('@/shared/services/http/http.instance', () => ({ httpClient: {} }));
 
 // ─── Imports (after mocks) ──────────────────────────────────────────────────
 import { TestConnectionFlow } from '../TestConnectionFlow';
+import { useProjectScopeStore } from '../../store/project-scope.store';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,43 @@ describe('TestConnectionFlow', () => {
     // never resolve into the success panel.
     (testConnection as jest.Mock).mockReset();
     (testConnection as jest.Mock).mockReturnValue(new Promise(() => undefined));
+    useProjectScopeStore.getState().reset();
+  });
+
+  it('disables the continue button before a successful test', () => {
+    render(<TestConnectionFlow connection={validBearerForm} />);
+
+    const button = screen.getByTestId('test-connection-continue-button');
+    expect(button.props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it('enables the continue button after a success and fires onContinue', async () => {
+    (testConnection as jest.Mock).mockResolvedValue(
+      ok({
+        connectedAt: '2026-06-28T10:00:00.000Z',
+        logs: ['line one with token'],
+      }),
+    );
+
+    const onContinue = jest.fn();
+    render(
+      <TestConnectionFlow
+        connection={validBearerForm}
+        onContinue={onContinue}
+      />,
+    );
+
+    fireEvent.press(screen.getByTestId('test-connection-button'));
+
+    await screen.findByTestId('test-connection-success');
+
+    const continueButton = screen.getByTestId(
+      'test-connection-continue-button',
+    );
+    expect(continueButton.props.accessibilityState?.disabled).not.toBe(true);
+
+    fireEvent.press(continueButton);
+    expect(onContinue).toHaveBeenCalledTimes(1);
   });
 
   it('disables the test button when the connection is invalid', () => {

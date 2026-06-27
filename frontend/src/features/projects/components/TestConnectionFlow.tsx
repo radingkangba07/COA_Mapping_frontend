@@ -9,11 +9,13 @@ import { TestConnectionSuccessPanel } from './TestConnectionSuccessPanel';
 
 interface TestConnectionFlowProps {
   readonly connection: McpConnectionForm;
+  readonly onContinue?: () => void;
   readonly testID?: string;
 }
 
 export const TestConnectionFlow = ({
   connection,
+  onContinue,
   testID = 'test-connection-flow',
 }: TestConnectionFlowProps) => {
   const vm = useTestConnectionViewModel(connection);
@@ -65,6 +67,15 @@ export const TestConnectionFlow = ({
         logs={vm.logs}
         onClose={() => setLogsOpen(false)}
       />
+
+      <Button
+        onPress={onContinue}
+        disabled={vm.status !== 'success'}
+        testID="test-connection-continue-button"
+        accessibilityLabel="Continue"
+      >
+        Continue
+      </Button>
     </View>
   );
 };

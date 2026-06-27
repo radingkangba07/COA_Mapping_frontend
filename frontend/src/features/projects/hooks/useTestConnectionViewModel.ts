@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { httpClient } from '@/shared/services/http/http.instance';
 import {
   buildTestConnectionPayload,
@@ -7,6 +7,7 @@ import {
   validateConnection,
   type McpConnectionForm,
 } from '../services/mcp.service';
+import { useProjectScopeStore } from '../store/project-scope.store';
 
 export type TestConnectionStatus = 'idle' | 'testing' | 'success' | 'failure';
 
@@ -39,6 +40,20 @@ export function useTestConnectionViewModel(
   const isTesting = status === 'testing';
   const canTest = isFormValid && status !== 'testing';
 
+  // GATE HYGIENE: any credential/URL edit produces a fresh `connection` object,
+  // which invalidates a prior successful test and forces a re-test before Create.
+  // A successful test does NOT mutate `connection`, so this never wipes a fresh
+  // success. Deps are limited to `connection` and only constant idle values are
+  // written, so this cannot loop.
+  useEffect(() => {
+    setStatus('idle');
+    setConnectedAt(null);
+    setLogs([]);
+    setError(null);
+    useProjectScopeStore.getState().setConnectionReady(false);
+    useProjectScopeStore.getState().setTestStatus('idle');
+  }, [connection]);
+
   const onTestConnection = useCallback(async (): Promise<void> => {
     if (hasConnectionErrors(validateConnection(connection))) {
       setError(INCOMPLETE_FORM_MESSAGE);
@@ -47,6 +62,8 @@ export function useTestConnectionViewModel(
 
     setError(null);
     setStatus('testing');
+    useProjectScopeStore.getState().setTestStatus('loading');
+    useProjectScopeStore.getState().setConnectionReady(false);
 
     const result = await testConnection(
       httpClient,
@@ -58,6 +75,8 @@ export function useTestConnectionViewModel(
       setLogs(result.data.logs);
       setError(null);
       setStatus('success');
+      useProjectScopeStore.getState().setTestStatus('success');
+      useProjectScopeStore.getState().setConnectionReady(true);
       return;
     }
 
@@ -71,6 +90,8 @@ export function useTestConnectionViewModel(
     setError(result.error.message);
     setConnectedAt(null);
     setStatus('failure');
+    useProjectScopeStore.getState().setTestStatus('error');
+    useProjectScopeStore.getState().setConnectionReady(false);
   }, [connection]);
 
   return {
