@@ -1,11 +1,13 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Dialog } from '@/shared/components/ui/Dialog';
-import { useCreateProject } from '../hooks/useCreateProject';
 import { useUserOrgs } from '../hooks/useUserOrgs';
 import { ProjectForm } from './ProjectForm';
 import { CreateClientOrgDialog } from './CreateClientOrgDialog';
 import type { ProjectCreate } from '../types/projects.types';
 import type { CompanyId } from '@/shared/types/common.types';
+import type { ProjectsStackParamList } from '@/navigation/types';
 
 interface NewProjectDialogProps {
   visible: boolean;
@@ -20,7 +22,8 @@ export const NewProjectDialog = ({
   companyId,
   testID,
 }: NewProjectDialogProps): React.JSX.Element => {
-  const mutation = useCreateProject(onClose);
+  const navigation =
+    useNavigation<NativeStackNavigationProp<ProjectsStackParamList>>();
   const { orgs, employerOrgs } = useUserOrgs(visible);
   const [createCompanyVisible, setCreateCompanyVisible] = useState(false);
 
@@ -31,9 +34,14 @@ export const NewProjectDialog = ({
 
   const handleSubmit = useCallback(
     (data: ProjectCreate) => {
-      mutation.mutate(data);
+      onClose();
+      navigation.navigate('ProjectScope', {
+        companyId: data.companyId,
+        name: data.name,
+        description: data.description,
+      });
     },
-    [mutation],
+    [navigation, onClose],
   );
 
   const handleClose = useCallback(() => {
@@ -52,7 +60,7 @@ export const NewProjectDialog = ({
         <Dialog.Content>
           <ProjectForm
             onSubmit={handleSubmit}
-            isPending={mutation.isPending}
+            isPending={false}
             onCancel={handleClose}
             onCreateCompany={
               parentOrgId !== null ? () => setCreateCompanyVisible(true) : undefined
