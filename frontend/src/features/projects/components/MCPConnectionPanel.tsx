@@ -1,15 +1,16 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Collapsible } from '@/shared/components/ui/Collapsible';
 import { Tabs } from '@/shared/components/ui/Tabs';
 import { Input } from '@/shared/components/ui/Input';
 import {
   createInitialMcpForm,
-  isValidMcpUrl,
+  validateConnection,
   type McpActiveTab,
   type McpConfigureScope,
   type McpConnectionForm,
 } from '../services/mcp.service';
+import type { AuthFieldErrors } from './McpAuthFields.config';
 import { McpScopeSelector } from './McpScopeSelector';
 import { McpAuthFields } from './McpAuthFields';
 import { McpHeadersEditor } from './McpHeadersEditor';
@@ -30,6 +31,7 @@ export const MCPConnectionPanel = ({
 }: MCPConnectionPanelProps): React.JSX.Element => {
   const [isOpen, setIsOpen] = useState(true);
   const [urlTouched, setUrlTouched] = useState(false);
+  const [touched, setTouched] = useState(false);
   const [form, setForm] = useState<McpConnectionForm>(
     () => value ?? createInitialMcpForm(),
   );
@@ -78,6 +80,7 @@ export const MCPConnectionPanel = ({
 
   const handleUrlBlur = useCallback((): void => {
     setUrlTouched(true);
+    setTouched(true);
   }, []);
 
   const handleHeadersChange = useCallback(
@@ -87,10 +90,19 @@ export const MCPConnectionPanel = ({
     [applyPatch],
   );
 
-  const urlError =
-    urlTouched && form.url.length > 0 && !isValidMcpUrl(form.url)
-      ? 'Enter a valid http(s) URL'
-      : undefined;
+  const errors = useMemo(() => validateConnection(form), [form]);
+
+  // Keep the existing touched-gated URL UX; only the message source moves to
+  // the service. Empty URLs stay un-flagged until the field is blurred.
+  const urlError = urlTouched && form.url.length > 0 ? errors.url : undefined;
+
+  const authErrors = useMemo<AuthFieldErrors | undefined>(() => {
+    if (!touched) {
+      return undefined;
+    }
+    const { url: _url, ...rest } = errors;
+    return rest;
+  }, [touched, errors]);
 
   const renderFields = useCallback(
     (context: McpActiveTab): React.JSX.Element => (
@@ -112,6 +124,7 @@ export const MCPConnectionPanel = ({
         <McpAuthFields
           form={form}
           onPatch={applyPatch}
+          errors={authErrors}
           testID="mcp-auth-fields"
         />
         <McpHeadersEditor
@@ -127,6 +140,7 @@ export const MCPConnectionPanel = ({
       handleUrlBlur,
       applyPatch,
       urlError,
+      authErrors,
       handleHeadersChange,
     ],
   );
