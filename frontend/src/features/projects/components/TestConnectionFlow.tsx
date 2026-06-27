@@ -2,6 +2,7 @@ import { Text, View } from 'react-native';
 import { Button } from '@/shared/components/ui/Button';
 import { useTestConnectionViewModel } from '../hooks/useTestConnectionViewModel';
 import type { McpConnectionForm } from '../services/mcp.service';
+import { TestConnectionSuccessPanel } from './TestConnectionSuccessPanel';
 
 interface TestConnectionFlowProps {
   readonly connection: McpConnectionForm;
@@ -26,7 +27,9 @@ export const TestConnectionFlow = ({
         Test Connection
       </Button>
 
-      {vm.error !== null ? (
+      {vm.status === 'success' && vm.connectedAt !== null ? (
+        <TestConnectionSuccessPanel connectedAt={vm.connectedAt} />
+      ) : vm.error !== null ? (
         <Text
           className="font-body text-xs text-destructive"
           testID="test-connection-inline-error"
