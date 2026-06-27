@@ -1,12 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Collapsible } from '@/shared/components/ui/Collapsible';
-import { Tabs } from '@/shared/components/ui/Tabs';
 import { Input } from '@/shared/components/ui/Input';
 import {
   createInitialMcpForm,
   validateConnection,
-  type McpActiveTab,
   type McpConfigureScope,
   type McpConnectionForm,
 } from '../services/mcp.service';
@@ -53,20 +51,7 @@ export const MCPConnectionPanel = ({
 
   const handleScopeChange = useCallback(
     (scope: McpConfigureScope): void => {
-      if (scope === 'source' || scope === 'target') {
-        applyPatch({ scope, activeTab: scope });
-      } else {
-        applyPatch({ scope });
-      }
-    },
-    [applyPatch],
-  );
-
-  const handleTabChange = useCallback(
-    (tab: string): void => {
-      // Tabs primitive emits `string`; our only triggers are the two
-      // McpActiveTab values, so this narrowing cast is safe at the boundary.
-      applyPatch({ activeTab: tab as McpActiveTab });
+      applyPatch({ scope });
     },
     [applyPatch],
   );
@@ -105,10 +90,10 @@ export const MCPConnectionPanel = ({
   }, [touched, errors]);
 
   const renderFields = useCallback(
-    (context: McpActiveTab): React.JSX.Element => (
+    (): React.JSX.Element => (
       <View
         className="gap-3 rounded-md border border-border bg-muted/30 p-3"
-        testID={`mcp-fields-${context}`}
+        testID="mcp-fields"
       >
         <Input
           label="MCP Server URL"
@@ -159,26 +144,7 @@ export const MCPConnectionPanel = ({
           testID="mcp-scope"
         />
 
-        <Tabs
-          value={form.activeTab}
-          onValueChange={handleTabChange}
-          testID="mcp-tabs"
-        >
-          {form.scope === 'both' && (
-            <Tabs.List>
-              <Tabs.Trigger value="source" testID="mcp-tab-source">
-                Source
-              </Tabs.Trigger>
-              <Tabs.Trigger value="target" testID="mcp-tab-target">
-                Target
-              </Tabs.Trigger>
-            </Tabs.List>
-          )}
-
-          <Tabs.Content value="source">{renderFields('source')}</Tabs.Content>
-
-          <Tabs.Content value="target">{renderFields('target')}</Tabs.Content>
-        </Tabs>
+        {renderFields()}
 
         <McpAdvancedSettings
           skipSSL={form.skipSSL}

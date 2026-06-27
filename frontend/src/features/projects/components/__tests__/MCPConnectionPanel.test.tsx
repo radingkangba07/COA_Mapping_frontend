@@ -116,43 +116,29 @@ describe('MCPConnectionPanel — auth-type conditional fields', () => {
   });
 });
 
-// ─── Configure-for scope + tabs ───────────────────────────────────────────────
+// ─── Configure-for scope (applicability tag) ──────────────────────────────────
 
-describe('MCPConnectionPanel — scope + tabs', () => {
-  it('shows both tab triggers when scope is "both" (default)', () => {
+describe('MCPConnectionPanel — configure-for scope', () => {
+  it('renders the single fields container with default scope "both"', () => {
     renderPanel();
-    expect(screen.getByTestId('mcp-tab-source')).toBeTruthy();
-    expect(screen.getByTestId('mcp-tab-target')).toBeTruthy();
-    // Source context is active by default.
-    expect(screen.getByTestId('mcp-fields-source')).toBeTruthy();
-    expect(screen.queryByTestId('mcp-fields-target')).toBeNull();
+    expect(screen.getByTestId('mcp-fields')).toBeTruthy();
   });
 
-  it('hides the tabs row when scope is "Source"', () => {
-    renderPanel();
-    fireEvent.press(screen.getByTestId('mcp-scope-source'));
-
-    expect(screen.queryByTestId('mcp-tab-source')).toBeNull();
-    expect(screen.queryByTestId('mcp-tab-target')).toBeNull();
-    expect(screen.getByTestId('mcp-fields-source')).toBeTruthy();
-  });
-
-  it('switches the active context when the target tab is pressed (scope "both")', () => {
-    renderPanel();
-    fireEvent.press(screen.getByTestId('mcp-tab-target'));
-
-    expect(screen.getByTestId('mcp-fields-target')).toBeTruthy();
-    expect(screen.queryByTestId('mcp-fields-source')).toBeNull();
-  });
-
-  it('emits scope + matching activeTab via onChange when scope is "Target"', () => {
+  it('updates scope via onChange and keeps the single fields container', () => {
     const onChange = jest.fn();
     renderPanel(onChange);
-    fireEvent.press(screen.getByTestId('mcp-scope-target'));
 
-    const next = lastChangeArg(onChange);
-    expect(next.scope).toBe('target');
-    expect(next.activeTab).toBe('target');
+    fireEvent.press(screen.getByTestId('mcp-scope-source'));
+    expect(lastChangeArg(onChange).scope).toBe('source');
+    expect(screen.getByTestId('mcp-fields')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('mcp-scope-target'));
+    expect(lastChangeArg(onChange).scope).toBe('target');
+    expect(screen.getByTestId('mcp-fields')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('mcp-scope-both'));
+    expect(lastChangeArg(onChange).scope).toBe('both');
+    expect(screen.getByTestId('mcp-fields')).toBeTruthy();
   });
 });
 

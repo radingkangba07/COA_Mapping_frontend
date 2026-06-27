@@ -53,7 +53,6 @@ describe('createInitialMcpForm', () => {
   it('returns the documented defaults', () => {
     expect(createInitialMcpForm()).toEqual({
       scope: 'both',
-      activeTab: 'source',
       url: '',
       authType: 'bearer',
       token: '',

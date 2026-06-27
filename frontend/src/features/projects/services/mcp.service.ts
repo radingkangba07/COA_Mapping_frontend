@@ -1,13 +1,11 @@
 // Form model, field-level validation, and test-connection payload builder for
 // the MCP Connection Details panel (DA-49/DA-67). The DA-53 shared contract
 // `MCPConnection` is leaner; the panel needs a richer model (OAuth2, per-auth
-// credentials, source/target tabs), so it owns its own form type here. Pure TS.
+// credentials, applicability scope), so it owns its own form type here. Pure TS.
 
 export type McpFormAuthType = 'bearer' | 'apiKey' | 'basic' | 'oauth2';
 
 export type McpConfigureScope = 'source' | 'target' | 'both';
-
-export type McpActiveTab = 'source' | 'target';
 
 export interface McpFormHeader {
   readonly id: string;
@@ -17,7 +15,6 @@ export interface McpFormHeader {
 
 export interface McpConnectionForm {
   readonly scope: McpConfigureScope;
-  readonly activeTab: McpActiveTab;
   readonly url: string;
   readonly authType: McpFormAuthType;
   // bearer
@@ -174,7 +171,6 @@ export function buildTestConnectionPayload(
 export function createInitialMcpForm(): McpConnectionForm {
   return {
     scope: 'both',
-    activeTab: 'source',
     url: '',
     authType: 'bearer',
     token: '',
