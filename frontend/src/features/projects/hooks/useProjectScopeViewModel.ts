@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { useToast } from '@/shared/hooks/useToast';
 import { useERPConfig } from '@/features/erp-config/hooks/useERPConfig';
@@ -100,6 +101,7 @@ export function useProjectScopeViewModel(
   const canCreate = useProjectScopeStore(selectCanCreateProject);
 
   const toast = useToast();
+  const queryClient = useQueryClient();
   const [isCreating, setIsCreating] = useState(false);
 
   // ─── ERP list ──────────────────────────────────────────────────────────────
@@ -154,6 +156,7 @@ export function useProjectScopeViewModel(
       const payload = buildCreatePayload(useProjectScopeStore.getState().draft);
       const result = await createProject(httpClient, payload);
       if (result.ok) {
+        void queryClient.invalidateQueries({ queryKey: ['projects'] });
         toast.showSuccess('Project created');
         useProjectScopeStore.getState().reset();
         return true;
@@ -163,7 +166,7 @@ export function useProjectScopeViewModel(
     } finally {
       setIsCreating(false);
     }
-  }, [createDisabled, toast]);
+  }, [createDisabled, toast, queryClient]);
 
   return {
     draft,

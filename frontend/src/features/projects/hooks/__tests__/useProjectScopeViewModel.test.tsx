@@ -1,4 +1,6 @@
+import type { JSX, ReactNode } from 'react';
 import { act, renderHook } from '@testing-library/react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ok } from '@/shared/types/result.types';
 import type { ERPSystem } from '@/features/erp-config/types/erp-config.types';
 import type { Project } from '../../types/projects.types';
@@ -52,6 +54,18 @@ const SEED = { companyId: 'co-1', name: 'My Migration', description: 'desc' } as
 
 const fakeProject = { projectId: 'p1', name: 'My Migration' } as unknown as Project;
 
+// The ViewModel calls useQueryClient(), so renderHook needs a QueryClientProvider.
+function createWrapper(): ({ children }: { children: ReactNode }) => JSX.Element {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return function Wrapper({ children }: { children: ReactNode }): JSX.Element {
+    return (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+  };
+}
+
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe('useProjectScopeViewModel', () => {
@@ -65,7 +79,9 @@ describe('useProjectScopeViewModel', () => {
   // ── Seeding ───────────────────────────────────────────────────────────
 
   it('seeds the draft from the seed arg on mount', () => {
-    const { result } = renderHook(() => useProjectScopeViewModel(SEED));
+    const { result } = renderHook(() => useProjectScopeViewModel(SEED), {
+      wrapper: createWrapper(),
+    });
 
     expect(result.current.companyId).toBe('co-1');
     expect(result.current.name).toBe('My Migration');
@@ -75,12 +91,16 @@ describe('useProjectScopeViewModel', () => {
   // ── Gating ────────────────────────────────────────────────────────────
 
   it('createDisabled is true initially (no ERPs selected)', () => {
-    const { result } = renderHook(() => useProjectScopeViewModel(SEED));
+    const { result } = renderHook(() => useProjectScopeViewModel(SEED), {
+      wrapper: createWrapper(),
+    });
     expect(result.current.createDisabled).toBe(true);
   });
 
   it('becomes enabled with company + distinct ERPs + connectionReady', () => {
-    const { result } = renderHook(() => useProjectScopeViewModel(SEED));
+    const { result } = renderHook(() => useProjectScopeViewModel(SEED), {
+      wrapper: createWrapper(),
+    });
 
     act(() => {
       result.current.setSource('sap');
@@ -93,7 +113,9 @@ describe('useProjectScopeViewModel', () => {
   });
 
   it('is not compatible / stays disabled when source === target', () => {
-    const { result } = renderHook(() => useProjectScopeViewModel(SEED));
+    const { result } = renderHook(() => useProjectScopeViewModel(SEED), {
+      wrapper: createWrapper(),
+    });
 
     act(() => {
       result.current.setSource('sap');
@@ -108,7 +130,9 @@ describe('useProjectScopeViewModel', () => {
   // ── create() ──────────────────────────────────────────────────────────
 
   it('create() returns false and does NOT call createProject when disabled', async () => {
-    const { result } = renderHook(() => useProjectScopeViewModel(SEED));
+    const { result } = renderHook(() => useProjectScopeViewModel(SEED), {
+      wrapper: createWrapper(),
+    });
 
     let outcome = true;
     await act(async () => {
@@ -120,7 +144,9 @@ describe('useProjectScopeViewModel', () => {
   });
 
   it('create() calls createProject and returns true when enabled', async () => {
-    const { result } = renderHook(() => useProjectScopeViewModel(SEED));
+    const { result } = renderHook(() => useProjectScopeViewModel(SEED), {
+      wrapper: createWrapper(),
+    });
 
     act(() => {
       result.current.setSource('sap');
@@ -140,7 +166,9 @@ describe('useProjectScopeViewModel', () => {
   // ── saveDraft() ───────────────────────────────────────────────────────
 
   it('saveDraft() invokes the draft endpoint', async () => {
-    const { result } = renderHook(() => useProjectScopeViewModel(SEED));
+    const { result } = renderHook(() => useProjectScopeViewModel(SEED), {
+      wrapper: createWrapper(),
+    });
 
     await act(async () => {
       await result.current.saveDraft();
