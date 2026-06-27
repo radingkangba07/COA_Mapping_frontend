@@ -20,6 +20,8 @@ jest.mock('@/config/theme', () => ({
     primary: '#003399',
     success: '#15803D',
     destructive: '#D72222',
+    mutedForeground: '#71717A',
+    cardForeground: '#09090B',
   },
 }));
 
@@ -88,7 +90,10 @@ describe('TestConnectionFlow', () => {
 
   it('shows the success panel after a successful test connection', async () => {
     (testConnection as jest.Mock).mockResolvedValue(
-      ok({ connectedAt: '2026-06-28T10:00:00.000Z', logs: [] }),
+      ok({
+        connectedAt: '2026-06-28T10:00:00.000Z',
+        logs: ['line one with token'],
+      }),
     );
 
     render(<TestConnectionFlow connection={validBearerForm} />);
@@ -105,6 +110,37 @@ describe('TestConnectionFlow', () => {
         expect.any(String),
       ]);
     });
+  });
+
+  it('opens the logs drawer when View Logs is pressed after a test resolves', async () => {
+    (testConnection as jest.Mock).mockResolvedValue(
+      ok({
+        connectedAt: '2026-06-28T10:00:00.000Z',
+        logs: ['line one with token'],
+      }),
+    );
+
+    render(<TestConnectionFlow connection={validBearerForm} />);
+
+    fireEvent.press(screen.getByTestId('test-connection-button'));
+
+    const viewLogsButton = await screen.findByTestId(
+      'test-connection-view-logs-button',
+    );
+    expect(viewLogsButton).toBeTruthy();
+
+    fireEvent.press(viewLogsButton);
+
+    expect(screen.getByText('Connection Logs')).toBeTruthy();
+    expect(screen.getByTestId('test-connection-log-line-0')).toBeTruthy();
+  });
+
+  it('does not show the View Logs button before any test resolves', () => {
+    render(<TestConnectionFlow connection={validBearerForm} />);
+
+    expect(
+      screen.queryByTestId('test-connection-view-logs-button'),
+    ).toBeNull();
   });
 
   it('shows the failure panel with actionable text after a failed test', async () => {
