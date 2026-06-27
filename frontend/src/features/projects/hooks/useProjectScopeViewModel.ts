@@ -1,5 +1,6 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { httpClient } from '@/shared/services/http/http.instance';
+import { useToast } from '@/shared/hooks/useToast';
 import { useERPConfig } from '@/features/erp-config/hooks/useERPConfig';
 import type {
   ConnectionMethod,
@@ -7,6 +8,7 @@ import type {
   ProjectScopeSeed,
 } from '../types/project-scope.types';
 import type { ProjectCreate } from '../types/projects.types';
+import { createProject } from '../services/projects.service';
 import { useProjectScopeStore } from '../store/project-scope.store';
 import {
   selectCanCreateProject,
@@ -54,9 +56,11 @@ export interface ProjectScopeViewModel {
   readonly method: ConnectionMethod;
   readonly connectionReady: boolean;
   readonly isSavingDraft: boolean;
+  readonly isCreating: boolean;
 
   // ERP list + resolved display names
   readonly erpSystems: ReturnType<typeof useERPConfig>['erpSystems'];
+  readonly isLoadingErps: boolean;
   readonly sourceName: string | null;
   readonly targetName: string | null;
 
@@ -69,7 +73,7 @@ export interface ProjectScopeViewModel {
   readonly setTarget: (id: string | null) => void;
   readonly setMethod: (m: ConnectionMethod) => void;
   readonly saveDraft: () => Promise<void>;
-  readonly create: () => Promise<void>;
+  readonly create: () => Promise<boolean>;
 }
 
 // ─── Hook ───────────────────────────────────────────────────────────────────
@@ -95,8 +99,11 @@ export function useProjectScopeViewModel(
   const isSavingDraft = useProjectScopeStore(selectIsSavingDraft);
   const canCreate = useProjectScopeStore(selectCanCreateProject);
 
+  const toast = useToast();
+  const [isCreating, setIsCreating] = useState(false);
+
   // ─── ERP list ──────────────────────────────────────────────────────────────
-  const { erpSystems } = useERPConfig();
+  const { erpSystems, isLoading: isLoadingErps } = useERPConfig();
 
   const resolveName = useCallback(
     (id: string | null): string | null => {
@@ -130,11 +137,33 @@ export function useProjectScopeViewModel(
   }, []);
 
   const saveDraft = useCallback(async (): Promise<void> => {
-    await useProjectScopeStore.getState().saveDraft(httpClient);
-  }, []);
+    const res = await useProjectScopeStore.getState().saveDraft(httpClient);
+    if (res.ok) {
+      toast.showSuccess('Draft saved');
+    } else {
+      toast.showError(res.error.message ?? 'Failed to save draft');
+    }
+  }, [toast]);
 
-  // TODO(DA-144): deferred POST /projects create — no-op placeholder for now.
-  const create = useCallback(async (): Promise<void> => {}, []);
+  const create = useCallback(async (): Promise<boolean> => {
+    if (createDisabled) {
+      return false;
+    }
+    setIsCreating(true);
+    try {
+      const payload = buildCreatePayload(useProjectScopeStore.getState().draft);
+      const result = await createProject(httpClient, payload);
+      if (result.ok) {
+        toast.showSuccess('Project created');
+        useProjectScopeStore.getState().reset();
+        return true;
+      }
+      toast.showError(result.error.message ?? 'Failed to create project');
+      return false;
+    } finally {
+      setIsCreating(false);
+    }
+  }, [createDisabled, toast]);
 
   return {
     draft,
@@ -148,7 +177,9 @@ export function useProjectScopeViewModel(
     method,
     connectionReady,
     isSavingDraft,
+    isCreating,
     erpSystems,
+    isLoadingErps,
     sourceName,
     targetName,
     isCompatible,

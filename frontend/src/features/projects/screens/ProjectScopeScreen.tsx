@@ -1,43 +1,25 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, Text } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen } from '@/shared/components/layout/Screen';
 import type { ProjectsStackParamList } from '@/navigation/types';
 import { ProjectScopeHeader } from '../components/ProjectScopeHeader';
 import { CompatibilityBanner } from '../components/CompatibilityBanner';
+import { ScopeSectionCard } from '../components/ScopeSectionCard';
+import { ErpSourceTargetSelect } from '../components/ErpSourceTargetSelect';
 import { useProjectScopeViewModel } from '../hooks/useProjectScopeViewModel';
 
-interface SectionPlaceholderProps {
-  title: string;
-  body?: string;
-  testID?: string;
-}
-
-const SectionPlaceholder = ({
-  title,
-  body = 'Coming soon',
-  testID,
-}: SectionPlaceholderProps): React.JSX.Element => {
-  return (
-    <View
-      className="rounded-lg border border-border bg-card p-4"
-      testID={testID}
-    >
-      <Text className="font-heading text-base font-semibold text-card-foreground">
-        {title}
-      </Text>
-      <Text className="font-body text-sm text-muted-foreground mt-1">
-        {body}
-      </Text>
-    </View>
-  );
-};
+type ProjectScopeNavigation = NativeStackNavigationProp<
+  ProjectsStackParamList,
+  'ProjectScope'
+>;
 
 export const ProjectScopeScreen = (): React.JSX.Element => {
   const route = useRoute<RouteProp<ProjectsStackParamList, 'ProjectScope'>>();
+  const navigation = useNavigation<ProjectScopeNavigation>();
   const params = route.params;
-  const { name } = params;
 
   const seed = {
     companyId: params.companyId ?? null,
@@ -46,42 +28,68 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
   };
   const vm = useProjectScopeViewModel(seed);
 
+  const handleCreate = useCallback(async (): Promise<void> => {
+    const ok = await vm.create();
+    if (ok) {
+      navigation.navigate('ProjectsList');
+    }
+  }, [vm, navigation]);
+
   return (
     <Screen scroll testID="project-scope-screen">
       <View className="py-4 gap-6">
         <ProjectScopeHeader
           onSaveDraft={vm.saveDraft}
-          onCreate={vm.create}
+          onCreate={handleCreate}
           isSavingDraft={vm.isSavingDraft}
+          isCreating={vm.isCreating}
           createDisabled={vm.createDisabled}
           testID="project-scope-header"
         />
 
         <View className="flex-col gap-6 lg:flex-row lg:gap-6">
           <View className="lg:flex-1 gap-6">
-            {/* No Project Details/Company section — company comes from the entry modal (DA-142) */}
-            {/* No name field — name is entered manually in the entry modal (DA-143); displayed read-only only */}
-            <SectionPlaceholder
+            {/* ProjectSummaryBar mounts here (DA-137) */}
+            <ScopeSectionCard
               title="Project Summary"
-              body={name}
               testID="section-project-summary"
-            />
-            <SectionPlaceholder
+            >
+              <Text className="font-body text-sm text-foreground">
+                {vm.name}
+              </Text>
+            </ScopeSectionCard>
+
+            <ScopeSectionCard
               title="Select Source & Target ERP"
               testID="section-select-erp"
-            />
-            <SectionPlaceholder
+            >
+              <ErpSourceTargetSelect
+                erpSystems={vm.erpSystems}
+                source={vm.source}
+                target={vm.target}
+                isLoading={vm.isLoadingErps}
+                onSelectSource={vm.setSource}
+                onSelectTarget={vm.setTarget}
+                testID="erp-source-target-select"
+              />
+            </ScopeSectionCard>
+
+            {/* MigrationScope mounts here (DA-51) */}
+            <ScopeSectionCard
               title="Migration Scope"
               testID="section-migration-scope"
             />
-            <SectionPlaceholder
+
+            {/* AddMembersSection mounts here (DA-138) */}
+            <ScopeSectionCard
               title="Add Members"
               testID="section-add-members"
             />
           </View>
 
           <View className="lg:basis-[360px] gap-6">
-            <SectionPlaceholder
+            {/* MCPConnectionPanel + TestConnectionFlow mount here (DA-49/DA-50) */}
+            <ScopeSectionCard
               title="MCP Connection Details"
               testID="section-mcp-connection"
             />
