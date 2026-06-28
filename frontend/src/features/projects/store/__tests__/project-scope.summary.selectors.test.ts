@@ -68,8 +68,8 @@ describe('selectProjectSummary', () => {
 
   it('counts toggled opening-balance ids', () => {
     const store = useProjectScopeStore.getState();
-    store.toggleOpeningBalances(OPENING_BALANCE_ITEMS[0].id);
-    store.toggleOpeningBalances(OPENING_BALANCE_ITEMS[1].id);
+    store.toggleOpeningBalances(OPENING_BALANCE_ITEMS[0]?.id ?? '');
+    store.toggleOpeningBalances(OPENING_BALANCE_ITEMS[1]?.id ?? '');
 
     expect(
       selectProjectSummary(useProjectScopeStore.getState())
