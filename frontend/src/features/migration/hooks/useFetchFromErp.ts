@@ -116,7 +116,11 @@ export function useFetchFromErp(): UseFetchFromErpResult {
           sampleSource: source.slice(0, SAMPLE_LIMIT),
           sampleTarget: target.slice(0, SAMPLE_LIMIT),
         }));
-        // TODO(DA-84): feed result into migration store via setCoa
+        // Feed fetched COA into the migration store so Type Mapping &
+        // Account Mapping consume it identically to uploaded CSV data (DA-84).
+        // Spread the readonly CoaRow arrays into mutable Record<string, unknown>[]
+        // (CoaRow is a structural superset, assignable to the row type).
+        useMigrationStore.getState().setCoa([...source], [...target]);
       } else {
         setFetchStatus('error');
         setFetchState((s) => ({
