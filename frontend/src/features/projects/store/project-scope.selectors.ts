@@ -1,4 +1,5 @@
 import type { AppError } from '@/shared/types/result.types';
+import type { MasterDataColumn } from '../components/MigrationScope.config';
 import type {
   AggregationMode,
   ConnectionMethod,
@@ -8,6 +9,15 @@ import type {
   ProjectScopeStore,
   RequestStatus,
 } from '../types/project-scope.types';
+
+// ─── Master Data Column Encoding ──────────────────────────────────────────────
+
+export const MASTER_DATA_COLUMN_SEPARATOR = ':';
+
+export const masterDataColumnKey = (
+  id: string,
+  column: MasterDataColumn,
+): string => `${id}${MASTER_DATA_COLUMN_SEPARATOR}${column}`;
 
 export const selectDraft = (state: ProjectScopeStore): ProjectScopeDraft =>
   state.draft;

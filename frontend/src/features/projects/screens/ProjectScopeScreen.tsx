@@ -9,7 +9,9 @@ import { ProjectScopeHeader } from '../components/ProjectScopeHeader';
 import { CompatibilityBanner } from '../components/CompatibilityBanner';
 import { ScopeSectionCard } from '../components/ScopeSectionCard';
 import { ErpSourceTargetSelect } from '../components/ErpSourceTargetSelect';
+import { MigrationScopeSection } from '../components/MigrationScopeSection';
 import { useProjectScopeViewModel } from '../hooks/useProjectScopeViewModel';
+import { useMigrationScopeViewModel } from '../hooks/useMigrationScopeViewModel';
 
 type ProjectScopeNavigation = NativeStackNavigationProp<
   ProjectsStackParamList,
@@ -27,6 +29,7 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
     description: params.description,
   };
   const vm = useProjectScopeViewModel(seed);
+  const scopeVm = useMigrationScopeViewModel();
 
   const handleCreate = useCallback(async (): Promise<void> => {
     const ok = await vm.create();
@@ -78,7 +81,13 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
             <ScopeSectionCard
               title="Migration Scope"
               testID="section-migration-scope"
-            />
+            >
+              <MigrationScopeSection
+                masterData={scopeVm.masterData}
+                onToggleMasterDataColumn={scopeVm.toggleMasterDataColumn}
+                testID="migration-scope"
+              />
+            </ScopeSectionCard>
 
             {/* AddMembersSection mounts here (DA-138) */}
             <ScopeSectionCard
