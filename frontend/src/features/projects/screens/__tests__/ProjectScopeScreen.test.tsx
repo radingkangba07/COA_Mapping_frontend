@@ -5,6 +5,25 @@ import type { ProjectScopeViewModel } from '../../hooks/useProjectScopeViewModel
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
+// The project's global reanimated mock resolves to {} on this version, so the
+// real Collapsible (rendered via MigrationScopeSection) crashes on
+// useSharedValue/withTiming. Provide a minimal animated-API stub so it mounts.
+jest.mock('react-native-reanimated', () => {
+  const ReactModule = require('react');
+  const { View } = require('react-native');
+  const AnimatedView = ReactModule.forwardRef(
+    (props: Record<string, unknown>, ref: unknown) =>
+      ReactModule.createElement(View, { ...props, ref }),
+  );
+  return {
+    __esModule: true,
+    default: { View: AnimatedView },
+    useSharedValue: (initial: unknown) => ({ value: initial }),
+    useAnimatedStyle: (factory: () => unknown) => factory(),
+    withTiming: (toValue: unknown) => toValue,
+  };
+});
+
 jest.mock('react-native-safe-area-context', () => {
   const { View } = require('react-native');
   return {
