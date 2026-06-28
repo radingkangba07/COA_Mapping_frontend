@@ -9,7 +9,10 @@ import { ProjectScopeHeader } from '../components/ProjectScopeHeader';
 import { CompatibilityBanner } from '../components/CompatibilityBanner';
 import { ScopeSectionCard } from '../components/ScopeSectionCard';
 import { ErpSourceTargetSelect } from '../components/ErpSourceTargetSelect';
+import { MigrationScopeSection } from '../components/MigrationScopeSection';
+import { MigrationScopeSummary } from '../components/MigrationScopeSummary';
 import { useProjectScopeViewModel } from '../hooks/useProjectScopeViewModel';
+import { useMigrationScopeViewModel } from '../hooks/useMigrationScopeViewModel';
 
 type ProjectScopeNavigation = NativeStackNavigationProp<
   ProjectsStackParamList,
@@ -27,6 +30,7 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
     description: params.description,
   };
   const vm = useProjectScopeViewModel(seed);
+  const scopeVm = useMigrationScopeViewModel();
 
   const handleCreate = useCallback(async (): Promise<void> => {
     const ok = await vm.create();
@@ -54,9 +58,18 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
               title="Project Summary"
               testID="section-project-summary"
             >
-              <Text className="font-body text-sm text-foreground">
-                {vm.name}
-              </Text>
+              <View className="gap-3">
+                <Text className="font-body text-sm text-foreground">
+                  {vm.name}
+                </Text>
+                <MigrationScopeSummary
+                  masterDataCount={scopeVm.masterDataCount}
+                  masterDataTotal={scopeVm.masterDataTotal}
+                  openingBalancesCount={scopeVm.openingBalancesCount}
+                  openingBalancesTotal={scopeVm.openingBalancesTotal}
+                  testID="project-summary-scope"
+                />
+              </View>
             </ScopeSectionCard>
 
             <ScopeSectionCard
@@ -78,7 +91,19 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
             <ScopeSectionCard
               title="Migration Scope"
               testID="section-migration-scope"
-            />
+            >
+              <MigrationScopeSection
+                masterData={scopeVm.masterData}
+                masterDataCount={scopeVm.masterDataCount}
+                masterDataTotal={scopeVm.masterDataTotal}
+                onToggleMasterDataColumn={scopeVm.toggleMasterDataColumn}
+                openingBalances={scopeVm.openingBalances}
+                openingBalancesCount={scopeVm.openingBalancesCount}
+                openingBalancesTotal={scopeVm.openingBalancesTotal}
+                onToggleOpeningBalance={scopeVm.toggleOpeningBalance}
+                testID="migration-scope"
+              />
+            </ScopeSectionCard>
 
             {/* AddMembersSection mounts here (DA-138) */}
             <ScopeSectionCard

@@ -1,4 +1,5 @@
 import type { AppError } from '@/shared/types/result.types';
+import type { MasterDataColumn } from '../components/MigrationScope.config';
 import type {
   AggregationMode,
   ConnectionMethod,
@@ -8,6 +9,15 @@ import type {
   ProjectScopeStore,
   RequestStatus,
 } from '../types/project-scope.types';
+
+// ─── Master Data Column Encoding ──────────────────────────────────────────────
+
+export const MASTER_DATA_COLUMN_SEPARATOR = ':';
+
+export const masterDataColumnKey = (
+  id: string,
+  column: MasterDataColumn,
+): string => `${id}${MASTER_DATA_COLUMN_SEPARATOR}${column}`;
 
 export const selectDraft = (state: ProjectScopeStore): ProjectScopeDraft =>
   state.draft;
@@ -41,9 +51,19 @@ export const selectSelectedMasterData = (
   state: ProjectScopeStore,
 ): readonly string[] => state.draft.scope.selectedMasterData;
 
+export const selectMasterDataCount = (state: ProjectScopeStore): number =>
+  new Set(
+    state.draft.scope.selectedMasterData.map(
+      (key) => key.split(MASTER_DATA_COLUMN_SEPARATOR)[0],
+    ),
+  ).size;
+
 export const selectSelectedOpeningBalances = (
   state: ProjectScopeStore,
 ): readonly string[] => state.draft.scope.selectedOpeningBalances;
+
+export const selectOpeningBalancesCount = (state: ProjectScopeStore): number =>
+  state.draft.scope.selectedOpeningBalances.length;
 
 export const selectAggregation = (
   state: ProjectScopeStore,
