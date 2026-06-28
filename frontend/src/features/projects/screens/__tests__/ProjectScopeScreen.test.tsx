@@ -119,6 +119,21 @@ jest.mock('../../hooks/useProjectScopeViewModel', () => ({
   useProjectScopeViewModel: (seed: unknown) => mockUseProjectScopeViewModel(seed),
 }));
 
+// Summary bar VM is exercised by its own unit tests (DA-158); stub it here so the
+// screen render does not pull in useERPConfig/useQuery (needs no QueryClient).
+jest.mock('../../hooks/useProjectSummaryViewModel', () => ({
+  useProjectSummaryViewModel: () => ({
+    summary: {
+      source: null,
+      target: null,
+      method: 'MCP',
+      masterData: '0 of 9 selected',
+      openingBalances: '0 of 5 selected',
+      members: '0',
+    },
+  }),
+}));
+
 // ─── Imports (after mocks) ──────────────────────────────────────────────────
 
 import { ProjectScopeScreen } from '../ProjectScopeScreen';
@@ -145,7 +160,7 @@ describe('ProjectScopeScreen', () => {
     render(<ProjectScopeScreen />);
     expect(screen.getByTestId('project-scope-screen')).toBeTruthy();
     expect(screen.getByTestId('project-scope-header')).toBeTruthy();
-    expect(screen.getByTestId('section-project-summary')).toBeTruthy();
+    expect(screen.getByTestId('project-summary-bar')).toBeTruthy();
     expect(screen.getByTestId('section-select-erp')).toBeTruthy();
   });
 

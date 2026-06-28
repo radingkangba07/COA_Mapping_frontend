@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { View } from 'react-native';
+import { View, Text } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -52,6 +52,14 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
           createDisabled={vm.createDisabled}
           testID="project-scope-header"
         />
+
+        {/* Manual project name carried from the entry modal — read-only, no name field (DA-3). */}
+        <Text
+          className="font-heading text-lg font-semibold text-foreground"
+          testID="project-scope-name"
+        >
+          {vm.name}
+        </Text>
 
         <View className="flex-col gap-6 lg:flex-row lg:gap-6">
           <View className="lg:flex-1 gap-6">
