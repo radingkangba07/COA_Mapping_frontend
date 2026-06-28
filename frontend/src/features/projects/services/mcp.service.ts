@@ -9,6 +9,11 @@ import type { HttpClient } from '@/shared/services/http/http.types';
 import type { AppError, Result } from '@/shared/types/result.types';
 import { ok, err } from '@/shared/types/result.types';
 import { toAppError } from '@/shared/services/http/http.client';
+import type {
+  CoaRow,
+  MCPConnectionPayload,
+  MigrationScopePayload,
+} from '../types/project-scope.types';
 
 export type McpFormAuthType = 'bearer' | 'apiKey' | 'basic' | 'oauth2';
 
@@ -261,5 +266,103 @@ export async function testConnection(
         ? { ...appError, details: { ...appError.details, logs: serverLogs } }
         : appError,
     );
+  }
+}
+
+// ─── Fetch COA (DA-80) ────────────────────────────────────────────────────────
+
+export interface FetchCoaPayload {
+  source_erp: string | null;
+  target_erp: string | null;
+  scope: MigrationScopePayload;
+  connection: MCPConnectionPayload;
+}
+
+export interface FetchCoaResult {
+  readonly source: readonly CoaRow[];
+  readonly target: readonly CoaRow[];
+}
+
+// The backend shape is not fully settled yet, so be tolerant: accept explicit
+// `source`/`target` arrays, OR a flat `rows` array (treated as source), plus an
+// optional `counts` block. Each row is an open record so dynamic CSV-style
+// columns survive into CoaRow (a structural superset of the CSV parser row).
+const coaRowSchema = z.record(z.string(), z.unknown());
+
+const fetchCoaResponseSchema = z
+  .object({
+    source: z.array(coaRowSchema).optional(),
+    target: z.array(coaRowSchema).optional(),
+    rows: z.array(coaRowSchema).optional(),
+    counts: z
+      .object({
+        source: z.number().optional(),
+        target: z.number().optional(),
+      })
+      .optional(),
+  })
+  .passthrough();
+
+// Reads the first present key from `raw` and returns it as a string, else null.
+// Narrows safely without `any` (string | number values are coerced).
+function pickString(
+  raw: Record<string, unknown>,
+  keys: readonly string[],
+): string | null {
+  for (const key of keys) {
+    const value = raw[key];
+    if (typeof value === 'string' && value.trim() !== '') {
+      return value;
+    }
+    if (typeof value === 'number') {
+      return String(value);
+    }
+  }
+  return null;
+}
+
+// Normalizes a raw response row into a CoaRow. Spreads `raw` first to preserve
+// dynamic CSV-style columns, then overlays normalized fields so they win.
+function toCoaRow(raw: Record<string, unknown>): CoaRow {
+  const accountCode =
+    pickString(raw, ['accountCode', 'account_code', 'code', 'account_number']) ??
+    '';
+  const accountName =
+    pickString(raw, ['accountName', 'account_name', 'name', 'description']) ?? '';
+  const accountType =
+    pickString(raw, ['accountType', 'account_type', 'type']) ?? '';
+  const parent = pickString(raw, ['parent', 'parent_code', 'parent_account']);
+  return { ...raw, accountCode, accountName, accountType, parent };
+}
+
+// POSTs the fetch-COA request to the MCP surface (NOT under /api/v1) and resolves
+// the normalized source/target rows. DA-81 derives counts + samples from this;
+// DA-84 feeds the result into the migration store.
+export async function fetchCoa(
+  client: HttpClient,
+  payload: FetchCoaPayload,
+): Promise<Result<FetchCoaResult, AppError>> {
+  try {
+    const { data } = await client.post<unknown>('/mcp/fetch-coa', payload);
+    const parsed = fetchCoaResponseSchema.safeParse(data);
+    if (!parsed.success) {
+      return err({
+        code: 'INVALID_RESPONSE',
+        message: 'Fetch COA response failed validation',
+        details: { issues: parsed.error.issues },
+      });
+    }
+    const hasExplicit =
+      parsed.data.source !== undefined || parsed.data.target !== undefined;
+    const sourceRaw = hasExplicit
+      ? parsed.data.source ?? []
+      : parsed.data.rows ?? [];
+    const targetRaw = hasExplicit ? parsed.data.target ?? [] : [];
+    return ok({
+      source: sourceRaw.map(toCoaRow),
+      target: targetRaw.map(toCoaRow),
+    });
+  } catch (error: unknown) {
+    return err(toAppError(error));
   }
 }

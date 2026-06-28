@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { AlertCircle, CheckCircle, Database, DownloadCloud } from 'lucide-react-native';
 import { Button } from '@/shared/components/ui/Button';
+import { Spinner } from '@/shared/components/ui/Spinner';
 import { colors } from '@/config/theme';
 import type { CoaRow, RequestStatus } from '@/features/projects/types/project-scope.types';
 
@@ -90,11 +91,24 @@ export function FetchFromErpStep({
         </View>
       ) : null}
 
-      {/* TODO(DA-80): replace with progress bar + percentage during fetch. */}
       {status === 'loading' ? (
-        <Text testID={`${rootTestID}-loading`} className="font-body text-sm text-muted-foreground">
-          Fetching chart of accounts… {progress}%
-        </Text>
+        <View testID={`${rootTestID}-loading`} className="gap-2">
+          <View className="flex-row items-center gap-2">
+            <Spinner size="sm" />
+            <Text className="font-body text-sm text-muted-foreground">
+              Fetching chart of accounts…
+            </Text>
+            <Text className="font-mono text-sm text-muted-foreground">
+              {progress}%
+            </Text>
+          </View>
+          <View className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <View
+              className="h-full rounded-full bg-primary"
+              style={{ width: `${Math.max(progress, 8)}%` }}
+            />
+          </View>
+        </View>
       ) : null}
 
       {/* TODO(DA-81): replace with counts summary + sample preview tables. */}
