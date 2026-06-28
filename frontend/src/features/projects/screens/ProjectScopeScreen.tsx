@@ -10,9 +10,10 @@ import { CompatibilityBanner } from '../components/CompatibilityBanner';
 import { ScopeSectionCard } from '../components/ScopeSectionCard';
 import { ErpSourceTargetSelect } from '../components/ErpSourceTargetSelect';
 import { MigrationScopeSection } from '../components/MigrationScopeSection';
-import { MigrationScopeSummary } from '../components/MigrationScopeSummary';
+import { ProjectSummaryBar } from '../components/ProjectSummaryBar';
 import { useProjectScopeViewModel } from '../hooks/useProjectScopeViewModel';
 import { useMigrationScopeViewModel } from '../hooks/useMigrationScopeViewModel';
+import { useProjectSummaryViewModel } from '../hooks/useProjectSummaryViewModel';
 
 type ProjectScopeNavigation = NativeStackNavigationProp<
   ProjectsStackParamList,
@@ -31,6 +32,7 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
   };
   const vm = useProjectScopeViewModel(seed);
   const scopeVm = useMigrationScopeViewModel();
+  const summaryVm = useProjectSummaryViewModel();
 
   const handleCreate = useCallback(async (): Promise<void> => {
     const ok = await vm.create();
@@ -51,26 +53,21 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
           testID="project-scope-header"
         />
 
+        {/* Manual project name carried from the entry modal — read-only, no name field (DA-3). */}
+        <Text
+          className="font-heading text-lg font-semibold text-foreground"
+          testID="project-scope-name"
+        >
+          {vm.name}
+        </Text>
+
         <View className="flex-col gap-6 lg:flex-row lg:gap-6">
           <View className="lg:flex-1 gap-6">
             {/* ProjectSummaryBar mounts here (DA-137) */}
-            <ScopeSectionCard
-              title="Project Summary"
-              testID="section-project-summary"
-            >
-              <View className="gap-3">
-                <Text className="font-body text-sm text-foreground">
-                  {vm.name}
-                </Text>
-                <MigrationScopeSummary
-                  masterDataCount={scopeVm.masterDataCount}
-                  masterDataTotal={scopeVm.masterDataTotal}
-                  openingBalancesCount={scopeVm.openingBalancesCount}
-                  openingBalancesTotal={scopeVm.openingBalancesTotal}
-                  testID="project-summary-scope"
-                />
-              </View>
-            </ScopeSectionCard>
+            <ProjectSummaryBar
+              summary={summaryVm.summary}
+              testID="project-summary-bar"
+            />
 
             <ScopeSectionCard
               title="Select Source & Target ERP"

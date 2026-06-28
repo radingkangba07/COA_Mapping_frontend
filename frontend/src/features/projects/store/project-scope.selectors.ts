@@ -1,4 +1,8 @@
 import type { AppError } from '@/shared/types/result.types';
+import {
+  MASTER_DATA_ITEMS,
+  OPENING_BALANCE_ITEMS,
+} from '../components/MigrationScope.config';
 import type { MasterDataColumn } from '../components/MigrationScope.config';
 import type {
   AggregationMode,
@@ -94,3 +98,29 @@ export const selectCanCreateProject = (state: ProjectScopeStore): boolean => {
 
   return hasCompany && hasBothErps && erpsDistinct && connectionSatisfied;
 };
+
+// ─── Project Summary Aggregation ──────────────────────────────────────────────
+
+export interface ProjectScopeSummary {
+  readonly source: string | null;
+  readonly target: string | null;
+  readonly method: ConnectionMethod;
+  readonly masterDataCount: number;
+  readonly masterDataTotal: number;
+  readonly openingBalancesCount: number;
+  readonly openingBalancesTotal: number;
+  readonly members: number;
+}
+
+export const selectProjectSummary = (
+  state: ProjectScopeStore,
+): ProjectScopeSummary => ({
+  source: state.draft.source,
+  target: state.draft.target,
+  method: state.draft.method,
+  masterDataCount: selectMasterDataCount(state),
+  masterDataTotal: MASTER_DATA_ITEMS.length,
+  openingBalancesCount: selectOpeningBalancesCount(state),
+  openingBalancesTotal: OPENING_BALANCE_ITEMS.length,
+  members: state.draft.members.length,
+});
