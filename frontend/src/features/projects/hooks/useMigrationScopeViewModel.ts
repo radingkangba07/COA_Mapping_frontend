@@ -1,13 +1,16 @@
 import { useCallback, useMemo } from 'react';
 import {
   MASTER_DATA_ITEMS,
+  OPENING_BALANCE_ITEMS,
   type MasterDataColumn,
 } from '../components/MigrationScope.config';
 import { useProjectScopeStore } from '../store/project-scope.store';
 import {
   masterDataColumnKey,
   selectMasterDataCount,
+  selectOpeningBalancesCount,
   selectSelectedMasterData,
+  selectSelectedOpeningBalances,
 } from '../store/project-scope.selectors';
 
 export interface MasterDataRowVM {
@@ -18,6 +21,12 @@ export interface MasterDataRowVM {
   readonly mdm: boolean;
 }
 
+export interface OpeningBalanceRowVM {
+  readonly id: string;
+  readonly label: string;
+  readonly selected: boolean;
+}
+
 export interface MigrationScopeViewModel {
   readonly masterData: readonly MasterDataRowVM[];
   readonly masterDataTotal: number;
@@ -26,11 +35,19 @@ export interface MigrationScopeViewModel {
     id: string,
     column: MasterDataColumn,
   ) => void;
+  readonly openingBalances: readonly OpeningBalanceRowVM[];
+  readonly openingBalancesTotal: number;
+  readonly openingBalancesCount: number;
+  readonly toggleOpeningBalance: (id: string) => void;
 }
 
 export function useMigrationScopeViewModel(): MigrationScopeViewModel {
   const selected = useProjectScopeStore(selectSelectedMasterData);
   const masterDataCount = useProjectScopeStore(selectMasterDataCount);
+  const selectedOB = useProjectScopeStore(selectSelectedOpeningBalances);
+  const openingBalancesCount = useProjectScopeStore(
+    selectOpeningBalancesCount,
+  );
 
   const masterData = useMemo<readonly MasterDataRowVM[]>(
     () =>
@@ -46,6 +63,16 @@ export function useMigrationScopeViewModel(): MigrationScopeViewModel {
     [selected],
   );
 
+  const openingBalances = useMemo<readonly OpeningBalanceRowVM[]>(
+    () =>
+      OPENING_BALANCE_ITEMS.map((item) => ({
+        id: item.id,
+        label: item.label,
+        selected: selectedOB.includes(item.id),
+      })),
+    [selectedOB],
+  );
+
   const toggleMasterDataColumn = useCallback(
     (id: string, column: MasterDataColumn): void => {
       useProjectScopeStore
@@ -55,10 +82,18 @@ export function useMigrationScopeViewModel(): MigrationScopeViewModel {
     [],
   );
 
+  const toggleOpeningBalance = useCallback((id: string): void => {
+    useProjectScopeStore.getState().toggleOpeningBalances(id);
+  }, []);
+
   return {
     masterData,
     masterDataTotal: MASTER_DATA_ITEMS.length,
     masterDataCount,
     toggleMasterDataColumn,
+    openingBalances,
+    openingBalancesTotal: OPENING_BALANCE_ITEMS.length,
+    openingBalancesCount,
+    toggleOpeningBalance,
   };
 }

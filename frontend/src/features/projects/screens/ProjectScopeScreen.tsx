@@ -87,6 +87,10 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
                 masterDataCount={scopeVm.masterDataCount}
                 masterDataTotal={scopeVm.masterDataTotal}
                 onToggleMasterDataColumn={scopeVm.toggleMasterDataColumn}
+                openingBalances={scopeVm.openingBalances}
+                openingBalancesCount={scopeVm.openingBalancesCount}
+                openingBalancesTotal={scopeVm.openingBalancesTotal}
+                onToggleOpeningBalance={scopeVm.toggleOpeningBalance}
                 testID="migration-scope"
               />
             </ScopeSectionCard>

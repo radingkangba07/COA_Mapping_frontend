@@ -62,6 +62,9 @@ export const selectSelectedOpeningBalances = (
   state: ProjectScopeStore,
 ): readonly string[] => state.draft.scope.selectedOpeningBalances;
 
+export const selectOpeningBalancesCount = (state: ProjectScopeStore): number =>
+  state.draft.scope.selectedOpeningBalances.length;
+
 export const selectAggregation = (
   state: ProjectScopeStore,
 ): AggregationMode => state.draft.scope.aggregation;
