@@ -22,6 +22,8 @@ import {
   selectTargetERP,
 } from '../store/migration.selectors';
 
+const SAMPLE_LIMIT = 5;
+
 // ─── Lifecycle State ─────────────────────────────────────────────────────────
 
 /**
@@ -103,9 +105,16 @@ export function useFetchFromErp(): UseFetchFromErpResult {
       const result = await fetchCoa(httpClient, payload);
 
       if (result.ok) {
+        const { source, target } = result.data;
         setFetchStatus('success');
-        setFetchState((s) => ({ ...s, status: 'success', progress: 100 }));
-        // TODO(DA-81): set counts + samples from result.value
+        setFetchState((s) => ({
+          ...s,
+          status: 'success',
+          progress: 100,
+          counts: { source: source.length, target: target.length },
+          sampleSource: source.slice(0, SAMPLE_LIMIT),
+          sampleTarget: target.slice(0, SAMPLE_LIMIT),
+        }));
         // TODO(DA-84): feed result into migration store via setCoa
       } else {
         setFetchStatus('error');

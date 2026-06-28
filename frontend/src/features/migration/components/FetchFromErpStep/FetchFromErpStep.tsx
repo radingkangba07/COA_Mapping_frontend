@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import { AlertCircle, CheckCircle, Database, DownloadCloud } from 'lucide-react-native';
 import { Button } from '@/shared/components/ui/Button';
 import { Spinner } from '@/shared/components/ui/Spinner';
 import { colors } from '@/config/theme';
 import type { CoaRow, RequestStatus } from '@/features/projects/types/project-scope.types';
+
+const PREVIEW_COLUMN_LIMIT = 5;
 
 export interface FetchFromErpStepProps {
   sourceErpName?: string;
@@ -111,15 +113,36 @@ export function FetchFromErpStep({
         </View>
       ) : null}
 
-      {/* TODO(DA-81): replace with counts summary + sample preview tables. */}
       {status === 'success' ? (
-        <View testID={`${rootTestID}-success`} className="flex-row items-center gap-2">
-          <CheckCircle size={16} color={colors.success} />
-          <Text className="font-body text-sm text-foreground">
-            Fetched {counts.source} source / {counts.target} target accounts
-            {' '}({sampleSource.length}/{sampleTarget.length} sampled).
-          </Text>
-          {/* TODO(DA-82): re-fetch control wired to onRefetch. */}
+        <View testID={`${rootTestID}-success`} className="gap-3">
+          <View className="flex-row gap-2">
+            <CountChip
+              icon={<CheckCircle size={16} color={colors.success} />}
+              label="Source accounts"
+              value={counts.source}
+            />
+            <CountChip
+              icon={<Database size={16} color={colors.primary} />}
+              label="Target accounts"
+              value={counts.target}
+            />
+          </View>
+
+          <SamplePreviewTable
+            title="Sample — Source COA"
+            rows={sampleSource}
+            testID={`${rootTestID}-sample-source`}
+          />
+
+          {sampleTarget.length > 0 ? (
+            <SamplePreviewTable
+              title="Sample — Target COA"
+              rows={sampleTarget}
+              testID={`${rootTestID}-sample-target`}
+            />
+          ) : null}
+
+          {/* TODO(DA-82): re-fetch control */}
         </View>
       ) : null}
 
@@ -157,6 +180,73 @@ function ErpStepHeader({ sourceErpName, targetErpName }: ErpStepHeaderProps): Re
           {sourceErpName} → {targetErpName}
         </Text>
       ) : null}
+    </View>
+  );
+}
+
+interface CountChipProps {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+}
+
+function CountChip({ icon, label, value }: CountChipProps): React.JSX.Element {
+  return (
+    <View className="flex-1 flex-row items-center gap-2 rounded-md border border-border bg-card px-3 py-2">
+      {icon}
+      <View className="flex-1">
+        <Text className="font-body text-xs text-muted-foreground">{label}</Text>
+        <Text className="font-mono text-base font-semibold text-foreground">{value}</Text>
+      </View>
+    </View>
+  );
+}
+
+interface SamplePreviewTableProps {
+  title: string;
+  rows: readonly CoaRow[];
+  testID: string;
+}
+
+function SamplePreviewTable({ title, rows, testID }: SamplePreviewTableProps): React.JSX.Element | null {
+  const firstRow = rows[0];
+  if (firstRow === undefined) {
+    return null;
+  }
+  const columns = Object.keys(firstRow).slice(0, PREVIEW_COLUMN_LIMIT);
+
+  return (
+    <View testID={testID} className="gap-1">
+      <Text className="font-body text-sm font-medium text-foreground">{title}</Text>
+      <ScrollView horizontal className="rounded-md border border-border">
+        <View>
+          <View className="flex-row border-b border-border bg-muted">
+            {columns.map((column) => (
+              <Text
+                key={column}
+                className="min-w-[96px] px-2 py-1.5 font-mono text-xs font-medium text-muted-foreground"
+              >
+                {column}
+              </Text>
+            ))}
+          </View>
+          {rows.map((row, rowIndex) => (
+            <View
+              key={`${testID}-row-${rowIndex}`}
+              className="flex-row border-b border-border last:border-b-0"
+            >
+              {columns.map((column) => (
+                <Text
+                  key={`${column}-${rowIndex}`}
+                  className="min-w-[96px] px-2 py-1.5 font-mono text-xs text-foreground"
+                >
+                  {String(row[column] ?? '')}
+                </Text>
+              ))}
+            </View>
+          ))}
+        </View>
+      </ScrollView>
     </View>
   );
 }
