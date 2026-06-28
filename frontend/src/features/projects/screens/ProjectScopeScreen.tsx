@@ -84,6 +84,8 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
             >
               <MigrationScopeSection
                 masterData={scopeVm.masterData}
+                masterDataCount={scopeVm.masterDataCount}
+                masterDataTotal={scopeVm.masterDataTotal}
                 onToggleMasterDataColumn={scopeVm.toggleMasterDataColumn}
                 testID="migration-scope"
               />

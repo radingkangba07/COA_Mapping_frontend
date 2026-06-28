@@ -6,6 +6,7 @@ import {
 import { useProjectScopeStore } from '../store/project-scope.store';
 import {
   masterDataColumnKey,
+  selectMasterDataCount,
   selectSelectedMasterData,
 } from '../store/project-scope.selectors';
 
@@ -20,6 +21,7 @@ export interface MasterDataRowVM {
 export interface MigrationScopeViewModel {
   readonly masterData: readonly MasterDataRowVM[];
   readonly masterDataTotal: number;
+  readonly masterDataCount: number;
   readonly toggleMasterDataColumn: (
     id: string,
     column: MasterDataColumn,
@@ -28,6 +30,7 @@ export interface MigrationScopeViewModel {
 
 export function useMigrationScopeViewModel(): MigrationScopeViewModel {
   const selected = useProjectScopeStore(selectSelectedMasterData);
+  const masterDataCount = useProjectScopeStore(selectMasterDataCount);
 
   const masterData = useMemo<readonly MasterDataRowVM[]>(
     () =>
@@ -55,6 +58,7 @@ export function useMigrationScopeViewModel(): MigrationScopeViewModel {
   return {
     masterData,
     masterDataTotal: MASTER_DATA_ITEMS.length,
+    masterDataCount,
     toggleMasterDataColumn,
   };
 }

@@ -51,6 +51,13 @@ export const selectSelectedMasterData = (
   state: ProjectScopeStore,
 ): readonly string[] => state.draft.scope.selectedMasterData;
 
+export const selectMasterDataCount = (state: ProjectScopeStore): number =>
+  new Set(
+    state.draft.scope.selectedMasterData.map(
+      (key) => key.split(MASTER_DATA_COLUMN_SEPARATOR)[0],
+    ),
+  ).size;
+
 export const selectSelectedOpeningBalances = (
   state: ProjectScopeStore,
 ): readonly string[] => state.draft.scope.selectedOpeningBalances;
