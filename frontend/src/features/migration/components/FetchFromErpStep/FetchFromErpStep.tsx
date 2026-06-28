@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import { AlertCircle, CheckCircle, Database, DownloadCloud } from 'lucide-react-native';
+import { AlertCircle, CheckCircle, Database, DownloadCloud, RefreshCw } from 'lucide-react-native';
 import { Button } from '@/shared/components/ui/Button';
 import { Spinner } from '@/shared/components/ui/Spinner';
 import { colors } from '@/config/theme';
@@ -142,17 +142,45 @@ export function FetchFromErpStep({
             />
           ) : null}
 
-          {/* TODO(DA-82): re-fetch control */}
+          <View className="flex-row">
+            <Button
+              variant="outline"
+              size="sm"
+              onPress={onRefetch}
+              accessibilityLabel="Re-fetch chart of accounts from ERP"
+              testID={`${rootTestID}-refetch-button`}
+            >
+              <View className="flex-row items-center gap-2">
+                <RefreshCw size={14} color={colors.foreground} />
+                <Text className="font-body text-xs font-medium text-foreground">
+                  Re-fetch
+                </Text>
+              </View>
+            </Button>
+          </View>
         </View>
       ) : null}
 
-      {/* TODO(DA-80/DA-82): full error UI with retry via onRefetch. */}
       {status === 'error' ? (
         <View testID={`${rootTestID}-error`} className="flex-row items-center gap-2">
           <AlertCircle size={16} color={colors.destructive} />
           <Text className="flex-1 font-body text-sm text-destructive">
             {errorMessage ?? 'Failed to fetch chart of accounts.'}
           </Text>
+          <Button
+            variant="outline"
+            size="sm"
+            onPress={onRefetch}
+            accessibilityLabel="Retry fetch from ERP"
+            testID={`${rootTestID}-retry-button`}
+          >
+            <View className="flex-row items-center gap-2">
+              <RefreshCw size={14} color={colors.foreground} />
+              <Text className="font-body text-xs font-medium text-foreground">
+                Retry
+              </Text>
+            </View>
+          </Button>
         </View>
       ) : null}
     </View>

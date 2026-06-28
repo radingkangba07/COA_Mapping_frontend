@@ -78,7 +78,7 @@ export function useFetchFromErp(): UseFetchFromErpResult {
     createInitialFetchState(storeFetchStatus ?? 'idle'),
   );
 
-  const runFetch = useCallback((): void => {
+  const performFetch = useCallback((): void => {
     // MCP gate: never fetch before a successful test connection (DA-50).
     if (!connectionReady) {
       return;
@@ -129,9 +129,12 @@ export function useFetchFromErp(): UseFetchFromErpResult {
     void run();
   }, [connectionReady, setFetchStatus]);
 
-  const refetch = useCallback((): void => {
-    // TODO(DA-82): re-fetch — reset state and re-run runFetch. No-op for DA-79.
-  }, []);
+  // Both the initial fetch and re-fetch run the same routine. `performFetch`
+  // already resets status→'loading' and progress→0 at the start, then
+  // repopulates counts/samples on success — so it works from any state
+  // (idle, success, or error). The only gate is `connectionReady` (DA-50).
+  const runFetch = performFetch;
+  const refetch = performFetch;
 
   return {
     method,
