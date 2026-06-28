@@ -206,5 +206,50 @@ describe('useProjectScopeViewModel', () => {
       const payload = buildCreatePayload(draft);
       expect(payload.description).toBeUndefined();
     });
+
+    it('includes mapped members when the draft has members', () => {
+      const draft = {
+        ...createInitialDraft(),
+        companyId: 'co-9',
+        name: 'P',
+        members: [
+          {
+            id: 'alice@example.com',
+            name: 'Alice',
+            email: 'alice@example.com',
+            role: 'admin' as const,
+          },
+          {
+            id: 'bob@example.com',
+            name: 'Bob',
+            email: 'bob@example.com',
+            role: 'viewer' as const,
+          },
+        ],
+      };
+
+      const payload = buildCreatePayload(draft);
+
+      expect(payload.members).toEqual([
+        {
+          id: 'alice@example.com',
+          name: 'Alice',
+          email: 'alice@example.com',
+          role: 'admin',
+        },
+        {
+          id: 'bob@example.com',
+          name: 'Bob',
+          email: 'bob@example.com',
+          role: 'viewer',
+        },
+      ]);
+    });
+
+    it('omits members when the draft has none', () => {
+      const draft = { ...createInitialDraft(), companyId: 'co-9', name: 'P' };
+      const payload = buildCreatePayload(draft);
+      expect(payload.members).toBeUndefined();
+    });
   });
 });
