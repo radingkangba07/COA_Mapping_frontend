@@ -20,6 +20,7 @@ export interface FetchFromErpStepProps {
   errorMessage?: string | null;
   onFetch: () => void;
   onRefetch: () => void;
+  onUseCsvFallback?: () => void;
   testID?: string;
 }
 
@@ -35,6 +36,7 @@ export function FetchFromErpStep({
   errorMessage,
   onFetch,
   onRefetch,
+  onUseCsvFallback,
   testID,
 }: FetchFromErpStepProps): React.JSX.Element {
   const rootTestID = testID ?? 'fetch-from-erp-step';
@@ -68,6 +70,7 @@ export function FetchFromErpStep({
             </View>
           </Button>
         </View>
+        <CsvFallbackLink onPress={onUseCsvFallback} testID={`${rootTestID}-csv-fallback`} />
       </View>
     );
   }
@@ -77,19 +80,22 @@ export function FetchFromErpStep({
       <ErpStepHeader sourceErpName={sourceErpName} targetErpName={targetErpName} />
 
       {status === 'idle' ? (
-        <View className="flex-row">
-          <Button
-            onPress={onFetch}
-            accessibilityLabel="Fetch chart of accounts from ERP"
-            testID={`${rootTestID}-fetch-button`}
-          >
-            <View className="flex-row items-center gap-2">
-              <DownloadCloud size={16} color={colors.primaryForeground} />
-              <Text className="font-body text-sm font-medium text-primary-foreground">
-                Fetch from ERP
-              </Text>
-            </View>
-          </Button>
+        <View className="gap-2">
+          <View className="flex-row">
+            <Button
+              onPress={onFetch}
+              accessibilityLabel="Fetch chart of accounts from ERP"
+              testID={`${rootTestID}-fetch-button`}
+            >
+              <View className="flex-row items-center gap-2">
+                <DownloadCloud size={16} color={colors.primaryForeground} />
+                <Text className="font-body text-sm font-medium text-primary-foreground">
+                  Fetch from ERP
+                </Text>
+              </View>
+            </Button>
+          </View>
+          <CsvFallbackLink onPress={onUseCsvFallback} testID={`${rootTestID}-csv-fallback`} />
         </View>
       ) : null}
 
@@ -162,25 +168,28 @@ export function FetchFromErpStep({
       ) : null}
 
       {status === 'error' ? (
-        <View testID={`${rootTestID}-error`} className="flex-row items-center gap-2">
-          <AlertCircle size={16} color={colors.destructive} />
-          <Text className="flex-1 font-body text-sm text-destructive">
-            {errorMessage ?? 'Failed to fetch chart of accounts.'}
-          </Text>
-          <Button
-            variant="outline"
-            size="sm"
-            onPress={onRefetch}
-            accessibilityLabel="Retry fetch from ERP"
-            testID={`${rootTestID}-retry-button`}
-          >
-            <View className="flex-row items-center gap-2">
-              <RefreshCw size={14} color={colors.foreground} />
-              <Text className="font-body text-xs font-medium text-foreground">
-                Retry
-              </Text>
-            </View>
-          </Button>
+        <View testID={`${rootTestID}-error`} className="gap-2">
+          <View className="flex-row items-center gap-2">
+            <AlertCircle size={16} color={colors.destructive} />
+            <Text className="flex-1 font-body text-sm text-destructive">
+              {errorMessage ?? 'Failed to fetch chart of accounts.'}
+            </Text>
+            <Button
+              variant="outline"
+              size="sm"
+              onPress={onRefetch}
+              accessibilityLabel="Retry fetch from ERP"
+              testID={`${rootTestID}-retry-button`}
+            >
+              <View className="flex-row items-center gap-2">
+                <RefreshCw size={14} color={colors.foreground} />
+                <Text className="font-body text-xs font-medium text-foreground">
+                  Retry
+                </Text>
+              </View>
+            </Button>
+          </View>
+          <CsvFallbackLink onPress={onUseCsvFallback} testID={`${rootTestID}-csv-fallback`} />
         </View>
       ) : null}
     </View>
@@ -188,6 +197,38 @@ export function FetchFromErpStep({
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
+
+interface CsvFallbackLinkProps {
+  onPress?: () => void;
+  testID: string;
+}
+
+/**
+ * Subtle "Use CSV upload instead" affordance. Lets the user fall back to the
+ * CSV upload flow when MCP is unavailable (gated) or a fetch fails (error),
+ * and as a secondary option in the idle state. Renders nothing without a handler.
+ */
+function CsvFallbackLink({ onPress, testID }: CsvFallbackLinkProps): React.JSX.Element | null {
+  if (onPress === undefined) {
+    return null;
+  }
+  return (
+    <View className="flex-row">
+      <Button
+        variant="link"
+        size="sm"
+        onPress={onPress}
+        accessibilityLabel="Switch to CSV file upload"
+        testID={testID}
+        className="px-0"
+      >
+        <Text className="font-body text-xs font-medium text-muted-foreground underline">
+          Use CSV upload instead
+        </Text>
+      </Button>
+    </View>
+  );
+}
 
 interface ErpStepHeaderProps {
   sourceErpName?: string;

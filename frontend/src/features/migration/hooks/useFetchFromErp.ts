@@ -50,6 +50,7 @@ export interface UseFetchFromErpResult {
   readonly fetch: FetchState;
   readonly runFetch: () => void;
   readonly refetch: () => void;
+  readonly useCsvFallback: () => void;
 }
 
 function createInitialFetchState(status: RequestStatus): FetchState {
@@ -136,6 +137,13 @@ export function useFetchFromErp(): UseFetchFromErpResult {
   const runFetch = performFetch;
   const refetch = performFetch;
 
+  // Fall back to CSV upload when MCP is unavailable or a fetch fails.
+  // Switches the project-scope draft method, which flips UploadScreen's
+  // conditional render from the Fetch-from-ERP step back to the upload cards.
+  const useCsvFallback = useCallback((): void => {
+    useProjectScopeStore.getState().setMethod('csv');
+  }, []);
+
   return {
     method,
     connectionReady,
@@ -144,5 +152,6 @@ export function useFetchFromErp(): UseFetchFromErpResult {
     fetch: fetchState,
     runFetch,
     refetch,
+    useCsvFallback,
   };
 }

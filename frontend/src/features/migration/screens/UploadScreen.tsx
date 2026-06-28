@@ -61,7 +61,7 @@ export function UploadScreen(): React.JSX.Element {
   } = useMigrationViewModel();
 
   const {
-    method, connectionReady, sourceErpName, targetErpName, fetch, runFetch, refetch,
+    method, connectionReady, sourceErpName, targetErpName, fetch, runFetch, refetch, useCsvFallback,
   } = useFetchFromErp();
 
   const onSourceFilePicked = useCallback(
@@ -229,6 +229,7 @@ export function UploadScreen(): React.JSX.Element {
                   errorMessage={fetch.errorMessage}
                   onFetch={runFetch}
                   onRefetch={refetch}
+                  onUseCsvFallback={useCsvFallback}
                   testID="fetch-from-erp-step"
                 />
               ) : (
