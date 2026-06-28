@@ -72,6 +72,17 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
                   openingBalancesTotal={scopeVm.openingBalancesTotal}
                   testID="project-summary-scope"
                 />
+                <View className="flex-row items-center justify-between">
+                  <Text className="font-body text-sm text-muted-foreground">
+                    Members
+                  </Text>
+                  <Text
+                    className="font-mono text-sm text-foreground"
+                    testID="project-summary-members"
+                  >
+                    {String(vm.memberCount)}
+                  </Text>
+                </View>
               </View>
             </ScopeSectionCard>
 

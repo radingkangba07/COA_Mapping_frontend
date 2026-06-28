@@ -1,5 +1,6 @@
 import type { ProjectId, UserId, CompanyId, OrgId } from '@/shared/types/common.types';
 import type { AppError } from '@/shared/types/result.types';
+import type { ProjectPermission } from './project-access.types';
 
 // ─── Value Objects ──────────────────────────────────────────────────────────
 
@@ -55,6 +56,12 @@ export interface ProjectCreate {
   readonly companyId?: string | undefined;
   readonly companyName?: string | undefined;
   readonly description?: string | undefined;
+  readonly members?: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly email: string;
+    readonly role: ProjectPermission;
+  }[] | undefined;
 }
 
 export interface ProjectUpdate {

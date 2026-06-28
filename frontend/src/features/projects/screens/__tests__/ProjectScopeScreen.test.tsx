@@ -92,6 +92,7 @@ const baseVM: ProjectScopeViewModel = {
   name: 'My Migration',
   description: 'd',
   companyId: 'c1',
+  memberCount: 0,
   source: null,
   target: null,
   method: 'mcp',
