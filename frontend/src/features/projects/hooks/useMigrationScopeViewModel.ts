@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import {
+  CHART_OF_ACCOUNTS_ID,
   MASTER_DATA_ITEMS,
   OPENING_BALANCE_ITEMS,
   type MasterDataColumn,
@@ -7,6 +8,7 @@ import {
 import { useProjectScopeStore } from '../store/project-scope.store';
 import {
   masterDataColumnKey,
+  selectConnectionReady,
   selectMasterDataCount,
   selectOpeningBalancesCount,
   selectSelectedMasterData,
@@ -19,6 +21,7 @@ export interface MasterDataRowVM {
   readonly description: string;
   readonly dataConversion: boolean;
   readonly mdm: boolean;
+  readonly disabled: boolean;
 }
 
 export interface OpeningBalanceRowVM {
@@ -39,6 +42,7 @@ export interface MigrationScopeViewModel {
   readonly openingBalancesTotal: number;
   readonly openingBalancesCount: number;
   readonly toggleOpeningBalance: (id: string) => void;
+  readonly connectionReady: boolean;
 }
 
 export function useMigrationScopeViewModel(): MigrationScopeViewModel {
@@ -48,6 +52,7 @@ export function useMigrationScopeViewModel(): MigrationScopeViewModel {
   const openingBalancesCount = useProjectScopeStore(
     selectOpeningBalancesCount,
   );
+  const connectionReady = useProjectScopeStore(selectConnectionReady);
 
   const masterData = useMemo<readonly MasterDataRowVM[]>(
     () =>
@@ -59,8 +64,9 @@ export function useMigrationScopeViewModel(): MigrationScopeViewModel {
           masterDataColumnKey(item.id, 'dataConversion'),
         ),
         mdm: selected.includes(masterDataColumnKey(item.id, 'mdm')),
+        disabled: item.id === CHART_OF_ACCOUNTS_ID && !connectionReady,
       })),
-    [selected],
+    [selected, connectionReady],
   );
 
   const openingBalances = useMemo<readonly OpeningBalanceRowVM[]>(
@@ -95,5 +101,6 @@ export function useMigrationScopeViewModel(): MigrationScopeViewModel {
     openingBalancesTotal: OPENING_BALANCE_ITEMS.length,
     openingBalancesCount,
     toggleOpeningBalance,
+    connectionReady,
   };
 }

@@ -48,6 +48,7 @@ function MasterDataRow({
           checked={row.dataConversion}
           onCheckedChange={handleDataConversion}
           label="Data Conversion"
+          isDisabled={row.disabled}
           testID={
             testID !== undefined
               ? `${testID}-${row.id}-dataConversion`
@@ -58,6 +59,7 @@ function MasterDataRow({
           checked={row.mdm}
           onCheckedChange={handleMdm}
           label="MDM"
+          isDisabled={row.disabled}
           testID={testID !== undefined ? `${testID}-${row.id}-mdm` : undefined}
         />
       </View>
@@ -74,6 +76,18 @@ function MasterDataRow({
       <Text className="font-body text-sm text-muted-foreground">
         {row.description}
       </Text>
+      {row.disabled ? (
+        <Text
+          className="mt-1 font-body text-xs text-muted-foreground"
+          testID={
+            testID !== undefined
+              ? `${testID}-${row.id}-gated-hint`
+              : undefined
+          }
+        >
+          Test the connection to enable Chart of Accounts selection.
+        </Text>
+      ) : null}
     </Collapsible>
   );
 }
