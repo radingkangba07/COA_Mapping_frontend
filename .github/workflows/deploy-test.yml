@@ -14,6 +14,9 @@ on:
       - "services/frontend/**"
       - ".github/workflows/deploy-test.yml"
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Lint & Test
@@ -48,18 +51,21 @@ jobs:
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: dataportation.ai
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: GH_TOKEN
           script: |
             set -e
             BRANCH="${{ github.head_ref || github.ref_name }}"
+            REPO="https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
             cd /opt/coa-migration/environments/testing/frontend
             git config --global --add safe.directory /opt/coa-migration/environments/testing/frontend
-            git fetch origin "$BRANCH"
-            git checkout "$BRANCH"
-            git reset --hard "origin/$BRANCH"
+            git fetch "$REPO" "$BRANCH"
+            git checkout -B "$BRANCH" FETCH_HEAD
             git clean -fd
             cd /opt/coa-migration/environments/testing
             docker compose -p coa-testing -f docker-compose.testing.yml build frontend
