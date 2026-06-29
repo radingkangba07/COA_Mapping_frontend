@@ -166,6 +166,16 @@ describe('useProjectScopeStore', () => {
       store.removeMember('user-1');
       expect(useProjectScopeStore.getState().draft.members).toEqual([]);
     });
+
+    it('dedupes by id: re-adding the same id keeps a single member and updates its role', () => {
+      const store = useProjectScopeStore.getState();
+      store.addMember(member);
+      store.addMember({ ...member, role: 'admin' });
+
+      const { members } = useProjectScopeStore.getState().draft;
+      expect(members).toHaveLength(1);
+      expect(members[0]?.role).toBe('admin');
+    });
   });
 
   describe('status setters', () => {

@@ -211,7 +211,12 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
 
     addMember: (member: ProjectScopeMember): void => {
       set((state) => {
-        state.draft.members.push(member);
+        const index = state.draft.members.findIndex((m) => m.id === member.id);
+        if (index === -1) {
+          state.draft.members.push(member);
+        } else {
+          state.draft.members[index] = member;
+        }
       });
     },
 
