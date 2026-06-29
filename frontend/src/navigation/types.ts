@@ -40,6 +40,7 @@ export type ProjectsStackParamList = {
   NewProject: undefined;
   ClientOrgs: undefined;
   ClientOrgDetail: { clientOrgId: string };
+  ProjectOverview: { projectId: string };
 };
 
 export type MigrationStackParamList = {
