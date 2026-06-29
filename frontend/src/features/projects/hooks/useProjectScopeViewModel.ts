@@ -16,6 +16,7 @@ import {
   selectConnectionReady,
   selectDraft,
   selectIsSavingDraft,
+  selectMembersCount,
   selectMethod,
   selectSource,
   selectTarget,
@@ -40,6 +41,15 @@ export function buildCreatePayload(draft: ProjectScopeDraft): ProjectCreate {
     orgId: draft.companyId ?? undefined,
     sourceErp: draft.source ?? undefined,
     targetErp: draft.target ?? undefined,
+    members:
+      draft.members.length > 0
+        ? draft.members.map((m) => ({
+            id: m.id,
+            name: m.name,
+            email: m.email,
+            role: m.role,
+          }))
+        : undefined,
   };
 }
 
@@ -52,6 +62,7 @@ export interface ProjectScopeViewModel {
   readonly name: string;
   readonly description: string;
   readonly companyId: string | null;
+  readonly memberCount: number;
   readonly source: string | null;
   readonly target: string | null;
   readonly method: ConnectionMethod;
@@ -98,6 +109,7 @@ export function useProjectScopeViewModel(
   const method = useProjectScopeStore(selectMethod);
   const connectionReady = useProjectScopeStore(selectConnectionReady);
   const isSavingDraft = useProjectScopeStore(selectIsSavingDraft);
+  const memberCount = useProjectScopeStore(selectMembersCount);
   const canCreate = useProjectScopeStore(selectCanCreateProject);
 
   const toast = useToast();
@@ -175,6 +187,7 @@ export function useProjectScopeViewModel(
     description: draft.description,
     // company carried from entry modal -> draft.companyId -> create payload
     companyId: draft.companyId,
+    memberCount,
     source,
     target,
     method,

@@ -11,9 +11,11 @@ import { ScopeSectionCard } from '../components/ScopeSectionCard';
 import { ErpSourceTargetSelect } from '../components/ErpSourceTargetSelect';
 import { MigrationScopeSection } from '../components/MigrationScopeSection';
 import { ProjectSummaryBar } from '../components/ProjectSummaryBar';
+import { AddMembersSection } from '../components/AddMembersSection';
 import { useProjectScopeViewModel } from '../hooks/useProjectScopeViewModel';
 import { useMigrationScopeViewModel } from '../hooks/useMigrationScopeViewModel';
 import { useProjectSummaryViewModel } from '../hooks/useProjectSummaryViewModel';
+import { useAddMembersViewModel } from '../hooks/useAddMembersViewModel';
 
 type ProjectScopeNavigation = NativeStackNavigationProp<
   ProjectsStackParamList,
@@ -33,6 +35,7 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
   const vm = useProjectScopeViewModel(seed);
   const scopeVm = useMigrationScopeViewModel();
   const summaryVm = useProjectSummaryViewModel();
+  const membersVm = useAddMembersViewModel();
 
   const handleCreate = useCallback(async (): Promise<void> => {
     const ok = await vm.create();
@@ -106,7 +109,15 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
             <ScopeSectionCard
               title="Add Members"
               testID="section-add-members"
-            />
+            >
+              <AddMembersSection
+                onAddMember={membersVm.addMember}
+                members={membersVm.members}
+                onUpdateMemberRole={membersVm.updateMemberRole}
+                onRemoveMember={membersVm.removeMember}
+                testID="add-members"
+              />
+            </ScopeSectionCard>
           </View>
 
           <View className="lg:basis-[360px] gap-6">

@@ -51,6 +51,9 @@ export const selectMembers = (
   state: ProjectScopeStore,
 ): readonly ProjectScopeMember[] => state.draft.members;
 
+export const selectMembersCount = (state: ProjectScopeStore): number =>
+  state.draft.members.length;
+
 export const selectSelectedMasterData = (
   state: ProjectScopeStore,
 ): readonly string[] => state.draft.scope.selectedMasterData;
