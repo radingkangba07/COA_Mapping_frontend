@@ -29,8 +29,8 @@ export const StatCards = ({
   const counts = useMemo(() => countByStatus(workstreams), [workstreams]);
 
   const GAP = 8;
-  const overallFontSize = width >= 1100 ? 28 : 24;
-  const overallLabelSize = width >= 1100 ? 11 : 10;
+  const overallFontSize = width >= 1100 ? 20 : 18;
+  const overallLabelSize = width >= 1100 ? 10 : 9;
 
   const tiles: readonly TileDefinition[] = [
     { label: 'Total',           subtitle: 'Workstreams in scope', tone: 'default', value: counts.total          },
@@ -82,8 +82,8 @@ export const StatCards = ({
             <Skeleton height={overallFontSize + 4} width={52} borderRadius={4} />
           ) : (
             <Text
-              className="font-heading font-bold"
-              style={{ fontSize: overallFontSize, color: colors.primary }}
+              className="font-heading"
+              style={{ fontSize: overallFontSize, fontWeight: '500', color: colors.primary }}
             >
               {counts.progressPercent}%
             </Text>

@@ -64,7 +64,7 @@ export const WorkstreamRow = ({
   return (
     <Pressable
       onPress={() => onOpen(w)}
-      style={({ pressed }) => [rowBase, pressed && { backgroundColor: colors.surface }]}
+      style={({ pressed }) => [rowBase, pressed && { backgroundColor: colors.muted }]}
       testID={testID}
     >
       <View style={{ flex: COL_FLEX.name }}><CellText>{w.name}</CellText></View>

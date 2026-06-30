@@ -65,7 +65,7 @@ export const WorkstreamGroup = ({
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: 16,
-          backgroundColor: pressed ? colors.surface : colors.card,
+          backgroundColor: pressed ? colors.muted : colors.card,
         })}
         testID={testID ? `${testID}-header` : undefined}
       >

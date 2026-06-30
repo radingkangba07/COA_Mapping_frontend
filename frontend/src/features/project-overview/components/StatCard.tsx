@@ -35,9 +35,9 @@ export const StatCard = ({
 }: StatCardProps): React.JSX.Element => {
   const { width } = useWindowDimensions();
 
-  const valueFontSize  = width >= 1100 ? 32 : width >= 768 ? 28 : 22;
-  const labelFontSize  = width >= 1100 ? 11 : 10;
-  const subFontSize    = width >= 1100 ? 12 : 11;
+  const valueFontSize  = width >= 1100 ? 22 : width >= 768 ? 20 : 16;
+  const labelFontSize  = width >= 1100 ? 10 : 9;
+  const subFontSize    = width >= 1100 ? 11 : 10;
 
   return (
     <View
@@ -62,8 +62,8 @@ export const StatCard = ({
         <Skeleton height={valueFontSize + 6} width={48} borderRadius={4} />
       ) : (
         <Text
-          className="font-heading font-bold"
-          style={{ fontSize: valueFontSize, lineHeight: valueFontSize * 1.2, color: countColor(tone) }}
+          className="font-heading"
+          style={{ fontSize: valueFontSize, fontWeight: '500', lineHeight: valueFontSize * 1.2, color: countColor(tone) }}
         >
           {value}
         </Text>

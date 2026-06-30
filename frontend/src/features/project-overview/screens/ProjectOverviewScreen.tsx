@@ -10,15 +10,12 @@ import { colors } from '@/config/theme';
 import { useProjectDetail } from '@/features/projects/hooks/useProjectDetail';
 import type { ProjectsStackParamList } from '@/navigation/types';
 import type { ProjectId } from '@/shared/types/common.types';
-import { SideNav } from '../components/SideNav';
 import { TopAppBar } from '../components/TopAppBar';
 import { StatCards } from '../components/StatCards';
 import { WorkstreamSections } from '../components/WorkstreamSections';
 import { ProjectSummaryPanel } from '../components/ProjectSummaryPanel';
 import { useProjectOverview } from '../hooks/useProjectOverview';
 import { useOpenWorkstream } from '../hooks/useOpenWorkstream';
-import type { NavKey } from '../components/SideNav';
-import { useState } from 'react';
 
 type ProjectOverviewRoute = RouteProp<ProjectsStackParamList, 'ProjectOverview'>;
 type ProjectOverviewNav = NativeStackNavigationProp<ProjectsStackParamList, 'ProjectOverview'>;
@@ -38,7 +35,6 @@ export const ProjectOverviewScreen = (): React.JSX.Element => {
   const route = useRoute<ProjectOverviewRoute>();
   const navigation = useNavigation<ProjectOverviewNav>();
   const { projectId } = route.params;
-  const [activeNav, setActiveNav] = useState<NavKey>('overview');
   const { breakpoint } = usePlatform();
   const isNarrow = breakpoint === 'sm' || breakpoint === 'md';
 
@@ -54,23 +50,14 @@ const openWorkstream = useOpenWorkstream(projectId);
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-1 flex-row">
-        {/* Left navigation rail */}
-        <SideNav
-          active={activeNav}
-          onPress={setActiveNav}
-          testID="project-overview-sidenav"
-        />
-
-        {/* Main content area */}
-        <View className="flex-1 flex-col">
-          <TopAppBar
+      <View className="flex-1 flex-col">
+        <TopAppBar
             breadcrumb={['Projects', project.name]}
             status={project.status}
             sourceErp={project.sourceErp}
             targetErp={project.targetErp}
             projectId={project.projectId as string}
-            onBack={() => navigation.goBack()}
+            onBack={() => navigation.navigate('ProjectsList')}
             testID="project-overview-topbar"
           />
 
@@ -96,7 +83,7 @@ const openWorkstream = useOpenWorkstream(projectId);
 
             {/* Right summary panel — DA-119 */}
             <View
-              className="bg-surface"
+              className="bg-background"
               style={
                 isNarrow
                   ? { borderTopWidth: 1, borderTopColor: colors.border }
@@ -112,7 +99,6 @@ const openWorkstream = useOpenWorkstream(projectId);
               />
             </View>
           </View>
-        </View>
       </View>
     </SafeAreaView>
   );

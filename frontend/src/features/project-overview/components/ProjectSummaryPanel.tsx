@@ -6,6 +6,23 @@ import { formatDateTime } from '@/shared/utils/date.utils';
 import { SummaryRow } from './SummaryRow';
 import type { Project } from '@/features/projects/types/projects.types';
 import type { WorkstreamSectionGroup } from './WorkstreamSections';
+import { getERPById } from '@/shared/constants/erp-systems';
+
+function resolveErpName(raw: string | undefined | null): string {
+  if (!raw || raw.trim() === '') return '—';
+  const found = getERPById(raw);
+  if (found) return found.name;
+  return raw.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function resolveDocumentTarget(source: string | null | undefined, target: string | null | undefined): string {
+  const s = source?.trim() || null;
+  const t = target?.trim() || null;
+  if (!s && !t) return '—';
+  if (!s) return t ?? '—';
+  if (!t) return s;
+  return `${s} → ${t}`;
+}
 
 interface ProjectSummaryPanelProps {
   readonly project: Project;
@@ -90,10 +107,12 @@ export const ProjectSummaryPanel = ({
       <View>
         <SectionHeading title="Migration Configuration" />
         <View style={{ gap: 8 }}>
-          <SummaryRow label="Source ERP"          value={project.sourceErp || '—'} />
-          <SummaryRow label="Target ERP"          value={project.targetErp || '—'} />
-          <SummaryRow label="Deployment (Source)" value={sourceDeployment ?? '—'} />
-          <SummaryRow label="Deployment (Target)" value={targetDeployment ?? '—'} />
+          <SummaryRow label="Source ERP"      value={resolveErpName(project.sourceErp)} />
+          <SummaryRow label="Target ERP"      value={resolveErpName(project.targetErp)} />
+          <SummaryRow
+            label="Document Target"
+            value={resolveDocumentTarget(sourceDeployment, targetDeployment)}
+          />
           <SummaryRow
             label="Last Edited"
             value={formatDateTime(project.updatedAt)}

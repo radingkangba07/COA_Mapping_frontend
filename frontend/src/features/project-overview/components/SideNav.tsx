@@ -50,7 +50,7 @@ export const SideNav = ({ active, onPress, testID }: SideNavProps): React.JSX.El
 
   return (
     <View
-      className="flex-col border-r border-border bg-surface"
+      className="flex-col border-r border-border bg-background"
       style={{ width: isCollapsed ? 56 : 208 }}
       testID={testID}
     >

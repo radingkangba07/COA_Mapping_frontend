@@ -116,6 +116,8 @@ const CustomDrawerContent = ({
               onPress={() => {
                 if (item.key === 'SettingsTab') {
                   navigation.navigate('SettingsTab', { screen: 'SettingsHome' });
+                } else if (item.key === 'ProjectsTab') {
+                  navigation.navigate('ProjectsTab', { screen: 'ProjectsList' } as never);
                 } else {
                   navigation.navigate(item.key);
                 }

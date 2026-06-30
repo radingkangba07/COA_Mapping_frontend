@@ -1,9 +1,18 @@
 import React from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { ChevronRight, Share2, ChevronDown } from 'lucide-react-native';
+import { ChevronRight, Pencil, ArrowRight } from 'lucide-react-native';
 import { colors } from '@/config/theme';
 import { StatusBadge } from '@/features/projects/components/StatusBadge';
 import type { ProjectStatus } from '@/features/projects/types/projects.types';
+import { getERPById } from '@/shared/constants/erp-systems';
+
+function resolveErpName(raw: string | undefined | null): string {
+  if (!raw || raw.trim() === '') return '—';
+  const found = getERPById(raw);
+  if (found) return found.name;
+  // Humanise unknown IDs: "microsoft_dynamics" → "Microsoft Dynamics"
+  return raw.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 interface TopAppBarProps {
   readonly breadcrumb: readonly [string, string];
@@ -12,8 +21,7 @@ interface TopAppBarProps {
   readonly targetErp: string;
   readonly projectId: string;
   readonly onBack?: () => void;
-  readonly onShare?: () => void;
-  readonly onActionsPress?: () => void;
+  readonly onEdit?: () => void;
   readonly testID?: string;
 }
 
@@ -24,84 +32,51 @@ export const TopAppBar = ({
   targetErp,
   projectId,
   onBack,
-  onShare,
-  onActionsPress,
+  onEdit,
   testID,
 }: TopAppBarProps): React.JSX.Element => {
   const [parentLabel, currentLabel] = breadcrumb;
 
   return (
     <View
-      className="border-b border-border bg-background"
+      className="border-b border-border bg-background px-6"
+      style={{ paddingVertical: 12, gap: 4 }}
       testID={testID}
     >
-      {/* Breadcrumb strip */}
-      <View
-        className="flex-row items-center border-b border-border px-6"
-        style={{ height: 36 }}
-        testID="topbar-breadcrumb"
-      >
+      {/* Row 1: Projects › Project Name  [Status]  ✏️ */}
+      <View className="flex-row items-center" style={{ gap: 8 }}>
         <Pressable onPress={onBack} testID="topbar-back">
-          <Text className="font-body text-xs text-muted-foreground">
+          <Text className="font-body text-muted-foreground" style={{ fontSize: 15 }}>
             {parentLabel}
           </Text>
         </Pressable>
-        <ChevronRight size={12} color={colors.mutedForeground} style={{ marginHorizontal: 4 }} />
-        <Text className="font-body text-xs text-foreground font-medium" numberOfLines={1}>
+        <ChevronRight size={14} color={colors.mutedForeground} />
+        <Text
+          className="font-heading font-bold text-foreground"
+          style={{ fontSize: 15 }}
+          numberOfLines={1}
+        >
           {currentLabel}
         </Text>
+        <StatusBadge status={status} />
+        <Pressable onPress={onEdit} hitSlop={8} testID="topbar-edit-btn">
+          <Pencil size={14} color={colors.mutedForeground} />
+        </Pressable>
       </View>
 
-      {/* Main row: project name + meta | actions */}
-      <View
-        className="flex-row items-center justify-between px-6"
-        style={{ paddingVertical: 10, gap: 16 }}
-      >
-        {/* Left: project name + meta */}
-        <View className="flex-1 flex-col" style={{ gap: 5 }}>
-          <Text
-            className="font-heading font-bold text-foreground"
-            style={{ fontSize: 18, letterSpacing: -0.3 }}
-            numberOfLines={1}
-          >
-            {currentLabel}
-          </Text>
-          <View className="flex-row items-center flex-wrap" style={{ gap: 10 }}>
-            <StatusBadge status={status} />
-            <Text className="font-body text-xs text-foreground">
-              {sourceErp}
-              <Text className="text-muted-foreground"> → </Text>
-              {targetErp}
-            </Text>
-            <Text className="font-mono text-xs text-muted-foreground">
-              Project ID: {projectId}
-            </Text>
-          </View>
-        </View>
-
-        {/* Right: action buttons */}
-        <View className="flex-row items-center" style={{ gap: 8 }}>
-          <Pressable
-            onPress={onShare}
-            className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-background"
-            testID="topbar-share-btn"
-          >
-            <Share2 size={13} color={colors.foreground} />
-            <Text className="font-body text-xs font-semibold text-foreground">
-              Share
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={onActionsPress}
-            className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary"
-            testID="topbar-actions-btn"
-          >
-            <Text className="font-body text-xs font-semibold text-primary-foreground">
-              Actions
-            </Text>
-            <ChevronDown size={13} color={colors.primaryForeground} />
-          </Pressable>
-        </View>
+      {/* Row 2: Source ERP → Target ERP · Project ID */}
+      <View className="flex-row items-center" style={{ gap: 6 }}>
+        <Text className="font-body text-muted-foreground" style={{ fontSize: 13 }}>
+          {resolveErpName(sourceErp)}
+        </Text>
+        <ArrowRight size={12} color={colors.mutedForeground} />
+        <Text className="font-body text-muted-foreground" style={{ fontSize: 13 }}>
+          {resolveErpName(targetErp)}
+        </Text>
+        <Text className="text-muted-foreground" style={{ fontSize: 12 }}>·</Text>
+        <Text className="font-mono text-muted-foreground" style={{ fontSize: 12 }}>
+          Project ID: {projectId}
+        </Text>
       </View>
     </View>
   );
