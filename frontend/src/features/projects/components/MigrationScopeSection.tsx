@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { Divider } from '@/shared/components/ui/Divider';
 import { MasterDataTable } from './MasterDataTable';
 import { OpeningBalancesChecklist } from './OpeningBalancesChecklist';
 import type {
@@ -36,8 +35,11 @@ export function MigrationScopeSection({
   testID,
 }: MigrationScopeSectionProps): React.JSX.Element {
   return (
-    <View className="gap-6" testID={testID}>
-      <View className="gap-4">
+    <View
+      className="flex-col gap-6 lg:flex-row lg:items-start lg:gap-6"
+      testID={testID}
+    >
+      <View className="gap-4 lg:flex-1">
         <View className="gap-1">
           <View className="flex-row items-center justify-between">
             <Text className="font-heading text-base font-semibold text-card-foreground">
@@ -64,9 +66,7 @@ export function MigrationScopeSection({
         />
       </View>
 
-      <Divider />
-
-      <View className="gap-4">
+      <View className="gap-4 lg:flex-1">
         <View className="gap-1">
           <View className="flex-row items-center justify-between">
             <Text className="font-heading text-base font-semibold text-card-foreground">
