@@ -39,15 +39,14 @@ function MasterDataRow({
   }, [onToggleColumn, row.id]);
 
   const title = (
-    <View className="flex-1 flex-row items-center justify-between gap-3 pr-2">
+    <View className="flex-1 flex-row items-center gap-3 pr-1">
       <Text className="flex-1 font-heading text-base font-semibold text-card-foreground">
         {row.label}
       </Text>
-      <View className="flex-row items-center gap-4">
+      <View className="w-28 items-center">
         <Checkbox
           checked={row.dataConversion}
           onCheckedChange={handleDataConversion}
-          label="Data Conversion"
           isDisabled={row.disabled}
           testID={
             testID !== undefined
@@ -55,10 +54,11 @@ function MasterDataRow({
               : undefined
           }
         />
+      </View>
+      <View className="w-28 items-center">
         <Checkbox
           checked={row.mdm}
           onCheckedChange={handleMdm}
-          label="MDM"
           isDisabled={row.disabled}
           testID={testID !== undefined ? `${testID}-${row.id}-mdm` : undefined}
         />
@@ -99,6 +99,24 @@ export function MasterDataTable({
 }: MasterDataTableProps): React.JSX.Element {
   return (
     <View className="gap-2" testID={testID}>
+      {/* Column header row */}
+      <View
+        className="flex-row items-center gap-3 px-4 pb-1"
+        testID={testID !== undefined ? `${testID}-header` : undefined}
+      >
+        <Text className="flex-1 font-heading text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Master Data
+        </Text>
+        <Text className="w-28 text-center font-heading text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Data Conversion
+        </Text>
+        <Text className="w-28 text-center font-heading text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Master Data Management
+        </Text>
+        {/* Spacer to align headers above the row checkboxes (past the chevron). */}
+        <View className="w-5" />
+      </View>
+
       {rows.map((row) => (
         <MasterDataRow
           key={row.id}
