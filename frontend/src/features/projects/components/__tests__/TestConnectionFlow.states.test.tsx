@@ -245,8 +245,11 @@ describe('DA-153 Test Connection flow', () => {
       store.setCompanyId('company-1');
       store.setSource('sap');
       store.setTarget('netsuite');
+      // Both sides on MCP so connection-readiness is the only remaining gate.
+      store.setSourceMethod('mcp');
+      store.setTargetMethod('mcp');
 
-      expect(useProjectScopeStore.getState().draft.method).toBe('mcp');
+      expect(useProjectScopeStore.getState().draft.sourceMethod).toBe('mcp');
       expect(
         selectCanCreateProject(useProjectScopeStore.getState()),
       ).toBe(false);

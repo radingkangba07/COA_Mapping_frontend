@@ -41,10 +41,15 @@ jest.mock('@/config/theme', () => ({
     mutedForeground: '#71717A',
     primary: '#003399',
     primaryForeground: '#FAFAFA',
+    accent: '#2563EB',
     success: '#16A34A',
     destructive: '#DC2626',
   },
 }));
+
+// The per-side connection config imports TestConnectionFlow, which loads the
+// real http instance at module level; stub it so module load stays inert.
+jest.mock('@/shared/services/http/http.instance', () => ({ httpClient: {} }));
 
 const mockNavigate = jest.fn();
 
@@ -61,7 +66,23 @@ const mockCreate = jest.fn<Promise<boolean>, []>();
 const mockSaveDraft = jest.fn<Promise<void>, []>();
 const mockSetSource = jest.fn();
 const mockSetTarget = jest.fn();
-const mockSetMethod = jest.fn();
+const mockSetSourceMethod = jest.fn();
+const mockSetTargetMethod = jest.fn();
+const mockUpdateSourceConnection = jest.fn();
+const mockUpdateTargetConnection = jest.fn();
+const mockSetSourceConnectionReady = jest.fn();
+const mockSetTargetConnectionReady = jest.fn();
+
+const initialConnection = {
+  scope: 'source' as const,
+  url: '',
+  token: '',
+  authType: 'none' as const,
+  headers: [],
+  skipSSL: false,
+  proxy: '',
+  timeout: 30000,
+};
 
 const erpSystems: ERPSystem[] = [
   { id: 'sap', name: 'SAP', description: '', fields: [] },
@@ -76,16 +97,10 @@ const baseVM: ProjectScopeViewModel = {
     source: null,
     target: null,
     method: 'mcp',
-    connection: {
-      scope: 'source',
-      url: '',
-      token: '',
-      authType: 'none',
-      headers: [],
-      skipSSL: false,
-      proxy: '',
-      timeout: 30000,
-    },
+    sourceMethod: 'csv',
+    targetMethod: 'csv',
+    sourceConnection: { ...initialConnection, scope: 'source' },
+    targetConnection: { ...initialConnection, scope: 'target' },
     scope: { selectedMasterData: [], selectedOpeningBalances: [], aggregation: 'none' },
     members: [],
   },
@@ -95,8 +110,12 @@ const baseVM: ProjectScopeViewModel = {
   memberCount: 0,
   source: null,
   target: null,
-  method: 'mcp',
-  connectionReady: false,
+  sourceMethod: 'csv',
+  targetMethod: 'csv',
+  sourceConnection: { ...initialConnection, scope: 'source' },
+  targetConnection: { ...initialConnection, scope: 'target' },
+  sourceConnectionReady: false,
+  targetConnectionReady: false,
   isSavingDraft: false,
   isCreating: false,
   erpSystems,
@@ -107,7 +126,12 @@ const baseVM: ProjectScopeViewModel = {
   createDisabled: true,
   setSource: mockSetSource,
   setTarget: mockSetTarget,
-  setMethod: mockSetMethod,
+  setSourceMethod: mockSetSourceMethod,
+  setTargetMethod: mockSetTargetMethod,
+  updateSourceConnection: mockUpdateSourceConnection,
+  updateTargetConnection: mockUpdateTargetConnection,
+  setSourceConnectionReady: mockSetSourceConnectionReady,
+  setTargetConnectionReady: mockSetTargetConnectionReady,
   saveDraft: mockSaveDraft,
   create: mockCreate,
 };
@@ -127,7 +151,8 @@ jest.mock('../../hooks/useProjectSummaryViewModel', () => ({
     summary: {
       source: null,
       target: null,
-      method: 'MCP',
+      sourceMethod: 'CSV File Upload',
+      targetMethod: 'CSV File Upload',
       masterData: '0 of 9 selected',
       openingBalances: '0 of 5 selected',
       members: '0',

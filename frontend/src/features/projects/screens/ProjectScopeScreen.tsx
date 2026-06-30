@@ -11,6 +11,7 @@ import { ScopeSectionCard } from '../components/ScopeSectionCard';
 import { ErpSourceTargetSelect } from '../components/ErpSourceTargetSelect';
 import { MigrationScopeSection } from '../components/MigrationScopeSection';
 import { ProjectSummaryBar } from '../components/ProjectSummaryBar';
+import { ProjectSideConnection } from '../components/ProjectSideConnection';
 import { AddMembersSection } from '../components/AddMembersSection';
 import { useProjectScopeViewModel } from '../hooks/useProjectScopeViewModel';
 import { useMigrationScopeViewModel } from '../hooks/useMigrationScopeViewModel';
@@ -80,9 +81,13 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
                 erpSystems={vm.erpSystems}
                 source={vm.source}
                 target={vm.target}
+                sourceMethod={vm.sourceMethod}
+                targetMethod={vm.targetMethod}
                 isLoading={vm.isLoadingErps}
                 onSelectSource={vm.setSource}
                 onSelectTarget={vm.setTarget}
+                onSelectSourceMethod={vm.setSourceMethod}
+                onSelectTargetMethod={vm.setTargetMethod}
                 testID="erp-source-target-select"
               />
             </ScopeSectionCard>
@@ -121,11 +126,33 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
           </View>
 
           <View className="lg:basis-[360px] gap-6">
-            {/* MCPConnectionPanel + TestConnectionFlow mount here (DA-49/DA-50) */}
+            {/* Per-side connection config (DA-56): MCP panel + Test Connection
+                for 'mcp', reused file-upload control for 'csv'. */}
             <ScopeSectionCard
-              title="MCP Connection Details"
-              testID="section-mcp-connection"
-            />
+              title="Source Connection"
+              testID="section-source-connection"
+            >
+              <ProjectSideConnection
+                scope="source"
+                method={vm.sourceMethod}
+                uploadLabel="Source COA File"
+                onConnectionChange={vm.updateSourceConnection}
+                testID="source-connection"
+              />
+            </ScopeSectionCard>
+
+            <ScopeSectionCard
+              title="Target Connection"
+              testID="section-target-connection"
+            >
+              <ProjectSideConnection
+                scope="target"
+                method={vm.targetMethod}
+                uploadLabel="Target COA File"
+                onConnectionChange={vm.updateTargetConnection}
+                testID="target-connection"
+              />
+            </ScopeSectionCard>
           </View>
         </View>
 

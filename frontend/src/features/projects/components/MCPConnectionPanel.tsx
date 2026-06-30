@@ -19,20 +19,25 @@ import type { McpFormHeader } from '../services/mcp.service';
 interface MCPConnectionPanelProps {
   value?: McpConnectionForm;
   onChange?: (next: McpConnectionForm) => void;
+  // When provided, the panel is locked to a single side: the scope selector is
+  // hidden and the form's scope is forced to this value (DA-48 per-side mount).
+  fixedScope?: McpConfigureScope;
   testID?: string;
 }
 
 export const MCPConnectionPanel = ({
   value,
   onChange,
+  fixedScope,
   testID = 'mcp-connection-panel',
 }: MCPConnectionPanelProps): React.JSX.Element => {
   const [isOpen, setIsOpen] = useState(true);
   const [urlTouched, setUrlTouched] = useState(false);
   const [touched, setTouched] = useState(false);
-  const [form, setForm] = useState<McpConnectionForm>(
-    () => value ?? createInitialMcpForm(),
-  );
+  const [form, setForm] = useState<McpConnectionForm>(() => {
+    const base = value ?? createInitialMcpForm();
+    return fixedScope !== undefined ? { ...base, scope: fixedScope } : base;
+  });
 
   const handleToggle = useCallback((): void => {
     setIsOpen((prev) => !prev);
@@ -138,11 +143,13 @@ export const MCPConnectionPanel = ({
       testID={testID}
     >
       <View className="gap-4" testID={`${testID}-body`}>
-        <McpScopeSelector
-          value={form.scope}
-          onChange={handleScopeChange}
-          testID="mcp-scope"
-        />
+        {fixedScope === undefined && (
+          <McpScopeSelector
+            value={form.scope}
+            onChange={handleScopeChange}
+            testID="mcp-scope"
+          />
+        )}
 
         {renderFields()}
 

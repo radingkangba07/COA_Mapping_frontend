@@ -114,7 +114,9 @@ function seedValidMcpDraft(): void {
   scope.setCompanyId('company-1');
   scope.setSource(SOURCE_ERP.id);
   scope.setTarget(TARGET_ERP.id);
-  scope.setMethod('mcp');
+  // Per-side MCP (VALID_CONNECTION has scope 'both' → one test opens both gates).
+  scope.setSourceMethod('mcp');
+  scope.setTargetMethod('mcp');
 
   const migration = useMigrationStore.getState();
   migration.setSourceERP(SOURCE_ERP);
