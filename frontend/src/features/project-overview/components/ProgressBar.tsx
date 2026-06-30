@@ -8,12 +8,6 @@ interface ProgressBarProps {
   readonly testID?: string;
 }
 
-function fillColor(value: number): string {
-  if (value >= 70) return colors.success;
-  if (value >= 40) return colors.warning;
-  return colors.destructive;
-}
-
 export const ProgressBar = ({
   value,
   showLabel = false,
@@ -40,7 +34,7 @@ export const ProgressBar = ({
           style={{
             height: 6,
             width: `${clamped}%`,
-            backgroundColor: fillColor(clamped),
+            backgroundColor: colors.accent,
             borderRadius: 99,
             minWidth: clamped > 0 ? 6 : 0,
           }}
@@ -53,7 +47,7 @@ export const ProgressBar = ({
           style={{
             fontSize: 11,
             fontWeight: '600',
-            color: fillColor(clamped),
+            color: clamped > 0 ? colors.accent : colors.mutedForeground,
             minWidth: 30,
             textAlign: 'right',
           }}

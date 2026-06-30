@@ -8,6 +8,7 @@ export type StatTone = 'default' | 'success' | 'info' | 'warning' | 'danger' | '
 interface StatCardProps {
   readonly value: number;
   readonly label: string;
+  readonly subtitle?: string;
   readonly tone?: StatTone;
   readonly isLoading?: boolean;
   readonly testID?: string;
@@ -27,27 +28,51 @@ function countColor(tone: StatTone): string {
 export const StatCard = ({
   value,
   label,
+  subtitle,
   tone = 'default',
   isLoading = false,
   testID,
 }: StatCardProps): React.JSX.Element => (
   <View
-    className="rounded-lg border border-border bg-card p-4"
-    style={{ minWidth: 120 }}
+    className="rounded-lg border border-border bg-card"
+    style={{ minWidth: 120, padding: 14, gap: 4 }}
     testID={testID}
   >
+    {/* Uppercase label at top */}
+    <Text
+      style={{
+        fontSize: 10,
+        fontWeight: '700',
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
+        color: colors.mutedForeground,
+      }}
+      numberOfLines={1}
+    >
+      {label}
+    </Text>
+
+    {/* Value */}
     {isLoading ? (
-      <Skeleton height={28} width={40} borderRadius={4} />
+      <Skeleton height={32} width={48} borderRadius={4} />
     ) : (
       <Text
         className="font-heading font-bold"
-        style={{ fontSize: 24, color: countColor(tone) }}
+        style={{ fontSize: 28, lineHeight: 34, color: countColor(tone) }}
       >
         {value}
       </Text>
     )}
-    <Text className="font-body text-sm text-muted-foreground mt-1" numberOfLines={2}>
-      {label}
-    </Text>
+
+    {/* Optional subtitle */}
+    {subtitle !== undefined && (
+      <Text
+        className="font-body text-muted-foreground"
+        style={{ fontSize: 11, lineHeight: 15 }}
+        numberOfLines={2}
+      >
+        {subtitle}
+      </Text>
+    )}
   </View>
 );
