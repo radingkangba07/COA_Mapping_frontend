@@ -48,8 +48,7 @@ export const ProgressBar = ({
             fontSize: 11,
             fontWeight: '600',
             color: clamped > 0 ? colors.accent : colors.mutedForeground,
-            minWidth: 30,
-            textAlign: 'right',
+            minWidth: 28,
           }}
         >
           {clamped}%
