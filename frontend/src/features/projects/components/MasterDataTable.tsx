@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { Checkbox } from '@/shared/components/ui/Checkbox';
 import { colors } from '@/config/theme';
@@ -7,6 +7,11 @@ import type { MasterDataRowVM } from '../hooks/useMigrationScopeViewModel';
 import type { MasterDataColumn } from './MigrationScope.config';
 
 const CHEVRON_SIZE = 16;
+
+// Fix the rows area to ~5 rows tall; the rest scroll within.
+const VISIBLE_ROWS = 5;
+const APPROX_ROW_HEIGHT = 52; // ~48px row content + 4px gap
+const ROWS_MAX_HEIGHT = VISIBLE_ROWS * APPROX_ROW_HEIGHT;
 
 interface MasterDataTableProps {
   readonly rows: readonly MasterDataRowVM[];
@@ -104,14 +109,23 @@ export function MasterDataTable({
         </Text>
       </View>
 
-      {rows.map((row) => (
-        <MasterDataRow
-          key={row.id}
-          row={row}
-          onToggleColumn={onToggleColumn}
-          testID={testID}
-        />
-      ))}
+      <ScrollView
+        style={{ maxHeight: ROWS_MAX_HEIGHT }}
+        nestedScrollEnabled
+        showsVerticalScrollIndicator
+        testID={testID !== undefined ? `${testID}-scroll` : undefined}
+      >
+        <View className="gap-1">
+          {rows.map((row) => (
+            <MasterDataRow
+              key={row.id}
+              row={row}
+              onToggleColumn={onToggleColumn}
+              testID={testID}
+            />
+          ))}
+        </View>
+      </ScrollView>
     </View>
   );
 }
