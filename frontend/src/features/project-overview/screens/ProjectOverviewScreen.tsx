@@ -12,7 +12,9 @@ import type { ProjectsStackParamList } from '@/navigation/types';
 import type { ProjectId } from '@/shared/types/common.types';
 import { SideNav } from '../components/SideNav';
 import { TopAppBar } from '../components/TopAppBar';
+import { StatCards } from '../components/StatCards';
 import type { NavKey } from '../components/SideNav';
+import type { Workstream } from '../types/workstream.types';
 
 type ProjectOverviewRoute = RouteProp<ProjectsStackParamList, 'ProjectOverview'>;
 type ProjectOverviewNav = NativeStackNavigationProp<ProjectsStackParamList, 'ProjectOverview'>;
@@ -37,6 +39,9 @@ export const ProjectOverviewScreen = (): React.JSX.Element => {
   const isNarrow = breakpoint === 'sm' || breakpoint === 'md';
 
   const { project, isLoading } = useProjectDetail(projectId as ProjectId);
+
+  // Placeholder — replaced when workstream data layer is wired (DA-115 child stories)
+  const workstreams: readonly Workstream[] = [];
 
   if (isLoading || project === null) {
     return <OverviewSkeleton />;
@@ -66,12 +71,18 @@ export const ProjectOverviewScreen = (): React.JSX.Element => {
 
           {/* Responsive 2-column body */}
           <View className={isNarrow ? 'flex-col flex-1' : 'flex-row flex-1'}>
-            {/* Scrollable main area — stat tiles + workstream groups added by child stories */}
+            {/* Scrollable main area */}
             <ScrollView
               className="flex-1 p-6"
-              contentContainerStyle={{ flexGrow: 1 }}
+              contentContainerStyle={{ flexGrow: 1, gap: 24 }}
               testID="project-overview-main"
-            />
+            >
+              <StatCards
+                workstreams={workstreams}
+                isLoading={isLoading}
+                testID="project-overview-stat-cards"
+              />
+            </ScrollView>
 
             {/* Fixed right summary panel — ProjectSummaryPanel added by Story 5 */}
             <View
