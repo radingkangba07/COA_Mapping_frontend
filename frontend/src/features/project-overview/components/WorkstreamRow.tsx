@@ -53,7 +53,7 @@ export const WorkstreamRow = ({
           <StatusBadge status="not_included" />
         </View>
         <View style={{ width: COL_WIDTHS.progress }}><CellText muted>—</CellText></View>
-        <View style={{ width: COL_WIDTHS.currentStage }}><CellText muted>—</CellText></View>
+        <View style={{ width: COL_WIDTHS.currentStage, paddingLeft: 8 }}><CellText muted>—</CellText></View>
         <View style={{ width: COL_WIDTHS.action }}>
           <Text style={{ fontSize: 12, color: colors.mutedForeground }}>Not Included</Text>
         </View>
@@ -79,7 +79,7 @@ export const WorkstreamRow = ({
       <View style={{ width: COL_WIDTHS.progress }}>
         <ProgressBar value={w.progress} showLabel />
       </View>
-      <View style={{ width: COL_WIDTHS.currentStage }}>
+      <View style={{ width: COL_WIDTHS.currentStage, paddingLeft: 8 }}>
         <CellText>{w.currentStage}</CellText>
       </View>
       <View style={{ width: COL_WIDTHS.action }}>
