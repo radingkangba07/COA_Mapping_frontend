@@ -3,7 +3,8 @@ export type WorkstreamStatus =
   | 'in_progress'
   | 'review_required'
   | 'blocked'
-  | 'not_started';
+  | 'not_started'
+  | 'not_included';
 
 export interface Workstream {
   readonly id: string;
