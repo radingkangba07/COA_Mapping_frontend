@@ -46,7 +46,7 @@ interface SideNavProps {
 }
 
 export const SideNav = ({ active, onPress, testID }: SideNavProps): React.JSX.Element => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   return (
     <View
@@ -64,19 +64,19 @@ export const SideNav = ({ active, onPress, testID }: SideNavProps): React.JSX.El
               onPress={() => onPress(item.key)}
               className={cn(
                 'flex-row items-center mx-2 px-3 py-2.5 rounded-md mb-0.5',
-                isActive ? 'bg-accent/10' : '',
+                isActive ? 'bg-primary/10' : '',
               )}
               testID={`sidenav-item-${item.key}`}
             >
               <Icon
                 size={18}
-                color={isActive ? colors.accent : colors.mutedForeground}
+                color={isActive ? colors.primary : colors.mutedForeground}
               />
               {!isCollapsed && (
                 <Text
                   className={cn(
                     'font-body text-sm ml-3',
-                    isActive ? 'text-accent font-semibold' : 'text-foreground',
+                    isActive ? 'text-primary font-semibold' : 'text-foreground',
                   )}
                   numberOfLines={1}
                 >

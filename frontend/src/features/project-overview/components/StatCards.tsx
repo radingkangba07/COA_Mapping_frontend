@@ -77,7 +77,7 @@ export const StatCards = ({
           ) : (
             <Text
               className="font-heading font-bold"
-              style={{ fontSize: 24, color: colors.accent }}
+              style={{ fontSize: 24, color: colors.primary }}
             >
               {counts.progressPercent}%
             </Text>
@@ -97,7 +97,7 @@ export const StatCards = ({
                 style={{
                   height: 8,
                   width: `${counts.progressPercent}%`,
-                  backgroundColor: colors.accent,
+                  backgroundColor: colors.primary,
                   minWidth: counts.progressPercent > 0 ? 8 : 0,
                 }}
                 testID="progress-bar-fill"
