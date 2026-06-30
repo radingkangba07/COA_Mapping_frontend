@@ -82,10 +82,10 @@ describe('project-scope selectors', () => {
       );
     });
 
-    it('is true when an mcp side has its own connection ready (other side csv)', () => {
+    it('is true when an mcp side has the shared connection ready (other side csv)', () => {
       seedValid();
       useProjectScopeStore.getState().setSourceMethod('mcp');
-      useProjectScopeStore.getState().setSourceConnectionReady(true);
+      useProjectScopeStore.getState().setConnectionReady(true);
       expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(
         true,
       );

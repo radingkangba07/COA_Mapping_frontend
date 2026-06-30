@@ -16,16 +16,14 @@ import { useUserOrgs } from './useUserOrgs';
 import { useProjectScopeStore } from '../store/project-scope.store';
 import {
   selectCanCreateProject,
+  selectConnection,
+  selectConnectionReady,
   selectDraft,
   selectIsSavingDraft,
   selectMembersCount,
   selectSource,
-  selectSourceConnection,
-  selectSourceConnectionReady,
   selectSourceMethod,
   selectTarget,
-  selectTargetConnection,
-  selectTargetConnectionReady,
   selectTargetMethod,
 } from '../store/project-scope.selectors';
 
@@ -75,13 +73,11 @@ export interface ProjectScopeViewModel {
   readonly memberCount: number;
   readonly source: string | null;
   readonly target: string | null;
-  // Per-side connection method + gate + connection (DA-48).
+  // Per-side connection method + single shared connection + its readiness gate.
   readonly sourceMethod: ConnectionMethod;
   readonly targetMethod: ConnectionMethod;
-  readonly sourceConnection: MCPConnection;
-  readonly targetConnection: MCPConnection;
-  readonly sourceConnectionReady: boolean;
-  readonly targetConnectionReady: boolean;
+  readonly connection: MCPConnection;
+  readonly connectionReady: boolean;
   readonly isSavingDraft: boolean;
   readonly isCreating: boolean;
 
@@ -103,10 +99,8 @@ export interface ProjectScopeViewModel {
   readonly setTarget: (id: string | null) => void;
   readonly setSourceMethod: (m: ConnectionMethod) => void;
   readonly setTargetMethod: (m: ConnectionMethod) => void;
-  readonly updateSourceConnection: (patch: Partial<MCPConnection>) => void;
-  readonly updateTargetConnection: (patch: Partial<MCPConnection>) => void;
-  readonly setSourceConnectionReady: (ready: boolean) => void;
-  readonly setTargetConnectionReady: (ready: boolean) => void;
+  readonly updateConnection: (patch: Partial<MCPConnection>) => void;
+  readonly setConnectionReady: (ready: boolean) => void;
   readonly saveDraft: () => Promise<void>;
   readonly create: () => Promise<boolean>;
 }
@@ -131,14 +125,8 @@ export function useProjectScopeViewModel(
   const target = useProjectScopeStore(selectTarget);
   const sourceMethod = useProjectScopeStore(selectSourceMethod);
   const targetMethod = useProjectScopeStore(selectTargetMethod);
-  const sourceConnection = useProjectScopeStore(selectSourceConnection);
-  const targetConnection = useProjectScopeStore(selectTargetConnection);
-  const sourceConnectionReady = useProjectScopeStore(
-    selectSourceConnectionReady,
-  );
-  const targetConnectionReady = useProjectScopeStore(
-    selectTargetConnectionReady,
-  );
+  const connection = useProjectScopeStore(selectConnection);
+  const connectionReady = useProjectScopeStore(selectConnectionReady);
   const isSavingDraft = useProjectScopeStore(selectIsSavingDraft);
   const memberCount = useProjectScopeStore(selectMembersCount);
   const canCreate = useProjectScopeStore(selectCanCreateProject);
@@ -201,26 +189,15 @@ export function useProjectScopeViewModel(
     useProjectScopeStore.getState().setTargetMethod(m);
   }, []);
 
-  const updateSourceConnection = useCallback(
+  const updateConnection = useCallback(
     (patch: Partial<MCPConnection>): void => {
-      useProjectScopeStore.getState().updateSourceConnection(patch);
+      useProjectScopeStore.getState().updateConnection(patch);
     },
     [],
   );
 
-  const updateTargetConnection = useCallback(
-    (patch: Partial<MCPConnection>): void => {
-      useProjectScopeStore.getState().updateTargetConnection(patch);
-    },
-    [],
-  );
-
-  const setSourceConnectionReady = useCallback((ready: boolean): void => {
-    useProjectScopeStore.getState().setSourceConnectionReady(ready);
-  }, []);
-
-  const setTargetConnectionReady = useCallback((ready: boolean): void => {
-    useProjectScopeStore.getState().setTargetConnectionReady(ready);
+  const setConnectionReady = useCallback((ready: boolean): void => {
+    useProjectScopeStore.getState().setConnectionReady(ready);
   }, []);
 
   const saveDraft = useCallback(async (): Promise<void> => {
@@ -267,10 +244,8 @@ export function useProjectScopeViewModel(
     target,
     sourceMethod,
     targetMethod,
-    sourceConnection,
-    targetConnection,
-    sourceConnectionReady,
-    targetConnectionReady,
+    connection,
+    connectionReady,
     isSavingDraft,
     isCreating,
     erpSystems,
@@ -286,10 +261,8 @@ export function useProjectScopeViewModel(
     setTarget,
     setSourceMethod,
     setTargetMethod,
-    updateSourceConnection,
-    updateTargetConnection,
-    setSourceConnectionReady,
-    setTargetConnectionReady,
+    updateConnection,
+    setConnectionReady,
     saveDraft,
     create,
   };

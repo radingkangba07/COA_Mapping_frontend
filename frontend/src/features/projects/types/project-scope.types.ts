@@ -4,7 +4,9 @@ import type { ProjectPermission } from './project-access.types';
 
 // ─── Value Objects ──────────────────────────────────────────────────────────
 
-export type McpScope = 'source' | 'target';
+// The single shared connection can target the source, the target, or both
+// sides (mirrors the panel's "Configure for" selector).
+export type McpScope = 'source' | 'target' | 'both';
 export type McpAuthType = 'none' | 'bearer' | 'basic' | 'apiKey';
 export type ConnectionMethod = 'mcp' | 'csv';
 export type RequestStatus = 'idle' | 'loading' | 'success' | 'error';
@@ -63,16 +65,16 @@ export interface ProjectScopeDraft {
   readonly source: string | null; // source ERP id
   readonly target: string | null; // target ERP id
   // LEGACY single method — retained ONLY for the untouchable features/migration
-  // consumer (UploadScreen / useFetchFromErp). The PER-SIDE fields below are the
-  // source of truth for the Project Scope page + Create gate (DA-48).
+  // consumer (UploadScreen / useFetchFromErp). The PER-SIDE methods below are the
+  // source of truth for the Project Scope page + Create gate.
   readonly method: ConnectionMethod;
-  // Connection method is PER-SIDE and independent (DA-48). Defaults to 'csv' on
-  // both sides so the page is not blocked by a pending test connection.
+  // Connection method is PER-SIDE and independent. Defaults to 'csv' on both
+  // sides so the page is not blocked by a pending test connection.
   readonly sourceMethod: ConnectionMethod;
   readonly targetMethod: ConnectionMethod;
-  // Per-side, independent MCP connections (extends the DA-53 single connection).
-  readonly sourceConnection: MCPConnection; // scope: 'source'
-  readonly targetConnection: MCPConnection; // scope: 'target'
+  // A SINGLE shared MCP connection drives both sides; the panel's "Configure
+  // for" scope (source/target/both) records which side(s) it applies to.
+  readonly connection: MCPConnection;
   readonly scope: MigrationScope;
   readonly members: readonly ProjectScopeMember[];
 }
@@ -85,13 +87,9 @@ export interface ProjectScopeSeed {
 
 export interface ProjectScopeState {
   readonly draft: ProjectScopeDraft;
-  // LEGACY single gate — retained ONLY for the untouchable features/migration
-  // consumer (useFetchFromErp). Mirrors the SOURCE side's readiness (DA-48).
+  // SINGLE readiness gate — set true only after a SUCCESSFUL test connection.
+  // Also read by the untouchable features/migration consumer (useFetchFromErp).
   readonly connectionReady: boolean;
-  // PER-SIDE gates (DA-48): each set true only after a SUCCESSFUL test connection
-  // for that side (DA-50).
-  readonly sourceConnectionReady: boolean;
-  readonly targetConnectionReady: boolean;
   readonly testStatus: RequestStatus; // shared status for Test Connection panel
   readonly fetchStatus: RequestStatus; // shared status for Fetch-from-ERP
   readonly isSavingDraft: boolean;
@@ -110,8 +108,7 @@ export interface ProjectScopeActions {
   setMethod: (method: ConnectionMethod) => void;
   setSourceMethod: (method: ConnectionMethod) => void;
   setTargetMethod: (method: ConnectionMethod) => void;
-  updateSourceConnection: (patch: Partial<MCPConnection>) => void;
-  updateTargetConnection: (patch: Partial<MCPConnection>) => void;
+  updateConnection: (patch: Partial<MCPConnection>) => void;
   toggleMasterData: (id: string) => void;
   setMasterData: (ids: readonly string[]) => void;
   toggleOpeningBalances: (id: string) => void;
@@ -120,10 +117,8 @@ export interface ProjectScopeActions {
   addMember: (member: ProjectScopeMember) => void;
   removeMember: (id: string) => void;
   updateMemberRole: (id: string, role: ProjectPermission) => void;
-  // LEGACY — retained for features/migration tests. Sets only the legacy gate.
+  // Single readiness gate setter (also consumed by features/migration tests).
   setConnectionReady: (ready: boolean) => void;
-  setSourceConnectionReady: (ready: boolean) => void;
-  setTargetConnectionReady: (ready: boolean) => void;
   setTestStatus: (status: RequestStatus) => void;
   setFetchStatus: (status: RequestStatus) => void;
   setError: (error: AppError | null) => void;
@@ -166,13 +161,11 @@ export interface ProjectDraftPayload {
   readonly description: string;
   readonly source_erp: string | null;
   readonly target_erp: string | null;
-  // LEGACY single connection — retained ONLY for features/migration's
-  // useFetchFromErp, which reads `serialized.connection`. Mirrors the source.
+  // Single shared connection — also read by features/migration's useFetchFromErp
+  // (`serialized.connection`).
   readonly connection: MCPConnectionPayload;
   readonly source_method: ConnectionMethod;
   readonly target_method: ConnectionMethod;
-  readonly source_connection: MCPConnectionPayload;
-  readonly target_connection: MCPConnectionPayload;
   readonly scope: MigrationScopePayload;
   readonly members: ProjectScopeMemberPayload[];
 }

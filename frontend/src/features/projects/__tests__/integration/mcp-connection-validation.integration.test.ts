@@ -334,7 +334,7 @@ describe('validation -> gating integration', () => {
     expect(hasConnectionErrors(valid)).toBe(false);
   });
 
-  it('per-side mcp: canCreate is FALSE until BOTH sides report ready', () => {
+  it('mcp/mcp: canCreate is FALSE until the single shared connection is ready', () => {
     const store = useProjectScopeStore.getState();
     store.setCompanyId('company-1');
     store.setSource('sap');
@@ -344,11 +344,8 @@ describe('validation -> gating integration', () => {
 
     expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(false);
 
-    // One side ready is not enough when both sides are on MCP.
-    useProjectScopeStore.getState().setSourceConnectionReady(true);
-    expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(false);
-
-    useProjectScopeStore.getState().setTargetConnectionReady(true);
+    // A single successful test connection opens the gate for both MCP sides.
+    useProjectScopeStore.getState().setConnectionReady(true);
     expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(true);
   });
 
@@ -360,11 +357,11 @@ describe('validation -> gating integration', () => {
     store.setSourceMethod('csv');
     store.setTargetMethod('csv');
 
-    expect(selectSourceReadyFalse()).toBe(false);
+    expect(selectConnectionReadyFalse()).toBe(false);
     expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(true);
   });
 
-  it('mixed csv/mcp: the mcp side still requires its own ready flag', () => {
+  it('mixed csv/mcp: the mcp side still requires the shared connection ready flag', () => {
     const store = useProjectScopeStore.getState();
     store.setCompanyId('company-1');
     store.setSource('sap');
@@ -374,18 +371,17 @@ describe('validation -> gating integration', () => {
 
     expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(false);
 
-    store.setTargetConnectionReady(true);
+    store.setConnectionReady(true);
     expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(true);
   });
 
-  it('canCreate stays FALSE when company is missing even if connections are ready', () => {
+  it('canCreate stays FALSE when company is missing even if the connection is ready', () => {
     const store = useProjectScopeStore.getState();
     store.setSource('sap');
     store.setTarget('netsuite');
     store.setSourceMethod('mcp');
     store.setTargetMethod('mcp');
-    store.setSourceConnectionReady(true);
-    store.setTargetConnectionReady(true);
+    store.setConnectionReady(true);
 
     expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(false);
   });
@@ -400,7 +396,7 @@ describe('validation -> gating integration', () => {
   });
 });
 
-// Local assertion helper: sourceConnectionReady defaults to false after reset.
-function selectSourceReadyFalse(): boolean {
-  return useProjectScopeStore.getState().sourceConnectionReady;
+// Local assertion helper: connectionReady defaults to false after reset.
+function selectConnectionReadyFalse(): boolean {
+  return useProjectScopeStore.getState().connectionReady;
 }

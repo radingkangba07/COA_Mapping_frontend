@@ -10,9 +10,9 @@ import {
   masterDataColumnKey,
   selectMasterDataCount,
   selectOpeningBalancesCount,
+  selectConnectionReady,
   selectSelectedMasterData,
   selectSelectedOpeningBalances,
-  selectSourceConnectionReady,
 } from '../store/project-scope.selectors';
 
 export interface MasterDataRowVM {
@@ -52,9 +52,9 @@ export function useMigrationScopeViewModel(): MigrationScopeViewModel {
   const openingBalancesCount = useProjectScopeStore(
     selectOpeningBalancesCount,
   );
-  // The Chart of Accounts row is sourced from the SOURCE ERP, so it is gated on
-  // the source connection's readiness (DA-48 per-side gates).
-  const connectionReady = useProjectScopeStore(selectSourceConnectionReady);
+  // The Chart of Accounts row is gated on the single shared connection's
+  // readiness (a successful test connection).
+  const connectionReady = useProjectScopeStore(selectConnectionReady);
 
   const masterData = useMemo<readonly MasterDataRowVM[]>(
     () =>

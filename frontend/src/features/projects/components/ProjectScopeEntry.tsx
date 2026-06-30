@@ -42,8 +42,8 @@ export const ProjectScopeEntry = ({
   );
 
   return (
-    <View className="gap-4" testID={testID}>
-      <View className="gap-2">
+    <View className="flex-col gap-4 lg:flex-row lg:gap-4" testID={testID}>
+      <View className="lg:flex-1 gap-2">
         <Select
           label="Company"
           options={selectOptions}
@@ -67,21 +67,25 @@ export const ProjectScopeEntry = ({
         )}
       </View>
 
-      <Input
-        label="Project Name"
-        value={name}
-        onChangeText={onChangeName}
-        placeholder="e.g., Q1 2024 Migration"
-        testID="project-scope-name-input"
-      />
+      <View className="lg:flex-1">
+        <Input
+          label="Project Name"
+          value={name}
+          onChangeText={onChangeName}
+          placeholder="e.g., Q1 2024 Migration"
+          testID="project-scope-name-input"
+        />
+      </View>
 
-      <Input
-        label="Description"
-        value={description}
-        onChangeText={onChangeDescription}
-        placeholder="Optional description..."
-        testID="project-scope-description-input"
-      />
+      <View className="lg:flex-1">
+        <Input
+          label="Description"
+          value={description}
+          onChangeText={onChangeDescription}
+          placeholder="Optional description..."
+          testID="project-scope-description-input"
+        />
+      </View>
     </View>
   );
 };

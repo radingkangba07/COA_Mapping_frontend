@@ -1,5 +1,6 @@
-// DA-59: per-side store + serialization. setSourceMethod/setTargetMethod mutate
-// the draft independently; serializeProjectScopeDraft emits per-side method +
+// Per-side METHODS are retained, but the connection split is collapsed back to a
+// SINGLE shared connection. setSourceMethod/setTargetMethod mutate the draft
+// independently; serializeProjectScopeDraft emits per-side methods + one
 // connection; initFromSeed leaves both per-side methods at their 'csv' default.
 
 import {
@@ -8,7 +9,7 @@ import {
   useProjectScopeStore,
 } from '@/features/projects/store/project-scope.store';
 
-describe('DA-59 per-side methods + serialization', () => {
+describe('per-side methods + single-connection serialization', () => {
   beforeEach(() => {
     useProjectScopeStore.getState().reset();
   });
@@ -23,11 +24,10 @@ describe('DA-59 per-side methods + serialization', () => {
     expect(draft.targetMethod).toBe('csv');
   });
 
-  it('createInitialDraft seeds independent per-side connections with their scope', () => {
+  it('createInitialDraft seeds a single connection with the default source scope', () => {
     const draft = createInitialDraft();
-    expect(draft.sourceConnection.scope).toBe('source');
-    expect(draft.targetConnection.scope).toBe('target');
-    expect(draft.sourceConnection).not.toBe(draft.targetConnection);
+    expect(draft.connection.scope).toBe('source');
+    expect(draft.connection.headers).toEqual([]);
   });
 
   it('setSourceMethod / setTargetMethod mutate the draft independently', () => {
@@ -40,23 +40,20 @@ describe('DA-59 per-side methods + serialization', () => {
     expect(useProjectScopeStore.getState().draft.targetMethod).toBe('mcp');
   });
 
-  it('updateSourceConnection / updateTargetConnection do not bleed across sides', () => {
+  it('updateConnection merges into the single shared connection', () => {
     const store = useProjectScopeStore.getState();
-    store.updateSourceConnection({ url: 'https://source.example.com' });
-    store.updateTargetConnection({ url: 'https://target.example.com' });
+    store.updateConnection({ url: 'https://shared.example.com', token: 'tok' });
 
-    const { sourceConnection, targetConnection } =
-      useProjectScopeStore.getState().draft;
-    expect(sourceConnection.url).toBe('https://source.example.com');
-    expect(targetConnection.url).toBe('https://target.example.com');
+    const { connection } = useProjectScopeStore.getState().draft;
+    expect(connection.url).toBe('https://shared.example.com');
+    expect(connection.token).toBe('tok');
   });
 
-  it('serializeProjectScopeDraft emits per-side method + connection', () => {
+  it('serializeProjectScopeDraft emits per-side methods + a single connection', () => {
     const store = useProjectScopeStore.getState();
     store.setSourceMethod('mcp');
     store.setTargetMethod('csv');
-    store.updateSourceConnection({ url: 'https://source', token: 'tok' });
-    store.updateTargetConnection({ url: 'https://target' });
+    store.updateConnection({ url: 'https://shared', token: 'tok' });
 
     const payload = serializeProjectScopeDraft(
       useProjectScopeStore.getState().draft,
@@ -64,10 +61,8 @@ describe('DA-59 per-side methods + serialization', () => {
 
     expect(payload.source_method).toBe('mcp');
     expect(payload.target_method).toBe('csv');
-    expect(payload.source_connection.url).toBe('https://source');
-    expect(payload.source_connection.token).toBe('tok');
-    expect(payload.source_connection.scope).toBe('source');
-    expect(payload.target_connection.url).toBe('https://target');
-    expect(payload.target_connection.scope).toBe('target');
+    expect(payload.connection.url).toBe('https://shared');
+    expect(payload.connection.token).toBe('tok');
+    expect(payload.connection.scope).toBe('source');
   });
 });

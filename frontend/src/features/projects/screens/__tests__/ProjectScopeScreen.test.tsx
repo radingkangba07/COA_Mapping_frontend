@@ -69,10 +69,8 @@ const mockSetSource = jest.fn();
 const mockSetTarget = jest.fn();
 const mockSetSourceMethod = jest.fn();
 const mockSetTargetMethod = jest.fn();
-const mockUpdateSourceConnection = jest.fn();
-const mockUpdateTargetConnection = jest.fn();
-const mockSetSourceConnectionReady = jest.fn();
-const mockSetTargetConnectionReady = jest.fn();
+const mockUpdateConnection = jest.fn();
+const mockSetConnectionReady = jest.fn();
 const mockSetName = jest.fn();
 const mockSetDescription = jest.fn();
 const mockSetCompanyId = jest.fn();
@@ -103,8 +101,7 @@ const baseVM: ProjectScopeViewModel = {
     method: 'mcp',
     sourceMethod: 'csv',
     targetMethod: 'csv',
-    sourceConnection: { ...initialConnection, scope: 'source' },
-    targetConnection: { ...initialConnection, scope: 'target' },
+    connection: { ...initialConnection, scope: 'source' },
     scope: { selectedMasterData: [], selectedOpeningBalances: [], aggregation: 'none' },
     members: [],
   },
@@ -118,10 +115,8 @@ const baseVM: ProjectScopeViewModel = {
   target: null,
   sourceMethod: 'csv',
   targetMethod: 'csv',
-  sourceConnection: { ...initialConnection, scope: 'source' },
-  targetConnection: { ...initialConnection, scope: 'target' },
-  sourceConnectionReady: false,
-  targetConnectionReady: false,
+  connection: { ...initialConnection, scope: 'source' },
+  connectionReady: false,
   isSavingDraft: false,
   isCreating: false,
   erpSystems,
@@ -137,10 +132,8 @@ const baseVM: ProjectScopeViewModel = {
   setTarget: mockSetTarget,
   setSourceMethod: mockSetSourceMethod,
   setTargetMethod: mockSetTargetMethod,
-  updateSourceConnection: mockUpdateSourceConnection,
-  updateTargetConnection: mockUpdateTargetConnection,
-  setSourceConnectionReady: mockSetSourceConnectionReady,
-  setTargetConnectionReady: mockSetTargetConnectionReady,
+  updateConnection: mockUpdateConnection,
+  setConnectionReady: mockSetConnectionReady,
   saveDraft: mockSaveDraft,
   create: mockCreate,
 };

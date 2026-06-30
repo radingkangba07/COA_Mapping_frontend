@@ -48,11 +48,10 @@ export function createInitialDraft(): ProjectScopeDraft {
     // LEGACY method preserves the migration UploadScreen default ('mcp').
     method: 'mcp',
     // PER-SIDE methods default to 'csv' (File Upload needs no test connection),
-    // so the page is not blocked on mount (DA-48).
+    // so the page is not blocked on mount.
     sourceMethod: 'csv',
     targetMethod: 'csv',
-    sourceConnection: { ...INITIAL_CONNECTION, scope: 'source', headers: [] },
-    targetConnection: { ...INITIAL_CONNECTION, scope: 'target', headers: [] },
+    connection: { ...INITIAL_CONNECTION, headers: [] },
     scope: {
       selectedMasterData: [],
       selectedOpeningBalances: [],
@@ -65,8 +64,6 @@ export function createInitialDraft(): ProjectScopeDraft {
 export const initialState: ProjectScopeState = {
   draft: createInitialDraft(),
   connectionReady: false,
-  sourceConnectionReady: false,
-  targetConnectionReady: false,
   testStatus: 'idle',
   fetchStatus: 'idle',
   isSavingDraft: false,
@@ -76,7 +73,7 @@ export const initialState: ProjectScopeState = {
 // ─── Serialization ──────────────────────────────────────────────────────────
 
 // Merges a partial connection patch into an immer draft connection in place,
-// preserving every untouched field. Shared by both per-side update actions.
+// preserving every untouched field.
 function applyConnectionPatch(
   target: WritableDraft<MCPConnection>,
   patch: Partial<MCPConnection>,
@@ -93,8 +90,8 @@ function applyConnectionPatch(
 }
 
 function serializeConnection(
-  connection: ProjectScopeDraft['sourceConnection'],
-): ProjectDraftPayload['source_connection'] {
+  connection: ProjectScopeDraft['connection'],
+): ProjectDraftPayload['connection'] {
   return {
     scope: connection.scope,
     url: connection.url,
@@ -119,12 +116,9 @@ export function serializeProjectScopeDraft(
     description: draft.description,
     source_erp: draft.source,
     target_erp: draft.target,
-    // LEGACY: mirror the source connection for features/migration's fetch.
-    connection: serializeConnection(draft.sourceConnection),
+    connection: serializeConnection(draft.connection),
     source_method: draft.sourceMethod,
     target_method: draft.targetMethod,
-    source_connection: serializeConnection(draft.sourceConnection),
-    target_connection: serializeConnection(draft.targetConnection),
     scope: {
       selected_master_data: [...draft.scope.selectedMasterData],
       selected_opening_balances: [...draft.scope.selectedOpeningBalances],
@@ -206,15 +200,9 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
       });
     },
 
-    updateSourceConnection: (patch: Partial<MCPConnection>): void => {
+    updateConnection: (patch: Partial<MCPConnection>): void => {
       set((state) => {
-        applyConnectionPatch(state.draft.sourceConnection, patch);
-      });
-    },
-
-    updateTargetConnection: (patch: Partial<MCPConnection>): void => {
-      set((state) => {
-        applyConnectionPatch(state.draft.targetConnection, patch);
+        applyConnectionPatch(state.draft.connection, patch);
       });
     },
 
@@ -291,21 +279,6 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
     setConnectionReady: (ready: boolean): void => {
       set((state) => {
         state.connectionReady = ready;
-      });
-    },
-
-    setSourceConnectionReady: (ready: boolean): void => {
-      set((state) => {
-        state.sourceConnectionReady = ready;
-        // Mirror onto the LEGACY gate (source-driven) so features/migration's
-        // useFetchFromErp opens after a successful source/both test connection.
-        state.connectionReady = ready;
-      });
-    },
-
-    setTargetConnectionReady: (ready: boolean): void => {
-      set((state) => {
-        state.targetConnectionReady = ready;
       });
     },
 

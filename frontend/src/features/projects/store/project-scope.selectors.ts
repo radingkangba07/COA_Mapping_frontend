@@ -47,7 +47,7 @@ export const selectMethod = (state: ProjectScopeStore): ConnectionMethod =>
   state.draft.method;
 
 export const selectConnection = (state: ProjectScopeStore): MCPConnection =>
-  state.draft.sourceConnection;
+  state.draft.connection;
 
 export const selectSourceMethod = (
   state: ProjectScopeStore,
@@ -56,14 +56,6 @@ export const selectSourceMethod = (
 export const selectTargetMethod = (
   state: ProjectScopeStore,
 ): ConnectionMethod => state.draft.targetMethod;
-
-export const selectSourceConnection = (
-  state: ProjectScopeStore,
-): MCPConnection => state.draft.sourceConnection;
-
-export const selectTargetConnection = (
-  state: ProjectScopeStore,
-): MCPConnection => state.draft.targetConnection;
 
 export const selectMembers = (
   state: ProjectScopeStore,
@@ -94,17 +86,9 @@ export const selectAggregation = (
   state: ProjectScopeStore,
 ): AggregationMode => state.draft.scope.aggregation;
 
-// LEGACY gate selector — retained for features/migration's useFetchFromErp.
+// Single readiness gate — also consumed by features/migration's useFetchFromErp.
 export const selectConnectionReady = (state: ProjectScopeStore): boolean =>
   state.connectionReady;
-
-export const selectSourceConnectionReady = (
-  state: ProjectScopeStore,
-): boolean => state.sourceConnectionReady;
-
-export const selectTargetConnectionReady = (
-  state: ProjectScopeStore,
-): boolean => state.targetConnectionReady;
 
 export const selectTestStatus = (state: ProjectScopeStore): RequestStatus =>
   state.testStatus;
@@ -120,16 +104,14 @@ export const selectScopeError = (
 ): AppError | null => state.error;
 
 export const selectCanCreateProject = (state: ProjectScopeStore): boolean => {
-  const { draft, sourceConnectionReady, targetConnectionReady } = state;
+  const { draft, connectionReady } = state;
   const hasCompany = draft.companyId !== null && draft.companyId !== '';
   const hasBothErps = draft.source !== null && draft.target !== null;
   const erpsDistinct = draft.source !== draft.target;
-  // Each side independently satisfies the gate: CSV needs no test connection,
-  // MCP requires that side's successful test connection (DA-48).
-  const sourceSatisfied =
-    draft.sourceMethod === 'csv' || sourceConnectionReady;
-  const targetSatisfied =
-    draft.targetMethod === 'csv' || targetConnectionReady;
+  // CSV needs no test connection; an MCP side requires the single shared
+  // connection to have a successful test connection.
+  const sourceSatisfied = draft.sourceMethod === 'csv' || connectionReady;
+  const targetSatisfied = draft.targetMethod === 'csv' || connectionReady;
 
   return (
     hasCompany &&

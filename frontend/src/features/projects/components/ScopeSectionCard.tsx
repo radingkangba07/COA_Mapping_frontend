@@ -1,10 +1,12 @@
 import React from 'react';
 import { View, Text } from 'react-native';
+import { cn } from '@/shared/utils/string.utils';
 
 interface ScopeSectionCardProps {
   title: string;
   description?: string;
   children?: React.ReactNode;
+  className?: string;
   testID?: string;
 }
 
@@ -12,13 +14,14 @@ export const ScopeSectionCard = ({
   title,
   description,
   children,
+  className,
   testID,
 }: ScopeSectionCardProps): React.JSX.Element => {
   const hasChildren = React.Children.count(children) > 0;
 
   return (
     <View
-      className="rounded-lg border border-border bg-card p-4"
+      className={cn('rounded-lg border border-border bg-card p-4', className)}
       testID={testID}
     >
       <Text className="font-heading text-base font-semibold text-card-foreground">

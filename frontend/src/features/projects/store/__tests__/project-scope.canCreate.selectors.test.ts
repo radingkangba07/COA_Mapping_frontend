@@ -1,6 +1,6 @@
-// DA-58: per-side Create gate. selectCanCreateProject requires company +
-// distinct ERPs, and — independently per side — either CSV (no test connection)
-// or MCP with that side's successful test connection.
+// Create gate. selectCanCreateProject requires company + distinct ERPs, and —
+// when either side uses MCP — the SINGLE shared connection's successful test
+// connection. CSV-only sides need no test connection.
 
 import { useProjectScopeStore } from '@/features/projects/store/project-scope.store';
 import { selectCanCreateProject } from '@/features/projects/store/project-scope.selectors';
@@ -21,7 +21,7 @@ function seed(
 const canCreate = (): boolean =>
   selectCanCreateProject(useProjectScopeStore.getState());
 
-describe('DA-58 selectCanCreateProject — per-side gate', () => {
+describe('selectCanCreateProject — single-connection gate', () => {
   beforeEach(() => {
     useProjectScopeStore.getState().reset();
   });
@@ -31,30 +31,27 @@ describe('DA-58 selectCanCreateProject — per-side gate', () => {
     expect(canCreate()).toBe(true);
   });
 
-  it('mcp source requires the source connection to be ready', () => {
+  it('mcp source requires the shared connection to be ready', () => {
     seed('mcp', 'csv');
     expect(canCreate()).toBe(false);
 
-    useProjectScopeStore.getState().setSourceConnectionReady(true);
+    useProjectScopeStore.getState().setConnectionReady(true);
     expect(canCreate()).toBe(true);
   });
 
-  it('mcp target requires the target connection to be ready', () => {
+  it('mcp target requires the shared connection to be ready', () => {
     seed('csv', 'mcp');
     expect(canCreate()).toBe(false);
 
-    useProjectScopeStore.getState().setTargetConnectionReady(true);
+    useProjectScopeStore.getState().setConnectionReady(true);
     expect(canCreate()).toBe(true);
   });
 
-  it('mcp/mcp requires BOTH sides ready independently', () => {
+  it('mcp/mcp opens once the single shared connection is ready', () => {
     seed('mcp', 'mcp');
     expect(canCreate()).toBe(false);
 
-    useProjectScopeStore.getState().setSourceConnectionReady(true);
-    expect(canCreate()).toBe(false);
-
-    useProjectScopeStore.getState().setTargetConnectionReady(true);
+    useProjectScopeStore.getState().setConnectionReady(true);
     expect(canCreate()).toBe(true);
   });
 

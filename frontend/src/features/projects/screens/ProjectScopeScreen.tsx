@@ -13,7 +13,7 @@ import { ScopeSectionCard } from '../components/ScopeSectionCard';
 import { ErpSourceTargetSelect } from '../components/ErpSourceTargetSelect';
 import { MigrationScopeSection } from '../components/MigrationScopeSection';
 import { ProjectSummaryBar } from '../components/ProjectSummaryBar';
-import { ProjectSideConnection } from '../components/ProjectSideConnection';
+import { ConnectionDetails } from '../components/ConnectionDetails';
 import { AddMembersSection } from '../components/AddMembersSection';
 import { useProjectScopeViewModel } from '../hooks/useProjectScopeViewModel';
 import { useMigrationScopeViewModel } from '../hooks/useMigrationScopeViewModel';
@@ -60,114 +60,98 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
           testID="project-scope-header"
         />
 
-        {/* On-page entry: Company + Project Name + Description written live to
-            the draft store (overrides DA-3 "no name field on scope page"). */}
-        <ProjectScopeEntry
-          companyId={vm.companyId}
-          name={vm.name}
-          description={vm.description}
-          companyOptions={vm.companyOptions}
-          onSelectCompany={vm.setCompanyId}
-          onChangeName={vm.setName}
-          onChangeDescription={vm.setDescription}
-          onCreateCompany={
-            vm.parentOrgId !== null
-              ? () => setCreateCompanyVisible(true)
-              : undefined
-          }
-          testID="project-scope-entry"
+        {/* Metadata panel: Company + Project Name + Description written live to
+            the draft store. */}
+        <ScopeSectionCard title="Project Details" testID="section-project-details">
+          <ProjectScopeEntry
+            companyId={vm.companyId}
+            name={vm.name}
+            description={vm.description}
+            companyOptions={vm.companyOptions}
+            onSelectCompany={vm.setCompanyId}
+            onChangeName={vm.setName}
+            onChangeDescription={vm.setDescription}
+            onCreateCompany={
+              vm.parentOrgId !== null
+                ? () => setCreateCompanyVisible(true)
+                : undefined
+            }
+            testID="project-scope-entry"
+          />
+        </ScopeSectionCard>
+
+        {/* Summary panel — full width row. */}
+        <ProjectSummaryBar
+          summary={summaryVm.summary}
+          testID="project-summary-bar"
         />
 
+        {/* Connection panel: ERP selection (left) + single connection details
+            (right), 50/50 on desktop, stacked on mobile. */}
         <View className="flex-col gap-6 lg:flex-row lg:gap-6">
-          <View className="lg:flex-1 gap-6">
-            {/* ProjectSummaryBar mounts here (DA-137) */}
-            <ProjectSummaryBar
-              summary={summaryVm.summary}
-              testID="project-summary-bar"
+          <ScopeSectionCard
+            title="Select Source & Target ERP"
+            testID="section-select-erp"
+            className="lg:flex-1"
+          >
+            <ErpSourceTargetSelect
+              erpSystems={vm.erpSystems}
+              source={vm.source}
+              target={vm.target}
+              sourceMethod={vm.sourceMethod}
+              targetMethod={vm.targetMethod}
+              isLoading={vm.isLoadingErps}
+              onSelectSource={vm.setSource}
+              onSelectTarget={vm.setTarget}
+              onSelectSourceMethod={vm.setSourceMethod}
+              onSelectTargetMethod={vm.setTargetMethod}
+              testID="erp-source-target-select"
             />
+          </ScopeSectionCard>
 
-            <ScopeSectionCard
-              title="Select Source & Target ERP"
-              testID="section-select-erp"
-            >
-              <ErpSourceTargetSelect
-                erpSystems={vm.erpSystems}
-                source={vm.source}
-                target={vm.target}
-                sourceMethod={vm.sourceMethod}
-                targetMethod={vm.targetMethod}
-                isLoading={vm.isLoadingErps}
-                onSelectSource={vm.setSource}
-                onSelectTarget={vm.setTarget}
-                onSelectSourceMethod={vm.setSourceMethod}
-                onSelectTargetMethod={vm.setTargetMethod}
-                testID="erp-source-target-select"
-              />
-            </ScopeSectionCard>
-
-            {/* MigrationScope mounts here (DA-51) */}
-            <ScopeSectionCard
-              title="Migration Scope"
-              testID="section-migration-scope"
-            >
-              <MigrationScopeSection
-                masterData={scopeVm.masterData}
-                masterDataCount={scopeVm.masterDataCount}
-                masterDataTotal={scopeVm.masterDataTotal}
-                onToggleMasterDataColumn={scopeVm.toggleMasterDataColumn}
-                openingBalances={scopeVm.openingBalances}
-                openingBalancesCount={scopeVm.openingBalancesCount}
-                openingBalancesTotal={scopeVm.openingBalancesTotal}
-                onToggleOpeningBalance={scopeVm.toggleOpeningBalance}
-                testID="migration-scope"
-              />
-            </ScopeSectionCard>
-
-            {/* AddMembersSection mounts here (DA-138) */}
-            <ScopeSectionCard
-              title="Add Members"
-              testID="section-add-members"
-            >
-              <AddMembersSection
-                onAddMember={membersVm.addMember}
-                members={membersVm.members}
-                onUpdateMemberRole={membersVm.updateMemberRole}
-                onRemoveMember={membersVm.removeMember}
-                testID="add-members"
-              />
-            </ScopeSectionCard>
-          </View>
-
-          <View className="lg:basis-[360px] gap-6">
-            {/* Per-side connection config (DA-56): MCP panel + Test Connection
-                for 'mcp', reused file-upload control for 'csv'. */}
-            <ScopeSectionCard
-              title="Source Connection"
-              testID="section-source-connection"
-            >
-              <ProjectSideConnection
-                scope="source"
-                method={vm.sourceMethod}
-                uploadLabel="Source COA File"
-                onConnectionChange={vm.updateSourceConnection}
-                testID="source-connection"
-              />
-            </ScopeSectionCard>
-
-            <ScopeSectionCard
-              title="Target Connection"
-              testID="section-target-connection"
-            >
-              <ProjectSideConnection
-                scope="target"
-                method={vm.targetMethod}
-                uploadLabel="Target COA File"
-                onConnectionChange={vm.updateTargetConnection}
-                testID="target-connection"
-              />
-            </ScopeSectionCard>
-          </View>
+          <ScopeSectionCard
+            title="Connection Details"
+            testID="section-connection-details"
+            className="lg:flex-1"
+          >
+            <ConnectionDetails
+              sourceMethod={vm.sourceMethod}
+              targetMethod={vm.targetMethod}
+              connection={vm.connection}
+              onConnectionChange={vm.updateConnection}
+              testID="connection-details"
+            />
+          </ScopeSectionCard>
         </View>
+
+        {/* MigrationScope — full width. */}
+        <ScopeSectionCard
+          title="Migration Scope"
+          testID="section-migration-scope"
+        >
+          <MigrationScopeSection
+            masterData={scopeVm.masterData}
+            masterDataCount={scopeVm.masterDataCount}
+            masterDataTotal={scopeVm.masterDataTotal}
+            onToggleMasterDataColumn={scopeVm.toggleMasterDataColumn}
+            openingBalances={scopeVm.openingBalances}
+            openingBalancesCount={scopeVm.openingBalancesCount}
+            openingBalancesTotal={scopeVm.openingBalancesTotal}
+            onToggleOpeningBalance={scopeVm.toggleOpeningBalance}
+            testID="migration-scope"
+          />
+        </ScopeSectionCard>
+
+        {/* AddMembersSection — full width. */}
+        <ScopeSectionCard title="Add Members" testID="section-add-members">
+          <AddMembersSection
+            onAddMember={membersVm.addMember}
+            members={membersVm.members}
+            onUpdateMemberRole={membersVm.updateMemberRole}
+            onRemoveMember={membersVm.removeMember}
+            testID="add-members"
+          />
+        </ScopeSectionCard>
 
         <CompatibilityBanner
           source={vm.sourceName}
