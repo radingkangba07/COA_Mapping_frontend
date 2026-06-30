@@ -14,6 +14,7 @@ import { SideNav } from '../components/SideNav';
 import { TopAppBar } from '../components/TopAppBar';
 import { StatCards } from '../components/StatCards';
 import { WorkstreamSections } from '../components/WorkstreamSections';
+import { ProjectSummaryPanel } from '../components/ProjectSummaryPanel';
 import type { WorkstreamSectionGroup } from '../components/WorkstreamSections';
 import type { NavKey } from '../components/SideNav';
 import type { Workstream } from '../types/workstream.types';
@@ -121,16 +122,21 @@ export const ProjectOverviewScreen = (): React.JSX.Element => {
               />
             </ScrollView>
 
-            {/* Fixed right summary panel — ProjectSummaryPanel added by Story 5 */}
+            {/* Right summary panel — DA-119 */}
             <View
-              className="bg-surface p-4"
+              className="bg-surface"
               style={
                 isNarrow
                   ? { borderTopWidth: 1, borderTopColor: colors.border }
                   : { width: 280, borderLeftWidth: 1, borderLeftColor: colors.border }
               }
-              testID="project-overview-summary-panel"
-            />
+            >
+              <ProjectSummaryPanel
+                project={project}
+                groups={sectionGroups}
+                testID="project-overview-summary-panel"
+              />
+            </View>
           </View>
         </View>
       </View>
