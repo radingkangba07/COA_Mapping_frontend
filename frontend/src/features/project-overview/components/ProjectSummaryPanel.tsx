@@ -10,6 +10,8 @@ import type { WorkstreamSectionGroup } from './WorkstreamSections';
 interface ProjectSummaryPanelProps {
   readonly project: Project;
   readonly groups: readonly WorkstreamSectionGroup[];
+  readonly sourceDeployment?: string | null;
+  readonly targetDeployment?: string | null;
   readonly testID?: string;
 }
 
@@ -35,6 +37,8 @@ const PanelDivider = (): React.JSX.Element => (
 export const ProjectSummaryPanel = ({
   project,
   groups,
+  sourceDeployment,
+  targetDeployment,
   testID,
 }: ProjectSummaryPanelProps): React.JSX.Element => {
   const totalWorkstreams = groups.reduce((sum, g) => sum + g.items.length, 0);
@@ -46,7 +50,7 @@ export const ProjectSummaryPanel = ({
       showsVerticalScrollIndicator={false}
       testID={testID}
     >
-      {/* ── Scope Overview (DA-131) ── */}
+      {/* ── Scope Overview ─────────────────────────────── */}
       <View>
         <SectionHeading title="Scope Overview" />
         <View style={{ gap: 8 }}>
@@ -70,14 +74,14 @@ export const ProjectSummaryPanel = ({
         />
       </View>
 
-      {/* ── Migration Configuration (DA-132) ── */}
+      {/* ── Migration Configuration ─────────────────────── */}
       <View>
         <SectionHeading title="Migration Configuration" />
         <View style={{ gap: 8 }}>
-          <SummaryRow label="Source ERP"          value={project.sourceErp} />
-          <SummaryRow label="Target ERP"          value={project.targetErp} />
-          <SummaryRow label="Deployment (Source)" value="—" />
-          <SummaryRow label="Deployment (Target)" value="—" />
+          <SummaryRow label="Source ERP"          value={project.sourceErp || '—'} />
+          <SummaryRow label="Target ERP"          value={project.targetErp || '—'} />
+          <SummaryRow label="Deployment (Source)" value={sourceDeployment ?? '—'} />
+          <SummaryRow label="Deployment (Target)" value={targetDeployment ?? '—'} />
           <SummaryRow
             label="Last Edited"
             value={formatDateTime(project.updatedAt)}
@@ -86,7 +90,7 @@ export const ProjectSummaryPanel = ({
         </View>
       </View>
 
-      {/* ── Info note (DA-132) ── */}
+      {/* ── Info note ──────────────────────────────────── */}
       <View
         style={{
           flexDirection: 'row',

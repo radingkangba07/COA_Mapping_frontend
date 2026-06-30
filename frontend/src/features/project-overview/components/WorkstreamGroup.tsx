@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { colors } from '@/config/theme';
-import { WorkstreamRow, COL_WIDTHS } from './WorkstreamRow';
+import { WorkstreamRow, COL_FLEX } from './WorkstreamRow';
 import type { Workstream } from '../types/workstream.types';
 
-const TABLE_HEADERS: { label: string; width: number }[] = [
-  { label: 'Workstream',    width: COL_WIDTHS.name         },
-  { label: 'Project ID',    width: COL_WIDTHS.projectId    },
-  { label: 'Status',        width: COL_WIDTHS.status       },
-  { label: 'Progress',      width: COL_WIDTHS.progress     },
-  { label: 'Current Stage', width: COL_WIDTHS.currentStage },
-  { label: 'Action',        width: COL_WIDTHS.action       },
+const TABLE_HEADERS: { label: string; flex: number; paddingLeft?: number }[] = [
+  { label: 'Workstream',    flex: COL_FLEX.name                         },
+  { label: 'Project ID',    flex: COL_FLEX.projectId                    },
+  { label: 'Status',        flex: COL_FLEX.status                       },
+  { label: 'Progress',      flex: COL_FLEX.progress                     },
+  { label: 'Current Stage', flex: COL_FLEX.currentStage, paddingLeft: 8 },
+  { label: 'Action',        flex: COL_FLEX.action                       },
 ];
 
 interface WorkstreamGroupProps {
@@ -96,51 +96,47 @@ export const WorkstreamGroup = ({
 
       {/* ── Table ──────────────────────────────────────── */}
       {isExpanded && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
+        <View
           style={{ borderTopWidth: 1, borderTopColor: colors.border }}
           testID={testID ? `${testID}-table` : undefined}
         >
-          <View>
-            {/* Table header row */}
-            <View
-              style={{
-                flexDirection: 'row',
-                paddingVertical: 8,
-                paddingHorizontal: 12,
-                backgroundColor: colors.surface,
-              }}
-            >
-              {TABLE_HEADERS.map((col) => (
-                <View key={col.label} style={{ width: col.width }}>
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      fontWeight: '700',
-                      color: colors.mutedForeground,
-                      letterSpacing: 0.06,
-                      textTransform: 'uppercase',
-                    }}
-                    numberOfLines={1}
-                  >
-                    {col.label}
-                  </Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Workstream rows */}
-            {workstreams.map((w) => (
-              <WorkstreamRow
-                key={w.id}
-                workstream={w}
-                onOpen={onOpen}
-                testID={testID ? `${testID}-row-${w.id}` : undefined}
-              />
+          {/* Table header row */}
+          <View
+            style={{
+              flexDirection: 'row',
+              paddingVertical: 8,
+              paddingHorizontal: 12,
+              backgroundColor: colors.surface,
+            }}
+          >
+            {TABLE_HEADERS.map((col) => (
+              <View key={col.label} style={{ flex: col.flex, paddingLeft: col.paddingLeft }}>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '700',
+                    color: colors.mutedForeground,
+                    letterSpacing: 0.06,
+                    textTransform: 'uppercase',
+                  }}
+                  numberOfLines={1}
+                >
+                  {col.label}
+                </Text>
+              </View>
             ))}
           </View>
-        </ScrollView>
+
+          {/* Workstream rows */}
+          {workstreams.map((w) => (
+            <WorkstreamRow
+              key={w.id}
+              workstream={w}
+              onOpen={onOpen}
+              testID={testID ? `${testID}-row-${w.id}` : undefined}
+            />
+          ))}
+        </View>
       )}
     </View>
   );

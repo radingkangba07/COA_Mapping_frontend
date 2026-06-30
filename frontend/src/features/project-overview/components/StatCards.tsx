@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, useWindowDimensions } from 'react-native';
 import { Skeleton } from '@/shared/components/ui/Skeleton';
 import { colors } from '@/config/theme';
 import { countByStatus } from '../utils/countByStatus';
@@ -25,7 +25,12 @@ export const StatCards = ({
   isLoading = false,
   testID,
 }: StatCardsProps): React.JSX.Element => {
+  const { width } = useWindowDimensions();
   const counts = useMemo(() => countByStatus(workstreams), [workstreams]);
+
+  const GAP = 8;
+  const overallFontSize = width >= 1100 ? 28 : 24;
+  const overallLabelSize = width >= 1100 ? 11 : 10;
 
   const tiles: readonly TileDefinition[] = [
     { label: 'Total',           subtitle: 'Workstreams in scope', tone: 'default', value: counts.total          },
@@ -37,32 +42,45 @@ export const StatCards = ({
   ];
 
   return (
-    <View
-      className="flex-row flex-wrap items-center"
-      style={{ gap: 8 }}
-      testID={testID}
-    >
-      {tiles.map((tile) => (
-        <StatCard
-          key={tile.label}
-          value={tile.value}
-          label={tile.label}
-          subtitle={tile.subtitle}
-          tone={tile.tone}
-          isLoading={isLoading}
-          testID={`stat-card-${tile.label.toLowerCase().replace(/\s+/g, '-')}`}
-        />
-      ))}
+    <View style={{ gap: GAP }} testID={testID}>
+      {/* Section heading */}
+      <Text
+        style={{
+          fontSize: 10,
+          fontWeight: '700',
+          letterSpacing: 0.8,
+          textTransform: 'uppercase',
+          color: colors.mutedForeground,
+        }}
+      >
+        Summary Stats
+      </Text>
 
-      {/* Overall Progress — right-aligned within the same flex row */}
+      {/* All 6 tiles in a single row — flex: 1 on each so they share space equally */}
+      <View style={{ flexDirection: 'row', gap: GAP, flexWrap: 'wrap' }}>
+        {tiles.map((tile) => (
+          <View key={tile.label} style={{ flex: 1, minWidth: 100 }}>
+            <StatCard
+              value={tile.value}
+              label={tile.label}
+              subtitle={tile.subtitle}
+              tone={tile.tone}
+              isLoading={isLoading}
+              testID={`stat-card-${tile.label.toLowerCase().replace(/\s+/g, '-')}`}
+            />
+          </View>
+        ))}
+      </View>
+
+      {/* Overall Progress — full-width below the tiles */}
       <View
         className="rounded-lg border border-border bg-card"
-        style={{ marginLeft: 'auto', minWidth: 200, padding: 14, gap: 6 }}
+        style={{ padding: 14, gap: 6 }}
         testID="stat-card-overall-progress"
       >
         <Text
           style={{
-            fontSize: 10,
+            fontSize: overallLabelSize,
             fontWeight: '700',
             letterSpacing: 0.8,
             textTransform: 'uppercase',
@@ -71,13 +89,14 @@ export const StatCards = ({
         >
           Overall Progress
         </Text>
-        <View className="flex-row items-center" style={{ gap: 8 }}>
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {isLoading ? (
-            <Skeleton height={28} width={52} borderRadius={4} />
+            <Skeleton height={overallFontSize + 4} width={52} borderRadius={4} />
           ) : (
             <Text
               className="font-heading font-bold"
-              style={{ fontSize: 24, color: colors.primary }}
+              style={{ fontSize: overallFontSize, color: colors.primary }}
             >
               {counts.progressPercent}%
             </Text>
@@ -105,9 +124,10 @@ export const StatCards = ({
             </View>
           )}
         </View>
+
         <Text
           className="font-body text-muted-foreground"
-          style={{ fontSize: 11 }}
+          style={{ fontSize: overallLabelSize }}
         >
           {counts.completed} of {counts.total} completed
         </Text>

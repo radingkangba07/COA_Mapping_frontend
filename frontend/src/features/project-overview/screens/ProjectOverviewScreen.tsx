@@ -8,6 +8,7 @@ import { Skeleton } from '@/shared/components/ui/Skeleton';
 import { usePlatform } from '@/shared/hooks/usePlatform';
 import { colors } from '@/config/theme';
 import { useProjectDetail } from '@/features/projects/hooks/useProjectDetail';
+import { useProjectAccess } from '@/features/projects/hooks/useProjectAccess';
 import type { ProjectsStackParamList } from '@/navigation/types';
 import type { ProjectId } from '@/shared/types/common.types';
 import { SideNav } from '../components/SideNav';
@@ -15,6 +16,7 @@ import { TopAppBar } from '../components/TopAppBar';
 import { StatCards } from '../components/StatCards';
 import { WorkstreamSections } from '../components/WorkstreamSections';
 import { ProjectSummaryPanel } from '../components/ProjectSummaryPanel';
+import { ProjectInfoPanel } from '../components/ProjectInfoPanel';
 import { useProjectOverview } from '../hooks/useProjectOverview';
 import { useOpenWorkstream } from '../hooks/useOpenWorkstream';
 import type { NavKey } from '../components/SideNav';
@@ -44,6 +46,7 @@ export const ProjectOverviewScreen = (): React.JSX.Element => {
 
   const { project, isLoading: isProjectLoading } = useProjectDetail(projectId as ProjectId);
   const { overview, isLoading: isOverviewLoading } = useProjectOverview(projectId);
+  const { members } = useProjectAccess(projectId as ProjectId);
   const openWorkstream = useOpenWorkstream(projectId);
 
   const isLoading = isProjectLoading || isOverviewLoading;
@@ -61,6 +64,20 @@ export const ProjectOverviewScreen = (): React.JSX.Element => {
           onPress={setActiveNav}
           testID="project-overview-sidenav"
         />
+
+        {/* Left project info panel */}
+        {!isNarrow && (
+          <View
+            style={{ width: 228, borderRightWidth: 1, borderRightColor: colors.border }}
+          >
+            <ProjectInfoPanel
+              project={project}
+              members={members}
+              workstreamCount={overview.groups.reduce((sum, g) => sum + g.items.length, 0)}
+              testID="project-overview-info-panel"
+            />
+          </View>
+        )}
 
         {/* Main content area */}
         <View className="flex-1 flex-col">
@@ -106,6 +123,8 @@ export const ProjectOverviewScreen = (): React.JSX.Element => {
               <ProjectSummaryPanel
                 project={project}
                 groups={overview.groups}
+                sourceDeployment={overview.sourceDeployment}
+                targetDeployment={overview.targetDeployment}
                 testID="project-overview-summary-panel"
               />
             </View>

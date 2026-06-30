@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, useWindowDimensions } from 'react-native';
 import { Skeleton } from '@/shared/components/ui/Skeleton';
 import { colors } from '@/config/theme';
 
@@ -32,47 +32,52 @@ export const StatCard = ({
   tone = 'default',
   isLoading = false,
   testID,
-}: StatCardProps): React.JSX.Element => (
-  <View
-    className="rounded-lg border border-border bg-card"
-    style={{ minWidth: 120, padding: 14, gap: 4 }}
-    testID={testID}
-  >
-    {/* Uppercase label at top */}
-    <Text
-      style={{
-        fontSize: 10,
-        fontWeight: '700',
-        letterSpacing: 0.8,
-        textTransform: 'uppercase',
-        color: colors.mutedForeground,
-      }}
-      numberOfLines={1}
+}: StatCardProps): React.JSX.Element => {
+  const { width } = useWindowDimensions();
+
+  const valueFontSize  = width >= 1100 ? 32 : width >= 768 ? 28 : 22;
+  const labelFontSize  = width >= 1100 ? 11 : 10;
+  const subFontSize    = width >= 1100 ? 12 : 11;
+
+  return (
+    <View
+      className="rounded-lg border border-border bg-card"
+      style={{ padding: 14, gap: 4 }}
+      testID={testID}
     >
-      {label}
-    </Text>
-
-    {/* Value */}
-    {isLoading ? (
-      <Skeleton height={32} width={48} borderRadius={4} />
-    ) : (
       <Text
-        className="font-heading font-bold"
-        style={{ fontSize: 28, lineHeight: 34, color: countColor(tone) }}
+        style={{
+          fontSize: labelFontSize,
+          fontWeight: '700',
+          letterSpacing: 0.8,
+          textTransform: 'uppercase',
+          color: colors.mutedForeground,
+        }}
+        numberOfLines={1}
       >
-        {value}
+        {label}
       </Text>
-    )}
 
-    {/* Optional subtitle */}
-    {subtitle !== undefined && (
-      <Text
-        className="font-body text-muted-foreground"
-        style={{ fontSize: 11, lineHeight: 15 }}
-        numberOfLines={2}
-      >
-        {subtitle}
-      </Text>
-    )}
-  </View>
-);
+      {isLoading ? (
+        <Skeleton height={valueFontSize + 6} width={48} borderRadius={4} />
+      ) : (
+        <Text
+          className="font-heading font-bold"
+          style={{ fontSize: valueFontSize, lineHeight: valueFontSize * 1.2, color: countColor(tone) }}
+        >
+          {value}
+        </Text>
+      )}
+
+      {subtitle !== undefined && (
+        <Text
+          className="font-body text-muted-foreground"
+          style={{ fontSize: subFontSize, lineHeight: subFontSize * 1.4 }}
+          numberOfLines={2}
+        >
+          {subtitle}
+        </Text>
+      )}
+    </View>
+  );
+};

@@ -5,13 +5,13 @@ import { StatusBadge } from './StatusBadge';
 import { ProgressBar } from './ProgressBar';
 import type { Workstream } from '../types/workstream.types';
 
-export const COL_WIDTHS = {
-  name:         160,
-  projectId:     90,
-  status:       140,
-  progress:     140,
-  currentStage: 130,
-  action:        80,
+export const COL_FLEX = {
+  name:         2.5,
+  projectId:    1,
+  status:       1.8,
+  progress:     2,
+  currentStage: 1.5,
+  action:       0.8,
 } as const;
 
 interface WorkstreamRowProps {
@@ -47,14 +47,14 @@ export const WorkstreamRow = ({
   if (!w.included) {
     return (
       <View style={rowBase} testID={testID}>
-        <View style={{ width: COL_WIDTHS.name }}><CellText muted>{w.name}</CellText></View>
-        <View style={{ width: COL_WIDTHS.projectId }}><CellText muted>{w.projectId}</CellText></View>
-        <View style={{ width: COL_WIDTHS.status }}>
+        <View style={{ flex: COL_FLEX.name }}><CellText muted>{w.name}</CellText></View>
+        <View style={{ flex: COL_FLEX.projectId }}><CellText muted>{w.projectId}</CellText></View>
+        <View style={{ flex: COL_FLEX.status }}>
           <StatusBadge status="not_included" />
         </View>
-        <View style={{ width: COL_WIDTHS.progress }}><CellText muted>—</CellText></View>
-        <View style={{ width: COL_WIDTHS.currentStage, paddingLeft: 8 }}><CellText muted>—</CellText></View>
-        <View style={{ width: COL_WIDTHS.action }}>
+        <View style={{ flex: COL_FLEX.progress }}><CellText muted>—</CellText></View>
+        <View style={{ flex: COL_FLEX.currentStage, paddingLeft: 8 }}><CellText muted>—</CellText></View>
+        <View style={{ flex: COL_FLEX.action }}>
           <Text style={{ fontSize: 12, color: colors.mutedForeground }}>Not Included</Text>
         </View>
       </View>
@@ -67,22 +67,22 @@ export const WorkstreamRow = ({
       style={({ pressed }) => [rowBase, pressed && { backgroundColor: colors.surface }]}
       testID={testID}
     >
-      <View style={{ width: COL_WIDTHS.name }}><CellText>{w.name}</CellText></View>
-      <View style={{ width: COL_WIDTHS.projectId }}>
+      <View style={{ flex: COL_FLEX.name }}><CellText>{w.name}</CellText></View>
+      <View style={{ flex: COL_FLEX.projectId }}>
         <Text style={{ fontSize: 12, fontFamily: 'JetBrainsMono', color: colors.mutedForeground }}>
           {w.projectId}
         </Text>
       </View>
-      <View style={{ width: COL_WIDTHS.status }}>
+      <View style={{ flex: COL_FLEX.status }}>
         <StatusBadge status={w.status} />
       </View>
-      <View style={{ width: COL_WIDTHS.progress }}>
+      <View style={{ flex: COL_FLEX.progress }}>
         <ProgressBar value={w.progress} showLabel />
       </View>
-      <View style={{ width: COL_WIDTHS.currentStage, paddingLeft: 8 }}>
+      <View style={{ flex: COL_FLEX.currentStage, paddingLeft: 8 }}>
         <CellText>{w.currentStage}</CellText>
       </View>
-      <View style={{ width: COL_WIDTHS.action }}>
+      <View style={{ flex: COL_FLEX.action }}>
         <Text style={{ fontSize: 13, color: colors.accent, fontWeight: '600' }}>
           Open
         </Text>
