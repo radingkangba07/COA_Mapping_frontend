@@ -79,7 +79,7 @@ export interface ProjectScopeDraft {
 
 export interface ProjectScopeSeed {
   readonly companyId: string | null;
-  readonly name: string;
+  readonly name?: string;
   readonly description?: string;
 }
 

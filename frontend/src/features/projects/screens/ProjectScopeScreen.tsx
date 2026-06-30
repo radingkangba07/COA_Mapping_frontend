@@ -1,11 +1,13 @@
-import React, { useCallback } from 'react';
-import { View, Text } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen } from '@/shared/components/layout/Screen';
 import type { ProjectsStackParamList } from '@/navigation/types';
 import { ProjectScopeHeader } from '../components/ProjectScopeHeader';
+import { ProjectScopeEntry } from '../components/ProjectScopeEntry';
+import { CreateClientOrgDialog } from '../components/CreateClientOrgDialog';
 import { CompatibilityBanner } from '../components/CompatibilityBanner';
 import { ScopeSectionCard } from '../components/ScopeSectionCard';
 import { ErpSourceTargetSelect } from '../components/ErpSourceTargetSelect';
@@ -26,7 +28,8 @@ type ProjectScopeNavigation = NativeStackNavigationProp<
 export const ProjectScopeScreen = (): React.JSX.Element => {
   const route = useRoute<RouteProp<ProjectsStackParamList, 'ProjectScope'>>();
   const navigation = useNavigation<ProjectScopeNavigation>();
-  const params = route.params;
+  const params = route.params ?? {};
+  const [createCompanyVisible, setCreateCompanyVisible] = useState(false);
 
   const seed = {
     companyId: params.companyId ?? null,
@@ -57,13 +60,23 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
           testID="project-scope-header"
         />
 
-        {/* Manual project name carried from the entry modal — read-only, no name field (DA-3). */}
-        <Text
-          className="font-heading text-lg font-semibold text-foreground"
-          testID="project-scope-name"
-        >
-          {vm.name}
-        </Text>
+        {/* On-page entry: Company + Project Name + Description written live to
+            the draft store (overrides DA-3 "no name field on scope page"). */}
+        <ProjectScopeEntry
+          companyId={vm.companyId}
+          name={vm.name}
+          description={vm.description}
+          companyOptions={vm.companyOptions}
+          onSelectCompany={vm.setCompanyId}
+          onChangeName={vm.setName}
+          onChangeDescription={vm.setDescription}
+          onCreateCompany={
+            vm.parentOrgId !== null
+              ? () => setCreateCompanyVisible(true)
+              : undefined
+          }
+          testID="project-scope-entry"
+        />
 
         <View className="flex-col gap-6 lg:flex-row lg:gap-6">
           <View className="lg:flex-1 gap-6">
@@ -163,6 +176,15 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
           testID="project-scope-compatibility"
         />
       </View>
+
+      {vm.parentOrgId !== null && (
+        <CreateClientOrgDialog
+          visible={createCompanyVisible}
+          onClose={() => setCreateCompanyVisible(false)}
+          parentOrgId={vm.parentOrgId}
+          testID="project-scope-create-company-dialog"
+        />
+      )}
     </Screen>
   );
 };

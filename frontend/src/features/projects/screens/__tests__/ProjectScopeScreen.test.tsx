@@ -52,12 +52,13 @@ jest.mock('@/config/theme', () => ({
 jest.mock('@/shared/services/http/http.instance', () => ({ httpClient: {} }));
 
 const mockNavigate = jest.fn();
+const mockRoute = jest.fn<{ params: unknown }, []>(() => ({
+  params: { companyId: 'c1', name: 'My Migration', description: 'd' },
+}));
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: mockNavigate }),
-  useRoute: () => ({
-    params: { companyId: 'c1', name: 'My Migration', description: 'd' },
-  }),
+  useRoute: () => mockRoute(),
 }));
 
 // ─── ViewModel Mock ─────────────────────────────────────────────────────────
@@ -72,6 +73,9 @@ const mockUpdateSourceConnection = jest.fn();
 const mockUpdateTargetConnection = jest.fn();
 const mockSetSourceConnectionReady = jest.fn();
 const mockSetTargetConnectionReady = jest.fn();
+const mockSetName = jest.fn();
+const mockSetDescription = jest.fn();
+const mockSetCompanyId = jest.fn();
 
 const initialConnection = {
   scope: 'source' as const,
@@ -107,6 +111,8 @@ const baseVM: ProjectScopeViewModel = {
   name: 'My Migration',
   description: 'd',
   companyId: 'c1',
+  companyOptions: [],
+  parentOrgId: null,
   memberCount: 0,
   source: null,
   target: null,
@@ -124,6 +130,9 @@ const baseVM: ProjectScopeViewModel = {
   targetName: null,
   isCompatible: false,
   createDisabled: true,
+  setName: mockSetName,
+  setDescription: mockSetDescription,
+  setCompanyId: mockSetCompanyId,
   setSource: mockSetSource,
   setTarget: mockSetTarget,
   setSourceMethod: mockSetSourceMethod,
@@ -176,6 +185,9 @@ describe('ProjectScopeScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseProjectScopeViewModel.mockReturnValue({ ...baseVM });
+    mockRoute.mockReturnValue({
+      params: { companyId: 'c1', name: 'My Migration', description: 'd' },
+    });
     mockCreate.mockResolvedValue(true);
     mockSaveDraft.mockResolvedValue(undefined);
   });
@@ -190,16 +202,21 @@ describe('ProjectScopeScreen', () => {
     expect(screen.getByTestId('section-select-erp')).toBeTruthy();
   });
 
-  it('shows the project name as read-only text', () => {
+  it('renders the on-page entry section with an editable name input', () => {
     render(<ProjectScopeScreen />);
-    expect(screen.getByText('My Migration')).toBeTruthy();
+    expect(screen.getByTestId('project-scope-entry')).toBeTruthy();
+    expect(screen.getByTestId('project-scope-name-input')).toBeTruthy();
+    expect(screen.getByDisplayValue('My Migration')).toBeTruthy();
+    expect(screen.getByTestId('project-scope-company')).toBeTruthy();
   });
 
-  it('does NOT render an editable name field or company picker', () => {
+  it('writes name edits live to the ViewModel', () => {
     render(<ProjectScopeScreen />);
-    expect(screen.queryByTestId('new-project-name-input')).toBeNull();
-    expect(screen.queryByTestId('new-project-company-dropdown')).toBeNull();
-    expect(screen.queryByText('Project Details')).toBeNull();
+    fireEvent.changeText(
+      screen.getByDisplayValue('My Migration'),
+      'Renamed Migration',
+    );
+    expect(mockSetName).toHaveBeenCalledWith('Renamed Migration');
   });
 
   it('seeds the ViewModel from route params', () => {
@@ -208,6 +225,17 @@ describe('ProjectScopeScreen', () => {
       companyId: 'c1',
       name: 'My Migration',
       description: 'd',
+    });
+  });
+
+  it('renders when reached with no route params', () => {
+    mockRoute.mockReturnValue({ params: undefined });
+    render(<ProjectScopeScreen />);
+    expect(screen.getByTestId('project-scope-screen')).toBeTruthy();
+    expect(mockUseProjectScopeViewModel).toHaveBeenCalledWith({
+      companyId: null,
+      name: undefined,
+      description: undefined,
     });
   });
 

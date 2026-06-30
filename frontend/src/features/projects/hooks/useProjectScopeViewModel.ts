@@ -9,8 +9,10 @@ import type {
   ProjectScopeDraft,
   ProjectScopeSeed,
 } from '../types/project-scope.types';
-import type { ProjectCreate } from '../types/projects.types';
+import type { ProjectCreate, ProjectGroup } from '../types/projects.types';
+import type { OrgId } from '@/shared/types/common.types';
 import { createProject } from '../services/projects.service';
+import { useUserOrgs } from './useUserOrgs';
 import { useProjectScopeStore } from '../store/project-scope.store';
 import {
   selectCanCreateProject,
@@ -67,6 +69,9 @@ export interface ProjectScopeViewModel {
   readonly name: string;
   readonly description: string;
   readonly companyId: string | null;
+  // On-page entry: company picker options + create-company gating (DA-3).
+  readonly companyOptions: readonly ProjectGroup[];
+  readonly parentOrgId: OrgId | null;
   readonly memberCount: number;
   readonly source: string | null;
   readonly target: string | null;
@@ -91,6 +96,9 @@ export interface ProjectScopeViewModel {
   readonly createDisabled: boolean;
 
   // Action callbacks
+  readonly setName: (value: string) => void;
+  readonly setDescription: (value: string) => void;
+  readonly setCompanyId: (id: string | null) => void;
   readonly setSource: (id: string | null) => void;
   readonly setTarget: (id: string | null) => void;
   readonly setSourceMethod: (m: ConnectionMethod) => void;
@@ -142,6 +150,10 @@ export function useProjectScopeViewModel(
   // ─── ERP list ──────────────────────────────────────────────────────────────
   const { erpSystems, isLoading: isLoadingErps } = useERPConfig();
 
+  // ─── Company options (on-page entry) ─────────────────────────────────────────
+  const { orgs: companyOptions, employerOrgs } = useUserOrgs(true);
+  const parentOrgId = employerOrgs[0]?.id ?? null;
+
   const resolveName = useCallback(
     (id: string | null): string | null => {
       if (id === null) {
@@ -161,6 +173,18 @@ export function useProjectScopeViewModel(
   const createDisabled = !canCreate;
 
   // ─── Action callbacks ───────────────────────────────────────────────────────
+  const setName = useCallback((value: string): void => {
+    useProjectScopeStore.getState().setName(value);
+  }, []);
+
+  const setDescription = useCallback((value: string): void => {
+    useProjectScopeStore.getState().setDescription(value);
+  }, []);
+
+  const setCompanyId = useCallback((id: string | null): void => {
+    useProjectScopeStore.getState().setCompanyId(id);
+  }, []);
+
   const setSource = useCallback((id: string | null): void => {
     useProjectScopeStore.getState().setSource(id);
   }, []);
@@ -236,6 +260,8 @@ export function useProjectScopeViewModel(
     description: draft.description,
     // company carried from entry modal -> draft.companyId -> create payload
     companyId: draft.companyId,
+    companyOptions,
+    parentOrgId,
     memberCount,
     source,
     target,
@@ -253,6 +279,9 @@ export function useProjectScopeViewModel(
     targetName,
     isCompatible,
     createDisabled,
+    setName,
+    setDescription,
+    setCompanyId,
     setSource,
     setTarget,
     setSourceMethod,

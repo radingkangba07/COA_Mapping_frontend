@@ -148,7 +148,7 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
     initFromSeed: (seed: ProjectScopeSeed): void => {
       set((state) => {
         state.draft.companyId = seed.companyId;
-        state.draft.name = seed.name;
+        state.draft.name = seed.name ?? '';
         state.draft.description = seed.description ?? '';
       });
     },
