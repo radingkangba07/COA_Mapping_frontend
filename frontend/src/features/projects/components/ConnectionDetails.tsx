@@ -45,25 +45,37 @@ export const ConnectionDetails = ({
     [onConnectionChange],
   );
 
-  const showMcp = sourceMethod === 'mcp' || targetMethod === 'mcp';
+  // Render by SIDE (source slot on top, target slot below) so the source's
+  // connection config always sits above the target's. The single shared MCP
+  // panel renders in whichever side is MCP first — so it's never duplicated
+  // (both-MCP → one panel scoped via "Configure for"), yet a CSV source stays
+  // above an MCP target.
+  const sourceIsMcp = sourceMethod === 'mcp';
+  const targetIsMcp = targetMethod === 'mcp';
+  const mcpInSourceSlot = sourceIsMcp;
+  const mcpInTargetSlot = targetIsMcp && !sourceIsMcp;
+
+  const mcpBlock = (
+    <View className="gap-3">
+      <MCPConnectionPanel
+        value={form}
+        onChange={handleFormChange}
+        testID="mcp-panel"
+      />
+      <TestConnectionFlow connection={form} testID="test-connection" />
+    </View>
+  );
 
   return (
     <View className="gap-4" testID={testID}>
-      {showMcp && (
-        <View className="gap-3">
-          <MCPConnectionPanel
-            value={form}
-            onChange={handleFormChange}
-            testID="mcp-panel"
-          />
-          <TestConnectionFlow connection={form} testID="test-connection" />
-        </View>
-      )}
-
+      {/* Source slot — always on top */}
+      {mcpInSourceSlot && mcpBlock}
       {sourceMethod === 'csv' && (
         <ProjectScopeUpload label="Source COA File" testID="upload-source" />
       )}
 
+      {/* Target slot — below source */}
+      {mcpInTargetSlot && mcpBlock}
       {targetMethod === 'csv' && (
         <ProjectScopeUpload label="Target COA File" testID="upload-target" />
       )}
