@@ -15,6 +15,7 @@ interface StatCardsProps {
 
 interface TileDefinition {
   readonly label: string;
+  readonly subtitle: string;
   readonly tone: StatTone;
   readonly value: number;
 }
@@ -27,12 +28,12 @@ export const StatCards = ({
   const counts = useMemo(() => countByStatus(workstreams), [workstreams]);
 
   const tiles: readonly TileDefinition[] = [
-    { label: 'Total',           tone: 'default', value: counts.total           },
-    { label: 'Completed',       tone: 'success', value: counts.completed       },
-    { label: 'In Progress',     tone: 'info',    value: counts.inProgress      },
-    { label: 'Review Required', tone: 'warning', value: counts.reviewRequired  },
-    { label: 'Blocked',         tone: 'danger',  value: counts.blocked         },
-    { label: 'Not Started',     tone: 'muted',   value: counts.notStarted      },
+    { label: 'Total',           subtitle: 'Workstreams in scope', tone: 'default', value: counts.total          },
+    { label: 'Completed',       subtitle: 'Fully mapped',         tone: 'success', value: counts.completed      },
+    { label: 'In Progress',     subtitle: 'Active workstreams',   tone: 'info',    value: counts.inProgress     },
+    { label: 'Review Required', subtitle: 'Awaiting sign-off',    tone: 'warning', value: counts.reviewRequired },
+    { label: 'Blocked',         subtitle: 'Action required',      tone: 'danger',  value: counts.blocked        },
+    { label: 'Not Started',     subtitle: 'Pending kick-off',     tone: 'muted',   value: counts.notStarted     },
   ];
 
   return (
@@ -46,6 +47,7 @@ export const StatCards = ({
           key={tile.label}
           value={tile.value}
           label={tile.label}
+          subtitle={tile.subtitle}
           tone={tile.tone}
           isLoading={isLoading}
           testID={`stat-card-${tile.label.toLowerCase().replace(/\s+/g, '-')}`}
@@ -54,18 +56,28 @@ export const StatCards = ({
 
       {/* Overall Progress — right-aligned within the same flex row */}
       <View
-        className="rounded-lg border border-border bg-card p-4"
-        style={{ marginLeft: 'auto', minWidth: 180, gap: 6 }}
+        className="rounded-lg border border-border bg-card"
+        style={{ marginLeft: 'auto', minWidth: 200, padding: 14, gap: 6 }}
         testID="stat-card-overall-progress"
       >
-        <Text className="font-body text-xs text-muted-foreground">Overall Progress</Text>
+        <Text
+          style={{
+            fontSize: 10,
+            fontWeight: '700',
+            letterSpacing: 0.8,
+            textTransform: 'uppercase',
+            color: colors.mutedForeground,
+          }}
+        >
+          Overall Progress
+        </Text>
         <View className="flex-row items-center" style={{ gap: 8 }}>
           {isLoading ? (
-            <Skeleton height={24} width={48} borderRadius={4} />
+            <Skeleton height={28} width={52} borderRadius={4} />
           ) : (
             <Text
               className="font-heading font-bold"
-              style={{ fontSize: 20, color: colors.accent }}
+              style={{ fontSize: 24, color: colors.accent }}
             >
               {counts.progressPercent}%
             </Text>
@@ -85,7 +97,7 @@ export const StatCards = ({
                 style={{
                   height: 8,
                   width: `${counts.progressPercent}%`,
-                  backgroundColor: colors.success,
+                  backgroundColor: colors.accent,
                   minWidth: counts.progressPercent > 0 ? 8 : 0,
                 }}
                 testID="progress-bar-fill"
@@ -93,6 +105,12 @@ export const StatCards = ({
             </View>
           )}
         </View>
+        <Text
+          className="font-body text-muted-foreground"
+          style={{ fontSize: 11 }}
+        >
+          {counts.completed} of {counts.total} completed
+        </Text>
       </View>
     </View>
   );
