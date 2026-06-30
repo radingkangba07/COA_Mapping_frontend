@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -15,9 +15,10 @@ import { TopAppBar } from '../components/TopAppBar';
 import { StatCards } from '../components/StatCards';
 import { WorkstreamSections } from '../components/WorkstreamSections';
 import { ProjectSummaryPanel } from '../components/ProjectSummaryPanel';
-import type { WorkstreamSectionGroup } from '../components/WorkstreamSections';
+import { useProjectOverview } from '../hooks/useProjectOverview';
+import { useOpenWorkstream } from '../hooks/useOpenWorkstream';
 import type { NavKey } from '../components/SideNav';
-import type { Workstream } from '../types/workstream.types';
+import { useState } from 'react';
 
 type ProjectOverviewRoute = RouteProp<ProjectsStackParamList, 'ProjectOverview'>;
 type ProjectOverviewNav = NativeStackNavigationProp<ProjectsStackParamList, 'ProjectOverview'>;
@@ -41,42 +42,13 @@ export const ProjectOverviewScreen = (): React.JSX.Element => {
   const { breakpoint } = usePlatform();
   const isNarrow = breakpoint === 'sm' || breakpoint === 'md';
 
-  const { project, isLoading } = useProjectDetail(projectId as ProjectId);
+  const { project, isLoading: isProjectLoading } = useProjectDetail(projectId as ProjectId);
+  const { overview, isLoading: isOverviewLoading } = useProjectOverview(projectId);
+  const openWorkstream = useOpenWorkstream(projectId);
 
-  // Placeholder groups — replaced when workstream data layer is wired
-  const sectionGroups: readonly WorkstreamSectionGroup[] = [
-    {
-      key: 'master-data',
-      title: 'Master Data',
-      items: [
-        { id: 'ws-1',  name: 'Chart of Accounts', projectId: 'MD-001', status: 'in_progress',     progress: 65,  currentStage: 'Mapping',     included: true  },
-        { id: 'ws-2',  name: 'Customers',          projectId: 'MD-002', status: 'completed',       progress: 100, currentStage: 'Done',        included: true  },
-        { id: 'ws-3',  name: 'Vendors',            projectId: 'MD-003', status: 'review_required', progress: 80,  currentStage: 'Validation',  included: true  },
-        { id: 'ws-4',  name: 'Items',              projectId: 'MD-004', status: 'not_started',     progress: 0,   currentStage: 'Not Started', included: true  },
-        { id: 'ws-5',  name: 'Locations',          projectId: 'MD-005', status: 'blocked',         progress: 30,  currentStage: 'Upload',      included: true  },
-        { id: 'ws-6',  name: 'Contacts',           projectId: 'MD-006', status: 'not_started',     progress: 0,   currentStage: 'Not Started', included: false },
-        { id: 'ws-7',  name: 'Vehicles',           projectId: 'MD-007', status: 'not_started',     progress: 0,   currentStage: 'Not Started', included: false },
-        { id: 'ws-8',  name: 'Fixed Assets',       projectId: 'MD-008', status: 'in_progress',     progress: 45,  currentStage: 'ERP Select',  included: true  },
-        { id: 'ws-9',  name: 'Equipment',          projectId: 'MD-009', status: 'not_started',     progress: 0,   currentStage: 'Not Started', included: false },
-      ] as readonly Workstream[],
-    },
-    {
-      key: 'opening-balances',
-      title: 'Opening Balances',
-      items: [
-        { id: 'ob-1', name: 'Trial Balance',       projectId: 'OB-001', status: 'completed',       progress: 100, currentStage: 'Done',        included: true },
-        { id: 'ob-2', name: 'Retained Earnings',   projectId: 'OB-002', status: 'in_progress',     progress: 55,  currentStage: 'Mapping',     included: true },
-        { id: 'ob-3', name: 'Accounts Receivable', projectId: 'OB-003', status: 'review_required', progress: 75,  currentStage: 'Validation',  included: true },
-        { id: 'ob-4', name: 'Accounts Payable',    projectId: 'OB-004', status: 'not_started',     progress: 0,   currentStage: 'Not Started', included: true },
-        { id: 'ob-5', name: 'Inventory',           projectId: 'OB-005', status: 'not_started',     progress: 0,   currentStage: 'Not Started', included: true },
-      ] as readonly Workstream[],
-    },
-  ];
+  const isLoading = isProjectLoading || isOverviewLoading;
 
-  // Flat list for StatCards (all workstreams across all groups)
-  const workstreams: readonly Workstream[] = sectionGroups.flatMap((g) => g.items);
-
-  if (isLoading || project === null) {
+  if (isLoading || project === null || overview === null) {
     return <OverviewSkeleton />;
   }
 
@@ -111,13 +83,13 @@ export const ProjectOverviewScreen = (): React.JSX.Element => {
               testID="project-overview-main"
             >
               <StatCards
-                workstreams={workstreams}
+                workstreams={overview.groups.flatMap((g) => g.items)}
                 isLoading={isLoading}
                 testID="project-overview-stat-cards"
               />
               <WorkstreamSections
-                groups={sectionGroups}
-                onOpen={(_w) => { /* navigation wired in Story 6 */ }}
+                groups={overview.groups}
+                onOpen={openWorkstream}
                 testID="project-overview-workstream-sections"
               />
             </ScrollView>
@@ -133,7 +105,7 @@ export const ProjectOverviewScreen = (): React.JSX.Element => {
             >
               <ProjectSummaryPanel
                 project={project}
-                groups={sectionGroups}
+                groups={overview.groups}
                 testID="project-overview-summary-panel"
               />
             </View>
