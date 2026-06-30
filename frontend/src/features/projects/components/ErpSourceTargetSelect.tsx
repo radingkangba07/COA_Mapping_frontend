@@ -1,5 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable } from 'react-native';
+import type { ConnectionMethod } from '../types/project-scope.types';
+import { ConnectionMethodSelect } from './ConnectionMethodSelect';
 
 interface ErpOption {
   readonly id: string;
@@ -10,9 +12,13 @@ interface ErpSourceTargetSelectProps {
   erpSystems: ReadonlyArray<ErpOption>;
   source: string | null;
   target: string | null;
+  sourceMethod: ConnectionMethod;
+  targetMethod: ConnectionMethod;
   isLoading?: boolean;
   onSelectSource: (id: string) => void;
   onSelectTarget: (id: string) => void;
+  onSelectSourceMethod: (method: ConnectionMethod) => void;
+  onSelectTargetMethod: (method: ConnectionMethod) => void;
   testID?: string;
 }
 
@@ -22,7 +28,9 @@ interface ErpPillGroupProps {
   erpSystems: ReadonlyArray<ErpOption>;
   selected: string | null;
   isLoading: boolean;
+  method: ConnectionMethod;
   onSelect: (id: string) => void;
+  onSelectMethod: (method: ConnectionMethod) => void;
 }
 
 const ErpPillGroup = ({
@@ -31,7 +39,9 @@ const ErpPillGroup = ({
   erpSystems,
   selected,
   isLoading,
+  method,
   onSelect,
+  onSelectMethod,
 }: ErpPillGroupProps): React.JSX.Element => {
   const showLoading = isLoading && erpSystems.length === 0;
 
@@ -76,6 +86,12 @@ const ErpPillGroup = ({
           })}
         </View>
       )}
+
+      <ConnectionMethodSelect
+        value={method}
+        onChange={onSelectMethod}
+        testID={`connection-method-${groupRole}`}
+      />
     </View>
   );
 };
@@ -84,9 +100,13 @@ export const ErpSourceTargetSelect = ({
   erpSystems,
   source,
   target,
+  sourceMethod,
+  targetMethod,
   isLoading = false,
   onSelectSource,
   onSelectTarget,
+  onSelectSourceMethod,
+  onSelectTargetMethod,
   testID,
 }: ErpSourceTargetSelectProps): React.JSX.Element => {
   return (
@@ -97,7 +117,9 @@ export const ErpSourceTargetSelect = ({
         erpSystems={erpSystems}
         selected={source}
         isLoading={isLoading}
+        method={sourceMethod}
         onSelect={onSelectSource}
+        onSelectMethod={onSelectSourceMethod}
       />
       <ErpPillGroup
         label="Target ERP"
@@ -105,7 +127,9 @@ export const ErpSourceTargetSelect = ({
         erpSystems={erpSystems}
         selected={target}
         isLoading={isLoading}
+        method={targetMethod}
         onSelect={onSelectTarget}
+        onSelectMethod={onSelectTargetMethod}
       />
     </View>
   );
