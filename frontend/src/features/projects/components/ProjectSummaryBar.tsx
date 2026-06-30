@@ -32,7 +32,7 @@ interface ChipDescriptor {
   readonly placeholder?: string;
 }
 
-const SLOT_CLASS = 'basis-full sm:basis-[48%] lg:basis-[31%]';
+const SLOT_CLASS = 'basis-full sm:basis-[23%] lg:basis-[15%]';
 
 export function ProjectSummaryBar({
   summary,

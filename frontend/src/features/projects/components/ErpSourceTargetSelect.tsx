@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text } from 'react-native';
+import { Select } from '@/shared/components/ui/Select';
 import type { ConnectionMethod } from '../types/project-scope.types';
 import { ConnectionMethodSelect } from './ConnectionMethodSelect';
 
@@ -56,35 +57,17 @@ const ErpPillGroup = ({
           Loading ERP systems…
         </Text>
       ) : (
-        <View className="flex-row flex-wrap gap-2">
-          {erpSystems.map((erp) => {
-            const isSelected = selected === erp.id;
-            const stateClass = isSelected
-              ? 'bg-primary'
-              : 'border border-border bg-background';
-            const textClass = isSelected
-              ? 'text-primary-foreground'
-              : 'text-foreground';
-
-            return (
-              <Pressable
-                key={erp.id}
-                onPress={() => {
-                  onSelect(erp.id);
-                }}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: isSelected }}
-                accessibilityLabel={`${label}: ${erp.name}`}
-                className={`rounded-full px-3 py-1.5 ${stateClass}`}
-                testID={`erp-pill-${groupRole}-${erp.id}`}
-              >
-                <Text className={`font-body text-sm font-medium ${textClass}`}>
-                  {erp.name}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <Select
+          options={erpSystems.map((erp) => ({
+            label: erp.name,
+            value: erp.id,
+          }))}
+          value={selected ?? undefined}
+          onValueChange={onSelect}
+          placeholder={`Select ${label}…`}
+          searchable
+          testID={`erp-select-${groupRole}`}
+        />
       )}
 
       <ConnectionMethodSelect
