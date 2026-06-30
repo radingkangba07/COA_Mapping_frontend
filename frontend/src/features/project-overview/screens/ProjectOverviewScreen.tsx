@@ -13,6 +13,7 @@ import type { ProjectId } from '@/shared/types/common.types';
 import { SideNav } from '../components/SideNav';
 import { TopAppBar } from '../components/TopAppBar';
 import { StatCards } from '../components/StatCards';
+import { WorkstreamGroup } from '../components/WorkstreamGroup';
 import type { NavKey } from '../components/SideNav';
 import type { Workstream } from '../types/workstream.types';
 
@@ -40,8 +41,18 @@ export const ProjectOverviewScreen = (): React.JSX.Element => {
 
   const { project, isLoading } = useProjectDetail(projectId as ProjectId);
 
-  // Placeholder — replaced when workstream data layer is wired (DA-115 child stories)
-  const workstreams: readonly Workstream[] = [];
+  // Placeholder workstreams — replaced when workstream data layer is wired
+  const workstreams: readonly Workstream[] = [
+    { id: 'ws-1',  name: 'Chart of Accounts', projectId: 'MD-001', status: 'in_progress',     progress: 65, currentStage: 'Mapping',     included: true  },
+    { id: 'ws-2',  name: 'Customers',          projectId: 'MD-002', status: 'completed',       progress: 100, currentStage: 'Done',        included: true  },
+    { id: 'ws-3',  name: 'Vendors',            projectId: 'MD-003', status: 'review_required', progress: 80, currentStage: 'Validation',  included: true  },
+    { id: 'ws-4',  name: 'Items',              projectId: 'MD-004', status: 'not_started',     progress: 0,  currentStage: 'Not Started', included: true  },
+    { id: 'ws-5',  name: 'Locations',          projectId: 'MD-005', status: 'blocked',         progress: 30, currentStage: 'Upload',      included: true  },
+    { id: 'ws-6',  name: 'Contacts',           projectId: 'MD-006', status: 'not_started',     progress: 0,  currentStage: 'Not Started', included: false },
+    { id: 'ws-7',  name: 'Vehicles',           projectId: 'MD-007', status: 'not_started',     progress: 0,  currentStage: 'Not Started', included: false },
+    { id: 'ws-8',  name: 'Fixed Assets',       projectId: 'MD-008', status: 'in_progress',     progress: 45, currentStage: 'ERP Select',  included: true  },
+    { id: 'ws-9',  name: 'Equipment',          projectId: 'MD-009', status: 'not_started',     progress: 0,  currentStage: 'Not Started', included: false },
+  ];
 
   if (isLoading || project === null) {
     return <OverviewSkeleton />;
@@ -81,6 +92,12 @@ export const ProjectOverviewScreen = (): React.JSX.Element => {
                 workstreams={workstreams}
                 isLoading={isLoading}
                 testID="project-overview-stat-cards"
+              />
+              <WorkstreamGroup
+                title="Master Data"
+                workstreams={workstreams}
+                onOpen={(_w) => { /* navigation wired in Story 6 */ }}
+                testID="project-overview-master-data-group"
               />
             </ScrollView>
 
