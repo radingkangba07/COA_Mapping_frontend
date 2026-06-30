@@ -8,5 +8,9 @@ export type WorkstreamStatus =
 export interface Workstream {
   readonly id: string;
   readonly name: string;
+  readonly projectId: string;
   readonly status: WorkstreamStatus;
+  readonly progress: number;      // 0–100
+  readonly currentStage: string;
+  readonly included: boolean;
 }
