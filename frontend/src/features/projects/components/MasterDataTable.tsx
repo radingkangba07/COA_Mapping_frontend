@@ -43,7 +43,7 @@ function MasterDataRow({
 
   return (
     <View testID={testID !== undefined ? `${testID}-row-${row.id}` : undefined}>
-      <View className="flex-row items-center gap-3 px-4 py-3">
+      <View className="flex-row items-center gap-3 py-3">
         <ChevronRight size={CHEVRON_SIZE} color={colors.mutedForeground} />
         <Text className="flex-1 font-heading text-base font-semibold text-card-foreground">
           {row.label}
@@ -72,7 +72,7 @@ function MasterDataRow({
 
       {row.disabled ? (
         <Text
-          className="px-4 pb-2 font-body text-xs text-muted-foreground"
+          className="pb-2 font-body text-xs text-muted-foreground"
           testID={
             testID !== undefined ? `${testID}-${row.id}-gated-hint` : undefined
           }
@@ -93,7 +93,7 @@ export function MasterDataTable({
     <View className="gap-1" testID={testID}>
       {/* Column header row */}
       <View
-        className="flex-row items-center gap-3 px-4 pb-1"
+        className="flex-row items-center gap-3 pb-1"
         testID={testID !== undefined ? `${testID}-header` : undefined}
       >
         {/* Spacer to align "Master Data" above the row label (past the chevron). */}

@@ -39,7 +39,7 @@ export function MigrationScopeSection({
       className="flex-col gap-6 lg:flex-row lg:items-start lg:gap-6"
       testID={testID}
     >
-      <View className="gap-4 lg:flex-1">
+      <View className="gap-4 rounded-lg border border-border bg-card p-4 lg:flex-1">
         <View className="gap-1">
           <View className="flex-row items-center justify-between">
             <Text className="font-heading text-base font-semibold text-card-foreground">
@@ -66,7 +66,7 @@ export function MigrationScopeSection({
         />
       </View>
 
-      <View className="gap-4 lg:flex-1">
+      <View className="gap-4 rounded-lg border border-border bg-card p-4 lg:flex-1">
         <View className="gap-1">
           <View className="flex-row items-center justify-between">
             <Text className="font-heading text-base font-semibold text-card-foreground">
