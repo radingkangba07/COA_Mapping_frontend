@@ -4,6 +4,7 @@ import {
   createDrawerNavigator,
   type DrawerContentComponentProps,
 } from '@react-navigation/drawer';
+import { useNavigationState } from '@react-navigation/native';
 import {
   FolderOpen, ArrowRightLeft, Settings, ChevronsLeft, ChevronsRight,
 } from 'lucide-react-native';
@@ -15,6 +16,18 @@ import { MigrationStack } from '../stacks/MigrationStack';
 import { SettingsStack } from '../stacks/SettingsStack';
 import { OrgSwitcher } from '@/features/projects/components/OrgSwitcher';
 import type { AppDrawerParamList } from '../types';
+
+const PROJECT_SCREENS = new Set(['ProjectOverview', 'WorkstreamDetail']);
+
+function useIsOnProjectScreen(): boolean {
+  return useNavigationState((state) => {
+    const projectsTab = state?.routes?.find((r) => r.name === 'ProjectsTab');
+    if (!projectsTab?.state) return false;
+    const idx = projectsTab.state.index ?? 0;
+    const active = projectsTab.state.routes[idx];
+    return PROJECT_SCREENS.has(active?.name ?? '');
+  });
+}
 
 const Drawer = createDrawerNavigator<AppDrawerParamList>();
 
@@ -143,14 +156,15 @@ const CustomDrawerContent = ({
 export const AppDrawer = (): React.JSX.Element => {
   useAppStore((s) => s.theme);
   const isCollapsed = useAppStore((s) => s.isDrawerCollapsed);
+  const hideDrawer = useIsOnProjectScreen();
 
   const drawerStyle = useMemo(() => ({
-    width: isCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH_EXPANDED,
+    width: hideDrawer ? 0 : (isCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH_EXPANDED),
     backgroundColor: colors.surface,
-    borderRightWidth: 1,
+    borderRightWidth: hideDrawer ? 0 : 1,
     borderRightColor: colors.border,
     transition: 'width 200ms ease',
-  } as const), [isCollapsed]);
+  } as const), [isCollapsed, hideDrawer]);
 
   return (
     <Drawer.Navigator
