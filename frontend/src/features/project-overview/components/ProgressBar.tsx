@@ -34,7 +34,7 @@ export const ProgressBar = ({
           style={{
             height: 6,
             width: `${clamped}%`,
-            backgroundColor: colors.accent,
+            backgroundColor: colors.primary,
             borderRadius: 99,
             minWidth: clamped > 0 ? 6 : 0,
           }}
@@ -47,7 +47,7 @@ export const ProgressBar = ({
           style={{
             fontSize: 11,
             fontWeight: '600',
-            color: clamped > 0 ? colors.accent : colors.mutedForeground,
+            color: clamped > 0 ? colors.primary : colors.mutedForeground,
             minWidth: 28,
           }}
         >
