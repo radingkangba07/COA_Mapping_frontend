@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import type { WritableDraft } from 'immer';
 import type { HttpClient } from '@/shared/services/http/http.types';
 import type { AppError, Result } from '@/shared/types/result.types';
 import type { ProjectPermission } from '../types/project-access.types';
@@ -44,8 +45,14 @@ export function createInitialDraft(): ProjectScopeDraft {
     description: '',
     source: null,
     target: null,
+    // LEGACY method preserves the migration UploadScreen default ('mcp').
     method: 'mcp',
-    connection: { ...INITIAL_CONNECTION, headers: [] },
+    // PER-SIDE methods default to 'csv' (File Upload needs no test connection),
+    // so the page is not blocked on mount (DA-48).
+    sourceMethod: 'csv',
+    targetMethod: 'csv',
+    sourceConnection: { ...INITIAL_CONNECTION, scope: 'source', headers: [] },
+    targetConnection: { ...INITIAL_CONNECTION, scope: 'target', headers: [] },
     scope: {
       selectedMasterData: [],
       selectedOpeningBalances: [],
@@ -58,6 +65,8 @@ export function createInitialDraft(): ProjectScopeDraft {
 export const initialState: ProjectScopeState = {
   draft: createInitialDraft(),
   connectionReady: false,
+  sourceConnectionReady: false,
+  targetConnectionReady: false,
   testStatus: 'idle',
   fetchStatus: 'idle',
   isSavingDraft: false,
@@ -65,6 +74,41 @@ export const initialState: ProjectScopeState = {
 };
 
 // ─── Serialization ──────────────────────────────────────────────────────────
+
+// Merges a partial connection patch into an immer draft connection in place,
+// preserving every untouched field. Shared by both per-side update actions.
+function applyConnectionPatch(
+  target: WritableDraft<MCPConnection>,
+  patch: Partial<MCPConnection>,
+): void {
+  const merged: MCPConnection = { ...target, ...patch };
+  target.scope = merged.scope;
+  target.url = merged.url;
+  target.token = merged.token;
+  target.authType = merged.authType;
+  target.headers = [...merged.headers];
+  target.skipSSL = merged.skipSSL;
+  target.proxy = merged.proxy;
+  target.timeout = merged.timeout;
+}
+
+function serializeConnection(
+  connection: ProjectScopeDraft['sourceConnection'],
+): ProjectDraftPayload['source_connection'] {
+  return {
+    scope: connection.scope,
+    url: connection.url,
+    token: connection.token,
+    auth_type: connection.authType,
+    headers: connection.headers.map((header) => ({
+      key: header.key,
+      value: header.value,
+    })),
+    skip_ssl: connection.skipSSL,
+    proxy: connection.proxy,
+    timeout: connection.timeout,
+  };
+}
 
 export function serializeProjectScopeDraft(
   draft: ProjectScopeDraft,
@@ -75,20 +119,12 @@ export function serializeProjectScopeDraft(
     description: draft.description,
     source_erp: draft.source,
     target_erp: draft.target,
-    method: draft.method,
-    connection: {
-      scope: draft.connection.scope,
-      url: draft.connection.url,
-      token: draft.connection.token,
-      auth_type: draft.connection.authType,
-      headers: draft.connection.headers.map((header) => ({
-        key: header.key,
-        value: header.value,
-      })),
-      skip_ssl: draft.connection.skipSSL,
-      proxy: draft.connection.proxy,
-      timeout: draft.connection.timeout,
-    },
+    // LEGACY: mirror the source connection for features/migration's fetch.
+    connection: serializeConnection(draft.sourceConnection),
+    source_method: draft.sourceMethod,
+    target_method: draft.targetMethod,
+    source_connection: serializeConnection(draft.sourceConnection),
+    target_connection: serializeConnection(draft.targetConnection),
     scope: {
       selected_master_data: [...draft.scope.selectedMasterData],
       selected_opening_balances: [...draft.scope.selectedOpeningBalances],
@@ -147,23 +183,38 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
       });
     },
 
+    // LEGACY combined setter (features/migration's useCsvFallback). Sets the
+    // legacy field AND both per-side methods so a single 'csv' fallback flips
+    // the whole draft, keeping the per-side Create gate consistent (DA-48).
     setMethod: (method: ConnectionMethod): void => {
       set((state) => {
         state.draft.method = method;
+        state.draft.sourceMethod = method;
+        state.draft.targetMethod = method;
       });
     },
 
-    updateConnection: (patch: Partial<MCPConnection>): void => {
+    setSourceMethod: (method: ConnectionMethod): void => {
       set((state) => {
-        const merged: MCPConnection = { ...state.draft.connection, ...patch };
-        state.draft.connection.scope = merged.scope;
-        state.draft.connection.url = merged.url;
-        state.draft.connection.token = merged.token;
-        state.draft.connection.authType = merged.authType;
-        state.draft.connection.headers = [...merged.headers];
-        state.draft.connection.skipSSL = merged.skipSSL;
-        state.draft.connection.proxy = merged.proxy;
-        state.draft.connection.timeout = merged.timeout;
+        state.draft.sourceMethod = method;
+      });
+    },
+
+    setTargetMethod: (method: ConnectionMethod): void => {
+      set((state) => {
+        state.draft.targetMethod = method;
+      });
+    },
+
+    updateSourceConnection: (patch: Partial<MCPConnection>): void => {
+      set((state) => {
+        applyConnectionPatch(state.draft.sourceConnection, patch);
+      });
+    },
+
+    updateTargetConnection: (patch: Partial<MCPConnection>): void => {
+      set((state) => {
+        applyConnectionPatch(state.draft.targetConnection, patch);
       });
     },
 
@@ -240,6 +291,21 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
     setConnectionReady: (ready: boolean): void => {
       set((state) => {
         state.connectionReady = ready;
+      });
+    },
+
+    setSourceConnectionReady: (ready: boolean): void => {
+      set((state) => {
+        state.sourceConnectionReady = ready;
+        // Mirror onto the LEGACY gate (source-driven) so features/migration's
+        // useFetchFromErp opens after a successful source/both test connection.
+        state.connectionReady = ready;
+      });
+    },
+
+    setTargetConnectionReady: (ready: boolean): void => {
+      set((state) => {
+        state.targetConnectionReady = ready;
       });
     },
 

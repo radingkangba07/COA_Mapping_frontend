@@ -62,8 +62,17 @@ export interface ProjectScopeDraft {
   readonly description: string; // from modal
   readonly source: string | null; // source ERP id
   readonly target: string | null; // target ERP id
-  readonly method: ConnectionMethod; // mcp (default) | csv fallback
-  readonly connection: MCPConnection;
+  // LEGACY single method — retained ONLY for the untouchable features/migration
+  // consumer (UploadScreen / useFetchFromErp). The PER-SIDE fields below are the
+  // source of truth for the Project Scope page + Create gate (DA-48).
+  readonly method: ConnectionMethod;
+  // Connection method is PER-SIDE and independent (DA-48). Defaults to 'csv' on
+  // both sides so the page is not blocked by a pending test connection.
+  readonly sourceMethod: ConnectionMethod;
+  readonly targetMethod: ConnectionMethod;
+  // Per-side, independent MCP connections (extends the DA-53 single connection).
+  readonly sourceConnection: MCPConnection; // scope: 'source'
+  readonly targetConnection: MCPConnection; // scope: 'target'
   readonly scope: MigrationScope;
   readonly members: readonly ProjectScopeMember[];
 }
@@ -76,7 +85,13 @@ export interface ProjectScopeSeed {
 
 export interface ProjectScopeState {
   readonly draft: ProjectScopeDraft;
-  readonly connectionReady: boolean; // GATE: set true only after a SUCCESSFUL test connection (DA-50)
+  // LEGACY single gate — retained ONLY for the untouchable features/migration
+  // consumer (useFetchFromErp). Mirrors the SOURCE side's readiness (DA-48).
+  readonly connectionReady: boolean;
+  // PER-SIDE gates (DA-48): each set true only after a SUCCESSFUL test connection
+  // for that side (DA-50).
+  readonly sourceConnectionReady: boolean;
+  readonly targetConnectionReady: boolean;
   readonly testStatus: RequestStatus; // shared status for Test Connection panel
   readonly fetchStatus: RequestStatus; // shared status for Fetch-from-ERP
   readonly isSavingDraft: boolean;
@@ -90,8 +105,13 @@ export interface ProjectScopeActions {
   setDescription: (description: string) => void;
   setSource: (erpId: string | null) => void;
   setTarget: (erpId: string | null) => void;
+  // LEGACY — retained for features/migration's useCsvFallback. Sets only the
+  // legacy `method` field; per-side setters below drive the page.
   setMethod: (method: ConnectionMethod) => void;
-  updateConnection: (patch: Partial<MCPConnection>) => void;
+  setSourceMethod: (method: ConnectionMethod) => void;
+  setTargetMethod: (method: ConnectionMethod) => void;
+  updateSourceConnection: (patch: Partial<MCPConnection>) => void;
+  updateTargetConnection: (patch: Partial<MCPConnection>) => void;
   toggleMasterData: (id: string) => void;
   setMasterData: (ids: readonly string[]) => void;
   toggleOpeningBalances: (id: string) => void;
@@ -100,7 +120,10 @@ export interface ProjectScopeActions {
   addMember: (member: ProjectScopeMember) => void;
   removeMember: (id: string) => void;
   updateMemberRole: (id: string, role: ProjectPermission) => void;
+  // LEGACY — retained for features/migration tests. Sets only the legacy gate.
   setConnectionReady: (ready: boolean) => void;
+  setSourceConnectionReady: (ready: boolean) => void;
+  setTargetConnectionReady: (ready: boolean) => void;
   setTestStatus: (status: RequestStatus) => void;
   setFetchStatus: (status: RequestStatus) => void;
   setError: (error: AppError | null) => void;
@@ -143,8 +166,13 @@ export interface ProjectDraftPayload {
   readonly description: string;
   readonly source_erp: string | null;
   readonly target_erp: string | null;
-  readonly method: ConnectionMethod;
+  // LEGACY single connection — retained ONLY for features/migration's
+  // useFetchFromErp, which reads `serialized.connection`. Mirrors the source.
   readonly connection: MCPConnectionPayload;
+  readonly source_method: ConnectionMethod;
+  readonly target_method: ConnectionMethod;
+  readonly source_connection: MCPConnectionPayload;
+  readonly target_connection: MCPConnectionPayload;
   readonly scope: MigrationScopePayload;
   readonly members: ProjectScopeMemberPayload[];
 }
