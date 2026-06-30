@@ -11,6 +11,8 @@ import {
   selectMasterDataCount,
   selectOpeningBalancesCount,
   selectConnectionReady,
+  selectSourceMethod,
+  selectTargetMethod,
   selectSelectedMasterData,
   selectSelectedOpeningBalances,
 } from '../store/project-scope.selectors';
@@ -52,9 +54,14 @@ export function useMigrationScopeViewModel(): MigrationScopeViewModel {
   const openingBalancesCount = useProjectScopeStore(
     selectOpeningBalancesCount,
   );
-  // The Chart of Accounts row is gated on the single shared connection's
-  // readiness (a successful test connection).
+  // The Chart of Accounts row is gated on a successful test connection — but
+  // ONLY when at least one side actually uses MCP. A CSV-only project has no
+  // test connection, so CoA must not be permanently disabled.
   const connectionReady = useProjectScopeStore(selectConnectionReady);
+  const sourceMethod = useProjectScopeStore(selectSourceMethod);
+  const targetMethod = useProjectScopeStore(selectTargetMethod);
+  const usesMcp = sourceMethod === 'mcp' || targetMethod === 'mcp';
+  const coaGated = usesMcp && !connectionReady;
 
   const masterData = useMemo<readonly MasterDataRowVM[]>(
     () =>
@@ -66,9 +73,9 @@ export function useMigrationScopeViewModel(): MigrationScopeViewModel {
           masterDataColumnKey(item.id, 'dataConversion'),
         ),
         mdm: selected.includes(masterDataColumnKey(item.id, 'mdm')),
-        disabled: item.id === CHART_OF_ACCOUNTS_ID && !connectionReady,
+        disabled: item.id === CHART_OF_ACCOUNTS_ID && coaGated,
       })),
-    [selected, connectionReady],
+    [selected, coaGated],
   );
 
   const openingBalances = useMemo<readonly OpeningBalanceRowVM[]>(
