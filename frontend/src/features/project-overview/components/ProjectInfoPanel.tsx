@@ -44,19 +44,29 @@ function erpInitial(name: string): string {
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
-const SectionLabel = ({ title }: { readonly title: string }): React.JSX.Element => (
-  <Text
-    style={{
-      fontSize: 9.5,
-      fontWeight: '700',
-      letterSpacing: 0.8,
-      textTransform: 'uppercase',
-      color: colors.mutedForeground,
-      marginBottom: 8,
-    }}
-  >
-    {title}
-  </Text>
+const SectionLabel = ({
+  title,
+  count,
+}: {
+  readonly title: string;
+  readonly count?: number;
+}): React.JSX.Element => (
+  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+    <Text
+      style={{
+        fontSize: 9.5,
+        fontWeight: '700',
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
+        color: colors.mutedForeground,
+      }}
+    >
+      {title}
+    </Text>
+    {count !== undefined && (
+      <Text style={{ fontSize: 11, fontWeight: '600', color: colors.mutedForeground }}>{count}</Text>
+    )}
+  </View>
 );
 
 const PanelDivider = (): React.JSX.Element => (
@@ -181,7 +191,7 @@ export const ProjectInfoPanel = ({
 
       {/* ── Members list ─────────────────────────────────── */}
       <View style={{ padding: 14, borderTopWidth: 1, borderTopColor: colors.border, marginTop: 12 }}>
-        <SectionLabel title="Members" />
+        <SectionLabel title="Members" count={members.length} />
         <View style={{ gap: 8 }}>
           {members.length === 0 ? (
             <Text style={{ fontSize: 12, color: colors.mutedForeground }}>No members yet</Text>
@@ -205,7 +215,24 @@ export const ProjectInfoPanel = ({
 
       {/* ── Project metadata ─────────────────────────────── */}
       <View style={{ padding: 14 }}>
-        <MetaBlock label="Project ID" value={projectIdShort} />
+        {/* Project ID — inline label + value */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+          <Text
+            style={{
+              fontSize: 9.5,
+              fontWeight: '700',
+              letterSpacing: 0.7,
+              textTransform: 'uppercase',
+              color: colors.mutedForeground,
+            }}
+          >
+            Project ID
+          </Text>
+          <Text style={{ fontSize: 11.5, fontWeight: '500', color: colors.foreground, fontFamily: 'monospace' }}>
+            {projectIdShort}
+          </Text>
+        </View>
+
         <MetaBlock
           label="Created At"
           value={formatDateTime(project.createdAt)}

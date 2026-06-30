@@ -46,7 +46,7 @@ interface SideNavProps {
 }
 
 export const SideNav = ({ active, onPress, testID }: SideNavProps): React.JSX.Element => {
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
     <View
@@ -90,13 +90,17 @@ export const SideNav = ({ active, onPress, testID }: SideNavProps): React.JSX.El
 
       <Pressable
         onPress={() => setIsCollapsed((prev) => !prev)}
-        className="flex-row items-center justify-center border-t border-border py-3"
+        className="flex-row items-center border-t border-border py-3 mx-2 px-3 rounded-md"
+        style={{ gap: 8 }}
         testID="sidenav-collapse-toggle"
       >
         {isCollapsed ? (
           <ChevronRight size={16} color={colors.mutedForeground} />
         ) : (
-          <ChevronLeft size={16} color={colors.mutedForeground} />
+          <>
+            <ChevronLeft size={16} color={colors.mutedForeground} />
+            <Text className="font-body text-sm text-muted-foreground">Collapse</Text>
+          </>
         )}
       </Pressable>
     </View>

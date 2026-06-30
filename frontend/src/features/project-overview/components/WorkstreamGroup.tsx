@@ -106,7 +106,7 @@ export const WorkstreamGroup = ({
               flexDirection: 'row',
               paddingVertical: 8,
               paddingHorizontal: 12,
-              backgroundColor: colors.surface,
+              backgroundColor: colors.card,
             }}
           >
             {TABLE_HEADERS.map((col) => (

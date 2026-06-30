@@ -43,19 +43,6 @@ export const StatCards = ({
 
   return (
     <View style={{ gap: GAP }} testID={testID}>
-      {/* Section heading */}
-      <Text
-        style={{
-          fontSize: 10,
-          fontWeight: '700',
-          letterSpacing: 0.8,
-          textTransform: 'uppercase',
-          color: colors.mutedForeground,
-        }}
-      >
-        Summary Stats
-      </Text>
-
       {/* All 6 tiles in a single row — flex: 1 on each so they share space equally */}
       <View style={{ flexDirection: 'row', gap: GAP, flexWrap: 'wrap' }}>
         {tiles.map((tile) => (

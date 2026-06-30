@@ -50,6 +50,18 @@ export const ProjectSummaryPanel = ({
       showsVerticalScrollIndicator={false}
       testID={testID}
     >
+      {/* ── Panel heading ──────────────────────────────── */}
+      <Text
+        style={{
+          fontSize: 15,
+          fontWeight: '700',
+          color: colors.foreground,
+          marginBottom: 2,
+        }}
+      >
+        Project Summary
+      </Text>
+
       {/* ── Scope Overview ─────────────────────────────── */}
       <View>
         <SectionHeading title="Scope Overview" />
