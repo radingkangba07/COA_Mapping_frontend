@@ -11,7 +11,8 @@ interface ProjectSummaryBarProps {
   readonly summary: {
     readonly source: string | null;
     readonly target: string | null;
-    readonly method: string | null;
+    readonly sourceMethod: string | null;
+    readonly targetMethod: string | null;
     readonly masterData: string;
     readonly openingBalances: string;
     readonly members: string;
@@ -53,10 +54,17 @@ export function ProjectSummaryBar({
       placeholder: 'Select target',
     },
     {
-      slug: 'method',
+      slug: 'source-method',
       icon: PlugZap,
-      label: 'Connection Method',
-      value: summary.method,
+      label: 'Source Connection',
+      value: summary.sourceMethod,
+      placeholder: 'Not set',
+    },
+    {
+      slug: 'target-method',
+      icon: PlugZap,
+      label: 'Target Connection',
+      value: summary.targetMethod,
       placeholder: 'Not set',
     },
     {

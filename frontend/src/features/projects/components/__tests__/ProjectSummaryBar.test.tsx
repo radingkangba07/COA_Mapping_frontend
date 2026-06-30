@@ -5,14 +5,15 @@ import { ProjectSummaryBar } from '../ProjectSummaryBar';
 // ─── Tests ─────────────────────────────────────────────────────────────────
 
 describe('ProjectSummaryBar', () => {
-  it('renders all six chip values for a fully-populated summary', () => {
+  it('renders all chip values for a fully-populated summary', () => {
     render(
       <ProjectSummaryBar
         testID="bar"
         summary={{
           source: 'SAP',
           target: 'NetSuite',
-          method: 'MCP',
+          sourceMethod: 'MCP Server',
+          targetMethod: 'CSV File Upload',
           masterData: '3 of 9 selected',
           openingBalances: '2 of 5 selected',
           members: '4',
@@ -26,9 +27,12 @@ describe('ProjectSummaryBar', () => {
     expect(screen.getByTestId('bar-chip-target-value')).toHaveTextContent(
       'NetSuite',
     );
-    expect(screen.getByTestId('bar-chip-method-value')).toHaveTextContent(
-      'MCP',
-    );
+    expect(
+      screen.getByTestId('bar-chip-source-method-value'),
+    ).toHaveTextContent('MCP Server');
+    expect(
+      screen.getByTestId('bar-chip-target-method-value'),
+    ).toHaveTextContent('CSV File Upload');
     expect(screen.getByTestId('bar-chip-master-data-value')).toHaveTextContent(
       '3 of 9 selected',
     );
@@ -38,14 +42,15 @@ describe('ProjectSummaryBar', () => {
     expect(screen.getByTestId('bar-chip-members-value')).toHaveTextContent('4');
   });
 
-  it('renders placeholders for null source/target/method while counts still format', () => {
+  it('renders placeholders for null source/target/methods while counts still format', () => {
     render(
       <ProjectSummaryBar
         testID="bar"
         summary={{
           source: null,
           target: null,
-          method: null,
+          sourceMethod: null,
+          targetMethod: null,
           masterData: '0 of 9 selected',
           openingBalances: '0 of 5 selected',
           members: '0',
@@ -59,9 +64,12 @@ describe('ProjectSummaryBar', () => {
     expect(screen.getByTestId('bar-chip-target-value')).toHaveTextContent(
       'Select target',
     );
-    expect(screen.getByTestId('bar-chip-method-value')).toHaveTextContent(
-      'Not set',
-    );
+    expect(
+      screen.getByTestId('bar-chip-source-method-value'),
+    ).toHaveTextContent('Not set');
+    expect(
+      screen.getByTestId('bar-chip-target-method-value'),
+    ).toHaveTextContent('Not set');
     expect(screen.getByTestId('bar-chip-master-data-value')).toHaveTextContent(
       '0 of 9 selected',
     );

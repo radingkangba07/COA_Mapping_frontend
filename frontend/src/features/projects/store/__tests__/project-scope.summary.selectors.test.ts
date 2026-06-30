@@ -21,7 +21,8 @@ describe('selectProjectSummary', () => {
 
     expect(summary.source).toBeNull();
     expect(summary.target).toBeNull();
-    expect(summary.method).toBe('mcp');
+    expect(summary.sourceMethod).toBe('csv');
+    expect(summary.targetMethod).toBe('csv');
     expect(summary.masterDataCount).toBe(0);
     expect(summary.masterDataTotal).toBe(MASTER_DATA_ITEMS.length);
     expect(summary.openingBalancesCount).toBe(0);
@@ -39,12 +40,12 @@ describe('selectProjectSummary', () => {
     expect(summary.target).toBe('netsuite');
   });
 
-  it('reflects setMethod', () => {
-    useProjectScopeStore.getState().setMethod('csv');
+  it('reflects per-side method setters independently', () => {
+    useProjectScopeStore.getState().setSourceMethod('mcp');
 
-    expect(selectProjectSummary(useProjectScopeStore.getState()).method).toBe(
-      'csv',
-    );
+    const summary = selectProjectSummary(useProjectScopeStore.getState());
+    expect(summary.sourceMethod).toBe('mcp');
+    expect(summary.targetMethod).toBe('csv');
   });
 
   it('counts distinct master-data items, not columns', () => {

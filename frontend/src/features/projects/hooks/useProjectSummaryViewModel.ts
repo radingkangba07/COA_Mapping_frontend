@@ -8,8 +8,8 @@ import { selectProjectSummary } from '../store/project-scope.selectors';
 // ─── Connection Method Labels ─────────────────────────────────────────────────
 
 const CONNECTION_METHOD_LABELS: Record<ConnectionMethod, string> = {
-  mcp: 'MCP',
-  csv: 'CSV Upload',
+  mcp: 'MCP Server',
+  csv: 'CSV File Upload',
 };
 
 // ─── ViewModel Contract ───────────────────────────────────────────────────────
@@ -17,7 +17,8 @@ const CONNECTION_METHOD_LABELS: Record<ConnectionMethod, string> = {
 export interface ProjectSummaryDisplay {
   readonly source: string | null;
   readonly target: string | null;
-  readonly method: string | null;
+  readonly sourceMethod: string | null;
+  readonly targetMethod: string | null;
   readonly masterData: string;
   readonly openingBalances: string;
   readonly members: string;
@@ -55,7 +56,8 @@ export function useProjectSummaryViewModel(): ProjectSummaryViewModel {
     () => ({
       source: resolveErp(raw.source),
       target: resolveErp(raw.target),
-      method: CONNECTION_METHOD_LABELS[raw.method] ?? null,
+      sourceMethod: CONNECTION_METHOD_LABELS[raw.sourceMethod] ?? null,
+      targetMethod: CONNECTION_METHOD_LABELS[raw.targetMethod] ?? null,
       masterData: `${raw.masterDataCount} of ${raw.masterDataTotal} selected`,
       openingBalances: `${raw.openingBalancesCount} of ${raw.openingBalancesTotal} selected`,
       members: String(raw.members),
