@@ -94,7 +94,7 @@ const CustomDrawerContent = ({
   return (
     <View
       className={`flex-1 pb-4 pt-5 ${isCollapsed ? 'items-center px-2' : 'px-3'}`}
-      style={{ backgroundColor: colors.surface }}
+      style={{ backgroundColor: colors.card }}
       testID="app-drawer-content"
     >
       {/* Org switcher */}
@@ -162,7 +162,7 @@ export const AppDrawer = (): React.JSX.Element => {
 
   const drawerStyle = useMemo(() => ({
     width: hideDrawer ? 0 : (isCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH_EXPANDED),
-    backgroundColor: colors.surface,
+    backgroundColor: colors.card,
     borderRightWidth: hideDrawer ? 0 : 1,
     borderRightColor: colors.border,
     transition: 'width 200ms ease',
