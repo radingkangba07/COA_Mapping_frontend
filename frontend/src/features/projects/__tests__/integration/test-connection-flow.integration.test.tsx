@@ -75,6 +75,10 @@ const seedCreatePreconditions = (): void => {
   store.setCompanyId('company-1');
   store.setSource('sap');
   store.setTarget('netsuite');
+  // Both sides on MCP so the Create gate is driven solely by the test
+  // connection (validForm has scope 'both' → both sides flip together).
+  store.setSourceMethod('mcp');
+  store.setTargetMethod('mcp');
 };
 
 beforeEach(() => {

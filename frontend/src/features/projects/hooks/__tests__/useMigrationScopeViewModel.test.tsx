@@ -91,7 +91,7 @@ describe('useMigrationScopeViewModel', () => {
       );
 
       act(() => {
-        useProjectScopeStore.getState().setConnectionReady(true);
+        useProjectScopeStore.getState().setSourceConnectionReady(true);
       });
 
       expect(result.current.connectionReady).toBe(true);
@@ -108,7 +108,7 @@ describe('useMigrationScopeViewModel', () => {
       );
 
       act(() => {
-        useProjectScopeStore.getState().setConnectionReady(true);
+        useProjectScopeStore.getState().setSourceConnectionReady(true);
       });
 
       expect(findRow(result.current.masterData, 'customers').disabled).toBe(

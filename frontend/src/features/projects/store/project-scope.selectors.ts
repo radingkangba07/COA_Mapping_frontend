@@ -41,11 +41,29 @@ export const selectSource = (state: ProjectScopeStore): string | null =>
 export const selectTarget = (state: ProjectScopeStore): string | null =>
   state.draft.target;
 
+// LEGACY selectors — retained ONLY for the untouchable features/migration
+// consumer (useFetchFromErp). Map onto the source side (DA-48).
 export const selectMethod = (state: ProjectScopeStore): ConnectionMethod =>
   state.draft.method;
 
 export const selectConnection = (state: ProjectScopeStore): MCPConnection =>
-  state.draft.connection;
+  state.draft.sourceConnection;
+
+export const selectSourceMethod = (
+  state: ProjectScopeStore,
+): ConnectionMethod => state.draft.sourceMethod;
+
+export const selectTargetMethod = (
+  state: ProjectScopeStore,
+): ConnectionMethod => state.draft.targetMethod;
+
+export const selectSourceConnection = (
+  state: ProjectScopeStore,
+): MCPConnection => state.draft.sourceConnection;
+
+export const selectTargetConnection = (
+  state: ProjectScopeStore,
+): MCPConnection => state.draft.targetConnection;
 
 export const selectMembers = (
   state: ProjectScopeStore,
@@ -76,8 +94,17 @@ export const selectAggregation = (
   state: ProjectScopeStore,
 ): AggregationMode => state.draft.scope.aggregation;
 
+// LEGACY gate selector — retained for features/migration's useFetchFromErp.
 export const selectConnectionReady = (state: ProjectScopeStore): boolean =>
   state.connectionReady;
+
+export const selectSourceConnectionReady = (
+  state: ProjectScopeStore,
+): boolean => state.sourceConnectionReady;
+
+export const selectTargetConnectionReady = (
+  state: ProjectScopeStore,
+): boolean => state.targetConnectionReady;
 
 export const selectTestStatus = (state: ProjectScopeStore): RequestStatus =>
   state.testStatus;
@@ -93,13 +120,24 @@ export const selectScopeError = (
 ): AppError | null => state.error;
 
 export const selectCanCreateProject = (state: ProjectScopeStore): boolean => {
-  const { draft, connectionReady } = state;
+  const { draft, sourceConnectionReady, targetConnectionReady } = state;
   const hasCompany = draft.companyId !== null && draft.companyId !== '';
   const hasBothErps = draft.source !== null && draft.target !== null;
   const erpsDistinct = draft.source !== draft.target;
-  const connectionSatisfied = draft.method === 'csv' || connectionReady;
+  // Each side independently satisfies the gate: CSV needs no test connection,
+  // MCP requires that side's successful test connection (DA-48).
+  const sourceSatisfied =
+    draft.sourceMethod === 'csv' || sourceConnectionReady;
+  const targetSatisfied =
+    draft.targetMethod === 'csv' || targetConnectionReady;
 
-  return hasCompany && hasBothErps && erpsDistinct && connectionSatisfied;
+  return (
+    hasCompany &&
+    hasBothErps &&
+    erpsDistinct &&
+    sourceSatisfied &&
+    targetSatisfied
+  );
 };
 
 // ─── Project Summary Aggregation ──────────────────────────────────────────────
@@ -107,7 +145,8 @@ export const selectCanCreateProject = (state: ProjectScopeStore): boolean => {
 export interface ProjectScopeSummary {
   readonly source: string | null;
   readonly target: string | null;
-  readonly method: ConnectionMethod;
+  readonly sourceMethod: ConnectionMethod;
+  readonly targetMethod: ConnectionMethod;
   readonly masterDataCount: number;
   readonly masterDataTotal: number;
   readonly openingBalancesCount: number;
@@ -120,7 +159,8 @@ export const selectProjectSummary = (
 ): ProjectScopeSummary => ({
   source: state.draft.source,
   target: state.draft.target,
-  method: state.draft.method,
+  sourceMethod: state.draft.sourceMethod,
+  targetMethod: state.draft.targetMethod,
   masterDataCount: selectMasterDataCount(state),
   masterDataTotal: MASTER_DATA_ITEMS.length,
   openingBalancesCount: selectOpeningBalancesCount(state),

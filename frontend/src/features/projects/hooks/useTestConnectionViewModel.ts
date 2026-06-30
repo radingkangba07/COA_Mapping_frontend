@@ -24,6 +24,21 @@ export interface TestConnectionViewModel {
 const INCOMPLETE_FORM_MESSAGE =
   'Complete the connection details before testing.';
 
+// Sets the per-side readiness gate(s) implied by a connection's scope (DA-48).
+// 'source'/'target' flip a single side; 'both' flips both in lockstep.
+function setReadyForScope(
+  scope: McpConnectionForm['scope'],
+  ready: boolean,
+): void {
+  const store = useProjectScopeStore.getState();
+  if (scope === 'source' || scope === 'both') {
+    store.setSourceConnectionReady(ready);
+  }
+  if (scope === 'target' || scope === 'both') {
+    store.setTargetConnectionReady(ready);
+  }
+}
+
 export function useTestConnectionViewModel(
   connection: McpConnectionForm,
 ): TestConnectionViewModel {
@@ -67,9 +82,9 @@ export function useTestConnectionViewModel(
     setConnectedAt(null);
     setLogs([]);
     setError(null);
-    useProjectScopeStore.getState().setConnectionReady(false);
+    setReadyForScope(connection.scope, false);
     useProjectScopeStore.getState().setTestStatus('idle');
-  }, [connectionSignature]);
+  }, [connectionSignature, connection.scope]);
 
   const onTestConnection = useCallback(async (): Promise<void> => {
     if (hasConnectionErrors(validateConnection(connection))) {
@@ -80,7 +95,7 @@ export function useTestConnectionViewModel(
     setError(null);
     setStatus('testing');
     useProjectScopeStore.getState().setTestStatus('loading');
-    useProjectScopeStore.getState().setConnectionReady(false);
+    setReadyForScope(connection.scope, false);
 
     const result = await testConnection(
       httpClient,
@@ -93,7 +108,7 @@ export function useTestConnectionViewModel(
       setError(null);
       setStatus('success');
       useProjectScopeStore.getState().setTestStatus('success');
-      useProjectScopeStore.getState().setConnectionReady(true);
+      setReadyForScope(connection.scope, true);
       return;
     }
 
@@ -108,7 +123,7 @@ export function useTestConnectionViewModel(
     setConnectedAt(null);
     setStatus('failure');
     useProjectScopeStore.getState().setTestStatus('error');
-    useProjectScopeStore.getState().setConnectionReady(false);
+    setReadyForScope(connection.scope, false);
   }, [connection]);
 
   return {
