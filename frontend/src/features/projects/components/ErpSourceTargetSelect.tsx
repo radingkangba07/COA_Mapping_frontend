@@ -1,8 +1,12 @@
 import React from 'react';
 import { View, Text } from 'react-native';
+import { ArrowRight } from 'lucide-react-native';
 import { Select } from '@/shared/components/ui/Select';
+import { colors } from '@/config/theme';
 import type { ConnectionMethod } from '../types/project-scope.types';
 import { ConnectionMethodSelect } from './ConnectionMethodSelect';
+
+const ARROW_SIZE = 20;
 
 interface ErpOption {
   readonly id: string;
@@ -93,27 +97,40 @@ export const ErpSourceTargetSelect = ({
   testID,
 }: ErpSourceTargetSelectProps): React.JSX.Element => {
   return (
-    <View className="gap-4" testID={testID}>
-      <ErpPillGroup
-        label="Source ERP"
-        groupRole="source"
-        erpSystems={erpSystems}
-        selected={source}
-        isLoading={isLoading}
-        method={sourceMethod}
-        onSelect={onSelectSource}
-        onSelectMethod={onSelectSourceMethod}
-      />
-      <ErpPillGroup
-        label="Target ERP"
-        groupRole="target"
-        erpSystems={erpSystems}
-        selected={target}
-        isLoading={isLoading}
-        method={targetMethod}
-        onSelect={onSelectTarget}
-        onSelectMethod={onSelectTargetMethod}
-      />
+    <View
+      className="flex-col gap-4 lg:flex-row lg:items-start lg:gap-3"
+      testID={testID}
+    >
+      <View className="lg:flex-1">
+        <ErpPillGroup
+          label="Source ERP"
+          groupRole="source"
+          erpSystems={erpSystems}
+          selected={source}
+          isLoading={isLoading}
+          method={sourceMethod}
+          onSelect={onSelectSource}
+          onSelectMethod={onSelectSourceMethod}
+        />
+      </View>
+
+      {/* Connecting arrow — shown only when the two sit side by side (lg+). */}
+      <View className="hidden lg:flex lg:self-center lg:pt-6">
+        <ArrowRight size={ARROW_SIZE} color={colors.mutedForeground} />
+      </View>
+
+      <View className="lg:flex-1">
+        <ErpPillGroup
+          label="Target ERP"
+          groupRole="target"
+          erpSystems={erpSystems}
+          selected={target}
+          isLoading={isLoading}
+          method={targetMethod}
+          onSelect={onSelectTarget}
+          onSelectMethod={onSelectTargetMethod}
+        />
+      </View>
     </View>
   );
 };
