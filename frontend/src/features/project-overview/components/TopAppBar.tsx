@@ -52,7 +52,7 @@ export const TopAppBar = ({
         </Pressable>
         <ChevronRight size={14} color={colors.mutedForeground} />
         <Text
-          className="font-heading font-bold text-foreground"
+          className="font-heading text-foreground"
           style={{ fontSize: 15 }}
           numberOfLines={1}
         >
