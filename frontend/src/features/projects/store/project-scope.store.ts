@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { WritableDraft } from 'immer';
 import type { HttpClient } from '@/shared/services/http/http.types';
 import type { AppError, Result } from '@/shared/types/result.types';
 import type { ProjectPermission } from '../types/project-access.types';
@@ -45,12 +44,8 @@ export function createInitialDraft(): ProjectScopeDraft {
     description: '',
     source: null,
     target: null,
-    // LEGACY method preserves the migration UploadScreen default ('mcp').
-    method: 'mcp',
-    // PER-SIDE methods default to 'csv' (File Upload needs no test connection),
-    // so the page is not blocked on mount.
-    sourceMethod: 'csv',
-    targetMethod: 'csv',
+    sourceMethod: 'mcp',
+    targetMethod: 'mcp',
     connection: { ...INITIAL_CONNECTION, headers: [] },
     scope: {
       selectedMasterData: [],
@@ -72,41 +67,6 @@ export const initialState: ProjectScopeState = {
 
 // ─── Serialization ──────────────────────────────────────────────────────────
 
-// Merges a partial connection patch into an immer draft connection in place,
-// preserving every untouched field.
-function applyConnectionPatch(
-  target: WritableDraft<MCPConnection>,
-  patch: Partial<MCPConnection>,
-): void {
-  const merged: MCPConnection = { ...target, ...patch };
-  target.scope = merged.scope;
-  target.url = merged.url;
-  target.token = merged.token;
-  target.authType = merged.authType;
-  target.headers = [...merged.headers];
-  target.skipSSL = merged.skipSSL;
-  target.proxy = merged.proxy;
-  target.timeout = merged.timeout;
-}
-
-function serializeConnection(
-  connection: ProjectScopeDraft['connection'],
-): ProjectDraftPayload['connection'] {
-  return {
-    scope: connection.scope,
-    url: connection.url,
-    token: connection.token,
-    auth_type: connection.authType,
-    headers: connection.headers.map((header) => ({
-      key: header.key,
-      value: header.value,
-    })),
-    skip_ssl: connection.skipSSL,
-    proxy: connection.proxy,
-    timeout: connection.timeout,
-  };
-}
-
 export function serializeProjectScopeDraft(
   draft: ProjectScopeDraft,
 ): ProjectDraftPayload {
@@ -116,9 +76,21 @@ export function serializeProjectScopeDraft(
     description: draft.description,
     source_erp: draft.source,
     target_erp: draft.target,
-    connection: serializeConnection(draft.connection),
     source_method: draft.sourceMethod,
     target_method: draft.targetMethod,
+    connection: {
+      scope: draft.connection.scope,
+      url: draft.connection.url,
+      token: draft.connection.token,
+      auth_type: draft.connection.authType,
+      headers: draft.connection.headers.map((header) => ({
+        key: header.key,
+        value: header.value,
+      })),
+      skip_ssl: draft.connection.skipSSL,
+      proxy: draft.connection.proxy,
+      timeout: draft.connection.timeout,
+    },
     scope: {
       selected_master_data: [...draft.scope.selectedMasterData],
       selected_opening_balances: [...draft.scope.selectedOpeningBalances],
@@ -142,7 +114,7 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
     initFromSeed: (seed: ProjectScopeSeed): void => {
       set((state) => {
         state.draft.companyId = seed.companyId;
-        state.draft.name = seed.name ?? '';
+        state.draft.name = seed.name;
         state.draft.description = seed.description ?? '';
       });
     },
@@ -177,17 +149,6 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
       });
     },
 
-    // LEGACY combined setter (features/migration's useCsvFallback). Sets the
-    // legacy field AND both per-side methods so a single 'csv' fallback flips
-    // the whole draft, keeping the per-side Create gate consistent (DA-48).
-    setMethod: (method: ConnectionMethod): void => {
-      set((state) => {
-        state.draft.method = method;
-        state.draft.sourceMethod = method;
-        state.draft.targetMethod = method;
-      });
-    },
-
     setSourceMethod: (method: ConnectionMethod): void => {
       set((state) => {
         state.draft.sourceMethod = method;
@@ -202,7 +163,15 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
 
     updateConnection: (patch: Partial<MCPConnection>): void => {
       set((state) => {
-        applyConnectionPatch(state.draft.connection, patch);
+        const merged: MCPConnection = { ...state.draft.connection, ...patch };
+        state.draft.connection.scope = merged.scope;
+        state.draft.connection.url = merged.url;
+        state.draft.connection.token = merged.token;
+        state.draft.connection.authType = merged.authType;
+        state.draft.connection.headers = [...merged.headers];
+        state.draft.connection.skipSSL = merged.skipSSL;
+        state.draft.connection.proxy = merged.proxy;
+        state.draft.connection.timeout = merged.timeout;
       });
     },
 
@@ -250,12 +219,7 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
 
     addMember: (member: ProjectScopeMember): void => {
       set((state) => {
-        const index = state.draft.members.findIndex((m) => m.id === member.id);
-        if (index === -1) {
-          state.draft.members.push(member);
-        } else {
-          state.draft.members[index] = member;
-        }
+        state.draft.members.push(member);
       });
     },
 

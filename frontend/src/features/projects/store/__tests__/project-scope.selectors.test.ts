@@ -37,8 +37,6 @@ describe('project-scope selectors', () => {
   });
 
   describe('selectCanCreateProject', () => {
-    // seedValid leaves both sides at their 'csv' default, so the gate depends
-    // only on company + distinct ERPs.
     const seedValid = (): void => {
       const store = useProjectScopeStore.getState();
       store.initFromSeed({ companyId: 'co-1', name: 'P' });
@@ -50,6 +48,7 @@ describe('project-scope selectors', () => {
       const store = useProjectScopeStore.getState();
       store.setSource('sap');
       store.setTarget('xero');
+      store.setConnectionReady(true);
       expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(
         false,
       );
@@ -59,6 +58,7 @@ describe('project-scope selectors', () => {
       const store = useProjectScopeStore.getState();
       store.initFromSeed({ companyId: 'co-1', name: 'P' });
       store.setSource('sap');
+      store.setConnectionReady(true);
       expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(
         false,
       );
@@ -69,32 +69,42 @@ describe('project-scope selectors', () => {
       store.initFromSeed({ companyId: 'co-1', name: 'P' });
       store.setSource('sap');
       store.setTarget('sap');
+      store.setConnectionReady(true);
       expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(
         false,
       );
     });
 
-    it('is false when source method is mcp and source connection is not ready', () => {
+    it('is false when either method is mcp and connection is not ready', () => {
       seedValid();
-      useProjectScopeStore.getState().setSourceMethod('mcp');
       expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(
         false,
       );
     });
 
-    it('is true when an mcp side has the shared connection ready (other side csv)', () => {
+    it('is true when company + distinct ERPs + connectionReady (mcp)', () => {
       seedValid();
-      useProjectScopeStore.getState().setSourceMethod('mcp');
       useProjectScopeStore.getState().setConnectionReady(true);
       expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(
         true,
       );
     });
 
-    it('is true for the default csv/csv combination without any test connection', () => {
+    it('is true when both methods are csv without connectionReady', () => {
       seedValid();
+      useProjectScopeStore.getState().setSourceMethod('csv');
+      useProjectScopeStore.getState().setTargetMethod('csv');
       expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(
         true,
+      );
+    });
+
+    it('is false when only one method is csv and connectionReady is false', () => {
+      seedValid();
+      useProjectScopeStore.getState().setSourceMethod('csv');
+      // targetMethod stays 'mcp' (default), connectionReady stays false
+      expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(
+        false,
       );
     });
   });

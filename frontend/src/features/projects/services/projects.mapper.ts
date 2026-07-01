@@ -89,15 +89,6 @@ export function toCreatePayload(
     payload.description = data.description;
   }
 
-  if (data.members !== undefined && data.members.length > 0) {
-    payload.members = data.members.map((m) => ({
-      id: m.id,
-      name: m.name,
-      email: m.email,
-      role: m.role,
-    }));
-  }
-
   return payload;
 }
 

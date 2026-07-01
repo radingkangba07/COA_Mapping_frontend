@@ -16,6 +16,7 @@ import { httpClient } from '@/shared/services/http/http.instance';
 import { ProjectList } from '../components/ProjectList';
 import { ProjectListSkeleton } from '../components/ProjectListSkeleton';
 import { DashboardStats } from '../components/DashboardStats';
+import { NewProjectDialog } from '../components/NewProjectDialog';
 import type { Project, ProjectGroup } from '../types/projects.types';
 import type { CompanyId } from '@/shared/types/common.types';
 import type { ProjectsStackParamList } from '@/navigation/types';
@@ -88,6 +89,7 @@ export const ProjectsScreen = (): React.JSX.Element => {
   const navigation = useNavigation<ProjectsNav>();
   const { projects, total, isLoading, error, refetch } = useProjectsViewModel();
   const { orgs, clientOrgs, activeOrg, activeOrgType } = useOrgsViewModel();
+  const [dialogVisible, setDialogVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const showProjectBreakdown = activeOrgType === 'employer';
 
@@ -186,19 +188,13 @@ export const ProjectsScreen = (): React.JSX.Element => {
     [navigation],
   );
 
-  const handleNewProject = useCallback(() => {
-    navigation.navigate('ProjectScope');
-  }, [navigation]);
+  const handleCreateForCompany = useCallback((_companyId: CompanyId | null) => {
+    setDialogVisible(true);
+  }, []);
 
-  const handleCreateForCompany = useCallback(
-    (companyId: CompanyId | null) => {
-      navigation.navigate(
-        'ProjectScope',
-        companyId !== null ? { companyId } : undefined,
-      );
-    },
-    [navigation],
-  );
+  const handleCloseDialog = useCallback(() => {
+    setDialogVisible(false);
+  }, []);
 
   if (error !== null && projects.length === 0) {
     return (
@@ -228,9 +224,14 @@ export const ProjectsScreen = (): React.JSX.Element => {
           description="Create your first project to start migrating your chart of accounts."
           action={{
             label: 'New Project',
-            onPress: handleNewProject,
+            onPress: () => setDialogVisible(true),
           }}
           testID="projects-empty"
+        />
+        <NewProjectDialog
+          visible={dialogVisible}
+          onClose={handleCloseDialog}
+          testID="new-project-dialog"
         />
       </Screen>
     );
@@ -274,7 +275,7 @@ export const ProjectsScreen = (): React.JSX.Element => {
           />
         </View>
         <Button
-          onPress={handleNewProject}
+          onPress={() => setDialogVisible(true)}
           size="sm"
           testID="new-project-btn"
         >
@@ -295,6 +296,12 @@ export const ProjectsScreen = (): React.JSX.Element => {
         onProjectPress={handleProjectPress}
         onCreatePress={handleCreateForCompany}
         testID="projects-list"
+      />
+
+      <NewProjectDialog
+        visible={dialogVisible}
+        onClose={handleCloseDialog}
+        testID="new-project-dialog"
       />
     </Screen>
   );
