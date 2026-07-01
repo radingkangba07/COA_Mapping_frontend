@@ -5,6 +5,25 @@ import type { ProjectScopeViewModel } from '../../hooks/useProjectScopeViewModel
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
+// The project's global reanimated mock resolves to {} on this version, so the
+// real Collapsible (rendered via MigrationScopeSection) crashes on
+// useSharedValue/withTiming. Provide a minimal animated-API stub so it mounts.
+jest.mock('react-native-reanimated', () => {
+  const ReactModule = require('react');
+  const { View } = require('react-native');
+  const AnimatedView = ReactModule.forwardRef(
+    (props: Record<string, unknown>, ref: unknown) =>
+      ReactModule.createElement(View, { ...props, ref }),
+  );
+  return {
+    __esModule: true,
+    default: { View: AnimatedView },
+    useSharedValue: (initial: unknown) => ({ value: initial }),
+    useAnimatedStyle: (factory: () => unknown) => factory(),
+    withTiming: (toValue: unknown) => toValue,
+  };
+});
+
 jest.mock('react-native-safe-area-context', () => {
   const { View } = require('react-native');
   return {
@@ -22,18 +41,24 @@ jest.mock('@/config/theme', () => ({
     mutedForeground: '#71717A',
     primary: '#003399',
     primaryForeground: '#FAFAFA',
+    accent: '#2563EB',
     success: '#16A34A',
     destructive: '#DC2626',
   },
 }));
 
+// The per-side connection config imports TestConnectionFlow, which loads the
+// real http instance at module level; stub it so module load stays inert.
+jest.mock('@/shared/services/http/http.instance', () => ({ httpClient: {} }));
+
 const mockNavigate = jest.fn();
+const mockRoute = jest.fn<{ params: unknown }, []>(() => ({
+  params: { companyId: 'c1', name: 'My Migration', description: 'd' },
+}));
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: mockNavigate }),
-  useRoute: () => ({
-    params: { companyId: 'c1', name: 'My Migration', description: 'd' },
-  }),
+  useRoute: () => mockRoute(),
 }));
 
 // ─── ViewModel Mock ─────────────────────────────────────────────────────────
@@ -44,6 +69,22 @@ const mockSetSource = jest.fn();
 const mockSetTarget = jest.fn();
 const mockSetSourceMethod = jest.fn();
 const mockSetTargetMethod = jest.fn();
+const mockUpdateConnection = jest.fn();
+const mockSetConnectionReady = jest.fn();
+const mockSetName = jest.fn();
+const mockSetDescription = jest.fn();
+const mockSetCompanyId = jest.fn();
+
+const initialConnection = {
+  scope: 'source' as const,
+  url: '',
+  token: '',
+  authType: 'none' as const,
+  headers: [],
+  skipSSL: false,
+  proxy: '',
+  timeout: 30000,
+};
 
 const erpSystems: ERPSystem[] = [
   { id: 'sap', name: 'SAP', description: '', fields: [] },
@@ -57,28 +98,24 @@ const baseVM: ProjectScopeViewModel = {
     description: 'd',
     source: null,
     target: null,
-    sourceMethod: 'mcp',
-    targetMethod: 'mcp',
-    connection: {
-      scope: 'source',
-      url: '',
-      token: '',
-      authType: 'none',
-      headers: [],
-      skipSSL: false,
-      proxy: '',
-      timeout: 30000,
-    },
+    method: 'mcp',
+    sourceMethod: 'csv',
+    targetMethod: 'csv',
+    connection: { ...initialConnection, scope: 'source' },
     scope: { selectedMasterData: [], selectedOpeningBalances: [], aggregation: 'none' },
     members: [],
   },
   name: 'My Migration',
   description: 'd',
   companyId: 'c1',
+  companyOptions: [],
+  parentOrgId: null,
+  memberCount: 0,
   source: null,
   target: null,
-  sourceMethod: 'mcp',
-  targetMethod: 'mcp',
+  sourceMethod: 'csv',
+  targetMethod: 'csv',
+  connection: { ...initialConnection, scope: 'source' },
   connectionReady: false,
   isSavingDraft: false,
   isCreating: false,
@@ -88,10 +125,15 @@ const baseVM: ProjectScopeViewModel = {
   targetName: null,
   isCompatible: false,
   createDisabled: true,
+  setName: mockSetName,
+  setDescription: mockSetDescription,
+  setCompanyId: mockSetCompanyId,
   setSource: mockSetSource,
   setTarget: mockSetTarget,
   setSourceMethod: mockSetSourceMethod,
   setTargetMethod: mockSetTargetMethod,
+  updateConnection: mockUpdateConnection,
+  setConnectionReady: mockSetConnectionReady,
   saveDraft: mockSaveDraft,
   create: mockCreate,
 };
@@ -102,6 +144,22 @@ const mockUseProjectScopeViewModel = jest.fn<ProjectScopeViewModel, [unknown]>(
 
 jest.mock('../../hooks/useProjectScopeViewModel', () => ({
   useProjectScopeViewModel: (seed: unknown) => mockUseProjectScopeViewModel(seed),
+}));
+
+// Summary bar VM is exercised by its own unit tests (DA-158); stub it here so the
+// screen render does not pull in useERPConfig/useQuery (needs no QueryClient).
+jest.mock('../../hooks/useProjectSummaryViewModel', () => ({
+  useProjectSummaryViewModel: () => ({
+    summary: {
+      source: null,
+      target: null,
+      sourceMethod: 'CSV File Upload',
+      targetMethod: 'CSV File Upload',
+      masterData: '0 of 9 selected',
+      openingBalances: '0 of 5 selected',
+      members: '0',
+    },
+  }),
 }));
 
 // ─── Imports (after mocks) ──────────────────────────────────────────────────
@@ -120,6 +178,9 @@ describe('ProjectScopeScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseProjectScopeViewModel.mockReturnValue({ ...baseVM });
+    mockRoute.mockReturnValue({
+      params: { companyId: 'c1', name: 'My Migration', description: 'd' },
+    });
     mockCreate.mockResolvedValue(true);
     mockSaveDraft.mockResolvedValue(undefined);
   });
@@ -130,20 +191,25 @@ describe('ProjectScopeScreen', () => {
     render(<ProjectScopeScreen />);
     expect(screen.getByTestId('project-scope-screen')).toBeTruthy();
     expect(screen.getByTestId('project-scope-header')).toBeTruthy();
-    expect(screen.getByTestId('section-project-summary')).toBeTruthy();
+    expect(screen.getByTestId('project-summary-bar')).toBeTruthy();
     expect(screen.getByTestId('section-select-erp')).toBeTruthy();
   });
 
-  it('shows the project name as read-only text', () => {
+  it('renders the on-page entry section with an editable name input', () => {
     render(<ProjectScopeScreen />);
-    expect(screen.getByText('My Migration')).toBeTruthy();
+    expect(screen.getByTestId('project-scope-entry')).toBeTruthy();
+    expect(screen.getByTestId('project-scope-name-input')).toBeTruthy();
+    expect(screen.getByDisplayValue('My Migration')).toBeTruthy();
+    expect(screen.getByTestId('project-scope-company')).toBeTruthy();
   });
 
-  it('does NOT render an editable name field or company picker', () => {
+  it('writes name edits live to the ViewModel', () => {
     render(<ProjectScopeScreen />);
-    expect(screen.queryByTestId('new-project-name-input')).toBeNull();
-    expect(screen.queryByTestId('new-project-company-dropdown')).toBeNull();
-    expect(screen.queryByText('Project Details')).toBeNull();
+    fireEvent.changeText(
+      screen.getByDisplayValue('My Migration'),
+      'Renamed Migration',
+    );
+    expect(mockSetName).toHaveBeenCalledWith('Renamed Migration');
   });
 
   it('seeds the ViewModel from route params', () => {
@@ -152,6 +218,17 @@ describe('ProjectScopeScreen', () => {
       companyId: 'c1',
       name: 'My Migration',
       description: 'd',
+    });
+  });
+
+  it('renders when reached with no route params', () => {
+    mockRoute.mockReturnValue({ params: undefined });
+    render(<ProjectScopeScreen />);
+    expect(screen.getByTestId('project-scope-screen')).toBeTruthy();
+    expect(mockUseProjectScopeViewModel).toHaveBeenCalledWith({
+      companyId: null,
+      name: undefined,
+      description: undefined,
     });
   });
 
