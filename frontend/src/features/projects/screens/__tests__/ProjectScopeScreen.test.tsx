@@ -52,12 +52,18 @@ jest.mock('@/config/theme', () => ({
 jest.mock('@/shared/services/http/http.instance', () => ({ httpClient: {} }));
 
 const mockNavigate = jest.fn();
+const mockGoBack = jest.fn();
+const mockCanGoBack = jest.fn<boolean, []>(() => true);
 const mockRoute = jest.fn<{ params: unknown }, []>(() => ({
   params: { companyId: 'c1', name: 'My Migration', description: 'd' },
 }));
 
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: mockNavigate }),
+  useNavigation: () => ({
+    navigate: mockNavigate,
+    goBack: mockGoBack,
+    canGoBack: mockCanGoBack,
+  }),
   useRoute: () => mockRoute(),
 }));
 
@@ -274,6 +280,26 @@ describe('ProjectScopeScreen', () => {
       expect(mockCreate).toHaveBeenCalledTimes(1);
     });
     expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('goes back when the Back button is pressed and history exists', () => {
+    mockCanGoBack.mockReturnValue(true);
+    render(<ProjectScopeScreen />);
+
+    fireEvent.press(screen.getByTestId('project-scope-back'));
+
+    expect(mockGoBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the projects list when there is no history to go back to', () => {
+    mockCanGoBack.mockReturnValue(false);
+    render(<ProjectScopeScreen />);
+
+    fireEvent.press(screen.getByTestId('project-scope-back'));
+
+    expect(mockGoBack).not.toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith('ProjectsList');
   });
 
   // ── Save as Draft ─────────────────────────────────────────────────────

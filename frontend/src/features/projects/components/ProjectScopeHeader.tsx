@@ -1,8 +1,11 @@
 import React from 'react';
 import { View, Text } from 'react-native';
+import { ArrowLeft } from 'lucide-react-native';
 import { Button } from '@/shared/components/ui/Button';
+import { colors } from '@/config/theme';
 
 interface ProjectScopeHeaderProps {
+  onBack: () => void;
   onSaveDraft: () => void;
   onCreate: () => void;
   isSavingDraft?: boolean;
@@ -12,6 +15,7 @@ interface ProjectScopeHeaderProps {
 }
 
 export const ProjectScopeHeader = ({
+  onBack,
   onSaveDraft,
   onCreate,
   isSavingDraft = false,
@@ -20,11 +24,24 @@ export const ProjectScopeHeader = ({
   testID,
 }: ProjectScopeHeaderProps): React.JSX.Element => {
   return (
-    <View
-      className="flex-col gap-3 md:flex-row md:items-center md:justify-between"
-      testID={testID}
-    >
-      <View>
+    <View className="gap-3" testID={testID}>
+      <Button
+        variant="ghost"
+        onPress={onBack}
+        className="self-start"
+        accessibilityLabel="Back"
+        testID="project-scope-back"
+      >
+        <View className="flex-row items-center gap-2">
+          <ArrowLeft size={16} color={colors.foreground} />
+          <Text className="font-body text-sm font-medium text-foreground">
+            Back
+          </Text>
+        </View>
+      </Button>
+
+      <View className="flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <View>
         <Text className="font-heading text-2xl font-bold text-foreground">
           Create Data Migration Project
         </Text>
@@ -53,6 +70,7 @@ export const ProjectScopeHeader = ({
         >
           Create Project
         </Button>
+        </View>
       </View>
     </View>
   );

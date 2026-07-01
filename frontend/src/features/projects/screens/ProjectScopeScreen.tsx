@@ -41,6 +41,14 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
   const summaryVm = useProjectSummaryViewModel();
   const membersVm = useAddMembersViewModel();
 
+  const handleBack = useCallback((): void => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('ProjectsList');
+    }
+  }, [navigation]);
+
   const handleCreate = useCallback(async (): Promise<void> => {
     const ok = await vm.create();
     if (ok) {
@@ -52,6 +60,7 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
     <Screen scroll testID="project-scope-screen">
       <View className="py-4 gap-6">
         <ProjectScopeHeader
+          onBack={handleBack}
           onSaveDraft={vm.saveDraft}
           onCreate={handleCreate}
           isSavingDraft={vm.isSavingDraft}
