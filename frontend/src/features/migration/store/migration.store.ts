@@ -11,6 +11,7 @@ import type {
   ConfidenceLevel,
 } from '@/features/migration/types/mapping.types';
 import type { AppError } from '@/shared/types/result.types';
+import { createFileId } from '@/shared/types/common.types';
 import { CONFIDENCE_THRESHOLDS } from '@/shared/constants/mapping-confidence';
 
 // ─── State ──────────────────────────────────────────────────────────────────
@@ -62,6 +63,10 @@ interface MigrationActions {
   setSourceData: (file: UploadedFile, data: Record<string, unknown>[]) => void;
   setTargetData: (file: UploadedFile, data: Record<string, unknown>[]) => void;
   setMappingData: (file: UploadedFile, data: Record<string, unknown>[]) => void;
+  setCoa: (
+    source: Record<string, unknown>[],
+    target: Record<string, unknown>[],
+  ) => void;
 
   setTypeMappingRows: (rows: TypeMappingRow[]) => void;
   hydrateTypeMappingRows: (rows: TypeMappingRow[]) => void;
@@ -247,6 +252,35 @@ export const useMigrationStore = create<MigrationStore>()(
         state.mappingFile = file;
         state.mappingData = data;
         state.pendingMappingRemoval = false;
+      });
+    },
+
+    setCoa: (
+      source: Record<string, unknown>[],
+      target: Record<string, unknown>[],
+    ): void => {
+      set((state) => {
+        // Re-fetching replaces step-1 inputs, so invalidate stale downstream
+        // work (type mappings, grouped mappings) — mirrors setSourceData's
+        // re-upload guard. fromStep 2 preserves step-1 inputs while clearing
+        // step-2+; the synthetic files/data below are assigned afterwards.
+        if (state.completedSteps.includes(1)) {
+          clearDownstreamState(state, 2);
+        }
+        state.sourceData = source;
+        state.targetData = target;
+        state.sourceFile = {
+          name: 'ERP Source COA',
+          rowCount: source.length,
+          fileId: createFileId('mcp-source'),
+        };
+        state.targetFile = {
+          name: 'ERP Target COA',
+          rowCount: target.length,
+          fileId: createFileId('mcp-target'),
+        };
+        state.pendingSourceRemoval = false;
+        state.pendingTargetRemoval = false;
       });
     },
 

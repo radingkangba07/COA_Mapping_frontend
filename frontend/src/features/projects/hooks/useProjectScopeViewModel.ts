@@ -5,17 +5,22 @@ import { useToast } from '@/shared/hooks/useToast';
 import { useERPConfig } from '@/features/erp-config/hooks/useERPConfig';
 import type {
   ConnectionMethod,
+  MCPConnection,
   ProjectScopeDraft,
   ProjectScopeSeed,
 } from '../types/project-scope.types';
-import type { ProjectCreate } from '../types/projects.types';
+import type { ProjectCreate, ProjectGroup } from '../types/projects.types';
+import type { OrgId } from '@/shared/types/common.types';
 import { createProject } from '../services/projects.service';
+import { useUserOrgs } from './useUserOrgs';
 import { useProjectScopeStore } from '../store/project-scope.store';
 import {
   selectCanCreateProject,
+  selectConnection,
   selectConnectionReady,
   selectDraft,
   selectIsSavingDraft,
+  selectMembersCount,
   selectSource,
   selectSourceMethod,
   selectTarget,
@@ -41,6 +46,15 @@ export function buildCreatePayload(draft: ProjectScopeDraft): ProjectCreate {
     orgId: draft.companyId ?? undefined,
     sourceErp: draft.source ?? undefined,
     targetErp: draft.target ?? undefined,
+    members:
+      draft.members.length > 0
+        ? draft.members.map((m) => ({
+            id: m.id,
+            name: m.name,
+            email: m.email,
+            role: m.role,
+          }))
+        : undefined,
   };
 }
 
@@ -53,10 +67,16 @@ export interface ProjectScopeViewModel {
   readonly name: string;
   readonly description: string;
   readonly companyId: string | null;
+  // On-page entry: company picker options + create-company gating (DA-3).
+  readonly companyOptions: readonly ProjectGroup[];
+  readonly parentOrgId: OrgId | null;
+  readonly memberCount: number;
   readonly source: string | null;
   readonly target: string | null;
+  // Per-side connection method + single shared connection + its readiness gate.
   readonly sourceMethod: ConnectionMethod;
   readonly targetMethod: ConnectionMethod;
+  readonly connection: MCPConnection;
   readonly connectionReady: boolean;
   readonly isSavingDraft: boolean;
   readonly isCreating: boolean;
@@ -72,10 +92,15 @@ export interface ProjectScopeViewModel {
   readonly createDisabled: boolean;
 
   // Action callbacks
+  readonly setName: (value: string) => void;
+  readonly setDescription: (value: string) => void;
+  readonly setCompanyId: (id: string | null) => void;
   readonly setSource: (id: string | null) => void;
   readonly setTarget: (id: string | null) => void;
   readonly setSourceMethod: (m: ConnectionMethod) => void;
   readonly setTargetMethod: (m: ConnectionMethod) => void;
+  readonly updateConnection: (patch: Partial<MCPConnection>) => void;
+  readonly setConnectionReady: (ready: boolean) => void;
   readonly saveDraft: () => Promise<void>;
   readonly create: () => Promise<boolean>;
 }
@@ -100,8 +125,10 @@ export function useProjectScopeViewModel(
   const target = useProjectScopeStore(selectTarget);
   const sourceMethod = useProjectScopeStore(selectSourceMethod);
   const targetMethod = useProjectScopeStore(selectTargetMethod);
+  const connection = useProjectScopeStore(selectConnection);
   const connectionReady = useProjectScopeStore(selectConnectionReady);
   const isSavingDraft = useProjectScopeStore(selectIsSavingDraft);
+  const memberCount = useProjectScopeStore(selectMembersCount);
   const canCreate = useProjectScopeStore(selectCanCreateProject);
 
   const toast = useToast();
@@ -110,6 +137,10 @@ export function useProjectScopeViewModel(
 
   // ─── ERP list ──────────────────────────────────────────────────────────────
   const { erpSystems, isLoading: isLoadingErps } = useERPConfig();
+
+  // ─── Company options (on-page entry) ─────────────────────────────────────────
+  const { orgs: companyOptions, employerOrgs } = useUserOrgs(true);
+  const parentOrgId = employerOrgs[0]?.id ?? null;
 
   const resolveName = useCallback(
     (id: string | null): string | null => {
@@ -130,6 +161,18 @@ export function useProjectScopeViewModel(
   const createDisabled = !canCreate;
 
   // ─── Action callbacks ───────────────────────────────────────────────────────
+  const setName = useCallback((value: string): void => {
+    useProjectScopeStore.getState().setName(value);
+  }, []);
+
+  const setDescription = useCallback((value: string): void => {
+    useProjectScopeStore.getState().setDescription(value);
+  }, []);
+
+  const setCompanyId = useCallback((id: string | null): void => {
+    useProjectScopeStore.getState().setCompanyId(id);
+  }, []);
+
   const setSource = useCallback((id: string | null): void => {
     useProjectScopeStore.getState().setSource(id);
   }, []);
@@ -144,6 +187,17 @@ export function useProjectScopeViewModel(
 
   const setTargetMethod = useCallback((m: ConnectionMethod): void => {
     useProjectScopeStore.getState().setTargetMethod(m);
+  }, []);
+
+  const updateConnection = useCallback(
+    (patch: Partial<MCPConnection>): void => {
+      useProjectScopeStore.getState().updateConnection(patch);
+    },
+    [],
+  );
+
+  const setConnectionReady = useCallback((ready: boolean): void => {
+    useProjectScopeStore.getState().setConnectionReady(ready);
   }, []);
 
   const saveDraft = useCallback(async (): Promise<void> => {
@@ -183,10 +237,14 @@ export function useProjectScopeViewModel(
     description: draft.description,
     // company carried from entry modal -> draft.companyId -> create payload
     companyId: draft.companyId,
+    companyOptions,
+    parentOrgId,
+    memberCount,
     source,
     target,
     sourceMethod,
     targetMethod,
+    connection,
     connectionReady,
     isSavingDraft,
     isCreating,
@@ -196,10 +254,15 @@ export function useProjectScopeViewModel(
     targetName,
     isCompatible,
     createDisabled,
+    setName,
+    setDescription,
+    setCompanyId,
     setSource,
     setTarget,
     setSourceMethod,
     setTargetMethod,
+    updateConnection,
+    setConnectionReady,
     saveDraft,
     create,
   };
