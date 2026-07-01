@@ -172,31 +172,6 @@ describe('DA-153 Test Connection flow', () => {
     });
   });
 
-  // AC5: Continue disabled until status === 'success'.
-  describe('AC5: Continue gating', () => {
-    it('enables Continue only after a successful test', async () => {
-      testConnectionMock.mockResolvedValue(
-        successResult('2026-06-28T10:00:00.000Z'),
-      );
-
-      render(<TestConnectionFlow connection={validForm} />);
-
-      const continueButton = screen.getByTestId(
-        'test-connection-continue-button',
-      );
-      expect(continueButton.props.accessibilityState?.disabled).toBe(true);
-
-      fireEvent.press(screen.getByTestId('test-connection-button'));
-
-      await screen.findByTestId('test-connection-success-message');
-
-      await waitFor(() => {
-        const after = screen.getByTestId('test-connection-continue-button');
-        expect(after.props.accessibilityState?.disabled).not.toBe(true);
-      });
-    });
-  });
-
   // AC6: Create gate (store/selector) flips only after a successful test.
   describe('AC6: Create gate (store + selectCanCreateProject)', () => {
     it('keeps connectionReady false until a successful test, then flips it true', async () => {

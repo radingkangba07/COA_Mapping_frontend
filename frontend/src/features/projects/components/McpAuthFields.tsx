@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { Input } from '@/shared/components/ui/Input';
-import { cn } from '@/shared/utils/string.utils';
+import { RadioGroup } from '@/shared/components/ui/RadioGroup';
 import type {
   McpConnectionForm,
   McpFormAuthType,
@@ -12,47 +12,7 @@ import {
   AUTH_TYPE_OPTIONS,
   type AuthFieldErrors,
   type AuthFieldSpec,
-  type AuthTypeOption,
 } from './McpAuthFields.config';
-
-interface AuthTypeOptionButtonProps {
-  option: AuthTypeOption;
-  isSelected: boolean;
-  onSelect: (value: McpFormAuthType) => void;
-}
-
-const AuthTypeOptionButton = ({
-  option,
-  isSelected,
-  onSelect,
-}: AuthTypeOptionButtonProps): React.JSX.Element => {
-  const handlePress = useCallback((): void => {
-    onSelect(option.value);
-  }, [onSelect, option.value]);
-
-  return (
-    <Pressable
-      onPress={handlePress}
-      accessibilityRole="radio"
-      accessibilityState={{ selected: isSelected }}
-      accessibilityLabel={option.label}
-      className={cn(
-        'flex-1 items-center justify-center rounded-md border px-3 py-2',
-        isSelected ? 'border-primary bg-primary' : 'border-border bg-muted',
-      )}
-      testID={option.testID}
-    >
-      <Text
-        className={cn(
-          'font-body text-sm font-medium',
-          isSelected ? 'text-primary-foreground' : 'text-muted-foreground',
-        )}
-      >
-        {option.label}
-      </Text>
-    </Pressable>
-  );
-};
 
 interface AuthFieldProps {
   spec: AuthFieldSpec;
@@ -128,20 +88,13 @@ export const McpAuthFields = ({
         <Text className="font-body text-sm font-medium text-card-foreground">
           Auth Type
         </Text>
-        <View
-          accessibilityRole="radiogroup"
+        <RadioGroup
+          value={form.authType}
+          options={AUTH_TYPE_OPTIONS}
+          onChange={handleAuthTypeChange}
           accessibilityLabel="Auth Type"
-          className="flex-row gap-2"
-        >
-          {AUTH_TYPE_OPTIONS.map((option) => (
-            <AuthTypeOptionButton
-              key={option.value}
-              option={option}
-              isSelected={form.authType === option.value}
-              onSelect={handleAuthTypeChange}
-            />
-          ))}
-        </View>
+          className="flex-row flex-wrap gap-x-6 gap-y-2"
+        />
       </View>
 
       {AUTH_FIELDS[form.authType].map((spec) => (

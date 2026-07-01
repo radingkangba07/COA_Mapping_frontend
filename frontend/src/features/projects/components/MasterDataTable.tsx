@@ -27,7 +27,7 @@ interface MasterDataRowProps {
 
 // A normal (non-collapsible) row: a left chevron, the label, then the two
 // independent checkbox columns. Each checkbox is its own control, so a row's
-// checkbox is selectable on its own (unless gated via row.disabled).
+// checkbox is selectable on its own.
 function MasterDataRow({
   row,
   onToggleColumn,
@@ -52,7 +52,6 @@ function MasterDataRow({
           <Checkbox
             checked={row.dataConversion}
             onCheckedChange={handleDataConversion}
-            isDisabled={row.disabled}
             testID={
               testID !== undefined
                 ? `${testID}-${row.id}-dataConversion`
@@ -64,22 +63,10 @@ function MasterDataRow({
           <Checkbox
             checked={row.mdm}
             onCheckedChange={handleMdm}
-            isDisabled={row.disabled}
             testID={testID !== undefined ? `${testID}-${row.id}-mdm` : undefined}
           />
         </View>
       </View>
-
-      {row.disabled ? (
-        <Text
-          className="pb-2 font-body text-xs text-muted-foreground"
-          testID={
-            testID !== undefined ? `${testID}-${row.id}-gated-hint` : undefined
-          }
-        >
-          Test the connection to enable Chart of Accounts selection.
-        </Text>
-      ) : null}
     </View>
   );
 }

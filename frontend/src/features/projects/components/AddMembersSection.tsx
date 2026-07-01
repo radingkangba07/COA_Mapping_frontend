@@ -1,7 +1,7 @@
 import React from 'react';
-import { View } from 'react-native';
 import type { ProjectPermission } from '../types/project-access.types';
 import type { ProjectScopeMember } from '../types/project-scope.types';
+import { ScopeSectionCard } from './ScopeSectionCard';
 import { MemberAddControl } from './MemberAddControl';
 import { MembersTable } from './MembersTable';
 
@@ -21,17 +21,23 @@ export function AddMembersSection({
   testID,
 }: AddMembersSectionProps): React.JSX.Element {
   return (
-    <View className="gap-4" testID={testID}>
-      <MemberAddControl
-        onAdd={onAddMember}
-        testID={testID !== undefined ? `${testID}-control` : undefined}
-      />
+    <ScopeSectionCard
+      title="Add Members"
+      description="Add project members and assign their roles."
+      testID={testID !== undefined ? `section-${testID}` : undefined}
+      headerRight={
+        <MemberAddControl
+          onAdd={onAddMember}
+          testID={testID !== undefined ? `${testID}-control` : undefined}
+        />
+      }
+    >
       <MembersTable
         members={members}
         onUpdateRole={onUpdateMemberRole}
         onRemove={onRemoveMember}
         testID={testID !== undefined ? `${testID}-table` : undefined}
       />
-    </View>
+    </ScopeSectionCard>
   );
 }

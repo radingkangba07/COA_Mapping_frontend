@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View } from 'react-native';
-import { Input } from '@/shared/components/ui/Input';
+import { View, TextInput } from 'react-native';
+import { Search } from 'lucide-react-native';
+import { colors } from '@/config/theme';
 import { Select, type SelectOption } from '@/shared/components/ui/Select';
 import { Button } from '@/shared/components/ui/Button';
 import type { ProjectPermission } from '../types/project-access.types';
@@ -60,19 +61,26 @@ export function MemberAddControl({
   }, [onAdd, role, trimmedEmail]);
 
   return (
-    <View className="gap-3" testID={testID}>
-      <Input
-        label="Member"
-        placeholder="name@company.com"
-        accessibilityLabel="Member email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        testID={testID !== undefined ? `${testID}-input` : undefined}
-      />
+    <View
+      className="flex-row flex-wrap items-center gap-3"
+      testID={testID}
+    >
+      <View className="min-w-[12rem] flex-1 flex-row items-center gap-2 rounded-md border border-input bg-background px-3">
+        <Search size={16} color={colors.mutedForeground} />
+        <TextInput
+          className="h-10 flex-1 font-body text-sm text-foreground focus:outline-none"
+          placeholder="Search members..."
+          placeholderTextColor={colors.mutedForeground}
+          accessibilityLabel="Member email"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          testID={testID !== undefined ? `${testID}-input` : undefined}
+        />
+      </View>
       <Select
-        label="Role"
+        className="w-40"
         placeholder="Select role"
         options={roleOptions}
         value={role ?? undefined}

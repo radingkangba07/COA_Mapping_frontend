@@ -81,49 +81,15 @@ describe('useMigrationScopeViewModel', () => {
     expect(result.current.openingBalancesCount).toBe(1);
   });
 
-  describe('chart-of-accounts gating', () => {
-    it('gates the COA row until the connection is ready (when MCP is used)', () => {
-      useProjectScopeStore.getState().setSourceMethod('mcp');
-      const { result } = renderHook(() => useMigrationScopeViewModel());
+  it('exposes connection readiness from the store', () => {
+    const { result } = renderHook(() => useMigrationScopeViewModel());
 
-      expect(result.current.connectionReady).toBe(false);
-      expect(findRow(result.current.masterData, CHART_OF_ACCOUNTS_ID).disabled).toBe(
-        true,
-      );
+    expect(result.current.connectionReady).toBe(false);
 
-      act(() => {
-        useProjectScopeStore.getState().setConnectionReady(true);
-      });
-
-      expect(result.current.connectionReady).toBe(true);
-      expect(findRow(result.current.masterData, CHART_OF_ACCOUNTS_ID).disabled).toBe(
-        false,
-      );
+    act(() => {
+      useProjectScopeStore.getState().setConnectionReady(true);
     });
 
-    it('does not gate the COA row when no side uses MCP (CSV only)', () => {
-      const { result } = renderHook(() => useMigrationScopeViewModel());
-
-      expect(result.current.connectionReady).toBe(false);
-      expect(
-        findRow(result.current.masterData, CHART_OF_ACCOUNTS_ID).disabled,
-      ).toBe(false);
-    });
-
-    it('never disables a non-COA row regardless of connection state', () => {
-      const { result } = renderHook(() => useMigrationScopeViewModel());
-
-      expect(findRow(result.current.masterData, 'customers').disabled).toBe(
-        false,
-      );
-
-      act(() => {
-        useProjectScopeStore.getState().setConnectionReady(true);
-      });
-
-      expect(findRow(result.current.masterData, 'customers').disabled).toBe(
-        false,
-      );
-    });
+    expect(result.current.connectionReady).toBe(true);
   });
 });

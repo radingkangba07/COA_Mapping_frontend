@@ -32,8 +32,6 @@ interface ChipDescriptor {
   readonly placeholder?: string;
 }
 
-const SLOT_CLASS = 'basis-full sm:basis-[23%] lg:basis-[15%]';
-
 export function ProjectSummaryBar({
   summary,
   testID,
@@ -95,20 +93,22 @@ export function ProjectSummaryBar({
       <Text className="font-heading text-base font-semibold text-card-foreground">
         Project Summary
       </Text>
+      <Text className="font-body text-sm text-muted-foreground mt-1">
+        Review your selections and project configuration.
+      </Text>
 
-      <View className="mt-3 flex-row flex-wrap gap-3">
+      <View className="mt-4 flex-row flex-wrap items-center gap-x-12 gap-y-5">
         {chips.map((chip) => (
-          <View key={chip.slug} className={SLOT_CLASS}>
-            <SummaryChip
-              icon={chip.icon}
-              label={chip.label}
-              value={chip.value}
-              placeholder={chip.placeholder}
-              testID={
-                testID !== undefined ? `${testID}-chip-${chip.slug}` : undefined
-              }
-            />
-          </View>
+          <SummaryChip
+            key={chip.slug}
+            icon={chip.icon}
+            label={chip.label}
+            value={chip.value}
+            placeholder={chip.placeholder}
+            testID={
+              testID !== undefined ? `${testID}-chip-${chip.slug}` : undefined
+            }
+          />
         ))}
       </View>
     </View>

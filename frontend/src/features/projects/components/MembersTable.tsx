@@ -1,12 +1,8 @@
 import React from 'react';
-import { View, Text, Pressable } from 'react-native';
-import { Trash2 } from 'lucide-react-native';
-import { colors } from '@/config/theme';
+import { View, Text } from 'react-native';
 import type { ProjectPermission } from '../types/project-access.types';
 import type { ProjectScopeMember } from '../types/project-scope.types';
-import { MemberBadge } from './MemberBadge';
-import { RolePillSelector } from './RolePillSelector';
-import { SCOPE_MEMBER_ROLES } from './MemberRoles.config';
+import { MemberRow } from './MemberRow';
 
 interface MembersTableProps {
   readonly members: readonly ProjectScopeMember[];
@@ -31,74 +27,37 @@ export function MembersTable({
     );
   }
 
+  const lastIndex = members.length - 1;
+
   return (
-    <View className="gap-2" testID={testID}>
+    <View
+      className="overflow-hidden rounded-md border border-border"
+      testID={testID}
+    >
       <View
-        className="flex-row items-center gap-3 px-1 pb-1"
+        className="flex-row items-center gap-3 border-b border-border bg-muted px-3 py-2"
         testID={testID !== undefined ? `${testID}-header` : undefined}
       >
         <Text className="flex-1 font-body text-xs font-semibold uppercase text-muted-foreground">
           Member
         </Text>
-        <Text className="w-24 font-body text-xs font-semibold uppercase text-muted-foreground">
+        <Text className="w-28 text-center font-body text-xs font-semibold uppercase text-muted-foreground">
           Role
         </Text>
-        <Text className="w-12 text-right font-body text-xs font-semibold uppercase text-muted-foreground">
+        <Text className="w-36 text-right font-body text-xs font-semibold uppercase text-muted-foreground">
           Actions
         </Text>
       </View>
 
-      {members.map((member) => (
-        <View
+      {members.map((member, index) => (
+        <MemberRow
           key={member.id}
-          className="flex-row items-center gap-3 rounded-md border border-border px-3 py-2"
-          testID={testID !== undefined ? `${testID}-row-${member.id}` : undefined}
-        >
-          <View className="flex-1 flex-row items-center gap-2">
-            <MemberBadge name={member.name} size="sm" />
-            <View className="flex-1">
-              <Text
-                className="font-body text-sm font-medium text-foreground"
-                numberOfLines={1}
-              >
-                {member.name}
-              </Text>
-              <Text
-                className="font-body text-xs text-muted-foreground"
-                numberOfLines={1}
-              >
-                {member.email}
-              </Text>
-            </View>
-          </View>
-
-          <View className="w-24">
-            <RolePillSelector
-              value={member.role}
-              options={SCOPE_MEMBER_ROLES}
-              onChange={(next) => onUpdateRole(member.id, next)}
-              testID={
-                testID !== undefined ? `${testID}-role-${member.id}` : undefined
-              }
-            />
-          </View>
-
-          <View className="w-12 items-end">
-            <Pressable
-              onPress={() => onRemove(member.id)}
-              accessibilityRole="button"
-              accessibilityLabel={`Remove ${member.name}`}
-              className="rounded-md p-1"
-              testID={
-                testID !== undefined
-                  ? `${testID}-remove-${member.id}`
-                  : undefined
-              }
-            >
-              <Trash2 size={16} color={colors.destructive} />
-            </Pressable>
-          </View>
-        </View>
+          member={member}
+          onUpdateRole={onUpdateRole}
+          onRemove={onRemove}
+          isLast={index === lastIndex}
+          testID={testID}
+        />
       ))}
     </View>
   );

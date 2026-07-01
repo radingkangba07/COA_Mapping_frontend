@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { View, Text } from 'react-native';
+import { colors } from '@/config/theme';
 
 const ICON_SIZE = 16;
 
@@ -31,18 +32,19 @@ export function SummaryChip({
   const hasValue = value !== null && value.length > 0;
   const displayValue = hasValue ? value : placeholder;
   const valueClassName = hasValue
-    ? 'font-body text-sm font-medium text-foreground'
+    ? 'font-body text-sm font-medium text-primary'
     : 'font-body text-sm italic text-muted-foreground';
 
   return (
-    <View
-      className="flex-row items-center gap-2 rounded-lg border border-border bg-card p-3"
-      testID={testID}
-    >
-      <Icon size={ICON_SIZE} className="text-muted-foreground" />
+    <View className="flex-row items-center gap-2" testID={testID}>
+      <View className="h-9 w-9 items-center justify-center rounded-md bg-muted">
+        <Icon size={ICON_SIZE} color={colors.primary} />
+      </View>
 
       <View className="gap-0.5">
-        <Text className="font-body text-xs text-muted-foreground">{label}</Text>
+        <Text className="font-body text-xs font-medium text-muted-foreground">
+          {label}
+        </Text>
         <Text
           className={valueClassName}
           testID={testID !== undefined ? `${testID}-value` : undefined}

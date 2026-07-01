@@ -48,7 +48,7 @@ export interface McpConnectionForm {
   readonly timeout: number; // seconds
 }
 
-const DEFAULT_TIMEOUT_SECONDS = 60;
+export const DEFAULT_TIMEOUT_SECONDS = 60;
 
 // Single source of truth for MCP server URL validity. Later subtasks'
 // validate(conn) reuse this rather than re-implementing the rule.

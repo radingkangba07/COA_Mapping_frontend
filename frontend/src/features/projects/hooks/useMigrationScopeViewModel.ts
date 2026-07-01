@@ -1,6 +1,5 @@
 import { useCallback, useMemo } from 'react';
 import {
-  CHART_OF_ACCOUNTS_ID,
   MASTER_DATA_ITEMS,
   OPENING_BALANCE_ITEMS,
   type MasterDataColumn,
@@ -11,8 +10,6 @@ import {
   selectMasterDataCount,
   selectOpeningBalancesCount,
   selectConnectionReady,
-  selectSourceMethod,
-  selectTargetMethod,
   selectSelectedMasterData,
   selectSelectedOpeningBalances,
 } from '../store/project-scope.selectors';
@@ -23,7 +20,6 @@ export interface MasterDataRowVM {
   readonly description: string;
   readonly dataConversion: boolean;
   readonly mdm: boolean;
-  readonly disabled: boolean;
 }
 
 export interface OpeningBalanceRowVM {
@@ -54,14 +50,8 @@ export function useMigrationScopeViewModel(): MigrationScopeViewModel {
   const openingBalancesCount = useProjectScopeStore(
     selectOpeningBalancesCount,
   );
-  // The Chart of Accounts row is gated on a successful test connection — but
-  // ONLY when at least one side actually uses MCP. A CSV-only project has no
-  // test connection, so CoA must not be permanently disabled.
+  // Retained for the Create-project gate and features/migration's fetch flow.
   const connectionReady = useProjectScopeStore(selectConnectionReady);
-  const sourceMethod = useProjectScopeStore(selectSourceMethod);
-  const targetMethod = useProjectScopeStore(selectTargetMethod);
-  const usesMcp = sourceMethod === 'mcp' || targetMethod === 'mcp';
-  const coaGated = usesMcp && !connectionReady;
 
   const masterData = useMemo<readonly MasterDataRowVM[]>(
     () =>
@@ -73,9 +63,8 @@ export function useMigrationScopeViewModel(): MigrationScopeViewModel {
           masterDataColumnKey(item.id, 'dataConversion'),
         ),
         mdm: selected.includes(masterDataColumnKey(item.id, 'mdm')),
-        disabled: item.id === CHART_OF_ACCOUNTS_ID && coaGated,
       })),
-    [selected, coaGated],
+    [selected],
   );
 
   const openingBalances = useMemo<readonly OpeningBalanceRowVM[]>(

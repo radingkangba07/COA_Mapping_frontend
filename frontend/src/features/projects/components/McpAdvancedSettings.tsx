@@ -10,6 +10,7 @@ import { Checkbox } from '@/shared/components/ui/Checkbox';
 import { Tooltip } from '@/shared/components/ui/Tooltip';
 import { Input } from '@/shared/components/ui/Input';
 import { colors } from '@/config/theme';
+import { DEFAULT_TIMEOUT_SECONDS } from '../services/mcp.service';
 
 const INFO_ICON_SIZE = 14;
 
@@ -88,11 +89,27 @@ export const McpAdvancedSettings = ({
     [onPatch],
   );
 
+  const timeoutEnabled = timeout > 0;
+
+  const handleTimeoutToggle = useCallback(
+    (next: boolean): void => {
+      onPatch({ timeout: next ? DEFAULT_TIMEOUT_SECONDS : 0 });
+    },
+    [onPatch],
+  );
+
   return (
     <Collapsible
       isOpen={isOpen}
       onToggle={handleToggle}
-      title="Advanced"
+      title={
+        <Text className="font-heading text-base font-semibold text-card-foreground">
+          Additional Settings{' '}
+          <Text className="font-body text-sm font-normal text-muted-foreground">
+            (Optional)
+          </Text>
+        </Text>
+      }
       testID={testID}
     >
       <View className="gap-4" testID={`${testID}-body`}>
@@ -100,7 +117,7 @@ export const McpAdvancedSettings = ({
           <Checkbox
             checked={skipSSL}
             onCheckedChange={handleSkipSSLChange}
-            label="Skip SSL Verification"
+            label="Skip SSL Certificate Validation"
             testID="mcp-skip-ssl"
           />
           <InfoTooltip
@@ -119,23 +136,27 @@ export const McpAdvancedSettings = ({
           <InfoTooltip content={PROXY_TOOLTIP} testID="mcp-proxy-tooltip" />
         </View>
 
-        <View className="gap-1">
-          <View className="flex-row items-center gap-2">
-            <Text className="font-body text-sm text-foreground">
-              Request Timeout (seconds)
-            </Text>
-            <InfoTooltip
-              content={TIMEOUT_TOOLTIP}
-              testID="mcp-timeout-tooltip"
+        <View className="flex-row items-center gap-2">
+          <Checkbox
+            checked={timeoutEnabled}
+            onCheckedChange={handleTimeoutToggle}
+            label="Request Timeout (seconds)"
+            testID="mcp-timeout-enabled"
+          />
+          <InfoTooltip
+            content={TIMEOUT_TOOLTIP}
+            testID="mcp-timeout-tooltip"
+          />
+          <View className="w-24">
+            <Input
+              value={String(timeout)}
+              onChangeText={handleTimeoutChange}
+              editable={timeoutEnabled}
+              keyboardType="numeric"
+              autoCapitalize="none"
+              testID="mcp-timeout"
             />
           </View>
-          <Input
-            value={String(timeout)}
-            onChangeText={handleTimeoutChange}
-            keyboardType="numeric"
-            autoCapitalize="none"
-            testID="mcp-timeout"
-          />
         </View>
       </View>
     </Collapsible>

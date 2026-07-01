@@ -47,7 +47,6 @@ function makeRow(overrides: Partial<MasterDataRowVM> = {}): MasterDataRowVM {
     description: 'Customer master records.',
     dataConversion: false,
     mdm: false,
-    disabled: false,
     ...overrides,
   };
 }
@@ -56,37 +55,14 @@ const coaRow: MasterDataRowVM = makeRow({
   id: CHART_OF_ACCOUNTS_ID,
   label: 'Chart of Accounts',
   description: 'General ledger structure.',
-  disabled: true,
 });
 
-const enabledRow: MasterDataRowVM = makeRow({
-  id: 'customers',
-  disabled: false,
-});
+const enabledRow: MasterDataRowVM = makeRow({ id: 'customers' });
 
 // ─── Tests ─────────────────────────────────────────────────────────────────
 
 describe('MasterDataTable', () => {
-  it('disables the gated COA checkboxes and shows the gated hint', () => {
-    render(
-      <MasterDataTable
-        testID="md"
-        rows={[coaRow, enabledRow]}
-        onToggleColumn={jest.fn()}
-      />,
-    );
-
-    const coaDataConversion = screen.getByTestId(
-      'md-chart-of-accounts-dataConversion',
-    );
-    expect(coaDataConversion).toHaveProp('accessibilityState', {
-      checked: false,
-      disabled: true,
-    });
-    expect(screen.getByTestId('md-chart-of-accounts-gated-hint')).toBeTruthy();
-  });
-
-  it('does not call onToggleColumn when a disabled COA checkbox is pressed', () => {
+  it('renders the Chart of Accounts checkboxes as clickable with no gated hint', () => {
     const onToggleColumn = jest.fn();
     render(
       <MasterDataTable
@@ -96,13 +72,29 @@ describe('MasterDataTable', () => {
       />,
     );
 
-    fireEvent.press(screen.getByTestId('md-chart-of-accounts-dataConversion'));
-    fireEvent.press(screen.getByTestId('md-chart-of-accounts-mdm'));
+    expect(
+      screen.queryByTestId('md-chart-of-accounts-gated-hint'),
+    ).toBeNull();
 
-    expect(onToggleColumn).not.toHaveBeenCalled();
+    const coaDataConversion = screen.getByTestId(
+      'md-chart-of-accounts-dataConversion',
+    );
+    expect(coaDataConversion).toHaveProp('accessibilityState', {
+      checked: false,
+      disabled: false,
+    });
+
+    fireEvent.press(coaDataConversion);
+    expect(onToggleColumn).toHaveBeenCalledWith(
+      CHART_OF_ACCOUNTS_ID,
+      'dataConversion',
+    );
+
+    fireEvent.press(screen.getByTestId('md-chart-of-accounts-mdm'));
+    expect(onToggleColumn).toHaveBeenCalledWith(CHART_OF_ACCOUNTS_ID, 'mdm');
   });
 
-  it('calls onToggleColumn with id + column for an enabled row and renders no gated hint', () => {
+  it('calls onToggleColumn with id + column for a normal row and renders no gated hint', () => {
     const onToggleColumn = jest.fn();
     render(
       <MasterDataTable

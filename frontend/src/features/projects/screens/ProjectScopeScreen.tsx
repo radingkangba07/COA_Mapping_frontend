@@ -142,16 +142,15 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
           />
         </ScopeSectionCard>
 
-        {/* AddMembersSection — full width. */}
-        <ScopeSectionCard title="Add Members" testID="section-add-members">
-          <AddMembersSection
-            onAddMember={membersVm.addMember}
-            members={membersVm.members}
-            onUpdateMemberRole={membersVm.updateMemberRole}
-            onRemoveMember={membersVm.removeMember}
-            testID="add-members"
-          />
-        </ScopeSectionCard>
+        {/* AddMembersSection — full width; owns its own ScopeSectionCard so the
+            add control can sit beside the title (testID: section-add-members). */}
+        <AddMembersSection
+          onAddMember={membersVm.addMember}
+          members={membersVm.members}
+          onUpdateMemberRole={membersVm.updateMemberRole}
+          onRemoveMember={membersVm.removeMember}
+          testID="add-members"
+        />
 
         <CompatibilityBanner
           source={vm.sourceName}
