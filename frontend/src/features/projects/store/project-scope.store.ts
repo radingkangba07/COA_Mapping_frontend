@@ -44,7 +44,8 @@ export function createInitialDraft(): ProjectScopeDraft {
     description: '',
     source: null,
     target: null,
-    method: 'mcp',
+    sourceMethod: 'mcp',
+    targetMethod: 'mcp',
     connection: { ...INITIAL_CONNECTION, headers: [] },
     scope: {
       selectedMasterData: [],
@@ -75,7 +76,8 @@ export function serializeProjectScopeDraft(
     description: draft.description,
     source_erp: draft.source,
     target_erp: draft.target,
-    method: draft.method,
+    source_method: draft.sourceMethod,
+    target_method: draft.targetMethod,
     connection: {
       scope: draft.connection.scope,
       url: draft.connection.url,
@@ -147,9 +149,15 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
       });
     },
 
-    setMethod: (method: ConnectionMethod): void => {
+    setSourceMethod: (method: ConnectionMethod): void => {
       set((state) => {
-        state.draft.method = method;
+        state.draft.sourceMethod = method;
+      });
+    },
+
+    setTargetMethod: (method: ConnectionMethod): void => {
+      set((state) => {
+        state.draft.targetMethod = method;
       });
     },
 

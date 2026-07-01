@@ -6,7 +6,7 @@ import type { ProjectPermission } from './project-access.types';
 
 export type McpScope = 'source' | 'target';
 export type McpAuthType = 'none' | 'bearer' | 'basic' | 'apiKey';
-export type ConnectionMethod = 'mcp' | 'csv';
+export type ConnectionMethod = 'mcp' | 'csv'; // cloud_saas | on_premise reserved for future
 export type RequestStatus = 'idle' | 'loading' | 'success' | 'error';
 
 export interface McpHeader {
@@ -62,7 +62,8 @@ export interface ProjectScopeDraft {
   readonly description: string; // from modal
   readonly source: string | null; // source ERP id
   readonly target: string | null; // target ERP id
-  readonly method: ConnectionMethod; // mcp (default) | csv fallback
+  readonly sourceMethod: ConnectionMethod; // per-card: source connection method
+  readonly targetMethod: ConnectionMethod; // per-card: target connection method
   readonly connection: MCPConnection;
   readonly scope: MigrationScope;
   readonly members: readonly ProjectScopeMember[];
@@ -90,7 +91,8 @@ export interface ProjectScopeActions {
   setDescription: (description: string) => void;
   setSource: (erpId: string | null) => void;
   setTarget: (erpId: string | null) => void;
-  setMethod: (method: ConnectionMethod) => void;
+  setSourceMethod: (method: ConnectionMethod) => void;
+  setTargetMethod: (method: ConnectionMethod) => void;
   updateConnection: (patch: Partial<MCPConnection>) => void;
   toggleMasterData: (id: string) => void;
   setMasterData: (ids: readonly string[]) => void;
@@ -143,7 +145,8 @@ export interface ProjectDraftPayload {
   readonly description: string;
   readonly source_erp: string | null;
   readonly target_erp: string | null;
-  readonly method: ConnectionMethod;
+  readonly source_method: ConnectionMethod;
+  readonly target_method: ConnectionMethod;
   readonly connection: MCPConnectionPayload;
   readonly scope: MigrationScopePayload;
   readonly members: ProjectScopeMemberPayload[];

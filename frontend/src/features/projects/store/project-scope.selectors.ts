@@ -27,8 +27,11 @@ export const selectSource = (state: ProjectScopeStore): string | null =>
 export const selectTarget = (state: ProjectScopeStore): string | null =>
   state.draft.target;
 
-export const selectMethod = (state: ProjectScopeStore): ConnectionMethod =>
-  state.draft.method;
+export const selectSourceMethod = (state: ProjectScopeStore): ConnectionMethod =>
+  state.draft.sourceMethod;
+
+export const selectTargetMethod = (state: ProjectScopeStore): ConnectionMethod =>
+  state.draft.targetMethod;
 
 export const selectConnection = (state: ProjectScopeStore): MCPConnection =>
   state.draft.connection;
@@ -70,7 +73,8 @@ export const selectCanCreateProject = (state: ProjectScopeStore): boolean => {
   const hasCompany = draft.companyId !== null && draft.companyId !== '';
   const hasBothErps = draft.source !== null && draft.target !== null;
   const erpsDistinct = draft.source !== draft.target;
-  const connectionSatisfied = draft.method === 'csv' || connectionReady;
+  const needsMcp = draft.sourceMethod === 'mcp' || draft.targetMethod === 'mcp';
+  const connectionSatisfied = !needsMcp || connectionReady;
 
   return hasCompany && hasBothErps && erpsDistinct && connectionSatisfied;
 };

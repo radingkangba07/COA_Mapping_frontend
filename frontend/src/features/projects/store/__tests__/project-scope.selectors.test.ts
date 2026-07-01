@@ -75,7 +75,7 @@ describe('project-scope selectors', () => {
       );
     });
 
-    it('is false when method is mcp and connection is not ready', () => {
+    it('is false when either method is mcp and connection is not ready', () => {
       seedValid();
       expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(
         false,
@@ -90,11 +90,21 @@ describe('project-scope selectors', () => {
       );
     });
 
-    it('is true for csv method without connectionReady', () => {
+    it('is true when both methods are csv without connectionReady', () => {
       seedValid();
-      useProjectScopeStore.getState().setMethod('csv');
+      useProjectScopeStore.getState().setSourceMethod('csv');
+      useProjectScopeStore.getState().setTargetMethod('csv');
       expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(
         true,
+      );
+    });
+
+    it('is false when only one method is csv and connectionReady is false', () => {
+      seedValid();
+      useProjectScopeStore.getState().setSourceMethod('csv');
+      // targetMethod stays 'mcp' (default), connectionReady stays false
+      expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(
+        false,
       );
     });
   });

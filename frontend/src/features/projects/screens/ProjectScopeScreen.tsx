@@ -8,7 +8,10 @@ import type { ProjectsStackParamList } from '@/navigation/types';
 import { ProjectScopeHeader } from '../components/ProjectScopeHeader';
 import { CompatibilityBanner } from '../components/CompatibilityBanner';
 import { ScopeSectionCard } from '../components/ScopeSectionCard';
-import { ErpSourceTargetSelect } from '../components/ErpSourceTargetSelect';
+import {
+  ErpSourceTargetSelect,
+  ErpSectionSearch,
+} from '../components/ErpSourceTargetSelect';
 import { useProjectScopeViewModel } from '../hooks/useProjectScopeViewModel';
 
 type ProjectScopeNavigation = NativeStackNavigationProp<
@@ -60,16 +63,22 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
             </ScopeSectionCard>
 
             <ScopeSectionCard
-              title="Select Source & Target ERP"
+              title="1. Select Source and Target ERP Systems"
+              description="Choose the source and target ERP systems for your migration."
+              headerRight={<ErpSectionSearch />}
               testID="section-select-erp"
             >
               <ErpSourceTargetSelect
                 erpSystems={vm.erpSystems}
                 source={vm.source}
                 target={vm.target}
+                sourceMethod={vm.sourceMethod}
+                targetMethod={vm.targetMethod}
                 isLoading={vm.isLoadingErps}
                 onSelectSource={vm.setSource}
                 onSelectTarget={vm.setTarget}
+                onSelectSourceMethod={vm.setSourceMethod}
+                onSelectTargetMethod={vm.setTargetMethod}
                 testID="erp-source-target-select"
               />
             </ScopeSectionCard>

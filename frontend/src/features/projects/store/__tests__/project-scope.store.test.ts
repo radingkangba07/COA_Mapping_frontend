@@ -35,7 +35,8 @@ describe('useProjectScopeStore', () => {
       const state = useProjectScopeStore.getState();
       expect(state.draft.companyId).toBeNull();
       expect(state.draft.name).toBe('');
-      expect(state.draft.method).toBe('mcp');
+      expect(state.draft.sourceMethod).toBe('mcp');
+      expect(state.draft.targetMethod).toBe('mcp');
       expect(state.connectionReady).toBe(false);
       expect(state.testStatus).toBe('idle');
       expect(state.fetchStatus).toBe('idle');
@@ -58,7 +59,8 @@ describe('useProjectScopeStore', () => {
       expect(draft.description).toBe('desc');
       expect(draft.source).toBeNull();
       expect(draft.target).toBeNull();
-      expect(draft.method).toBe('mcp');
+      expect(draft.sourceMethod).toBe('mcp');
+      expect(draft.targetMethod).toBe('mcp');
       expect(draft.connection.token).toBe('');
       expect(draft.scope.aggregation).toBe('none');
       expect(draft.members).toEqual([]);
@@ -74,16 +76,24 @@ describe('useProjectScopeStore', () => {
   });
 
   describe('erp + method setters', () => {
-    it('sets source, target and method', () => {
+    it('sets source and target', () => {
       const store = useProjectScopeStore.getState();
       store.setSource('sap');
       store.setTarget('xero');
-      store.setMethod('csv');
 
       const { draft } = useProjectScopeStore.getState();
       expect(draft.source).toBe('sap');
       expect(draft.target).toBe('xero');
-      expect(draft.method).toBe('csv');
+    });
+
+    it('sets sourceMethod and targetMethod independently', () => {
+      const store = useProjectScopeStore.getState();
+      store.setSourceMethod('csv');
+      store.setTargetMethod('mcp');
+
+      const { draft } = useProjectScopeStore.getState();
+      expect(draft.sourceMethod).toBe('csv');
+      expect(draft.targetMethod).toBe('mcp');
     });
   });
 
@@ -212,6 +222,8 @@ describe('useProjectScopeStore', () => {
       expect(payload.company_id).toBe('co-1');
       expect(payload.source_erp).toBe('sap');
       expect(payload.target_erp).toBe('xero');
+      expect(payload.source_method).toBe('mcp');
+      expect(payload.target_method).toBe('mcp');
       expect(payload.connection.auth_type).toBe('bearer');
       expect(payload.connection.skip_ssl).toBe(true);
       expect(payload.scope.selected_master_data).toEqual(['accounts']);

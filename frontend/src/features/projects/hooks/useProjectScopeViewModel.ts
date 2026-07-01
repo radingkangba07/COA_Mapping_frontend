@@ -16,9 +16,10 @@ import {
   selectConnectionReady,
   selectDraft,
   selectIsSavingDraft,
-  selectMethod,
   selectSource,
+  selectSourceMethod,
   selectTarget,
+  selectTargetMethod,
 } from '../store/project-scope.selectors';
 
 // ─── Pure Payload Builder ───────────────────────────────────────────────────
@@ -54,7 +55,8 @@ export interface ProjectScopeViewModel {
   readonly companyId: string | null;
   readonly source: string | null;
   readonly target: string | null;
-  readonly method: ConnectionMethod;
+  readonly sourceMethod: ConnectionMethod;
+  readonly targetMethod: ConnectionMethod;
   readonly connectionReady: boolean;
   readonly isSavingDraft: boolean;
   readonly isCreating: boolean;
@@ -72,7 +74,8 @@ export interface ProjectScopeViewModel {
   // Action callbacks
   readonly setSource: (id: string | null) => void;
   readonly setTarget: (id: string | null) => void;
-  readonly setMethod: (m: ConnectionMethod) => void;
+  readonly setSourceMethod: (m: ConnectionMethod) => void;
+  readonly setTargetMethod: (m: ConnectionMethod) => void;
   readonly saveDraft: () => Promise<void>;
   readonly create: () => Promise<boolean>;
 }
@@ -95,7 +98,8 @@ export function useProjectScopeViewModel(
   const draft = useProjectScopeStore(selectDraft);
   const source = useProjectScopeStore(selectSource);
   const target = useProjectScopeStore(selectTarget);
-  const method = useProjectScopeStore(selectMethod);
+  const sourceMethod = useProjectScopeStore(selectSourceMethod);
+  const targetMethod = useProjectScopeStore(selectTargetMethod);
   const connectionReady = useProjectScopeStore(selectConnectionReady);
   const isSavingDraft = useProjectScopeStore(selectIsSavingDraft);
   const canCreate = useProjectScopeStore(selectCanCreateProject);
@@ -134,8 +138,12 @@ export function useProjectScopeViewModel(
     useProjectScopeStore.getState().setTarget(id);
   }, []);
 
-  const setMethod = useCallback((m: ConnectionMethod): void => {
-    useProjectScopeStore.getState().setMethod(m);
+  const setSourceMethod = useCallback((m: ConnectionMethod): void => {
+    useProjectScopeStore.getState().setSourceMethod(m);
+  }, []);
+
+  const setTargetMethod = useCallback((m: ConnectionMethod): void => {
+    useProjectScopeStore.getState().setTargetMethod(m);
   }, []);
 
   const saveDraft = useCallback(async (): Promise<void> => {
@@ -177,7 +185,8 @@ export function useProjectScopeViewModel(
     companyId: draft.companyId,
     source,
     target,
-    method,
+    sourceMethod,
+    targetMethod,
     connectionReady,
     isSavingDraft,
     isCreating,
@@ -189,7 +198,8 @@ export function useProjectScopeViewModel(
     createDisabled,
     setSource,
     setTarget,
-    setMethod,
+    setSourceMethod,
+    setTargetMethod,
     saveDraft,
     create,
   };

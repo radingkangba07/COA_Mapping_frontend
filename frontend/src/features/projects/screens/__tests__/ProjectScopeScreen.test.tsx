@@ -42,7 +42,8 @@ const mockCreate = jest.fn<Promise<boolean>, []>();
 const mockSaveDraft = jest.fn<Promise<void>, []>();
 const mockSetSource = jest.fn();
 const mockSetTarget = jest.fn();
-const mockSetMethod = jest.fn();
+const mockSetSourceMethod = jest.fn();
+const mockSetTargetMethod = jest.fn();
 
 const erpSystems: ERPSystem[] = [
   { id: 'sap', name: 'SAP', description: '', fields: [] },
@@ -56,7 +57,8 @@ const baseVM: ProjectScopeViewModel = {
     description: 'd',
     source: null,
     target: null,
-    method: 'mcp',
+    sourceMethod: 'mcp',
+    targetMethod: 'mcp',
     connection: {
       scope: 'source',
       url: '',
@@ -75,7 +77,8 @@ const baseVM: ProjectScopeViewModel = {
   companyId: 'c1',
   source: null,
   target: null,
-  method: 'mcp',
+  sourceMethod: 'mcp',
+  targetMethod: 'mcp',
   connectionReady: false,
   isSavingDraft: false,
   isCreating: false,
@@ -87,7 +90,8 @@ const baseVM: ProjectScopeViewModel = {
   createDisabled: true,
   setSource: mockSetSource,
   setTarget: mockSetTarget,
-  setMethod: mockSetMethod,
+  setSourceMethod: mockSetSourceMethod,
+  setTargetMethod: mockSetTargetMethod,
   saveDraft: mockSaveDraft,
   create: mockCreate,
 };
