@@ -38,7 +38,7 @@ export type AppTabsParamList = {
 export type ProjectsStackParamList = {
   ProjectsList: undefined;
   NewProject: undefined;
-  ProjectScope: { companyId?: string; name?: string; description?: string } | undefined;
+  ProjectScope: { companyId?: string; name: string; description?: string };
   ClientOrgs: undefined;
   ClientOrgDetail: { clientOrgId: string };
 };

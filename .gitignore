@@ -228,6 +228,3 @@ specs/
 /frontend/.idea/frontend.iml
 /frontend/.idea/modules.xml
 /frontend/.idea/vcs.xml
-.agent-*.log
-JIRA-TASKS.md
-.skip-review

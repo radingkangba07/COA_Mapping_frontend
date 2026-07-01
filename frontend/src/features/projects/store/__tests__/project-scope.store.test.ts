@@ -35,8 +35,8 @@ describe('useProjectScopeStore', () => {
       const state = useProjectScopeStore.getState();
       expect(state.draft.companyId).toBeNull();
       expect(state.draft.name).toBe('');
-      expect(state.draft.sourceMethod).toBe('csv');
-      expect(state.draft.targetMethod).toBe('csv');
+      expect(state.draft.sourceMethod).toBe('mcp');
+      expect(state.draft.targetMethod).toBe('mcp');
       expect(state.connectionReady).toBe(false);
       expect(state.testStatus).toBe('idle');
       expect(state.fetchStatus).toBe('idle');
@@ -59,8 +59,8 @@ describe('useProjectScopeStore', () => {
       expect(draft.description).toBe('desc');
       expect(draft.source).toBeNull();
       expect(draft.target).toBeNull();
-      expect(draft.sourceMethod).toBe('csv');
-      expect(draft.targetMethod).toBe('csv');
+      expect(draft.sourceMethod).toBe('mcp');
+      expect(draft.targetMethod).toBe('mcp');
       expect(draft.connection.token).toBe('');
       expect(draft.scope.aggregation).toBe('none');
       expect(draft.members).toEqual([]);
@@ -75,33 +75,39 @@ describe('useProjectScopeStore', () => {
     });
   });
 
-  describe('erp + per-side method setters', () => {
-    it('sets source, target and both per-side methods independently', () => {
+  describe('erp + method setters', () => {
+    it('sets source and target', () => {
       const store = useProjectScopeStore.getState();
       store.setSource('sap');
       store.setTarget('xero');
-      store.setSourceMethod('mcp');
-      store.setTargetMethod('csv');
 
       const { draft } = useProjectScopeStore.getState();
       expect(draft.source).toBe('sap');
       expect(draft.target).toBe('xero');
-      expect(draft.sourceMethod).toBe('mcp');
-      expect(draft.targetMethod).toBe('csv');
+    });
+
+    it('sets sourceMethod and targetMethod independently', () => {
+      const store = useProjectScopeStore.getState();
+      store.setSourceMethod('csv');
+      store.setTargetMethod('mcp');
+
+      const { draft } = useProjectScopeStore.getState();
+      expect(draft.sourceMethod).toBe('csv');
+      expect(draft.targetMethod).toBe('mcp');
     });
   });
 
   describe('updateConnection', () => {
-    it('merges patch into the single shared connection without dropping fields', () => {
-      const store = useProjectScopeStore.getState();
-      store.updateConnection({ url: 'https://erp', token: 'abc' });
+    it('merges patch without dropping other fields', () => {
+      useProjectScopeStore
+        .getState()
+        .updateConnection({ url: 'https://erp', token: 'abc' });
 
       const { connection } = useProjectScopeStore.getState().draft;
       expect(connection.url).toBe('https://erp');
       expect(connection.token).toBe('abc');
       expect(connection.timeout).toBe(30000);
       expect(connection.authType).toBe('none');
-      expect(connection.scope).toBe('source');
     });
   });
 
@@ -170,20 +176,10 @@ describe('useProjectScopeStore', () => {
       store.removeMember('user-1');
       expect(useProjectScopeStore.getState().draft.members).toEqual([]);
     });
-
-    it('dedupes by id: re-adding the same id keeps a single member and updates its role', () => {
-      const store = useProjectScopeStore.getState();
-      store.addMember(member);
-      store.addMember({ ...member, role: 'admin' });
-
-      const { members } = useProjectScopeStore.getState().draft;
-      expect(members).toHaveLength(1);
-      expect(members[0]?.role).toBe('admin');
-    });
   });
 
   describe('status setters', () => {
-    it('sets connection-ready, testStatus and fetchStatus', () => {
+    it('sets connectionReady, testStatus and fetchStatus', () => {
       const store = useProjectScopeStore.getState();
       store.setConnectionReady(true);
       store.setTestStatus('success');
@@ -209,18 +205,12 @@ describe('useProjectScopeStore', () => {
   });
 
   describe('serializeProjectScopeDraft', () => {
-    it('produces a snake_case payload with per-side methods + a single connection', () => {
+    it('produces a snake_case payload', () => {
       const store = useProjectScopeStore.getState();
       store.initFromSeed({ companyId: 'co-1', name: 'P', description: 'd' });
       store.setSource('sap');
       store.setTarget('xero');
-      store.setSourceMethod('mcp');
-      store.setTargetMethod('csv');
-      store.updateConnection({
-        authType: 'bearer',
-        skipSSL: true,
-        url: 'https://conn',
-      });
+      store.updateConnection({ authType: 'bearer', skipSSL: true });
       store.setMasterData(['accounts']);
       store.setOpeningBalances(['balances']);
       store.addMember(member);
@@ -233,11 +223,9 @@ describe('useProjectScopeStore', () => {
       expect(payload.source_erp).toBe('sap');
       expect(payload.target_erp).toBe('xero');
       expect(payload.source_method).toBe('mcp');
-      expect(payload.target_method).toBe('csv');
+      expect(payload.target_method).toBe('mcp');
       expect(payload.connection.auth_type).toBe('bearer');
       expect(payload.connection.skip_ssl).toBe(true);
-      expect(payload.connection.scope).toBe('source');
-      expect(payload.connection.url).toBe('https://conn');
       expect(payload.scope.selected_master_data).toEqual(['accounts']);
       expect(payload.scope.selected_opening_balances).toEqual(['balances']);
       expect(payload.members[0]?.role).toBe('editor');

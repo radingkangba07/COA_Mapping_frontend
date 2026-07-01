@@ -82,29 +82,6 @@ jest.mock('../../hooks/useHydrateProject', () => ({
   useHydrateProject: () => ({ isHydrating: false, error: null, retry: jest.fn() }),
 }));
 
-// Force the CSV branch so the existing FileUploader-based assertions hold. The
-// real hook now defaults method to 'mcp' (DA-52), which renders FetchFromErpStep
-// instead. The 'mcp' branch is covered separately in UploadScreen.fetch-branch.test.
-jest.mock('../../hooks/useFetchFromErp', () => ({
-  useFetchFromErp: () => ({
-    method: 'csv',
-    connectionReady: false,
-    sourceErpName: undefined,
-    targetErpName: undefined,
-    fetch: {
-      status: 'idle',
-      progress: 0,
-      counts: { source: 0, target: 0 },
-      sampleSource: [],
-      sampleTarget: [],
-      errorMessage: null,
-    },
-    runFetch: jest.fn(),
-    refetch: jest.fn(),
-    useCsvFallback: jest.fn(),
-  }),
-}));
-
 // ─── Child component stubs ──────────────────────────────────────────────────
 jest.mock('../../components/MigrationStepper/MigrationStepper', () => {
   const RN = require('react-native');
