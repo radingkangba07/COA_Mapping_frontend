@@ -2,18 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { colors } from '@/config/theme';
-import { WorkstreamRow, COL_FLEX } from './WorkstreamRow';
+import { WorkstreamRow, useColFlex } from './WorkstreamRow';
 import type { Workstream } from '../types/workstream.types';
-
-const TABLE_HEADERS: { label: string; flex: number; paddingLeft?: number }[] = [
-  { label: 'Workstream',    flex: COL_FLEX.name                         },
-  { label: 'Project ID',    flex: COL_FLEX.projectId                    },
-  { label: 'Status',        flex: COL_FLEX.status,  paddingLeft: 8      },
-  { label: '',             flex: COL_FLEX.percent                       },
-  { label: 'Progress',      flex: COL_FLEX.progress                     },
-  { label: 'Current Stage', flex: COL_FLEX.currentStage, paddingLeft: 8 },
-  { label: 'Action',        flex: COL_FLEX.action                       },
-];
 
 interface WorkstreamGroupProps {
   readonly title: string;
@@ -34,6 +24,17 @@ export const WorkstreamGroup = ({
   testID,
 }: WorkstreamGroupProps): React.JSX.Element => {
   const [internalExpanded, setInternalExpanded] = useState(true);
+  const colFlex = useColFlex();
+
+  const TABLE_HEADERS: { label: string; flex: number; paddingLeft?: number }[] = [
+    { label: 'Workstream',    flex: colFlex.name                          },
+    { label: 'Project ID',    flex: colFlex.projectId                     },
+    { label: 'Status',        flex: colFlex.status,   paddingLeft: 8      },
+    { label: '',              flex: colFlex.percent                        },
+    { label: 'Progress',      flex: colFlex.progress                      },
+    { label: 'Current Stage', flex: colFlex.currentStage, paddingLeft: 8  },
+    { label: 'Action',        flex: colFlex.action                        },
+  ];
 
   const isExpanded = expanded !== undefined ? expanded : internalExpanded;
 
@@ -134,6 +135,7 @@ export const WorkstreamGroup = ({
               key={w.id}
               workstream={w}
               onOpen={onOpen}
+              colFlex={colFlex}
               testID={testID ? `${testID}-row-${w.id}` : undefined}
             />
           ))}
