@@ -8,7 +8,8 @@ import type { Workstream } from '../types/workstream.types';
 const TABLE_HEADERS: { label: string; flex: number; paddingLeft?: number }[] = [
   { label: 'Workstream',    flex: COL_FLEX.name                         },
   { label: 'Project ID',    flex: COL_FLEX.projectId                    },
-  { label: 'Status',        flex: COL_FLEX.status                       },
+  { label: 'Status',        flex: COL_FLEX.status,  paddingLeft: 8      },
+  { label: '',             flex: COL_FLEX.percent                       },
   { label: 'Progress',      flex: COL_FLEX.progress                     },
   { label: 'Current Stage', flex: COL_FLEX.currentStage, paddingLeft: 8 },
   { label: 'Action',        flex: COL_FLEX.action                       },

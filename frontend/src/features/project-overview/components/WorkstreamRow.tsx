@@ -9,6 +9,7 @@ export const COL_FLEX = {
   name:         2.5,
   projectId:    1,
   status:       1.8,
+  percent:      0.65,
   progress:     2,
   currentStage: 1.5,
   action:       0.8,
@@ -49,9 +50,10 @@ export const WorkstreamRow = ({
       <View style={rowBase} testID={testID}>
         <View style={{ flex: COL_FLEX.name }}><CellText muted>{w.name}</CellText></View>
         <View style={{ flex: COL_FLEX.projectId }}><CellText muted>{w.projectId}</CellText></View>
-        <View style={{ flex: COL_FLEX.status }}>
+        <View style={{ flex: COL_FLEX.status, paddingLeft: 8 }}>
           <StatusBadge status="not_included" />
         </View>
+        <View style={{ flex: COL_FLEX.percent }}><CellText muted>—</CellText></View>
         <View style={{ flex: COL_FLEX.progress }}><CellText muted>—</CellText></View>
         <View style={{ flex: COL_FLEX.currentStage, paddingLeft: 8 }}><CellText muted>—</CellText></View>
         <View style={{ flex: COL_FLEX.action }}>
@@ -73,11 +75,16 @@ export const WorkstreamRow = ({
           {w.projectId}
         </Text>
       </View>
-      <View style={{ flex: COL_FLEX.status }}>
+      <View style={{ flex: COL_FLEX.status, paddingLeft: 8 }}>
         <StatusBadge status={w.status} />
       </View>
+      <View style={{ flex: COL_FLEX.percent }}>
+        <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primary }}>
+          {w.progress}%
+        </Text>
+      </View>
       <View style={{ flex: COL_FLEX.progress }}>
-        <ProgressBar value={w.progress} showLabel />
+        <ProgressBar value={w.progress} />
       </View>
       <View style={{ flex: COL_FLEX.currentStage, paddingLeft: 8 }}>
         <CellText>{w.currentStage}</CellText>
