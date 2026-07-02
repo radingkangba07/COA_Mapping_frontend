@@ -18,7 +18,9 @@ export type ColFlex = {
 
 // Tighten fixed-content columns (status badge, project ID, action) on wider
 // screens so the progress bar and workstream name have proportional room.
-const COL_FLEX_MAP: Record<string, ColFlex> = {
+type ColFlexMap = { readonly sm: ColFlex; readonly md: ColFlex; readonly lg: ColFlex; readonly xl: ColFlex };
+
+const COL_FLEX_MAP: ColFlexMap = {
   sm: { name: 2.2, projectId: 0.85, status: 1.6,  percent: 0.6,  progress: 1.8, currentStage: 1.1, action: 0.65 },
   md: { name: 2.3, projectId: 0.9,  status: 1.6,  percent: 0.62, progress: 1.9, currentStage: 1.2, action: 0.7  },
   lg: { name: 2.2, projectId: 0.85, status: 1.5,  percent: 0.6,  progress: 2.0, currentStage: 1.3, action: 0.7  },
