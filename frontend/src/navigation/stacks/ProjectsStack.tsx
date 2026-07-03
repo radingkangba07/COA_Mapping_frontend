@@ -6,7 +6,6 @@ import { ProjectsScreen } from '@/features/projects/screens/ProjectsScreen';
 import { NewProjectScreen } from '@/features/projects/screens/NewProjectScreen';
 import { ClientOrgsScreen } from '@/features/projects/screens/ClientOrgsScreen';
 import { ClientOrgDetailScreen } from '@/features/projects/screens/ClientOrgDetailScreen';
-
 const Stack = createNativeStackNavigator<ProjectsStackParamList>();
 
 export const ProjectsStack = (): React.JSX.Element => (
