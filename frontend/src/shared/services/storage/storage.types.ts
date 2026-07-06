@@ -11,6 +11,7 @@ export const STORAGE_KEYS = {
   THEME: 'coa_theme',
   LOCALE: 'coa_locale',
   ACTIVE_ORG_ID: 'coa_active_org_id',
+  SECTION_STATE: 'coa_section_state',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];
