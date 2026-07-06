@@ -6,6 +6,8 @@ import { ProjectsScreen } from '@/features/projects/screens/ProjectsScreen';
 import { NewProjectScreen } from '@/features/projects/screens/NewProjectScreen';
 import { ClientOrgsScreen } from '@/features/projects/screens/ClientOrgsScreen';
 import { ClientOrgDetailScreen } from '@/features/projects/screens/ClientOrgDetailScreen';
+import { ProjectOverviewScreen } from '@/features/project-overview/screens/ProjectOverviewScreen';
+
 const Stack = createNativeStackNavigator<ProjectsStackParamList>();
 
 export const ProjectsStack = (): React.JSX.Element => (
@@ -15,6 +17,7 @@ export const ProjectsStack = (): React.JSX.Element => (
       <Stack.Screen name="NewProject" component={NewProjectScreen} options={{ title: 'New Project' }} />
       <Stack.Screen name="ClientOrgs" component={ClientOrgsScreen} options={{ title: 'Client Workspaces' }} />
       <Stack.Screen name="ClientOrgDetail" component={ClientOrgDetailScreen} options={{ title: 'Client Workspace' }} />
+      <Stack.Screen name="ProjectOverview" component={ProjectOverviewScreen} options={{ title: 'Project Overview' }} />
     </Stack.Navigator>
   </ErrorBoundary>
 );
