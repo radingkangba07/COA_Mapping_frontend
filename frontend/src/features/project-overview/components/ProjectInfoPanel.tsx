@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { Users, ArrowRight } from 'lucide-react-native';
 import { colors } from '@/config/theme';
+import { ERP_SYSTEMS } from '@/shared/constants/erp-systems';
 import { formatDateTime } from '@/shared/utils/date.utils';
 import type { Project } from '@/features/projects/types/projects.types';
 import type { AccessResponse } from '@/features/projects/types/project-access.types';
@@ -16,26 +17,13 @@ interface ProjectInfoPanelProps {
 
 // ─── ERP display helpers ────────────────────────────────────────────────────
 
-const ERP_COLORS: Record<string, string> = {
-  'sap':          '#0070F2',
-  'odoo':         '#E86C1B',
-  'netsuite':     '#2CA01C',
-  'oracle':       '#F80000',
-  'dynamics':     '#107C10',
-  'dynamics 365': '#107C10',
-  'quickbooks':   '#2CA01C',
-  'sage':         '#00B050',
-  'xero':         '#1AB4D7',
-  'syspro':       '#005BAC',
-  'accpac':       '#C8002F',
-};
-
 function erpColor(name: string): string {
-  const key = name.toLowerCase();
-  for (const [k, v] of Object.entries(ERP_COLORS)) {
-    if (key.includes(k)) return v;
-  }
-  return colors.primary;
+  const flat = name.toLowerCase().replace(/\s+/g, '');
+  const match = ERP_SYSTEMS.find(erp => {
+    const flatId = erp.id.replace('_', '');
+    return flat.includes(flatId) || name.toLowerCase().includes(erp.name.toLowerCase().split(' ')[0] ?? '');
+  });
+  return match?.brandColor ?? colors.primary;
 }
 
 function erpInitial(name: string): string {
@@ -122,7 +110,7 @@ const InitialAvatar = ({
       flexShrink: 0,
     }}
   >
-    <Text style={{ color: '#fff', fontSize: size * 0.4, fontWeight: '700' }}>
+    <Text style={{ color: colors.primaryForeground, fontSize: size * 0.4, fontWeight: '700' }}>
       {name.trim().charAt(0).toUpperCase()}
     </Text>
   </View>
@@ -263,7 +251,7 @@ export const ProjectInfoPanel = ({
                 justifyContent: 'center',
               }}
             >
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>
+              <Text style={{ color: colors.primaryForeground, fontSize: 16, fontWeight: '800' }}>
                 {erpInitial(project.sourceErp)}
               </Text>
             </View>
@@ -298,7 +286,7 @@ export const ProjectInfoPanel = ({
                 justifyContent: 'center',
               }}
             >
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>
+              <Text style={{ color: colors.primaryForeground, fontSize: 16, fontWeight: '800' }}>
                 {erpInitial(project.targetErp)}
               </Text>
             </View>
