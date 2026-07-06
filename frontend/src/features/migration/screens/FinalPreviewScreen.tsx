@@ -49,7 +49,6 @@ interface PreviewRow {
   readonly targetName: string;
   readonly targetType: string;
   readonly score: number;
-  readonly isConfirmed: boolean;
 }
 
 export const FinalPreviewScreen = (): React.JSX.Element => {
@@ -66,9 +65,6 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
   const currentStep = useMigrationStore((s) => s.currentStep);
   const completedSteps = useMigrationStore((s) => s.completedSteps);
   const sourceFile = useMigrationStore((s) => s.sourceFile);
-  const confirmedHigh = useMigrationStore((s) => s.confirmedHigh);
-  const confirmedMedium = useMigrationStore((s) => s.confirmedMedium);
-  const confirmedLow = useMigrationStore((s) => s.confirmedLow);
   const completeStep = useMigrationStore((s) => s.completeStep);
   const setStep = useMigrationStore((s) => s.setStep);
   const stats = useMigrationStore(useShallow(selectMappingStats));
@@ -77,30 +73,28 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
   const rows = useMemo((): readonly PreviewRow[] =>
     groupedMappings.flatMap((group) =>
       group.accounts
-        .filter((account) => account.is_active !== false)
-        .map((account, idx) => {
-          const score = Math.round(account.score);
-          const isConfirmed =
-            (score >= 90 && confirmedHigh) ||
-            (score >= 70 && score < 90 && confirmedMedium) ||
-            (score < 70 && confirmedLow);
-          return {
-            key: `${group.source_type}-${account.source_number}-${idx}`,
-            sourceNumber: account.source_number,
-            sourceName: account.source_name,
-            sourceType: group.source_type,
-            targetNumber: account.target_number,
-            targetName: account.target_name,
-            targetType: group.target_type,
-            score,
-            isConfirmed,
-          };
-        }),
+        .filter((account) => account.is_active !== false && (account as { status?: string }).status === 'confirmed')
+        .map((account, idx) => ({
+          key: `${group.source_type}-${account.source_number}-${idx}`,
+          sourceNumber: account.source_number,
+          sourceName: account.source_name,
+          sourceType: group.source_type,
+          targetNumber: account.target_number,
+          targetName: account.target_name,
+          targetType: group.target_type,
+          score: Math.round(account.score),
+        })),
     ),
-  [groupedMappings, confirmedHigh, confirmedMedium, confirmedLow]);
+  [groupedMappings]);
 
-  const confirmedCount = rows.filter((r) => r.isConfirmed).length;
-  const notConfirmedCount = rows.length - confirmedCount;
+  const confirmedCount = rows.length;
+  const notConfirmedCount = useMemo(
+    () =>
+      groupedMappings.flatMap((g) => g.accounts).filter(
+        (a) => a.is_active !== false && (a as { status?: string }).status !== 'confirmed',
+      ).length,
+    [groupedMappings],
+  );
 
   const handleBack = useCallback((): void => {
     navigation.goBack();
@@ -282,11 +276,8 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
                 <View className="w-[12%]">
                   <Text className="text-xs font-semibold text-muted-foreground">Target Type</Text>
                 </View>
-                <View className="w-[10%] items-center">
+                <View className="w-[28%] items-center">
                   <Text className="text-xs font-semibold text-muted-foreground">Score</Text>
-                </View>
-                <View className="w-[18%] items-center">
-                  <Text className="text-xs font-semibold text-muted-foreground">Status</Text>
                 </View>
               </View>
 
@@ -320,28 +311,10 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
                       <View className="w-[12%]">
                         <Text className="text-xs text-muted-foreground" numberOfLines={1}>{row.targetType}</Text>
                       </View>
-                      <View className="w-[10%] items-center">
+                      <View className="w-[28%] items-center">
                         <Badge className={cn(scoreColor, 'px-1.5 py-0.5')}>
                           <Text className={cn('text-xs font-mono font-medium', scoreColor)}>
                             {row.score}%
-                          </Text>
-                        </Badge>
-                      </View>
-                      <View className="w-[18%] items-center">
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            'px-2 py-0.5 bg-card',
-                            row.isConfirmed ? 'border-blue-200 dark:border-blue-800' : 'border-red-300 dark:border-red-800',
-                          )}
-                        >
-                          <Text
-                            className={cn(
-                              'text-xs font-medium',
-                              row.isConfirmed ? 'text-primary dark:text-blue-400' : 'text-red-700 dark:text-red-400',
-                            )}
-                          >
-                            {row.isConfirmed ? 'Confirmed' : 'Not Confirmed'}
                           </Text>
                         </Badge>
                       </View>

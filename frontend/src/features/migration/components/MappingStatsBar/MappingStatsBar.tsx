@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { CheckCircle2, Eye } from 'lucide-react-native';
+import { CheckCircle2, Eye, Search } from 'lucide-react-native';
 import { Badge } from '@/shared/components/ui/Badge';
 import { cn } from '@/shared/utils/string.utils';
 import { colors } from '@/config/theme';
@@ -20,6 +20,7 @@ interface MappingStatsBarProps {
   activeFilter: ConfidenceLevel | null;
   onFilterPress: (filter: ConfidenceLevel | null) => void;
   onConfirmedPress?: () => void;
+  onBandReviewPress?: (level: ConfidenceLevel) => void;
   testID?: string;
 }
 
@@ -35,6 +36,7 @@ export const MappingStatsBar = ({
   activeFilter,
   onFilterPress,
   onConfirmedPress,
+  onBandReviewPress,
   testID,
 }: MappingStatsBarProps): React.JSX.Element => {
   const handlePress = useCallback(
@@ -44,7 +46,9 @@ export const MappingStatsBar = ({
     [onFilterPress],
   );
 
-  const allConfirmed = confirmedHigh && confirmedMedium && confirmedLow;
+  // "Click to review" only needs SOME confirmed accounts to exist — it must
+  // not require every band (high/medium/low) to be fully confirmed first.
+  const hasConfirmed = confirmedCount > 0;
   const isAllActive = activeFilter === null;
 
   return (
@@ -79,6 +83,7 @@ export const MappingStatsBar = ({
         confirmed={confirmedHigh}
         isActive={activeFilter === 'high'}
         onPress={() => handlePress('high')}
+        onReviewPress={onBandReviewPress !== undefined ? () => onBandReviewPress('high') : undefined}
         testID={testID !== undefined ? `${testID}-high` : undefined}
       />
 
@@ -92,6 +97,7 @@ export const MappingStatsBar = ({
         confirmed={confirmedMedium}
         isActive={activeFilter === 'medium'}
         onPress={() => handlePress('medium')}
+        onReviewPress={onBandReviewPress !== undefined ? () => onBandReviewPress('medium') : undefined}
         testID={testID !== undefined ? `${testID}-medium` : undefined}
       />
 
@@ -105,25 +111,26 @@ export const MappingStatsBar = ({
         confirmed={confirmedLow}
         isActive={activeFilter === 'low'}
         onPress={() => handlePress('low')}
+        onReviewPress={onBandReviewPress !== undefined ? () => onBandReviewPress('low') : undefined}
         testID={testID !== undefined ? `${testID}-low` : undefined}
       />
 
       {/* Confirmed Names */}
       <Pressable
         onPress={onConfirmedPress}
-        disabled={!allConfirmed}
+        disabled={!hasConfirmed}
         className={cn(
           'min-w-[80px] flex-1 items-center rounded-lg border p-3 bg-card',
-          allConfirmed ? 'border-purple-400 dark:border-purple-800' : 'border-gray-200 dark:border-[#3E3E42]',
+          hasConfirmed ? 'border-purple-400 dark:border-purple-800' : 'border-gray-200 dark:border-[#3E3E42]',
         )}
         accessibilityRole="button"
         testID={testID !== undefined ? `${testID}-confirmed` : undefined}
       >
-        <Text className={cn('font-mono text-xl font-bold', allConfirmed ? 'text-purple-600 dark:text-purple-300/70' : 'text-purple-400 dark:text-purple-500')}>
+        <Text className={cn('font-mono text-xl font-bold', hasConfirmed ? 'text-purple-600 dark:text-purple-300/70' : 'text-purple-400 dark:text-purple-500')}>
           {confirmedCount}
         </Text>
         <Text className="text-xs text-muted-foreground">Confirmed Names</Text>
-        {allConfirmed ? (
+        {hasConfirmed ? (
           <Badge className="mt-1 bg-purple-600 dark:bg-purple-900/50 px-2 py-0.5">
             <View className="flex-row items-center gap-1">
               <Eye size={10} color="#FFFFFF" />
@@ -151,6 +158,7 @@ interface StatCardProps {
   confirmed: boolean;
   isActive: boolean;
   onPress: () => void;
+  onReviewPress?: () => void;
   testID?: string;
 }
 
@@ -163,6 +171,7 @@ const StatCard = ({
   confirmed,
   isActive,
   onPress,
+  onReviewPress,
   testID,
 }: StatCardProps) => (
   <Pressable
@@ -178,12 +187,29 @@ const StatCard = ({
     <Text className={cn('font-mono text-xl font-bold', textClass)}>{count}</Text>
     <Text className="text-xs text-muted-foreground">{label}</Text>
     {confirmed ? (
-      <Badge className={cn('mt-1 px-2 py-0.5', confirmedBadgeClass)}>
-        <View className="flex-row items-center gap-1">
-          <CheckCircle2 size={10} color="#FFFFFF" />
-          <Text className="text-xs font-medium text-white">Confirmed</Text>
-        </View>
-      </Badge>
+      <View className="items-center gap-1">
+        <Badge className={cn('mt-1 px-2 py-0.5', confirmedBadgeClass)}>
+          <View className="flex-row items-center gap-1">
+            <CheckCircle2 size={10} color="#FFFFFF" />
+            <Text className="text-xs font-medium text-white">Confirmed</Text>
+          </View>
+        </Badge>
+        {onReviewPress !== undefined && (
+          <Pressable
+            onPress={onReviewPress}
+            hitSlop={6}
+            testID={testID !== undefined ? `${testID}-review` : undefined}
+            accessibilityLabel="Click to review confirmed accounts"
+          >
+            <Badge className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 border-purple-300 dark:border-purple-700">
+              <View className="flex-row items-center gap-1">
+                <Search size={9} color="#7C3AED" />
+                <Text className="text-xs font-medium text-purple-700 dark:text-purple-400">Click to review</Text>
+              </View>
+            </Badge>
+          </Pressable>
+        )}
+      </View>
     ) : isActive ? (
       <Badge className="mt-1 bg-gray-100 dark:bg-[#2D2D2D] px-2 py-0.5">
         <Text className="text-xs font-medium text-gray-600 dark:text-gray-400">Review</Text>

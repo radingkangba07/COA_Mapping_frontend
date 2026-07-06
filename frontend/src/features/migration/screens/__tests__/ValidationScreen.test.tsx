@@ -108,6 +108,7 @@ jest.mock('../../store/migration.store', () => {
     sourceERP: { id: 'sap', name: 'SAP' },
     targetERP: { id: 'netsuite', name: 'NetSuite' },
     currentStep: 3,
+    groupedMappings: [],
     setGroupedMappings: mockSetGroupedMappings,
   });
   const useMigrationStore = Object.assign(
@@ -211,7 +212,14 @@ jest.mock('../../components/MappingStatsBar/MappingStatsBar', () => {
   const R = require('react');
   return {
     MappingStatsBar: (props: Record<string, unknown>) =>
-      R.createElement(RN.View, { testID: props.testID ?? 'mapping-stats-bar' }),
+      R.createElement(
+        RN.View,
+        { testID: props.testID ?? 'mapping-stats-bar' },
+        R.createElement(RN.Pressable, {
+          testID: 'stats-bar-confirmed-press',
+          onPress: props.onConfirmedPress,
+        }),
+      ),
   };
 });
 
@@ -221,6 +229,21 @@ jest.mock('../../components/AccountTypeGroup/AccountTypeGroup', () => {
   return {
     AccountTypeGroup: (props: Record<string, unknown>) =>
       R.createElement(RN.View, { testID: props.testID ?? 'account-type-group' }),
+  };
+});
+
+jest.mock('../../components/ConfirmedReviewModal/ConfirmedReviewModal', () => {
+  const RN = require('react-native');
+  const R = require('react');
+  return {
+    ConfirmedReviewModal: (props: Record<string, unknown>) =>
+      props.visible
+        ? R.createElement(
+            RN.View,
+            { testID: 'confirmed-review-modal' },
+            R.createElement(RN.Pressable, { testID: 'confirmed-review-modal-close', onPress: props.onClose }),
+          )
+        : null,
   };
 });
 
@@ -492,6 +515,54 @@ describe('ValidationScreen', () => {
       mockJobStream.error = null;
       render(<ValidationScreen />);
       expect(mockShowWarning).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('ConfirmedReviewModal integration', () => {
+    it('modal is hidden by default', () => {
+      render(<ValidationScreen />);
+      expect(screen.queryByTestId('confirmed-review-modal')).toBeNull();
+    });
+
+    it('opens modal when onConfirmedPress is triggered', () => {
+      render(<ValidationScreen />);
+      fireEvent.press(screen.getByTestId('stats-bar-confirmed-press'));
+      expect(screen.getByTestId('confirmed-review-modal')).toBeTruthy();
+    });
+
+    it('closes modal when onClose is called', () => {
+      render(<ValidationScreen />);
+      fireEvent.press(screen.getByTestId('stats-bar-confirmed-press'));
+      expect(screen.getByTestId('confirmed-review-modal')).toBeTruthy();
+      fireEvent.press(screen.getByTestId('confirmed-review-modal-close'));
+      expect(screen.queryByTestId('confirmed-review-modal')).toBeNull();
+    });
+
+    it('can reopen modal after closing', () => {
+      render(<ValidationScreen />);
+      fireEvent.press(screen.getByTestId('stats-bar-confirmed-press'));
+      fireEvent.press(screen.getByTestId('confirmed-review-modal-close'));
+      fireEvent.press(screen.getByTestId('stats-bar-confirmed-press'));
+      expect(screen.getByTestId('confirmed-review-modal')).toBeTruthy();
+    });
+  });
+
+  describe('score sort button', () => {
+    it('renders the score sort button', () => {
+      render(<ValidationScreen />);
+      expect(screen.getByTestId('score-sort-button')).toBeTruthy();
+    });
+
+    it('cycles sort icon label: none → desc → asc → none', () => {
+      render(<ValidationScreen />);
+      // Initial state renders ArrowUpDown icon (none)
+      expect(screen.getByTestId('ArrowUpDown-icon')).toBeTruthy();
+      fireEvent.press(screen.getByTestId('score-sort-button'));
+      expect(screen.getByTestId('ArrowDown-icon')).toBeTruthy();
+      fireEvent.press(screen.getByTestId('score-sort-button'));
+      expect(screen.getByTestId('ArrowUp-icon')).toBeTruthy();
+      fireEvent.press(screen.getByTestId('score-sort-button'));
+      expect(screen.getByTestId('ArrowUpDown-icon')).toBeTruthy();
     });
   });
 

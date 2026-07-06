@@ -4,9 +4,11 @@ import { ArrowRight, ChevronDown, ChevronRight, Edit3, FolderTree, Trash2, X } f
 import { Select, type SelectOption } from '@/shared/components/ui/Select';
 import { Button } from '@/shared/components/ui/Button';
 import { Badge } from '@/shared/components/ui/Badge';
+import { Checkbox } from '@/shared/components/ui/Checkbox';
 import { colors } from '@/config/theme';
 import { cn } from '@/shared/utils/string.utils';
 import type { AccountMapping } from '@/features/migration/types/mapping.types';
+import { selectionKey, computeTriState } from '@/features/migration/utils/selection.utils';
 
 export type ScoreSortDirection = 'none' | 'asc' | 'desc';
 
@@ -58,6 +60,13 @@ interface AccountTypeGroupProps {
   forceOpen?: boolean;
   scoreSortDirection?: ScoreSortDirection;
   testID?: string;
+  // ─── Selection ──────────────────────────────────────────────────────────────
+  selection?: Record<string, true>;
+  // Keys already confirmed — their checkboxes render checked but cannot be
+  // toggled until the user presses "Edit & Reconfirm" for that band.
+  lockedKeys?: Record<string, true>;
+  onToggleGroupSelect?: (checked: boolean, groupKeys: string[]) => void;
+  onToggleRowSelect?: (sourceType: string, account: AccountMapping) => void;
 }
 
 // ─── Account Row ────────────────────────────────────────────────────────────
@@ -73,6 +82,9 @@ interface AccountRowProps {
   onNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string, suggestionId?: string, targetNumber?: string | null) => void;
   onDelete: (sourceType: string, accountIndex: number, account: AccountMapping) => void;
   testID?: string;
+  isSelected?: boolean;
+  isLocked?: boolean;
+  onToggleSelect?: (sourceType: string, account: AccountMapping) => void;
 }
 
 const AccountRow = memo(({
@@ -86,6 +98,9 @@ const AccountRow = memo(({
   onNameChange,
   onDelete,
   testID,
+  isSelected = false,
+  isLocked = false,
+  onToggleSelect,
 }: AccountRowProps) => {
   const handleSelectChange = useCallback(
     (value: string) => {
@@ -115,6 +130,17 @@ const AccountRow = memo(({
       className="flex-row items-center px-6 py-2.5 border-t border-border hover:bg-muted/20"
       testID={testID}
     >
+      {/* Checkbox */}
+      <View className="w-8 items-center justify-center">
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={() => onToggleSelect?.(sourceType, account)}
+          isDisabled={isLocked}
+          className="-ml-10"
+          testID={testID ? `${testID}-checkbox` : undefined}
+        />
+      </View>
+
       {/* Account # */}
       <View className="w-[8%] pr-2">
         <Text className="font-mono text-xs text-muted-foreground">
@@ -236,6 +262,10 @@ export const AccountTypeGroup = ({
   forceOpen,
   scoreSortDirection = 'none',
   testID,
+  selection = {},
+  lockedKeys = {},
+  onToggleGroupSelect,
+  onToggleRowSelect,
 }: AccountTypeGroupProps) => {
   const [isOpen, setIsOpen] = useState(true);
   const [editingRow, setEditingRow] = useState<number | null>(null);
@@ -272,6 +302,21 @@ export const AccountTypeGroup = ({
     [targetAccounts],
   );
 
+  const groupKeys = useMemo(
+    () => accounts.map((a) => selectionKey(sourceType, a)),
+    [accounts, sourceType],
+  );
+
+  const isGroupFullyLocked = useMemo(
+    () => groupKeys.length > 0 && groupKeys.every((k) => lockedKeys[k]),
+    [groupKeys, lockedKeys],
+  );
+
+  const groupTriState = useMemo(
+    () => computeTriState(selection, groupKeys),
+    [selection, groupKeys],
+  );
+
   const isMapped = targetType.length > 0 && targetType !== 'unmatched';
   const sortedAccounts = useMemo(
     () => {
@@ -292,14 +337,25 @@ export const AccountTypeGroup = ({
   return (
     <View className="border-t border-border" testID={testID}>
       {/* Group header row */}
-      <Pressable
-        onPress={handleToggle}
-        className="flex-row items-center bg-muted/40 px-6 py-2.5 hover:bg-muted/60"
-        accessibilityRole="button"
-        accessibilityLabel={`${sourceType} group, ${accounts.length} accounts`}
-      >
-        {/* Left side: chevron + folder + source type + count (spans Src # + Source Account columns) */}
-        <View className="flex-row items-center gap-2 w-[34%]">
+      <View className="flex-row items-center bg-muted/40 px-6 py-2.5 hover:bg-muted/60">
+        {/* Checkbox — must be a sibling of the collapse Pressable, not a child (AC9) */}
+        <View className="w-8 items-center justify-center">
+          <Checkbox
+            checked={groupTriState}
+            onCheckedChange={(checked) => onToggleGroupSelect?.(checked, groupKeys)}
+            isDisabled={isGroupFullyLocked}
+            className="-ml-10"
+            testID={testID ? `${testID}-group-checkbox` : undefined}
+          />
+        </View>
+
+        {/* Collapse toggle wraps ONLY chevron + folder + type label + count */}
+        <Pressable
+          onPress={handleToggle}
+          className="flex-row items-center gap-2 flex-1"
+          accessibilityRole="button"
+          accessibilityLabel={`${sourceType} group, ${accounts.length} accounts`}
+        >
           {isOpen ? (
             <ChevronDown size={16} color={colors.mutedForeground} />
           ) : (
@@ -314,13 +370,10 @@ export const AccountTypeGroup = ({
               {accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}
             </Text>
           </Badge>
-        </View>
+        </Pressable>
 
-        {/* Middle: blank (Arrow + Tgt# + Target Account + Score + Remark columns) */}
-        <View className="w-[56%]" />
-
-        {/* Right side: target type badge + Mapped/Unmapped badge (Action column) */}
-        <View className="w-[10%] flex-row items-center justify-end gap-2">
+        {/* Right side: target type badge + Mapped/Unmapped badge — outside the collapse toggle */}
+        <View className="flex-row items-center justify-end gap-2">
           {isMapped ? (
             <Badge className="bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5">
               <Text className="text-xs font-medium text-blue-800 dark:text-blue-400">{targetType}</Text>
@@ -347,7 +400,7 @@ export const AccountTypeGroup = ({
             </Text>
           </Badge>
         </View>
-      </Pressable>
+      </View>
 
       {/* Expanded account rows */}
       {isOpen && accounts.length > 0 && (
@@ -365,6 +418,9 @@ export const AccountTypeGroup = ({
               onNameChange={onAccountNameChange}
               onDelete={onDeleteAccount}
               testID={testID !== undefined ? `${testID}-row-${displayIndex}` : undefined}
+              isSelected={!!selection[selectionKey(sourceType, account)]}
+              isLocked={!!lockedKeys[selectionKey(sourceType, account)]}
+              onToggleSelect={onToggleRowSelect}
             />
           ))}
         </View>

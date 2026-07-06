@@ -73,8 +73,28 @@ function createMockState(overrides: Partial<MigrationStore> = {}): MigrationStor
     setError: jest.fn(),
     setConfidenceFilter: jest.fn(),
     reset: jest.fn(),
+    selection: {},
+    toggleAccountSelection: jest.fn(),
+    setSelectionForKeys: jest.fn(),
+    clearSelection: jest.fn(),
+    bulkDeleteSelected: jest.fn(),
+    confirmAccountsByKeys: jest.fn(),
+    resetBandConfirmation: jest.fn(),
     ...overrides,
   } as MigrationStore;
+}
+
+// groupedMappings with one account in each confidence band (high ≥90, medium 70–89, low <70)
+function createAllBandsGroupedMappings(): GroupedMapping[] {
+  return [
+    createGroup({
+      accounts: [
+        createAccount({ score: 95 }), // high
+        createAccount({ score: 75 }), // medium
+        createAccount({ score: 50 }), // low
+      ],
+    }),
+  ];
 }
 
 function createAccount(overrides: Partial<AccountMapping> = {}): AccountMapping {
@@ -337,8 +357,11 @@ describe('selectMappingStats', () => {
 // ─── selectAllConfirmed ─────────────────────────────────────────────────────
 
 describe('selectAllConfirmed', () => {
+  const allBands = createAllBandsGroupedMappings();
+
   it('returns false when none confirmed', () => {
     const state = createMockState({
+      groupedMappings: allBands,
       confirmedHigh: false,
       confirmedMedium: false,
       confirmedLow: false,
@@ -348,6 +371,7 @@ describe('selectAllConfirmed', () => {
 
   it('returns false when only high confirmed', () => {
     const state = createMockState({
+      groupedMappings: allBands,
       confirmedHigh: true,
       confirmedMedium: false,
       confirmedLow: false,
@@ -357,6 +381,7 @@ describe('selectAllConfirmed', () => {
 
   it('returns false when only high and medium confirmed', () => {
     const state = createMockState({
+      groupedMappings: allBands,
       confirmedHigh: true,
       confirmedMedium: true,
       confirmedLow: false,
@@ -366,6 +391,7 @@ describe('selectAllConfirmed', () => {
 
   it('returns true only when all three levels are confirmed', () => {
     const state = createMockState({
+      groupedMappings: allBands,
       confirmedHigh: true,
       confirmedMedium: true,
       confirmedLow: true,
@@ -375,6 +401,7 @@ describe('selectAllConfirmed', () => {
 
   it('returns false when only low is missing', () => {
     const state = createMockState({
+      groupedMappings: allBands,
       confirmedHigh: true,
       confirmedMedium: true,
       confirmedLow: false,
@@ -384,10 +411,31 @@ describe('selectAllConfirmed', () => {
 
   it('returns false when only medium is missing', () => {
     const state = createMockState({
+      groupedMappings: allBands,
       confirmedHigh: true,
       confirmedMedium: false,
       confirmedLow: true,
     });
     expect(selectAllConfirmed(state)).toBe(false);
+  });
+
+  it('returns true when no accounts exist (nothing to confirm)', () => {
+    const state = createMockState({
+      groupedMappings: [],
+      confirmedHigh: false,
+      confirmedMedium: false,
+      confirmedLow: false,
+    });
+    expect(selectAllConfirmed(state)).toBe(true);
+  });
+
+  it('returns true when only high band has accounts and high is confirmed', () => {
+    const state = createMockState({
+      groupedMappings: [createGroup({ accounts: [createAccount({ score: 95 })] })],
+      confirmedHigh: true,
+      confirmedMedium: false,
+      confirmedLow: false,
+    });
+    expect(selectAllConfirmed(state)).toBe(true);
   });
 });

@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useMigrationStore } from '../store/migration.store';
 import { selectCurrentStep, selectMappingStats } from '../store/migration.selectors';
@@ -27,7 +27,22 @@ export function usePreviewScreenViewModel(
   const currentStep = useMigrationStore(selectCurrentStep);
   const completedSteps = useMigrationStore((s) => s.completedSteps);
   const stats = useMigrationStore(useShallow(selectMappingStats));
-  const groupedMappings = useMigrationStore((s) => s.groupedMappings);
+  const allMappings = useMigrationStore((s) => s.groupedMappings);
+  const selection = useMigrationStore((s) => s.selection);
+
+  const groupedMappings = useMemo<GroupedMapping[]>(() => {
+    const selected = allMappings
+      .map((group) => ({
+        ...group,
+        accounts: group.accounts.filter(
+          (a) =>
+            a.is_active !== false &&
+            selection[`${group.source_type}::${a.source_number ?? ''}::${a.source_name}`] === true,
+        ),
+      }))
+      .filter((group) => group.accounts.length > 0);
+    return selected.length > 0 ? selected : allMappings;
+  }, [allMappings, selection]);
   const storeProjectId = useMigrationStore((s) => s.projectId);
 
   const actions = useMigrationStore(useShallow((s) => ({
