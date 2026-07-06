@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Dialog } from '@/shared/components/ui/Dialog';
+import { useCreateProject } from '../hooks/useCreateProject';
 import { useUserOrgs } from '../hooks/useUserOrgs';
 import { ProjectForm } from './ProjectForm';
 import { CreateClientOrgDialog } from './CreateClientOrgDialog';
@@ -19,6 +20,7 @@ export const NewProjectDialog = ({
   companyId,
   testID,
 }: NewProjectDialogProps): React.JSX.Element => {
+  const mutation = useCreateProject(onClose);
   const { orgs, employerOrgs } = useUserOrgs(visible);
   const [createCompanyVisible, setCreateCompanyVisible] = useState(false);
 
@@ -28,10 +30,10 @@ export const NewProjectDialog = ({
   );
 
   const handleSubmit = useCallback(
-    (_data: ProjectCreate) => {
-      onClose();
+    (data: ProjectCreate) => {
+      mutation.mutate(data);
     },
-    [onClose],
+    [mutation],
   );
 
   const handleClose = useCallback(() => {
@@ -50,7 +52,7 @@ export const NewProjectDialog = ({
         <Dialog.Content>
           <ProjectForm
             onSubmit={handleSubmit}
-            isPending={false}
+            isPending={mutation.isPending}
             onCancel={handleClose}
             onCreateCompany={
               parentOrgId !== null ? () => setCreateCompanyVisible(true) : undefined
