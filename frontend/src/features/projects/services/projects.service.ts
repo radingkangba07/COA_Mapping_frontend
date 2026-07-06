@@ -5,7 +5,6 @@ import { ok, err } from '@/shared/types/result.types';
 import { toAppError } from '@/shared/services/http/http.client';
 import type { OrgId, ProjectId } from '@/shared/types/common.types';
 import type { Project, ProjectCreate, ProjectUpdate } from '../types/projects.types';
-import type { ProjectDraftPayload } from '../types/project-scope.types';
 import {
   projectResponseSchema,
   projectListResponseSchema,
@@ -132,18 +131,6 @@ export async function deleteProject(
 ): Promise<Result<void, AppError>> {
   try {
     await client.delete(`/api/v1/projects/${projectId}`);
-    return ok(undefined);
-  } catch (error: unknown) {
-    return err(toAppError(error));
-  }
-}
-
-export async function saveProjectDraft(
-  client: HttpClient,
-  payload: ProjectDraftPayload,
-): Promise<Result<void, AppError>> {
-  try {
-    await client.put('/api/v1/projects/draft', payload);
     return ok(undefined);
   } catch (error: unknown) {
     return err(toAppError(error));

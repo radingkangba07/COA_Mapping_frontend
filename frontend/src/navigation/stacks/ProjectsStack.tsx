@@ -4,7 +4,6 @@ import { ErrorBoundary } from '@/shared/components/feedback/ErrorBoundary';
 import type { ProjectsStackParamList } from '../types';
 import { ProjectsScreen } from '@/features/projects/screens/ProjectsScreen';
 import { NewProjectScreen } from '@/features/projects/screens/NewProjectScreen';
-import { ProjectScopeScreen } from '@/features/projects/screens/ProjectScopeScreen';
 import { ClientOrgsScreen } from '@/features/projects/screens/ClientOrgsScreen';
 import { ClientOrgDetailScreen } from '@/features/projects/screens/ClientOrgDetailScreen';
 
@@ -15,7 +14,6 @@ export const ProjectsStack = (): React.JSX.Element => (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ProjectsList" component={ProjectsScreen} options={{ title: 'Dashboard' }} />
       <Stack.Screen name="NewProject" component={NewProjectScreen} options={{ title: 'New Project' }} />
-      <Stack.Screen name="ProjectScope" component={ProjectScopeScreen} options={{ title: 'Create Data Migration Project' }} />
       <Stack.Screen name="ClientOrgs" component={ClientOrgsScreen} options={{ title: 'Client Workspaces' }} />
       <Stack.Screen name="ClientOrgDetail" component={ClientOrgDetailScreen} options={{ title: 'Client Workspace' }} />
     </Stack.Navigator>

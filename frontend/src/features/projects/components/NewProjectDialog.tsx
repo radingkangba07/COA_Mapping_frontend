@@ -1,13 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Dialog } from '@/shared/components/ui/Dialog';
 import { useUserOrgs } from '../hooks/useUserOrgs';
 import { ProjectForm } from './ProjectForm';
 import { CreateClientOrgDialog } from './CreateClientOrgDialog';
 import type { ProjectCreate } from '../types/projects.types';
 import type { CompanyId } from '@/shared/types/common.types';
-import type { ProjectsStackParamList } from '@/navigation/types';
 
 interface NewProjectDialogProps {
   visible: boolean;
@@ -22,8 +19,6 @@ export const NewProjectDialog = ({
   companyId,
   testID,
 }: NewProjectDialogProps): React.JSX.Element => {
-  const navigation =
-    useNavigation<NativeStackNavigationProp<ProjectsStackParamList>>();
   const { orgs, employerOrgs } = useUserOrgs(visible);
   const [createCompanyVisible, setCreateCompanyVisible] = useState(false);
 
@@ -33,15 +28,10 @@ export const NewProjectDialog = ({
   );
 
   const handleSubmit = useCallback(
-    (data: ProjectCreate) => {
+    (_data: ProjectCreate) => {
       onClose();
-      navigation.navigate('ProjectScope', {
-        companyId: data.companyId,
-        name: data.name,
-        description: data.description,
-      });
     },
-    [navigation, onClose],
+    [onClose],
   );
 
   const handleClose = useCallback(() => {
