@@ -71,11 +71,11 @@ describe('useMigrationScopeViewModel', () => {
     const { result } = renderHook(() => useMigrationScopeViewModel());
 
     act(() => {
-      result.current.toggleOpeningBalance('gl-balances');
+      result.current.toggleOpeningBalance('historical-balance-sheet-start');
     });
 
     const ob = result.current.openingBalances.find(
-      (item) => item.id === 'gl-balances',
+      (item) => item.id === 'historical-balance-sheet-start',
     );
     expect(ob?.selected).toBe(true);
     expect(result.current.openingBalancesCount).toBe(1);

@@ -51,6 +51,9 @@ export function useHydrateProject(projectId: ProjectId): UseHydrateProjectReturn
             showWarningRef.current('File data unavailable', w);
           }
         }
+        // Restore persisted confirmation state after the project hydrates so
+        // confirmed flags and per-account status survive a page refresh.
+        await useMigrationStore.getState().hydrateConfirmation();
       }
     } catch {
       setError({ code: 'HYDRATION_ERROR', message: 'Failed to load project data' });

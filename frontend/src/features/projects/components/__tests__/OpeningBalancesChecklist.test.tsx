@@ -49,7 +49,7 @@ describe('OpeningBalancesChecklist', () => {
       <OpeningBalancesChecklist testID="ob" items={items} onToggle={onToggle} />,
     );
 
-    fireEvent.press(screen.getByTestId('ob-gl-balances'));
-    expect(onToggle).toHaveBeenCalledWith('gl-balances');
+    fireEvent.press(screen.getByTestId('ob-historical-balance-sheet-start'));
+    expect(onToggle).toHaveBeenCalledWith('historical-balance-sheet-start');
   });
 });

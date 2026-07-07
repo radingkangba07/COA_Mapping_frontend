@@ -57,11 +57,7 @@ export function createInitialDraft(): ProjectScopeDraft {
       selectedOpeningBalances: [],
       aggregation: 'none',
     },
-    members: [
-      { id: 'dummy-1', name: 'John Smith', email: 'john.smith@example.com', role: 'admin' },
-      { id: 'dummy-2', name: 'Sarah Johnson', email: 'sarah.johnson@example.com', role: 'editor' },
-      { id: 'dummy-3', name: 'Michael Brown', email: 'michael.brown@example.com', role: 'viewer' },
-    ],
+    members: [],
   };
 }
 

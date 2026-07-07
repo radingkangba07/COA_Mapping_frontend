@@ -8,9 +8,7 @@ import type { ERPSystem } from '@/features/migration/types/erp.types';
 import type { MigrationStore } from '../store/migration.store';
 import { getProject } from '@/features/projects/services/projects.service';
 import { getProjectFiles, getFileData } from './excel.service';
-import { getMappings } from './mapping.service';
 import { extractAccountTypes, buildTypeMappingRows } from './file-processing.service';
-import { CONFIDENCE_THRESHOLDS } from '@/shared/constants/mapping-confidence';
 import { matchTypesToTargets } from './fuzzy.service';
 
 export interface HydrationResult {
@@ -184,7 +182,9 @@ export async function hydrateProject(
     const jobsResp = await client.get<Array<{ id: string; job_type: string; status: string }>>(
       `/api/v1/jobs/project/${projectId}`,
     );
-    const accountJob = jobsResp.data.find((j) => j.job_type === 'account_matching');
+    const accountJob = jobsResp.data.find(
+      (j) => j.job_type === 'account_matching' && (j.status === 'queued' || j.status === 'running'),
+    );
     if (accountJob) {
       store.setJobId(accountJob.id);
     }
@@ -197,29 +197,15 @@ export async function hydrateProject(
     return { ok: true, ...(hydrationWarnings.length > 0 ? { warnings: hydrationWarnings } : {}) };
   }
 
-  // Step >= 3: Fetch mappings for confirmation flags only.
-  // groupedMappings is intentionally NOT set here — the ValidationScreen
-  // owns that data and populates it via useMappingSuggestions. Setting it
-  // here would race with (and overwrite) the suggestions query result.
-  const mappingsResult = await getMappings(client, projectId);
-
-  // Derive confirmation flags from account statuses
-  if (mappingsResult.ok && mappingsResult.data.length > 0) {
-    const allAccounts = mappingsResult.data.flatMap((g) => g.accounts);
-    const high = allAccounts.filter((a) => a.score >= CONFIDENCE_THRESHOLDS.HIGH);
-    const medium = allAccounts.filter((a) => a.score >= CONFIDENCE_THRESHOLDS.MEDIUM && a.score < CONFIDENCE_THRESHOLDS.HIGH);
-    const low = allAccounts.filter((a) => a.score < CONFIDENCE_THRESHOLDS.MEDIUM);
-
-    if (high.length > 0 && high.every((a) => a.status === 'confirmed')) {
-      store.confirmConfidenceLevel('high');
-    }
-    if (medium.length > 0 && medium.every((a) => a.status === 'confirmed')) {
-      store.confirmConfidenceLevel('medium');
-    }
-    if (low.length > 0 && low.every((a) => a.status === 'confirmed')) {
-      store.confirmConfidenceLevel('low');
-    }
-  }
+  // Step >= 3: confirmation flags (confirmedHigh/Medium/Low) and per-account
+  // confirmed status/lock are derived authoritatively in the store's
+  // setGroupedMappings, once ValidationScreen loads the full suggestions
+  // list via useMappingSuggestions. That list includes suggestion-only rows
+  // (never materialized into coa_mappings), unlike this legacy mappings
+  // fetch, so deriving flags here would undercount band totals and could
+  // mark a band "confirmed" prematurely. groupedMappings itself is
+  // intentionally NOT set here either — setting it would race with (and be
+  // overwritten by) the suggestions query result.
 
   // Step 3 (Validation): needs grouped mappings + confirmation state
   if (targetStep <= MIGRATION_STEPS.VALIDATION) {

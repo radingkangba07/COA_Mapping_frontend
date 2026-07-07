@@ -159,8 +159,7 @@ jest.mock('../../hooks/useProjectSummaryViewModel', () => ({
     summary: {
       source: null,
       target: null,
-      sourceMethod: 'CSV File Upload',
-      targetMethod: 'CSV File Upload',
+      connectionMethod: 'CSV File Upload',
       masterData: '0 of 9 selected',
       openingBalances: '0 of 5 selected',
       members: '0',

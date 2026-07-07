@@ -30,6 +30,9 @@ import { MigrationStepper } from '../components/MigrationStepper/MigrationSteppe
 import { MappingStatsBar } from '../components/MappingStatsBar/MappingStatsBar';
 import { AccountTypeGroup } from '../components/AccountTypeGroup/AccountTypeGroup';
 import type { ScoreSortDirection } from '../components/AccountTypeGroup/AccountTypeGroup';
+import { SelectionActionBar } from '../components/SelectionActionBar/SelectionActionBar';
+import { ConfirmedReviewModal } from '../components/ConfirmedReviewModal/ConfirmedReviewModal';
+import { Dialog } from '@/shared/components/ui/Dialog';
 import { ValidationSkeleton } from '../components/ValidationSkeleton';
 import { useHydrateProject } from '../hooks/useHydrateProject';
 import { useValidationScreenViewModel } from '../hooks/useValidationScreenViewModel';
@@ -81,6 +84,12 @@ const CONFIRMATION_CLASSES: Record<ConfidenceLevel, string> = {
   low: 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20',
 };
 
+const CONFIRM_BUTTON_LABELS: Record<ConfidenceLevel, string> = {
+  high: 'CONFIRM HIGH SCORE',
+  medium: 'CONFIRM MEDIUM SCORE',
+  low: 'CONFIRM LOW SCORE',
+};
+
 export const ValidationScreen = (): React.JSX.Element => {
   const navigation = useNavigation<MigrationNavProp>();
   const route = useMigrationScreenRoute<'Validation'>();
@@ -100,8 +109,17 @@ export const ValidationScreen = (): React.JSX.Element => {
     (id: string) => navigation.navigate('Preview', { projectId: id }),
     [navigation],
   );
+  const navigateToFinalPreview = useCallback(
+    (id: string) => navigation.navigate('FinalPreview', { projectId: id }),
+    [navigation],
+  );
 
-  const vm = useValidationScreenViewModel(projectId, navigateBack, navigateForward);
+  const vm = useValidationScreenViewModel(projectId, navigateBack, navigateForward, navigateToFinalPreview);
+
+  // 'closed' = modal hidden; null = show all confirmed accounts
+  const [reviewLevel, setReviewLevel] = useState<ConfidenceLevel | null | 'closed'>('closed');
+  const handleOpenAllReview = useCallback(() => setReviewLevel(null), []);
+  const handleCloseReview = useCallback(() => setReviewLevel('closed'), []);
 
   const { showSuccess, showError, showWarning } = useToast();
   // ValidationScreen shows all groups at once, so request the backend's max
@@ -273,7 +291,7 @@ export const ValidationScreen = (): React.JSX.Element => {
               </View>
             </View>
             <Button
-              onPress={() => navigation.navigate('FinalPreview', { projectId })}
+              onPress={vm.handleReviewSave}
               disabled={!vm.allConfirmed}
               accessibilityLabel="Review and save"
               testID="review-save-button"
@@ -298,12 +316,19 @@ export const ValidationScreen = (): React.JSX.Element => {
           confirmedLow={vm.confirmedLow}
           activeFilter={vm.confidenceFilter}
           onFilterPress={vm.handleFilterPress}
+          onConfirmedPress={handleOpenAllReview}
           testID="mapping-stats-bar"
         />
 
-        {/* Confirmation banner */}
-        {vm.confidenceFilter !== null && (() => {
-          const level = vm.confidenceFilter;
+        {/* Confirmation banner — falls back to the first confirmed band so
+            "Edit & Reconfirm" stays visible after a reload or on a new
+            session/browser, where the ephemeral confidenceFilter selection
+            hasn't been made yet even though the confirmation itself is real
+            (persisted server-side). */}
+        {(() => {
+          const fallbackLevel = vm.confirmedHigh ? 'high' : vm.confirmedMedium ? 'medium' : vm.confirmedLow ? 'low' : null;
+          const level = vm.confidenceFilter ?? fallbackLevel;
+          if (level === null) return null;
           const isConfirmed =
             level === 'high' ? vm.confirmedHigh :
             level === 'medium' ? vm.confirmedMedium :
@@ -340,7 +365,7 @@ export const ValidationScreen = (): React.JSX.Element => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onPress={() => vm.handleConfirm(level)}
+                    onPress={() => vm.handleResetBand(level)}
                     accessibilityLabel={`Edit and reconfirm ${level} score`}
                     testID={`confirm-${level}`}
                   >
@@ -428,10 +453,29 @@ export const ValidationScreen = (): React.JSX.Element => {
           </View>
         </View>
 
+        {/* Confirm instructions — reflects whichever confidence band is active */}
+        <Text className="font-body text-xs text-muted-foreground mb-3">
+          {(() => {
+            const activeLevel = vm.confidenceFilter ?? 'high';
+            const levelLabel = CONFIRM_BUTTON_LABELS[activeLevel];
+            return `To confirm all the account types/names press ${levelLabel}. For partial selection use check boxes and then press ${levelLabel}.`;
+          })()}
+        </Text>
+
+        {/* Bulk selection action bar — visible when ≥1 row is selected */}
+        <SelectionActionBar
+          count={vm.selectedCount}
+          onDelete={vm.handleBulkDelete}
+          onClear={vm.handleClearSelection}
+          testID="selection-action-bar"
+        />
+
         {/* Table — single bordered container: header + all groups */}
         <View className="rounded-lg border border-border overflow-hidden">
           {/* Table header */}
           <View className="flex-row bg-gray-100 dark:bg-[#2D2D2D] border-b border-border px-6 py-2.5">
+            {/* Spacer to align with row checkboxes below */}
+            <View className="w-8" />
             <View className="w-[8%] pr-2">
               <Text className="text-sm font-semibold text-muted-foreground" numberOfLines={1}>
                 Src #
@@ -492,6 +536,10 @@ export const ValidationScreen = (): React.JSX.Element => {
                   forceOpen={allExpanded}
                   scoreSortDirection={scoreSortDirection}
                   testID={`group-${groupKey}`}
+                  selection={vm.selection}
+                  lockedKeys={vm.lockedKeys}
+                  onToggleGroupSelect={(checked, groupKeys) => vm.handleToggleGroup(group.source_type, checked, groupKeys)}
+                  onToggleRowSelect={vm.handleToggleRow}
                 />
               );
             })}
@@ -527,6 +575,37 @@ export const ValidationScreen = (): React.JSX.Element => {
           </Button>
         </View>
       </View>
+
+      <ConfirmedReviewModal
+        visible={reviewLevel !== 'closed'}
+        level={reviewLevel === 'closed' ? null : reviewLevel}
+        onClose={handleCloseReview}
+      />
+
+      {vm.noSelectionDialogVisible && vm.noSelectionDialogOptions !== null && (
+        <Dialog
+          visible={vm.noSelectionDialogVisible}
+          onClose={vm.handleNoSelectionDialogCancel}
+          testID="no-selection-confirm-dialog"
+        >
+          <Dialog.Header>
+            <Dialog.Title>{vm.noSelectionDialogOptions.title}</Dialog.Title>
+          </Dialog.Header>
+          <Dialog.Content>
+            <Text className="font-body text-sm text-foreground">
+              {vm.noSelectionDialogOptions.message}
+            </Text>
+          </Dialog.Content>
+          <Dialog.Footer>
+            <Button
+              onPress={vm.handleNoSelectionDialogConfirm}
+              testID="no-selection-confirm-ok"
+            >
+              <Text className="text-xs font-medium text-white">OK</Text>
+            </Button>
+          </Dialog.Footer>
+        </Dialog>
+      )}
     </MigrationLayout>
   );
 };

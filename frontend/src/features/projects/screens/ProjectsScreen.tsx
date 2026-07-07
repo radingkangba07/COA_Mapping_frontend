@@ -19,8 +19,6 @@ import { DashboardStats } from '../components/DashboardStats';
 import type { Project, ProjectGroup } from '../types/projects.types';
 import type { CompanyId } from '@/shared/types/common.types';
 import type { ProjectsStackParamList } from '@/navigation/types';
-import { STEP_TO_SCREEN, MIGRATION_STEPS } from '@/shared/constants/migration-steps';
-import type { MigrationStepValue } from '@/shared/constants/migration-steps';
 import type { Org } from '../types/org.types';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -173,15 +171,7 @@ export const ProjectsScreen = (): React.JSX.Element => {
 
   const handleProjectPress = useCallback(
     (project: Project) => {
-      const parent = navigation.getParent();
-      if (parent !== undefined) {
-        const step = (project.currentStep ?? MIGRATION_STEPS.ERP_SELECT) as MigrationStepValue;
-        const screen = STEP_TO_SCREEN[step] ?? 'ERPSelect';
-        parent.navigate('MigrationTab', {
-          screen,
-          params: { projectId: project.projectId },
-        });
-      }
+      navigation.navigate('ProjectOverview', { projectId: project.projectId as string });
     },
     [navigation],
   );

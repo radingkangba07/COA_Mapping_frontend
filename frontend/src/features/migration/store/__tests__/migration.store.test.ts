@@ -712,4 +712,225 @@ describe('useMigrationStore', () => {
       expect(useMigrationStore.getState().confidenceFilter).toBe('high');
     });
   });
+
+  // ─── confirmAccountsByKeys ────────────────────────────────────────────────
+
+  describe('confirmAccountsByKeys', () => {
+    // Accounts: Cash=95 (high), AR=88 (medium), AP=90 (high), Sundry=50 (low)
+    const mappings: GroupedMapping[] = [
+      {
+        source_type: 'Asset',
+        target_type: 'Assets',
+        confidence: 90,
+        accounts: [
+          { source_number: '1000', source_name: 'Cash',   target_name: 'Cash',   score: 95, remark: '' },
+          { source_number: '1100', source_name: 'AR',     target_name: 'AR',     score: 88, remark: '' },
+          { source_number: '1200', source_name: 'Sundry', target_name: 'Sundry', score: 50, remark: '' },
+        ],
+      },
+      {
+        source_type: 'Liability',
+        target_type: 'Liabilities',
+        confidence: 90,
+        accounts: [
+          { source_number: '2000', source_name: 'AP', target_name: 'AP', score: 90, remark: '' },
+        ],
+      },
+    ];
+
+    beforeEach(() => {
+      useMigrationStore.getState().reset();
+      useMigrationStore.getState().setGroupedMappings(mappings);
+    });
+
+    it('confirms in-band selected accounts and resets unselected in-band accounts to pending', () => {
+      const store = useMigrationStore.getState();
+      // Only Cash is selected; AP is in band but not selected
+      store.confirmAccountsByKeys('high', ['Asset::1000::Cash']);
+
+      const state = useMigrationStore.getState();
+      const asset = state.groupedMappings[0]!.accounts;
+      const liability = state.groupedMappings[1]!.accounts;
+
+      expect((asset[0]! as { status?: string }).status).toBe('confirmed'); // Cash selected
+      expect((liability[0]! as { status?: string }).status).toBe('pending');  // AP not selected
+    });
+
+    it('does not mutate out-of-band accounts', () => {
+      const store = useMigrationStore.getState();
+      store.confirmAccountsByKeys('high', ['Asset::1000::Cash']);
+
+      const state = useMigrationStore.getState();
+      const asset = state.groupedMappings[0]!.accounts;
+      // AR (medium) and Sundry (low) must be untouched — no status field added
+      expect((asset[1]! as { status?: string }).status).toBeUndefined();
+      expect((asset[2]! as { status?: string }).status).toBeUndefined();
+    });
+
+    it('sets confirmedHigh true when at least one high-band key is confirmed', () => {
+      useMigrationStore.getState().confirmAccountsByKeys('high', ['Asset::1000::Cash']);
+      expect(useMigrationStore.getState().confirmedHigh).toBe(true);
+    });
+
+    it('sets confirmedMedium true when at least one medium-band key is confirmed', () => {
+      useMigrationStore.getState().confirmAccountsByKeys('medium', ['Asset::1100::AR']);
+      expect(useMigrationStore.getState().confirmedMedium).toBe(true);
+    });
+
+    it('sets confirmedLow true when at least one low-band key is confirmed', () => {
+      useMigrationStore.getState().confirmAccountsByKeys('low', ['Asset::1200::Sundry']);
+      expect(useMigrationStore.getState().confirmedLow).toBe(true);
+    });
+
+    it('does NOT set band flag when no in-band key is in the selection', () => {
+      // Pass a key that exists in selection but is out of the high band
+      useMigrationStore.getState().confirmAccountsByKeys('high', ['Asset::1100::AR']);
+      expect(useMigrationStore.getState().confirmedHigh).toBe(false);
+    });
+
+    it('does NOT set band flag when selection is empty', () => {
+      useMigrationStore.getState().confirmAccountsByKeys('high', []);
+      expect(useMigrationStore.getState().confirmedHigh).toBe(false);
+    });
+
+    it('skips is_active=false accounts and does not mutate them', () => {
+      const inactiveMappings: GroupedMapping[] = [
+        {
+          source_type: 'Asset',
+          target_type: 'Assets',
+          confidence: 90,
+          accounts: [
+            { source_number: '1000', source_name: 'Cash', target_name: 'Cash', score: 95, remark: '', is_active: false },
+          ],
+        },
+      ];
+      useMigrationStore.getState().reset();
+      useMigrationStore.getState().setGroupedMappings(inactiveMappings);
+      useMigrationStore.getState().confirmAccountsByKeys('high', ['Asset::1000::Cash']);
+
+      const account = useMigrationStore.getState().groupedMappings[0]!.accounts[0]!;
+      expect((account as { status?: string }).status).toBeUndefined();
+      expect(useMigrationStore.getState().confirmedHigh).toBe(false);
+    });
+
+    it('resets previously confirmed in-band accounts when re-confirmed with a different selection', () => {
+      const store = useMigrationStore.getState();
+      // First confirm both high accounts
+      store.confirmAccountsByKeys('high', ['Asset::1000::Cash', 'Liability::2000::AP']);
+      // Re-confirm with only Cash — AP should revert to pending
+      store.confirmAccountsByKeys('high', ['Asset::1000::Cash']);
+
+      const state = useMigrationStore.getState();
+      expect((state.groupedMappings[0]!.accounts[0]! as { status?: string }).status).toBe('confirmed');
+      expect((state.groupedMappings[1]!.accounts[0]! as { status?: string }).status).toBe('pending');
+    });
+  });
+
+  // ─── resetBandConfirmation ────────────────────────────────────────────────
+
+  describe('resetBandConfirmation', () => {
+    const mappings: GroupedMapping[] = [
+      {
+        source_type: 'Asset',
+        target_type: 'Assets',
+        confidence: 90,
+        accounts: [
+          { source_number: '1000', source_name: 'Cash',   target_name: 'Cash',   score: 95, remark: '' },
+          { source_number: '1100', source_name: 'AR',     target_name: 'AR',     score: 88, remark: '' },
+          { source_number: '1200', source_name: 'Sundry', target_name: 'Sundry', score: 50, remark: '' },
+        ],
+      },
+    ];
+
+    beforeEach(() => {
+      useMigrationStore.getState().reset();
+      useMigrationStore.getState().setGroupedMappings(mappings);
+      // Pre-confirm all bands so reset has something to undo
+      const store = useMigrationStore.getState();
+      store.confirmAccountsByKeys('high',   ['Asset::1000::Cash']);
+      store.confirmAccountsByKeys('medium', ['Asset::1100::AR']);
+      store.confirmAccountsByKeys('low',    ['Asset::1200::Sundry']);
+    });
+
+    it('keeps the checkbox checked after Edit & Reconfirm — it unlocks the band for editing without wiping prior picks', () => {
+      // Cash was checked when it got confirmed in beforeEach.
+      expect(useMigrationStore.getState().selection['Asset::1000::Cash']).toBe(true);
+
+      useMigrationStore.getState().resetBandConfirmation('high');
+
+      expect(useMigrationStore.getState().selection['Asset::1000::Cash']).toBe(true);
+      // But it's unlocked now — confirmedAccountKeys no longer holds it.
+      expect(useMigrationStore.getState().confirmedAccountKeys['Asset::1000::Cash']).toBeUndefined();
+    });
+
+    it('resets high-band accounts to pending and clears confirmedHigh', () => {
+      useMigrationStore.getState().resetBandConfirmation('high');
+
+      const state = useMigrationStore.getState();
+      expect((state.groupedMappings[0]!.accounts[0]! as { status?: string }).status).toBe('pending');
+      expect(state.confirmedHigh).toBe(false);
+    });
+
+    it('resets medium-band accounts to pending and clears confirmedMedium', () => {
+      useMigrationStore.getState().resetBandConfirmation('medium');
+
+      const state = useMigrationStore.getState();
+      expect((state.groupedMappings[0]!.accounts[1]! as { status?: string }).status).toBe('pending');
+      expect(state.confirmedMedium).toBe(false);
+    });
+
+    it('resets low-band accounts to pending and clears confirmedLow', () => {
+      useMigrationStore.getState().resetBandConfirmation('low');
+
+      const state = useMigrationStore.getState();
+      expect((state.groupedMappings[0]!.accounts[2]! as { status?: string }).status).toBe('pending');
+      expect(state.confirmedLow).toBe(false);
+    });
+
+    it('does not touch accounts in other bands when resetting high', () => {
+      useMigrationStore.getState().resetBandConfirmation('high');
+
+      const state = useMigrationStore.getState();
+      // medium and low accounts stay confirmed
+      expect((state.groupedMappings[0]!.accounts[1]! as { status?: string }).status).toBe('confirmed');
+      expect((state.groupedMappings[0]!.accounts[2]! as { status?: string }).status).toBe('confirmed');
+      expect(state.confirmedMedium).toBe(true);
+      expect(state.confirmedLow).toBe(true);
+    });
+
+    it('does not touch accounts in other bands when resetting medium', () => {
+      useMigrationStore.getState().resetBandConfirmation('medium');
+
+      const state = useMigrationStore.getState();
+      expect((state.groupedMappings[0]!.accounts[0]! as { status?: string }).status).toBe('confirmed');
+      expect((state.groupedMappings[0]!.accounts[2]! as { status?: string }).status).toBe('confirmed');
+      expect(state.confirmedHigh).toBe(true);
+      expect(state.confirmedLow).toBe(true);
+    });
+
+    it('skips is_active=false accounts and leaves their status untouched', () => {
+      // One active high account, one inactive high account
+      const mixedMappings: GroupedMapping[] = [
+        {
+          source_type: 'Asset',
+          target_type: 'Assets',
+          confidence: 90,
+          accounts: [
+            { source_number: '1000', source_name: 'Cash',    target_name: 'Cash',    score: 95, remark: '' },
+            { source_number: '1001', source_name: 'Deleted', target_name: 'Deleted', score: 95, remark: '', is_active: false },
+          ],
+        },
+      ];
+      useMigrationStore.getState().reset();
+      useMigrationStore.getState().setGroupedMappings(mixedMappings);
+
+      useMigrationStore.getState().resetBandConfirmation('high');
+
+      const state = useMigrationStore.getState();
+      // Active account gets reset to pending
+      expect((state.groupedMappings[0]!.accounts[0]! as { status?: string }).status).toBe('pending');
+      // Inactive account is never touched — status remains undefined
+      expect((state.groupedMappings[0]!.accounts[1]! as { status?: string }).status).toBeUndefined();
+    });
+  });
 });

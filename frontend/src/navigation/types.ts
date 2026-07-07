@@ -41,6 +41,8 @@ export type ProjectsStackParamList = {
   ProjectScope: { companyId?: string; name?: string; description?: string } | undefined;
   ClientOrgs: undefined;
   ClientOrgDetail: { clientOrgId: string };
+  ProjectOverview: { projectId: string };
+  WorkstreamDetail: { projectId: string; workstreamId: string; kind: string };
 };
 
 export type MigrationStackParamList = {

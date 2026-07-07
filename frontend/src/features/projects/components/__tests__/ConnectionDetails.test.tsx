@@ -54,7 +54,7 @@ describe('ConnectionDetails — always-visible MCP panel', () => {
     );
 
     expect(screen.getByTestId('mcp-panel')).toBeTruthy();
-    expect(screen.getByTestId('test-connection')).toBeTruthy();
+    expect(screen.getByTestId('mcp-panel-test-connection')).toBeTruthy();
     // No CSV upload boxes on this screen
     expect(screen.queryByTestId('upload-source')).toBeNull();
     expect(screen.queryByTestId('upload-target')).toBeNull();
@@ -74,7 +74,7 @@ describe('ConnectionDetails — always-visible MCP panel', () => {
       />,
     );
     expect(screen.getByTestId('mcp-panel')).toBeTruthy();
-    expect(screen.getByTestId('test-connection')).toBeTruthy();
+    expect(screen.getByTestId('mcp-panel-test-connection')).toBeTruthy();
   });
 
   it('seeds scope to "target" when only target uses MCP', () => {

@@ -6,6 +6,7 @@ const ERP_SYSTEMS_DATA = [
     productName: 'SAP S/4HANA',
     description: 'SAP ERP / S/4HANA financial accounting',
     isStub: false,
+    brandColor: '#0070F2',
   },
   {
     id: 'oracle_netsuite',
@@ -14,6 +15,7 @@ const ERP_SYSTEMS_DATA = [
     productName: 'NetSuite ERP',
     description: 'Oracle NetSuite cloud ERP accounting',
     isStub: false,
+    brandColor: '#F80000',
   },
   {
     id: 'dynamics365',
@@ -22,6 +24,7 @@ const ERP_SYSTEMS_DATA = [
     productName: 'Dynamics 365',
     description: 'Microsoft Dynamics 365 Finance & Operations',
     isStub: false,
+    brandColor: '#107C10',
   },
   {
     id: 'quickbooks',
@@ -30,6 +33,7 @@ const ERP_SYSTEMS_DATA = [
     productName: 'QuickBooks',
     description: 'Intuit QuickBooks Online / Desktop accounting',
     isStub: false,
+    brandColor: '#2CA01C',
   },
   {
     id: 'sage_intacct',
@@ -38,6 +42,7 @@ const ERP_SYSTEMS_DATA = [
     productName: 'Sage Intacct',
     description: 'Sage Intacct cloud financial management',
     isStub: false,
+    brandColor: '#00B050',
   },
   {
     id: 'xero',
@@ -46,6 +51,7 @@ const ERP_SYSTEMS_DATA = [
     productName: 'Xero',
     description: 'Xero cloud-based accounting platform',
     isStub: false,
+    brandColor: '#1AB4D7',
   },
   {
     id: 'odoo',
@@ -54,6 +60,7 @@ const ERP_SYSTEMS_DATA = [
     productName: 'Odoo',
     description: 'Odoo open-source ERP accounting module',
     isStub: true,
+    brandColor: '#E86C1B',
   },
   {
     id: 'syspro',
@@ -62,6 +69,7 @@ const ERP_SYSTEMS_DATA = [
     productName: 'SYSPRO ERP',
     description: 'Syspro ERP for manufacturing and distribution',
     isStub: true,
+    brandColor: '#005BAC',
   },
   {
     id: 'accpac',
@@ -70,6 +78,7 @@ const ERP_SYSTEMS_DATA = [
     productName: 'Sage 300 (Accpac)',
     description: 'Sage 300 (Accpac) business management',
     isStub: true,
+    brandColor: '#C8002F',
   },
 ] as const;
 
@@ -82,6 +91,7 @@ export interface ERPSystemInfo {
   readonly productName: string;
   readonly description: string;
   readonly isStub: boolean;
+  readonly brandColor: string;
 }
 
 export const ERP_SYSTEMS: readonly ERPSystemInfo[] = ERP_SYSTEMS_DATA;

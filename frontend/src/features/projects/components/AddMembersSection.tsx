@@ -59,7 +59,7 @@ export function AddMembersSection({
       testID={testID !== undefined ? `section-${testID}` : undefined}
     >
       {/* Single header row — 4 percentage columns */}
-      <View className="flex-row items-center">
+      <View className="flex-row items-center" testID={controlTestID}>
         {/* 35% — title + description */}
         <View className="w-[40%] pr-3">
           <Text className="font-heading text-base font-semibold text-card-foreground">
