@@ -4,15 +4,14 @@
 
 import React from 'react';
 import { View, Text } from 'react-native';
-import { Database, PlugZap, Layers, Wallet, Users } from 'lucide-react-native';
+import { Database, FileUser, Link, List, UsersRound } from 'lucide-react-native';
 import { SummaryChip } from './SummaryChip';
 
 interface ProjectSummaryBarProps {
   readonly summary: {
     readonly source: string | null;
     readonly target: string | null;
-    readonly sourceMethod: string | null;
-    readonly targetMethod: string | null;
+    readonly connectionMethod: string | null;
     readonly masterData: string;
     readonly openingBalances: string;
     readonly members: string;
@@ -52,34 +51,27 @@ export function ProjectSummaryBar({
       placeholder: 'Select target',
     },
     {
-      slug: 'source-method',
-      icon: PlugZap,
-      label: 'Source Connection',
-      value: summary.sourceMethod,
-      placeholder: 'Not set',
-    },
-    {
-      slug: 'target-method',
-      icon: PlugZap,
-      label: 'Target Connection',
-      value: summary.targetMethod,
+      slug: 'connection-method',
+      icon: Link,
+      label: 'Connection Method',
+      value: summary.connectionMethod,
       placeholder: 'Not set',
     },
     {
       slug: 'master-data',
-      icon: Layers,
+      icon: List,
       label: 'Master Data',
       value: summary.masterData,
     },
     {
       slug: 'opening-balances',
-      icon: Wallet,
+      icon: FileUser,
       label: 'Opening Balances',
       value: summary.openingBalances,
     },
     {
       slug: 'members',
-      icon: Users,
+      icon: UsersRound,
       label: 'Members',
       value: summary.members,
     },
@@ -88,6 +80,7 @@ export function ProjectSummaryBar({
   return (
     <View
       className="rounded-lg border border-border bg-card p-4"
+      style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 }}
       testID={testID}
     >
       <Text className="font-heading text-base font-semibold text-card-foreground">
@@ -97,18 +90,19 @@ export function ProjectSummaryBar({
         Review your selections and project configuration.
       </Text>
 
-      <View className="mt-4 flex-row flex-wrap items-center gap-x-12 gap-y-5">
+      <View className="mt-4 flex-row flex-wrap gap-y-5">
         {chips.map((chip) => (
-          <SummaryChip
-            key={chip.slug}
-            icon={chip.icon}
-            label={chip.label}
-            value={chip.value}
-            placeholder={chip.placeholder}
-            testID={
-              testID !== undefined ? `${testID}-chip-${chip.slug}` : undefined
-            }
-          />
+          <View key={chip.slug} className={'flex-1'}>
+            <SummaryChip
+              icon={chip.icon}
+              label={chip.label}
+              value={chip.value}
+              placeholder={chip.placeholder}
+              testID={
+                testID !== undefined ? `${testID}-chip-${chip.slug}` : undefined
+              }
+            />
+          </View>
         ))}
       </View>
     </View>

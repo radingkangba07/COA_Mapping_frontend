@@ -48,7 +48,7 @@ function MasterDataRow({
         <Text className="flex-1 font-heading text-base font-semibold text-card-foreground">
           {row.label}
         </Text>
-        <View className="w-28 items-center">
+        <View className="w-32 items-center">
           <Checkbox
             checked={row.dataConversion}
             onCheckedChange={handleDataConversion}
@@ -59,7 +59,7 @@ function MasterDataRow({
             }
           />
         </View>
-        <View className="w-28 items-center">
+        <View className="w-36 items-center">
           <Checkbox
             checked={row.mdm}
             onCheckedChange={handleMdm}
@@ -85,13 +85,13 @@ export function MasterDataTable({
       >
         {/* Spacer to align "Master Data" above the row label (past the chevron). */}
         <View style={{ width: CHEVRON_SIZE }} />
-        <Text className="flex-1 font-heading text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <Text className="flex-1 font-heading text-[10px] font-medium text-muted-foreground" numberOfLines={1}>
           Master Data
         </Text>
-        <Text className="w-28 text-center font-heading text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <Text className="w-32 text-center font-heading text-[10px] font-medium text-muted-foreground" numberOfLines={1}>
           Data Conversion
         </Text>
-        <Text className="w-28 text-center font-heading text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <Text className="w-36 text-center font-heading text-[10px] font-medium text-muted-foreground" numberOfLines={1}>
           Master Data Management
         </Text>
       </View>

@@ -3,12 +3,11 @@ import { View } from 'react-native';
 import type { ConnectionMethod, MCPConnection } from '../types/project-scope.types';
 import {
   createInitialMcpForm,
+  type McpConfigureScope,
   type McpConnectionForm,
 } from '../services/mcp.service';
 import { mcpFormToConnection } from '../services/mcp-connection.mapper';
 import { MCPConnectionPanel } from './MCPConnectionPanel';
-import { TestConnectionFlow } from './TestConnectionFlow';
-import { ProjectScopeUpload } from './ProjectScopeUpload';
 
 interface ConnectionDetailsProps {
   readonly sourceMethod: ConnectionMethod;
@@ -18,16 +17,10 @@ interface ConnectionDetailsProps {
   readonly testID?: string;
 }
 
-// Seeds the editable panel form from the lean draft projection so a restored
-// draft shows its previously-entered URL. The rich McpConnectionForm remains the
-// UI source of truth; each edit is re-projected onto the lean MCPConnection.
-function seedForm(connection: MCPConnection): McpConnectionForm {
-  return { ...createInitialMcpForm(), url: connection.url, skipSSL: connection.skipSSL };
+function seedForm(connection: MCPConnection, scope: McpConfigureScope): McpConnectionForm {
+  return { ...createInitialMcpForm(), url: connection.url, skipSSL: connection.skipSSL, scope };
 }
 
-// Single shared connection panel (partial DA-48 revert). When either side uses
-// MCP, ONE MCPConnectionPanel (with the "Configure for" scope selector) plus ONE
-// Test Connection flow drive both sides; each CSV side keeps its file-upload card.
 export const ConnectionDetails = ({
   sourceMethod,
   targetMethod,
@@ -35,7 +28,15 @@ export const ConnectionDetails = ({
   onConnectionChange,
   testID,
 }: ConnectionDetailsProps): React.JSX.Element => {
-  const [form, setForm] = useState<McpConnectionForm>(() => seedForm(connection));
+  const [form, setForm] = useState<McpConnectionForm>(() => {
+    const scope: McpConfigureScope =
+      sourceMethod === 'mcp' && targetMethod === 'mcp'
+        ? 'both'
+        : targetMethod === 'mcp'
+          ? 'target'
+          : 'source';
+    return seedForm(connection, scope);
+  });
 
   const handleFormChange = useCallback(
     (next: McpConnectionForm): void => {
@@ -45,40 +46,9 @@ export const ConnectionDetails = ({
     [onConnectionChange],
   );
 
-  // Render by SIDE (source slot on top, target slot below) so the source's
-  // connection config always sits above the target's. The single shared MCP
-  // panel renders in whichever side is MCP first — so it's never duplicated
-  // (both-MCP → one panel scoped via "Configure for"), yet a CSV source stays
-  // above an MCP target.
-  const sourceIsMcp = sourceMethod === 'mcp';
-  const targetIsMcp = targetMethod === 'mcp';
-  const mcpInSourceSlot = sourceIsMcp;
-  const mcpInTargetSlot = targetIsMcp && !sourceIsMcp;
-
-  const mcpBlock = (
-    <View className="gap-3">
-      <MCPConnectionPanel
-        value={form}
-        onChange={handleFormChange}
-        testID="mcp-panel"
-      />
-      <TestConnectionFlow connection={form} testID="test-connection" />
-    </View>
-  );
-
   return (
-    <View className="gap-4" testID={testID}>
-      {/* Source slot — always on top */}
-      {mcpInSourceSlot && mcpBlock}
-      {sourceMethod === 'csv' && (
-        <ProjectScopeUpload label="Source COA File" testID="upload-source" />
-      )}
-
-      {/* Target slot — below source */}
-      {mcpInTargetSlot && mcpBlock}
-      {targetMethod === 'csv' && (
-        <ProjectScopeUpload label="Target COA File" testID="upload-target" />
-      )}
+    <View testID={testID}>
+      <MCPConnectionPanel value={form} onChange={handleFormChange} testID="mcp-panel" />
     </View>
   );
 };

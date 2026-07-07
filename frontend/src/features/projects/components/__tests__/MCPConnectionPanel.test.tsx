@@ -209,10 +209,7 @@ describe('MCPConnectionPanel — advanced settings', () => {
     const onChange = jest.fn();
     renderPanel(onChange);
 
-    // Advanced is collapsed by default but its children stay mounted in the
-    // Collapsible (animated max-height), so the controls are queryable.
-    fireEvent.press(screen.getByTestId('mcp-advanced-trigger'));
-
+    // Additional Settings is always visible (no collapsible).
     fireEvent.press(screen.getByTestId('mcp-skip-ssl'));
     expect(lastChangeArg(onChange).skipSSL).toBe(true);
 

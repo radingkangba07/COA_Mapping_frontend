@@ -17,8 +17,7 @@ const CONNECTION_METHOD_LABELS: Record<ConnectionMethod, string> = {
 export interface ProjectSummaryDisplay {
   readonly source: string | null;
   readonly target: string | null;
-  readonly sourceMethod: string | null;
-  readonly targetMethod: string | null;
+  readonly connectionMethod: string | null;
   readonly masterData: string;
   readonly openingBalances: string;
   readonly members: string;
@@ -52,18 +51,25 @@ export function useProjectSummaryViewModel(): ProjectSummaryViewModel {
     [erpSystems],
   );
 
-  const summary = useMemo<ProjectSummaryDisplay>(
-    () => ({
+  const summary = useMemo<ProjectSummaryDisplay>(() => {
+    const src = CONNECTION_METHOD_LABELS[raw.sourceMethod] ?? null;
+    const tgt = CONNECTION_METHOD_LABELS[raw.targetMethod] ?? null;
+    const connectionMethod =
+      src === null && tgt === null
+        ? null
+        : src === tgt
+          ? src
+          : `Source: ${src ?? 'Not set'} / Target: ${tgt ?? 'Not set'}`;
+
+    return {
       source: resolveErp(raw.source),
       target: resolveErp(raw.target),
-      sourceMethod: CONNECTION_METHOD_LABELS[raw.sourceMethod] ?? null,
-      targetMethod: CONNECTION_METHOD_LABELS[raw.targetMethod] ?? null,
+      connectionMethod,
       masterData: `${raw.masterDataCount} of ${raw.masterDataTotal} selected`,
       openingBalances: `${raw.openingBalancesCount} of ${raw.openingBalancesTotal} selected`,
       members: String(raw.members),
-    }),
-    [raw, resolveErp],
-  );
+    };
+  }, [raw, resolveErp]);
 
   return { summary };
 }

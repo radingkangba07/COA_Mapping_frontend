@@ -10,7 +10,7 @@ import { ProjectScopeEntry } from '../components/ProjectScopeEntry';
 import { CreateClientOrgDialog } from '../components/CreateClientOrgDialog';
 import { CompatibilityBanner } from '../components/CompatibilityBanner';
 import { ScopeSectionCard } from '../components/ScopeSectionCard';
-import { ErpSourceTargetSelect } from '../components/ErpSourceTargetSelect';
+import { ErpSourceTargetSelect, ErpSectionSearch } from '../components/ErpSourceTargetSelect';
 import { MigrationScopeSection } from '../components/MigrationScopeSection';
 import { ProjectSummaryBar } from '../components/ProjectSummaryBar';
 import { ConnectionDetails } from '../components/ConnectionDetails';
@@ -40,7 +40,6 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
   const scopeVm = useMigrationScopeViewModel();
   const summaryVm = useProjectSummaryViewModel();
   const membersVm = useAddMembersViewModel();
-
   const handleBack = useCallback((): void => {
     if (navigation.canGoBack()) {
       navigation.goBack();
@@ -95,34 +94,61 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
           testID="project-summary-bar"
         />
 
-        {/* Connection panel: ERP selection (left) + single connection details
-            (right), 50/50 on desktop, stacked on mobile. */}
-        <View className="flex-col gap-6 lg:flex-row lg:gap-6">
-          <ScopeSectionCard
-            title="Select Source & Target ERP"
-            testID="section-select-erp"
-            className="lg:flex-1"
-          >
-            <ErpSourceTargetSelect
-              erpSystems={vm.erpSystems}
-              source={vm.source}
-              target={vm.target}
-              sourceMethod={vm.sourceMethod}
-              targetMethod={vm.targetMethod}
-              isLoading={vm.isLoadingErps}
-              onSelectSource={vm.setSource}
-              onSelectTarget={vm.setTarget}
-              onSelectSourceMethod={vm.setSourceMethod}
-              onSelectTargetMethod={vm.setTargetMethod}
-              testID="erp-source-target-select"
-            />
-          </ScopeSectionCard>
+        {/* Two-column layout: numbered sections (left) + MCP connection (right). */}
+        <View className="flex-col gap-6 lg:flex-row lg:items-start">
 
-          <ScopeSectionCard
-            title="Connection Details"
-            testID="section-connection-details"
-            className="lg:flex-1"
-          >
+          {/* Left column — numbered sections 1, 2, 3. */}
+          <View className="flex-col gap-6 lg:flex-[13]">
+            <ScopeSectionCard
+              title="1. Select Source and Target ERP Systems"
+              description="Choose the source and target ERP systems for your migration."
+              headerRight={<ErpSectionSearch />}
+              testID="section-select-erp"
+            >
+              <ErpSourceTargetSelect
+                erpSystems={vm.erpSystems}
+                source={vm.source}
+                target={vm.target}
+                sourceMethod={vm.sourceMethod}
+                targetMethod={vm.targetMethod}
+                isLoading={vm.isLoadingErps}
+                onSelectSource={vm.setSource}
+                onSelectTarget={vm.setTarget}
+                onSelectSourceMethod={vm.setSourceMethod}
+                onSelectTargetMethod={vm.setTargetMethod}
+                testID="erp-source-target-select"
+              />
+            </ScopeSectionCard>
+
+            <ScopeSectionCard
+              title="2. Select Migration Scope"
+              description="Choose the master data and opening balances you want to migrate."
+              testID="section-migration-scope"
+            >
+              <MigrationScopeSection
+                masterData={scopeVm.masterData}
+                masterDataCount={scopeVm.masterDataCount}
+                masterDataTotal={scopeVm.masterDataTotal}
+                onToggleMasterDataColumn={scopeVm.toggleMasterDataColumn}
+                openingBalances={scopeVm.openingBalances}
+                openingBalancesCount={scopeVm.openingBalancesCount}
+                openingBalancesTotal={scopeVm.openingBalancesTotal}
+                onToggleOpeningBalance={scopeVm.toggleOpeningBalance}
+                testID="migration-scope"
+              />
+            </ScopeSectionCard>
+
+            <AddMembersSection
+              onAddMember={membersVm.addMember}
+              members={membersVm.members}
+              onUpdateMemberRole={membersVm.updateMemberRole}
+              onRemoveMember={membersVm.removeMember}
+              testID="add-members"
+            />
+          </View>
+
+          {/* Right column — MCP Connection Details. */}
+          <View className="lg:flex-[7]">
             <ConnectionDetails
               sourceMethod={vm.sourceMethod}
               targetMethod={vm.targetMethod}
@@ -130,36 +156,8 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
               onConnectionChange={vm.updateConnection}
               testID="connection-details"
             />
-          </ScopeSectionCard>
+          </View>
         </View>
-
-        {/* MigrationScope — full width. */}
-        <ScopeSectionCard
-          title="Migration Scope"
-          testID="section-migration-scope"
-        >
-          <MigrationScopeSection
-            masterData={scopeVm.masterData}
-            masterDataCount={scopeVm.masterDataCount}
-            masterDataTotal={scopeVm.masterDataTotal}
-            onToggleMasterDataColumn={scopeVm.toggleMasterDataColumn}
-            openingBalances={scopeVm.openingBalances}
-            openingBalancesCount={scopeVm.openingBalancesCount}
-            openingBalancesTotal={scopeVm.openingBalancesTotal}
-            onToggleOpeningBalance={scopeVm.toggleOpeningBalance}
-            testID="migration-scope"
-          />
-        </ScopeSectionCard>
-
-        {/* AddMembersSection — full width; owns its own ScopeSectionCard so the
-            add control can sit beside the title (testID: section-add-members). */}
-        <AddMembersSection
-          onAddMember={membersVm.addMember}
-          members={membersVm.members}
-          onUpdateMemberRole={membersVm.updateMemberRole}
-          onRemoveMember={membersVm.removeMember}
-          testID="add-members"
-        />
 
         <CompatibilityBanner
           source={vm.sourceName}

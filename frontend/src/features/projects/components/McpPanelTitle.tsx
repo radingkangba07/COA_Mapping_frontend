@@ -24,7 +24,12 @@ export const McpPanelTitle = ({
     <Text className="font-heading text-base font-semibold text-card-foreground">
       MCP Connection Details
     </Text>
-    <Badge variant="success" testID={`${testID}-enabled-badge`}>
+    <Badge
+      variant="outline"
+      className="rounded-md border-0 bg-[#EBF7F2] px-2.5 py-0.5"
+      textClassName="text-[#4D9A87]"
+      testID={`${testID}-enabled-badge`}
+    >
       Enabled
     </Badge>
     <Tooltip content={TOOLTIP_CONTENT} testID={`${testID}-info-tooltip`}>

@@ -37,6 +37,7 @@ export const ScopeSectionCard = ({
   return (
     <View
       className={cn('rounded-lg border border-border bg-card p-4', className)}
+      style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 }}
       testID={testID}
     >
       {headerRight !== undefined ? (

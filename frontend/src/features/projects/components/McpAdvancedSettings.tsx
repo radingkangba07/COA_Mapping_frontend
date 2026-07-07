@@ -2,10 +2,9 @@
 // Presentational: props in / callbacks out, no store access.
 // Skip SSL Verification + Enable Proxy + Request Timeout (seconds).
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { View, Text } from 'react-native';
 import { Info } from 'lucide-react-native';
-import { Collapsible } from '@/shared/components/ui/Collapsible';
 import { Checkbox } from '@/shared/components/ui/Checkbox';
 import { Tooltip } from '@/shared/components/ui/Tooltip';
 import { Input } from '@/shared/components/ui/Input';
@@ -62,12 +61,6 @@ export const McpAdvancedSettings = ({
   onPatch,
   testID = 'mcp-advanced',
 }: McpAdvancedSettingsProps): React.JSX.Element => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  const handleToggle = useCallback((): void => {
-    setIsOpen((prev) => !prev);
-  }, []);
-
   const handleSkipSSLChange = useCallback(
     (next: boolean): void => {
       onPatch({ skipSSL: next });
@@ -99,19 +92,14 @@ export const McpAdvancedSettings = ({
   );
 
   return (
-    <Collapsible
-      isOpen={isOpen}
-      onToggle={handleToggle}
-      title={
-        <Text className="font-heading text-base font-semibold text-card-foreground">
-          Additional Settings{' '}
-          <Text className="font-body text-sm font-normal text-muted-foreground">
-            (Optional)
-          </Text>
+    <View className="gap-4" testID={testID}>
+      <Text className="font-heading text-base font-semibold text-card-foreground">
+        Additional Settings{' '}
+        <Text className="font-body text-sm font-normal text-muted-foreground">
+          (Optional)
         </Text>
-      }
-      testID={testID}
-    >
+      </Text>
+
       <View className="gap-4" testID={`${testID}-body`}>
         <View className="flex-row items-center gap-2">
           <Checkbox
@@ -159,6 +147,6 @@ export const McpAdvancedSettings = ({
           </View>
         </View>
       </View>
-    </Collapsible>
+    </View>
   );
 };

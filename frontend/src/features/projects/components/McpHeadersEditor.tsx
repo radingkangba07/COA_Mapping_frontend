@@ -53,7 +53,6 @@ const HeaderRow = ({
       testID={`${testID}-row-${index}`}
     >
       <Input
-        label={index === 0 ? 'Key' : undefined}
         value={header.key}
         onChangeText={handleKeyChange}
         placeholder="X-Custom-Header"
@@ -62,7 +61,6 @@ const HeaderRow = ({
         testID={`${testID}-key-${index}`}
       />
       <Input
-        label={index === 0 ? 'Value' : undefined}
         value={header.value}
         onChangeText={handleValueChange}
         placeholder="value"
@@ -122,12 +120,35 @@ export const McpHeadersEditor = ({
 
   return (
     <View className="gap-2" testID={testID}>
-      <Text className="font-heading text-sm font-medium text-muted-foreground">
-        Optional Headers
-      </Text>
-      <Text className="font-body text-xs text-muted-foreground">
-        Add custom HTTP headers sent with every MCP request.
-      </Text>
+      <View className="flex-row items-center justify-between">
+        <Text className="font-heading text-sm font-medium text-card-foreground">
+          Headers (Optional)
+        </Text>
+        <Button
+          variant="outline"
+          size="sm"
+          onPress={handleAdd}
+          className="gap-1"
+          testID={`${testID}-add`}
+        >
+          <Plus size={ICON_SIZE} color={colors.foreground} />
+          <Text className="font-body text-xs font-medium text-foreground">
+            Add Header
+          </Text>
+        </Button>
+      </View>
+
+      {headers.length > 0 && (
+        <View className="flex-row gap-2 px-0.5">
+          <Text className="flex-1 font-body text-xs font-medium text-muted-foreground">
+            Header Key
+          </Text>
+          <Text className="flex-1 font-body text-xs font-medium text-muted-foreground">
+            Header Value
+          </Text>
+          <View className="w-10" />
+        </View>
+      )}
 
       {headers.length === 0 ? (
         <Text
@@ -148,19 +169,6 @@ export const McpHeadersEditor = ({
           />
         ))
       )}
-
-      <Button
-        variant="outline"
-        size="sm"
-        onPress={handleAdd}
-        className="self-start gap-1"
-        testID={`${testID}-add`}
-      >
-        <Plus size={ICON_SIZE} color={colors.foreground} />
-        <Text className="font-body text-xs font-medium text-foreground">
-          Add Header
-        </Text>
-      </Button>
     </View>
   );
 };

@@ -6,6 +6,7 @@ import { colors } from '@/config/theme';
 
 interface ProjectScopeHeaderProps {
   onBack: () => void;
+  showBack?: boolean;
   onSaveDraft: () => void;
   onCreate: () => void;
   isSavingDraft?: boolean;
@@ -16,6 +17,7 @@ interface ProjectScopeHeaderProps {
 
 export const ProjectScopeHeader = ({
   onBack,
+  showBack = true,
   onSaveDraft,
   onCreate,
   isSavingDraft = false,
@@ -25,20 +27,22 @@ export const ProjectScopeHeader = ({
 }: ProjectScopeHeaderProps): React.JSX.Element => {
   return (
     <View className="gap-3" testID={testID}>
-      <Button
-        variant="ghost"
-        onPress={onBack}
-        className="self-start"
-        accessibilityLabel="Back"
-        testID="project-scope-back"
-      >
-        <View className="flex-row items-center gap-2">
-          <ArrowLeft size={16} color={colors.foreground} />
-          <Text className="font-body text-sm font-medium text-foreground">
-            Back
-          </Text>
-        </View>
-      </Button>
+      {showBack && (
+        <Button
+          variant="ghost"
+          onPress={onBack}
+          className="self-start"
+          accessibilityLabel="Back"
+          testID="project-scope-back"
+        >
+          <View className="flex-row items-center gap-2">
+            <ArrowLeft size={16} color={colors.foreground} />
+            <Text className="font-body text-sm font-medium text-foreground">
+              Back
+            </Text>
+          </View>
+        </Button>
+      )}
 
       <View className="flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <View>
@@ -46,7 +50,7 @@ export const ProjectScopeHeader = ({
           Create Data Migration Project
         </Text>
         <Text className="font-body text-sm text-muted-foreground">
-          Configure scope, connection, and members
+          Configure master data, opening balances, and define project scope
         </Text>
       </View>
 

@@ -37,16 +37,17 @@ export function SummaryChip({
 
   return (
     <View className="flex-row items-center gap-2" testID={testID}>
-      <View className="h-9 w-9 items-center justify-center rounded-md bg-muted">
+      <View className="h-10 w-10 items-center justify-center rounded-xl border border-border bg-card">
         <Icon size={ICON_SIZE} color={colors.primary} />
       </View>
 
-      <View className="gap-0.5">
-        <Text className="font-body text-xs font-medium text-muted-foreground">
+      <View className="flex-1 gap-0.5">
+        <Text className="font-body text-xs font-medium text-muted-foreground" numberOfLines={1}>
           {label}
         </Text>
         <Text
           className={valueClassName}
+          numberOfLines={2}
           testID={testID !== undefined ? `${testID}-value` : undefined}
         >
           {displayValue}

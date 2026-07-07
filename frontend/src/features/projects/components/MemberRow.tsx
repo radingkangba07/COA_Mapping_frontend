@@ -9,16 +9,11 @@ import type { ProjectScopeMember } from '../types/project-scope.types';
 import { RolePillSelector } from './RolePillSelector';
 import { SCOPE_MEMBER_ROLES, memberRoleLabel } from './MemberRoles.config';
 
-// Mirrors RolePillSelector's role→colour mapping via shared Badge variants
-// (viewer→secondary, editor→accent, approver→warning, admin→success) so the
-// two controls stay visually in sync without duplicating colour classes.
-type RoleBadgeVariant = 'secondary' | 'accent' | 'warning' | 'success';
-
-const ROLE_BADGE_VARIANT: Record<ProjectPermission, RoleBadgeVariant> = {
-  viewer: 'secondary',
-  editor: 'accent',
-  approver: 'warning',
-  admin: 'success',
+const ROLE_BADGE_CLASS: Record<ProjectPermission, { className: string; textClassName: string }> = {
+  admin:    { className: 'bg-[#E9EAF7]', textClassName: 'text-[#003399]' },
+  editor:   { className: 'bg-[#E9EAF7]', textClassName: 'text-[#003399]' },
+  approver: { className: 'bg-[#E9EAF7]', textClassName: 'text-[#003399]' },
+  viewer:   { className: 'bg-[#E9EAF7]', textClassName: 'text-[#003399]' },
 };
 
 interface MemberRowProps {
@@ -56,19 +51,19 @@ export function MemberRow({
   return (
     <View
       className={cn(
-        'flex-row items-center gap-3 px-3 py-3',
+        'flex-row items-center px-3 py-3',
         !isLast && 'border-b border-border',
       )}
       testID={testID !== undefined ? `${testID}-row-${member.id}` : undefined}
     >
       <Text
-        className="flex-1 font-body text-sm font-medium text-foreground"
+        className="w-[30%] font-body text-sm font-medium text-foreground"
         numberOfLines={1}
       >
         {member.name}
       </Text>
 
-      <View className="w-28 items-center">
+      <View className="w-[45%] items-center">
         {isEditingRole ? (
           <RolePillSelector
             value={member.role}
@@ -79,28 +74,35 @@ export function MemberRow({
             }
           />
         ) : (
-          <Badge variant={ROLE_BADGE_VARIANT[member.role]}>
+          <Badge
+            variant="outline"
+            className={cn('rounded-md border-0 px-2.5 py-0.5', ROLE_BADGE_CLASS[member.role].className)}
+            textClassName={ROLE_BADGE_CLASS[member.role].textClassName}
+          >
             {memberRoleLabel(member.role)}
           </Badge>
         )}
       </View>
 
-      <View className="w-36 flex-row items-center justify-end gap-1">
+      <View className="w-[15%] items-center">
         <Pressable
           onPress={handleEditRole}
           accessibilityRole="button"
           accessibilityLabel={`Edit role for ${member.name}`}
-          className="rounded-md px-2 py-1"
+          className="rounded-md border border-[#003399] px-2.5 py-0.5"
           testID={
             testID !== undefined
               ? `${testID}-edit-role-${member.id}`
               : undefined
           }
         >
-          <Text className="font-body text-xs font-medium text-primary">
+          <Text className="font-body text-xs font-medium text-[#003399]">
             Edit Role
           </Text>
         </Pressable>
+      </View>
+
+      <View className="w-[10%] items-center">
         <Pressable
           onPress={handleRemove}
           accessibilityRole="button"

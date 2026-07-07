@@ -26,8 +26,7 @@ describe('useProjectSummaryViewModel', () => {
 
     expect(result.current.summary.source).toBeNull();
     expect(result.current.summary.target).toBeNull();
-    expect(result.current.summary.sourceMethod).toBe('CSV File Upload');
-    expect(result.current.summary.targetMethod).toBe('CSV File Upload');
+    expect(result.current.summary.connectionMethod).toBe('CSV File Upload');
     expect(result.current.summary.masterData).toBe('0 of 9 selected');
     expect(result.current.summary.openingBalances).toBe('0 of 5 selected');
     expect(result.current.summary.members).toBe('0');
@@ -45,15 +44,16 @@ describe('useProjectSummaryViewModel', () => {
     expect(result.current.summary.target).toBe('Oracle NetSuite');
   });
 
-  it('maps the per-side mcp method to its label', () => {
+  it('maps per-side methods to a combined label when they differ', () => {
     const { result } = renderHook(() => useProjectSummaryViewModel());
 
     act(() => {
       useProjectScopeStore.getState().setSourceMethod('mcp');
     });
 
-    expect(result.current.summary.sourceMethod).toBe('MCP Server');
-    expect(result.current.summary.targetMethod).toBe('CSV File Upload');
+    expect(result.current.summary.connectionMethod).toBe(
+      'Source: MCP Server / Target: CSV File Upload',
+    );
   });
 
   it('falls back to the id string for an unknown ERP id', () => {

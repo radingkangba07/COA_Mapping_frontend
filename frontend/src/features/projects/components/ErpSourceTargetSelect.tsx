@@ -126,7 +126,7 @@ const ErpCard = ({
 // ─── ErpSectionSearch — rendered as headerRight in the section card ───────────
 
 export const ErpSectionSearch = (): React.JSX.Element => (
-  <View className="flex-row items-center gap-3 flex-shrink-0">
+  <View className="flex-col items-end gap-2 flex-shrink-0">
     <Text
       className="font-body text-sm text-primary"
       accessibilityRole="link"
@@ -178,7 +178,7 @@ export const ErpSourceTargetSelect = ({
   const loading = isLoading && erpSystems.length === 0;
 
   return (
-    <View className="flex-col gap-4 lg:flex-row lg:items-start" testID={testID}>
+    <View className="flex-col gap-4 lg:flex-row lg:items-stretch" testID={testID}>
       <ErpCard
         label="Source ERP (From)"
         role="source"
@@ -189,8 +189,10 @@ export const ErpSourceTargetSelect = ({
         onSelectMethod={onSelectSourceMethod}
       />
 
-      <View className="items-center justify-center py-2 lg:pt-16">
-        <ArrowRight size={20} color={colors.mutedForeground} />
+      <View className="items-center justify-center py-2">
+        <View className="h-10 w-10 items-center justify-center rounded-full border border-border bg-background">
+          <ArrowRight size={16} color={colors.foreground} />
+        </View>
       </View>
 
       <ErpCard

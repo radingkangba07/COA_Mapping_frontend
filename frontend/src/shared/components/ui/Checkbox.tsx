@@ -57,11 +57,12 @@ export const Checkbox = React.forwardRef<View, CheckboxProps>(
       >
         <View
           className={cn(
-            'h-5 w-5 items-center justify-center rounded-sm border',
+            'h-5 w-5 items-center justify-center rounded-sm border-2',
             isFilled
               ? 'border-primary bg-primary'
-              : 'border-border bg-background',
+              : 'bg-background',
           )}
+          style={!isFilled ? { borderColor: colors.mutedForeground } : undefined}
         >
           {isChecked && (
             <Check

@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import { Collapsible } from '@/shared/components/ui/Collapsible';
 import { Input } from '@/shared/components/ui/Input';
 import {
@@ -14,13 +14,14 @@ import { McpAuthFields } from './McpAuthFields';
 import { McpHeadersEditor } from './McpHeadersEditor';
 import { McpAdvancedSettings } from './McpAdvancedSettings';
 import { McpPanelTitle } from './McpPanelTitle';
+import { TestConnectionFlow } from './TestConnectionFlow';
 import type { McpFormHeader } from '../services/mcp.service';
 
 interface MCPConnectionPanelProps {
   value?: McpConnectionForm;
   onChange?: (next: McpConnectionForm) => void;
   // When provided, the panel is locked to a single side: the scope selector is
-  // hidden and the form's scope is forced to this value (DA-48 per-side mount).
+  // hidden and the form's scope is forced to this value.
   fixedScope?: McpConfigureScope;
   testID?: string;
 }
@@ -31,7 +32,7 @@ export const MCPConnectionPanel = ({
   fixedScope,
   testID = 'mcp-connection-panel',
 }: MCPConnectionPanelProps): React.JSX.Element => {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [urlTouched, setUrlTouched] = useState(false);
   const [touched, setTouched] = useState(false);
   const [form, setForm] = useState<McpConnectionForm>(() => {
@@ -143,6 +144,9 @@ export const MCPConnectionPanel = ({
       testID={testID}
     >
       <View className="gap-4" testID={`${testID}-body`}>
+        <Text className="font-body text-sm text-muted-foreground">
+          Configure MCP server connection details for the selected connection method.
+        </Text>
         {fixedScope === undefined && (
           <McpScopeSelector
             value={form.scope}
@@ -160,6 +164,8 @@ export const MCPConnectionPanel = ({
           onPatch={applyPatch}
           testID="mcp-advanced"
         />
+
+        <TestConnectionFlow connection={form} testID={`${testID}-test-connection`} />
       </View>
     </Collapsible>
   );

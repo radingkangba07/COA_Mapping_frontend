@@ -84,19 +84,6 @@ export const McpAuthFields = ({
 
   return (
     <View className="gap-3" testID={testID}>
-      <View className="gap-2">
-        <Text className="font-body text-sm font-medium text-card-foreground">
-          Auth Type
-        </Text>
-        <RadioGroup
-          value={form.authType}
-          options={AUTH_TYPE_OPTIONS}
-          onChange={handleAuthTypeChange}
-          accessibilityLabel="Auth Type"
-          className="flex-row flex-wrap gap-x-6 gap-y-2"
-        />
-      </View>
-
       {AUTH_FIELDS[form.authType].map((spec) => (
         <AuthField
           key={spec.key}
@@ -106,6 +93,19 @@ export const McpAuthFields = ({
           onPatch={onPatch}
         />
       ))}
+
+      <View className="gap-2">
+        <Text className="font-body text-sm font-medium text-card-foreground">
+          Authentication Type
+        </Text>
+        <RadioGroup
+          value={form.authType}
+          options={AUTH_TYPE_OPTIONS}
+          onChange={handleAuthTypeChange}
+          accessibilityLabel="Authentication Type"
+          className="flex-row flex-wrap gap-x-6 gap-y-2"
+        />
+      </View>
     </View>
   );
 };

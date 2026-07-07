@@ -26,33 +26,33 @@ export const MASTER_DATA_ITEMS: readonly MasterDataItem[] = [
   },
   {
     id: 'items',
-    label: 'Items & Products',
+    label: 'Items',
     description: 'Product and item catalog definitions.',
   },
   {
-    id: 'tax-codes',
-    label: 'Tax Codes',
-    description: 'Tax rate codes and jurisdiction rules.',
+    id: 'locations',
+    label: 'Locations',
+    description: 'Physical and logical location definitions.',
   },
   {
-    id: 'currencies',
-    label: 'Currencies',
-    description: 'Currency definitions and exchange settings.',
+    id: 'contacts',
+    label: 'Contacts',
+    description: 'Contact records linked to customers and vendors.',
   },
   {
-    id: 'payment-terms',
-    label: 'Payment Terms',
-    description: 'Payment term schedules and due-date rules.',
+    id: 'vehicles',
+    label: 'Vehicles',
+    description: 'Vehicle asset records and fleet data.',
   },
   {
-    id: 'cost-centers',
-    label: 'Cost Centers',
-    description: 'Cost center structure for expense allocation.',
+    id: 'equipment',
+    label: 'Equipment',
+    description: 'Equipment asset records and details.',
   },
   {
-    id: 'dimensions',
-    label: 'Dimensions',
-    description: 'Analytical reporting dimensions and segments.',
+    id: 'fixed-assets',
+    label: 'Fixed Assets',
+    description: 'Fixed asset register and depreciation data.',
   },
 ];
 
@@ -62,9 +62,9 @@ export interface OpeningBalanceItem {
 }
 
 export const OPENING_BALANCE_ITEMS: readonly OpeningBalanceItem[] = [
-  { id: 'gl-balances', label: 'General Ledger Balances' },
-  { id: 'ar-balances', label: 'Accounts Receivable' },
-  { id: 'ap-balances', label: 'Accounts Payable' },
-  { id: 'inventory-balances', label: 'Inventory' },
-  { id: 'bank-balances', label: 'Bank Balances' },
+  { id: 'historical-balance-sheet-start', label: 'Historical Balance Sheet Start' },
+  { id: 'trial-balance-movement', label: 'Trial Balance Movement' },
+  { id: 'open-ar', label: 'Open Accounts Receivable' },
+  { id: 'open-ap', label: 'Open Accounts Payables' },
+  { id: 'stock-on-hand', label: 'Stock On Hand' },
 ];

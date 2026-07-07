@@ -35,16 +35,17 @@ export function MembersTable({
       testID={testID}
     >
       <View
-        className="flex-row items-center gap-3 border-b border-border bg-muted px-3 py-2"
+        className="flex-row items-center border-b border-border px-3 py-3"
         testID={testID !== undefined ? `${testID}-header` : undefined}
       >
-        <Text className="flex-1 font-body text-xs font-semibold uppercase text-muted-foreground">
+        <Text className="w-[30%] font-body text-xs font-semibold uppercase text-muted-foreground">
           Member
         </Text>
-        <Text className="w-28 text-center font-body text-xs font-semibold uppercase text-muted-foreground">
+        <Text className="w-[45%] text-center font-body text-xs font-semibold uppercase text-muted-foreground">
           Role
         </Text>
-        <Text className="w-36 text-right font-body text-xs font-semibold uppercase text-muted-foreground">
+        <View className="w-[15%]" />
+        <Text className="w-[10%] text-center font-body text-xs font-semibold uppercase text-muted-foreground">
           Actions
         </Text>
       </View>

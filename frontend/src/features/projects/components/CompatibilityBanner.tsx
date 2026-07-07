@@ -30,7 +30,7 @@ export const CompatibilityBanner = ({
       >
         <Info size={ICON_SIZE} color={colors.mutedForeground} />
         <Text className="font-body text-sm text-muted-foreground">
-          Select source and target ERP to check compatibility.
+          Selected systems and connection methods are compatible for migration.
         </Text>
       </View>
     );

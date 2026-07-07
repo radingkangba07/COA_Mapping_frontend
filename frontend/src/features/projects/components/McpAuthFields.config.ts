@@ -21,9 +21,9 @@ export interface AuthTypeOption {
 }
 
 export const AUTH_TYPE_OPTIONS: readonly AuthTypeOption[] = [
-  { value: 'bearer', label: 'Bearer', testID: 'mcp-auth-bearer' },
+  { value: 'bearer', label: 'Bearer Token', testID: 'mcp-auth-bearer' },
   { value: 'apiKey', label: 'API Key', testID: 'mcp-auth-apikey' },
-  { value: 'basic', label: 'Basic', testID: 'mcp-auth-basic' },
+  { value: 'basic', label: 'Basic Auth', testID: 'mcp-auth-basic' },
   { value: 'oauth2', label: 'OAuth 2.0', testID: 'mcp-auth-oauth2' },
 ];
 
