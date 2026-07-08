@@ -39,21 +39,42 @@ const PILL_ICON: Record<ProjectPermission, string> = {
 
 const MENU_WIDTH = 132;
 
+interface RolePillOption {
+  readonly value: ProjectPermission;
+  readonly label: string;
+}
+
 interface RolePillSelectorProps {
   readonly value: ProjectPermission;
   readonly onChange: (next: ProjectPermission) => void;
+  readonly options?: readonly RolePillOption[];
   readonly disabled?: boolean;
   readonly isLoading?: boolean;
   readonly testID?: string;
 }
 
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 export function RolePillSelector({
   value,
   onChange,
+  options,
   disabled = false,
   isLoading = false,
   testID,
 }: RolePillSelectorProps): React.JSX.Element {
+  const resolvedOptions: readonly RolePillOption[] =
+    options ??
+    PROJECT_PERMISSIONS.map((permission) => ({
+      value: permission,
+      label: capitalize(permission),
+    }));
+
+  const activeLabel =
+    resolvedOptions.find((option) => option.value === value)?.label ??
+    capitalize(value);
   const [isOpen, setIsOpen] = useState(false);
   const [layout, setLayout] = useState<LayoutRectangle | null>(null);
   const triggerRef = useRef<View>(null);
@@ -83,7 +104,7 @@ export function RolePillSelector({
         onPress={handleOpen}
         disabled={disabled || isLoading}
         accessibilityRole="button"
-        accessibilityLabel={`Permission: ${value}. Tap to change.`}
+        accessibilityLabel={`Permission: ${activeLabel}. Tap to change.`}
         className={cn(
           'flex-row items-center gap-1 rounded-full px-2.5 py-1',
           PILL_BG[value],
@@ -91,8 +112,8 @@ export function RolePillSelector({
         )}
         testID={testID}
       >
-        <Text className={cn('text-xs font-semibold capitalize', PILL_TEXT[value])}>
-          {value}
+        <Text className={cn('text-xs font-semibold', PILL_TEXT[value])}>
+          {activeLabel}
         </Text>
         {isLoading ? (
           <ActivityIndicator size="small" color={PILL_ICON[value]} />
@@ -124,25 +145,29 @@ export function RolePillSelector({
             }
             onStartShouldSetResponder={() => true}
           >
-            {PROJECT_PERMISSIONS.map((p) => {
-              const isSelected = p === value;
+            {resolvedOptions.map((option) => {
+              const isSelected = option.value === value;
               return (
                 <Pressable
-                  key={p}
-                  onPress={() => handleSelect(p)}
+                  key={option.value}
+                  onPress={() => handleSelect(option.value)}
                   className={cn(
                     'flex-row items-center justify-between px-3 py-2',
                     isSelected && 'bg-accent/10',
                   )}
-                  testID={testID !== undefined ? `${testID}-option-${p}` : undefined}
+                  testID={
+                    testID !== undefined
+                      ? `${testID}-option-${option.value}`
+                      : undefined
+                  }
                 >
                   <Text
                     className={cn(
-                      'font-body text-sm capitalize',
+                      'font-body text-sm',
                       isSelected ? 'font-medium text-accent' : 'text-foreground',
                     )}
                   >
-                    {p}
+                    {option.label}
                   </Text>
                   {isSelected ? <Check size={14} color={colors.accent} /> : null}
                 </Pressable>

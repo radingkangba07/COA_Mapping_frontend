@@ -132,7 +132,9 @@ export const Select = React.forwardRef<View, SelectProps>(
           <Text
             className={cn(
               'font-body text-sm',
-              selectedOption !== undefined ? 'text-foreground' : 'text-muted-foreground',
+              selectedOption !== undefined && !disabled
+                ? 'text-foreground'
+                : 'text-muted-foreground',
             )}
             numberOfLines={1}
           >
