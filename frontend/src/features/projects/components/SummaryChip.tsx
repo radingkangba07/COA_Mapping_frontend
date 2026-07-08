@@ -42,7 +42,7 @@ export function SummaryChip({
       </View>
 
       <View className="flex-1 gap-0.5">
-        <Text className="font-body text-xs font-medium text-muted-foreground" numberOfLines={1}>
+        <Text className="font-body text-xs font-bold text-foreground" numberOfLines={1}>
           {label}
         </Text>
         <Text

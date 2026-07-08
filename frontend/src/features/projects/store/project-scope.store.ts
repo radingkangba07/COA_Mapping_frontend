@@ -38,6 +38,12 @@ export const INITIAL_SCOPE: MigrationScope = {
   aggregation: 'none',
 };
 
+export const INITIAL_MEMBERS: readonly ProjectScopeMember[] = [
+  { id: 'dummy-1', name: 'John Smith', email: 'john.smith@example.com', role: 'admin' },
+  { id: 'dummy-2', name: 'Sarah Johnson', email: 'sarah.johnson@example.com', role: 'editor' },
+  { id: 'dummy-3', name: 'Michael Brown', email: 'michael.brown@example.com', role: 'viewer' },
+];
+
 export function createInitialDraft(): ProjectScopeDraft {
   return {
     companyId: null,
@@ -57,7 +63,7 @@ export function createInitialDraft(): ProjectScopeDraft {
       selectedOpeningBalances: [],
       aggregation: 'none',
     },
-    members: [],
+    members: [...INITIAL_MEMBERS],
   };
 }
 

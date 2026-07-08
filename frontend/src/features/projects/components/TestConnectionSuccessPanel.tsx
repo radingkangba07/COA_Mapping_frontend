@@ -27,7 +27,7 @@ export const TestConnectionSuccessPanel = ({
 
   return (
     <View
-      className="flex-row items-center gap-3 rounded-md border border-success/30 bg-success/10 p-3"
+      className="flex-row items-center gap-3 rounded-md bg-[#EAF7EE] p-3"
       testID={testID}
     >
       <CheckCircle2 size={18} color={colors.success ?? colors.primary} />

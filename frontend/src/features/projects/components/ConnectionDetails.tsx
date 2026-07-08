@@ -47,8 +47,13 @@ export const ConnectionDetails = ({
   );
 
   return (
-    <View testID={testID}>
-      <MCPConnectionPanel value={form} onChange={handleFormChange} testID="mcp-panel" />
+    <View className="flex-1" testID={testID}>
+      <MCPConnectionPanel
+        className="flex-1"
+        value={form}
+        onChange={handleFormChange}
+        testID="mcp-panel"
+      />
     </View>
   );
 };

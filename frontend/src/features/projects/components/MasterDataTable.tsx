@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { Checkbox } from '@/shared/components/ui/Checkbox';
 import { colors } from '@/config/theme';
@@ -7,11 +7,6 @@ import type { MasterDataRowVM } from '../hooks/useMigrationScopeViewModel';
 import type { MasterDataColumn } from './MigrationScope.config';
 
 const CHEVRON_SIZE = 16;
-
-// Fix the rows area to ~5 rows tall; the rest scroll within.
-const VISIBLE_ROWS = 5;
-const APPROX_ROW_HEIGHT = 52; // ~48px row content + 4px gap
-const ROWS_MAX_HEIGHT = VISIBLE_ROWS * APPROX_ROW_HEIGHT;
 
 interface MasterDataTableProps {
   readonly rows: readonly MasterDataRowVM[];
@@ -42,29 +37,34 @@ function MasterDataRow({
   }, [onToggleColumn, row.id]);
 
   return (
-    <View testID={testID !== undefined ? `${testID}-row-${row.id}` : undefined}>
-      <View className="flex-row items-center gap-3 py-3">
+    <View
+      className="w-full"
+      testID={testID !== undefined ? `${testID}-row-${row.id}` : undefined}
+    >
+      <View className="w-[calc(100%+16px)] -ml-2 flex-row items-center gap-1.5 border-b border-border px-2 py-1">
         <ChevronRight size={CHEVRON_SIZE} color={colors.mutedForeground} />
-        <Text className="flex-1 font-heading text-base font-semibold text-card-foreground">
-          {row.label}
-        </Text>
-        <View className="w-32 items-center">
-          <Checkbox
-            checked={row.dataConversion}
-            onCheckedChange={handleDataConversion}
-            testID={
-              testID !== undefined
-                ? `${testID}-${row.id}-dataConversion`
-                : undefined
-            }
-          />
-        </View>
-        <View className="w-36 items-center">
-          <Checkbox
-            checked={row.mdm}
-            onCheckedChange={handleMdm}
-            testID={testID !== undefined ? `${testID}-${row.id}-mdm` : undefined}
-          />
+        <View className="flex-1 flex-row items-center">
+          <Text className="w-[50%] font-heading text-sm font-semibold text-card-foreground">
+            {row.label}
+          </Text>
+          <View className="w-[20%] items-center">
+            <Checkbox
+              checked={row.dataConversion}
+              onCheckedChange={handleDataConversion}
+              testID={
+                testID !== undefined
+                  ? `${testID}-${row.id}-dataConversion`
+                  : undefined
+              }
+            />
+          </View>
+          <View className="w-[30%] items-center">
+            <Checkbox
+              checked={row.mdm}
+              onCheckedChange={handleMdm}
+              testID={testID !== undefined ? `${testID}-${row.id}-mdm` : undefined}
+            />
+          </View>
         </View>
       </View>
     </View>
@@ -77,42 +77,37 @@ export function MasterDataTable({
   testID,
 }: MasterDataTableProps): React.JSX.Element {
   return (
-    <View className="gap-1" testID={testID}>
+    <View className="w-full" testID={testID}>
       {/* Column header row */}
       <View
-        className="flex-row items-center gap-3 pb-1"
+        className="w-[calc(100%+16px)] -ml-2 flex-row items-center gap-1.5 border-b border-border px-2 pb-1"
         testID={testID !== undefined ? `${testID}-header` : undefined}
       >
         {/* Spacer to align "Master Data" above the row label (past the chevron). */}
         <View style={{ width: CHEVRON_SIZE }} />
-        <Text className="flex-1 font-heading text-[10px] font-medium text-muted-foreground" numberOfLines={1}>
-          Master Data
-        </Text>
-        <Text className="w-32 text-center font-heading text-[10px] font-medium text-muted-foreground" numberOfLines={1}>
-          Data Conversion
-        </Text>
-        <Text className="w-36 text-center font-heading text-[10px] font-medium text-muted-foreground" numberOfLines={1}>
-          Master Data Management
-        </Text>
+        <View className="flex-1 flex-row items-center">
+          <Text className="w-[50%] font-heading text-xs font-bold text-foreground">
+            Master Data
+          </Text>
+          <Text className="w-[20%] text-center font-heading text-xs font-bold text-foreground">
+            Data Conversion
+          </Text>
+          <Text className="w-[30%] text-center font-heading text-xs font-bold text-foreground">
+            Master Data Management
+          </Text>
+        </View>
       </View>
 
-      <ScrollView
-        style={{ maxHeight: ROWS_MAX_HEIGHT }}
-        nestedScrollEnabled
-        showsVerticalScrollIndicator
-        testID={testID !== undefined ? `${testID}-scroll` : undefined}
-      >
-        <View className="gap-1">
-          {rows.map((row) => (
-            <MasterDataRow
-              key={row.id}
-              row={row}
-              onToggleColumn={onToggleColumn}
-              testID={testID}
-            />
-          ))}
-        </View>
-      </ScrollView>
+      <View className="w-full">
+        {rows.map((row) => (
+          <MasterDataRow
+            key={row.id}
+            row={row}
+            onToggleColumn={onToggleColumn}
+            testID={testID}
+          />
+        ))}
+      </View>
     </View>
   );
 }

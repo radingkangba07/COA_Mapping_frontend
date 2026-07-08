@@ -23,6 +23,7 @@ interface MCPConnectionPanelProps {
   // When provided, the panel is locked to a single side: the scope selector is
   // hidden and the form's scope is forced to this value.
   fixedScope?: McpConfigureScope;
+  className?: string;
   testID?: string;
 }
 
@@ -30,6 +31,7 @@ export const MCPConnectionPanel = ({
   value,
   onChange,
   fixedScope,
+  className,
   testID = 'mcp-connection-panel',
 }: MCPConnectionPanelProps): React.JSX.Element => {
   const [isOpen, setIsOpen] = useState(false);
@@ -141,6 +143,7 @@ export const MCPConnectionPanel = ({
       isOpen={isOpen}
       onToggle={handleToggle}
       title={<McpPanelTitle testID={testID} />}
+      className={className}
       testID={testID}
     >
       <View className="gap-4" testID={`${testID}-body`}>

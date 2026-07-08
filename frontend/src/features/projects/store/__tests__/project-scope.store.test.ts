@@ -1,4 +1,5 @@
 import {
+  INITIAL_MEMBERS,
   serializeProjectScopeDraft,
   useProjectScopeStore,
 } from '@/features/projects/store/project-scope.store';
@@ -63,7 +64,7 @@ describe('useProjectScopeStore', () => {
       expect(draft.targetMethod).toBe('csv');
       expect(draft.connection.token).toBe('');
       expect(draft.scope.aggregation).toBe('none');
-      expect(draft.members).toEqual([]);
+      expect(draft.members).toEqual(INITIAL_MEMBERS);
     });
 
     it('defaults description to empty string when omitted', () => {
@@ -160,15 +161,21 @@ describe('useProjectScopeStore', () => {
     it('adds, updates the role of, and removes a member', () => {
       const store = useProjectScopeStore.getState();
       store.addMember(member);
-      expect(useProjectScopeStore.getState().draft.members).toHaveLength(1);
-
-      store.updateMemberRole('user-1', 'admin');
-      expect(useProjectScopeStore.getState().draft.members[0]?.role).toBe(
-        'admin',
+      expect(useProjectScopeStore.getState().draft.members).toHaveLength(
+        INITIAL_MEMBERS.length + 1,
       );
 
+      store.updateMemberRole('user-1', 'admin');
+      expect(
+        useProjectScopeStore
+          .getState()
+          .draft.members.find((m) => m.id === 'user-1')?.role,
+      ).toBe('admin');
+
       store.removeMember('user-1');
-      expect(useProjectScopeStore.getState().draft.members).toEqual([]);
+      expect(useProjectScopeStore.getState().draft.members).toEqual(
+        INITIAL_MEMBERS,
+      );
     });
 
     it('dedupes by id: re-adding the same id keeps a single member and updates its role', () => {
@@ -177,8 +184,8 @@ describe('useProjectScopeStore', () => {
       store.addMember({ ...member, role: 'admin' });
 
       const { members } = useProjectScopeStore.getState().draft;
-      expect(members).toHaveLength(1);
-      expect(members[0]?.role).toBe('admin');
+      expect(members).toHaveLength(INITIAL_MEMBERS.length + 1);
+      expect(members.find((m) => m.id === 'user-1')?.role).toBe('admin');
     });
   });
 
@@ -240,7 +247,9 @@ describe('useProjectScopeStore', () => {
       expect(payload.connection.url).toBe('https://conn');
       expect(payload.scope.selected_master_data).toEqual(['accounts']);
       expect(payload.scope.selected_opening_balances).toEqual(['balances']);
-      expect(payload.members[0]?.role).toBe('editor');
+      expect(payload.members.find((m) => m.id === 'user-1')?.role).toBe(
+        'editor',
+      );
     });
   });
 
@@ -277,7 +286,7 @@ describe('useProjectScopeStore', () => {
 
       const state = useProjectScopeStore.getState();
       expect(state.draft.source).toBeNull();
-      expect(state.draft.members).toEqual([]);
+      expect(state.draft.members).toEqual(INITIAL_MEMBERS);
       expect(state.draft).not.toBe(draftBefore);
     });
   });

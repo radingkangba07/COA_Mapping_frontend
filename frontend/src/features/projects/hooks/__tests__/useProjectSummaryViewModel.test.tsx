@@ -1,5 +1,8 @@
 import { act, renderHook } from '@testing-library/react-native';
-import { useProjectScopeStore } from '@/features/projects/store/project-scope.store';
+import {
+  INITIAL_MEMBERS,
+  useProjectScopeStore,
+} from '@/features/projects/store/project-scope.store';
 import { useProjectSummaryViewModel } from '../useProjectSummaryViewModel';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
@@ -29,7 +32,7 @@ describe('useProjectSummaryViewModel', () => {
     expect(result.current.summary.connectionMethod).toBe('CSV File Upload');
     expect(result.current.summary.masterData).toBe('0 of 9 selected');
     expect(result.current.summary.openingBalances).toBe('0 of 5 selected');
-    expect(result.current.summary.members).toBe('0');
+    expect(result.current.summary.members).toBe(String(INITIAL_MEMBERS.length));
   });
 
   it('resolves known ERP ids to their labels', () => {

@@ -1,5 +1,5 @@
 import { Text, View } from 'react-native';
-import { AlertCircle } from 'lucide-react-native';
+import { XCircle } from 'lucide-react-native';
 import { colors } from '@/config/theme';
 import { Button } from '@/shared/components/ui/Button';
 
@@ -57,25 +57,28 @@ export const TestConnectionFailurePanel = ({
 
   return (
     <View
-      className="gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3"
+      className="flex-row items-center gap-3 rounded-md bg-[#FDECEC] p-3"
       testID={testID}
     >
-      <View className="flex-row items-start gap-2">
-        <AlertCircle size={18} color={colors.destructive} />
+      <XCircle size={18} color={colors.destructive} />
+      <View className="flex-1">
+        <Text className="font-body text-sm font-semibold text-destructive">
+          Connection failed
+        </Text>
         <Text
-          className="flex-1 font-body text-sm text-destructive"
+          className="font-body text-xs text-destructive"
           testID="test-connection-failure-message"
         >
           {actionable}
         </Text>
       </View>
-
       <Button
-        variant="outline"
+        variant="link"
         size="sm"
         onPress={onRetry}
         isLoading={isRetrying}
         disabled={isRetrying}
+        textClassName="text-destructive"
         testID="test-connection-retry-button"
         accessibilityLabel="Retry connection test"
       >

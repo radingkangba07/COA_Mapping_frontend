@@ -51,7 +51,7 @@ export function MemberRow({
   return (
     <View
       className={cn(
-        'flex-row items-center px-3 py-3',
+        'flex-row items-center px-1.5 py-1.5',
         !isLast && 'border-b border-border',
       )}
       testID={testID !== undefined ? `${testID}-row-${member.id}` : undefined}
@@ -76,7 +76,7 @@ export function MemberRow({
         ) : (
           <Badge
             variant="outline"
-            className={cn('rounded-md border-0 px-2.5 py-0.5', ROLE_BADGE_CLASS[member.role].className)}
+            className={cn('rounded-md border-0 px-2 py-1', ROLE_BADGE_CLASS[member.role].className)}
             textClassName={ROLE_BADGE_CLASS[member.role].textClassName}
           >
             {memberRoleLabel(member.role)}
@@ -89,7 +89,7 @@ export function MemberRow({
           onPress={handleEditRole}
           accessibilityRole="button"
           accessibilityLabel={`Edit role for ${member.name}`}
-          className="rounded-md border border-[#003399] px-2.5 py-0.5"
+          className="rounded-md border border-[#003399] px-2 py-1"
           testID={
             testID !== undefined
               ? `${testID}-edit-role-${member.id}`
@@ -107,7 +107,7 @@ export function MemberRow({
           onPress={handleRemove}
           accessibilityRole="button"
           accessibilityLabel={`Remove ${member.name}`}
-          className="rounded-md p-1"
+          className="rounded-md p-0.5"
           testID={
             testID !== undefined ? `${testID}-remove-${member.id}` : undefined
           }

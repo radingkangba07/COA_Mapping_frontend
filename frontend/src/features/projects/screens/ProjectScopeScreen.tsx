@@ -94,12 +94,15 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
           testID="project-summary-bar"
         />
 
-        {/* Two-column layout: numbered sections (left) + MCP connection (right). */}
-        <View className="flex-col gap-6 lg:flex-row lg:items-start">
+        {/* Two-column layout: numbered sections (left) + MCP connection (right).
+            No lg:items-* override — default stretch makes both columns match
+            the taller (left) column's height. */}
+        <View className="flex-col gap-6 lg:flex-row">
 
           {/* Left column — numbered sections 1, 2, 3. */}
-          <View className="flex-col gap-6 lg:flex-[13]">
+          <View className="flex-col gap-3.5 lg:flex-[13]">
             <ScopeSectionCard
+              className="pt-2 px-4 pb-4"
               title="1. Select Source and Target ERP Systems"
               description="Choose the source and target ERP systems for your migration."
               headerRight={<ErpSectionSearch />}
@@ -121,6 +124,7 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
             </ScopeSectionCard>
 
             <ScopeSectionCard
+              className="pt-2 px-4 pb-4"
               title="2. Select Migration Scope"
               description="Choose the master data and opening balances you want to migrate."
               testID="section-migration-scope"

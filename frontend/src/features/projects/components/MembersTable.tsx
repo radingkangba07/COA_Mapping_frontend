@@ -35,7 +35,7 @@ export function MembersTable({
       testID={testID}
     >
       <View
-        className="flex-row items-center border-b border-border px-3 py-3"
+        className="flex-row items-center border-b border-border px-1.5 py-1.5"
         testID={testID !== undefined ? `${testID}-header` : undefined}
       >
         <Text className="w-[30%] font-body text-xs font-semibold uppercase text-muted-foreground">

@@ -54,25 +54,25 @@ export function AddMembersSection({
 
   return (
     <View
-      className="rounded-lg border border-border bg-card p-4"
+      className="rounded-lg border border-border bg-card pt-2 px-4 pb-4"
       style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 }}
       testID={testID !== undefined ? `section-${testID}` : undefined}
     >
       {/* Single header row — 4 percentage columns */}
       <View className="flex-row items-center" testID={controlTestID}>
         {/* 35% — title + description */}
-        <View className="w-[40%] pr-3">
+        <View className="w-[40%] pr-1.5">
           <Text className="font-heading text-base font-semibold text-card-foreground">
             3. Add Members
           </Text>
-          <Text className="font-body text-sm text-muted-foreground mt-1">
+          <Text className="font-body text-sm text-muted-foreground mt-0.5">
             Add project members and assign their roles.
           </Text>
         </View>
 
         {/* 25% — search / email input */}
-        <View className="w-[22%] px-1.5">
-          <View className="h-10 flex-row items-center gap-2 rounded-md border border-input bg-background px-3">
+        <View className="w-[22%] px-1">
+          <View className="h-10 flex-row items-center gap-1 rounded-md border border-input bg-background px-1.5">
             <Search size={16} color={colors.mutedForeground} />
             <TextInput
               className="flex-1 font-body text-sm text-foreground focus:outline-none"
@@ -89,7 +89,7 @@ export function AddMembersSection({
         </View>
 
         {/* 25% — role select */}
-        <View className="w-[22%] px-1.5">
+        <View className="w-[22%] px-1">
           <Select
             placeholder="Select role"
             options={roleOptions}
@@ -100,7 +100,7 @@ export function AddMembersSection({
         </View>
 
         {/* flex-1 (~15%) — add button */}
-        <View className="flex-1 items-end pl-1.5">
+        <View className="flex-1 items-end pl-1">
           <Button
             onPress={handleAdd}
             disabled={isDisabled}
@@ -115,7 +115,7 @@ export function AddMembersSection({
       </View>
 
       {/* Members table */}
-      <View className="mt-3">
+      <View className="mt-1.5 pb-2">
         <MembersTable
           members={members}
           onUpdateRole={onUpdateMemberRole}

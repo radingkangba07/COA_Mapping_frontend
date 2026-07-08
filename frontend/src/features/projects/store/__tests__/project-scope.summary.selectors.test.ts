@@ -1,4 +1,7 @@
-import { useProjectScopeStore } from '@/features/projects/store/project-scope.store';
+import {
+  INITIAL_MEMBERS,
+  useProjectScopeStore,
+} from '@/features/projects/store/project-scope.store';
 import {
   masterDataColumnKey,
   selectProjectSummary,
@@ -27,7 +30,7 @@ describe('selectProjectSummary', () => {
     expect(summary.masterDataTotal).toBe(MASTER_DATA_ITEMS.length);
     expect(summary.openingBalancesCount).toBe(0);
     expect(summary.openingBalancesTotal).toBe(OPENING_BALANCE_ITEMS.length);
-    expect(summary.members).toBe(0);
+    expect(summary.members).toBe(INITIAL_MEMBERS.length);
   });
 
   it('reflects setSource and setTarget', () => {
@@ -85,6 +88,6 @@ describe('selectProjectSummary', () => {
 
     expect(
       selectProjectSummary(useProjectScopeStore.getState()).members,
-    ).toBe(2);
+    ).toBe(INITIAL_MEMBERS.length + 2);
   });
 });

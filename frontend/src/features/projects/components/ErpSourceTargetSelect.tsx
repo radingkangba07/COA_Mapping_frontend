@@ -68,15 +68,15 @@ const ErpCard = ({
 
   return (
     <View
-      className="flex-1 rounded-lg border border-border bg-background p-4 gap-4"
+      className="flex-1 rounded-lg border border-border bg-background p-2 gap-2"
       testID={`erp-card-${role}`}
     >
       <Text className="font-heading text-sm font-semibold text-foreground">
         {label}
       </Text>
 
-      <View className="gap-1.5">
-        <Text className="font-body text-sm font-medium text-foreground">
+      <View className="gap-1">
+        <Text className="font-body text-sm font-bold text-foreground">
           Step 1: Select Vendor
         </Text>
         <Select
@@ -89,8 +89,8 @@ const ErpCard = ({
         />
       </View>
 
-      <View className="gap-1.5">
-        <Text className="font-body text-sm font-medium text-foreground">
+      <View className="gap-1">
+        <Text className="font-body text-sm font-bold text-foreground">
           Step 2: Select Product
         </Text>
         <Select
@@ -103,9 +103,9 @@ const ErpCard = ({
         />
       </View>
 
-      <View className="gap-1.5">
-        <View className="flex-row items-center gap-1.5">
-          <Text className="font-body text-sm font-medium text-foreground">
+      <View className="gap-1">
+        <View className="flex-row items-center gap-1">
+          <Text className="font-body text-sm font-bold text-foreground">
             Step 3: Select Connection Method
           </Text>
           <Info size={14} color={colors.mutedForeground} />
@@ -126,14 +126,14 @@ const ErpCard = ({
 // ─── ErpSectionSearch — rendered as headerRight in the section card ───────────
 
 export const ErpSectionSearch = (): React.JSX.Element => (
-  <View className="flex-col items-end gap-2 flex-shrink-0">
+  <View className="flex-col items-end gap-1 flex-shrink-0">
     <Text
       className="font-body text-sm text-primary"
       accessibilityRole="link"
     >
       Need more ERP options?
     </Text>
-    <View className="flex-row items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5">
+    <View className="flex-row items-center gap-1 rounded-md border border-input bg-background px-1.5 py-1">
       <Search size={14} color={colors.mutedForeground} />
       <TextInput
         placeholder="Search ERP systems..."
@@ -178,7 +178,7 @@ export const ErpSourceTargetSelect = ({
   const loading = isLoading && erpSystems.length === 0;
 
   return (
-    <View className="flex-col gap-4 lg:flex-row lg:items-stretch" testID={testID}>
+    <View className="flex-col gap-2 lg:flex-row lg:items-stretch" testID={testID}>
       <ErpCard
         label="Source ERP (From)"
         role="source"
@@ -189,7 +189,7 @@ export const ErpSourceTargetSelect = ({
         onSelectMethod={onSelectSourceMethod}
       />
 
-      <View className="items-center justify-center py-2">
+      <View className="items-center justify-center py-1">
         <View className="h-10 w-10 items-center justify-center rounded-full border border-border bg-background">
           <ArrowRight size={16} color={colors.foreground} />
         </View>

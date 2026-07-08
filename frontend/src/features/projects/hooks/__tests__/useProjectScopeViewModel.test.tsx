@@ -247,7 +247,12 @@ describe('useProjectScopeViewModel', () => {
     });
 
     it('omits members when the draft has none', () => {
-      const draft = { ...createInitialDraft(), companyId: 'co-9', name: 'P' };
+      const draft = {
+        ...createInitialDraft(),
+        companyId: 'co-9',
+        name: 'P',
+        members: [],
+      };
       const payload = buildCreatePayload(draft);
       expect(payload.members).toBeUndefined();
     });
