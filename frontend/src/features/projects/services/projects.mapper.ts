@@ -14,7 +14,7 @@ export const projectResponseSchema = z.object({
   name: z.string().min(1),
   source_system: z.string(),
   target_system: z.string(),
-  status: z.enum(['draft', 'in_progress', 'pending_review', 'completed']),
+  status: z.enum(['active', 'draft', 'in_progress', 'pending_review', 'completed']),
   org_id: z.string().nullable().optional(),
   company_id: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
@@ -65,36 +65,30 @@ export function toCreatePayload(
     name: data.name,
   };
 
-  if (data.sourceErp !== undefined) {
-    payload.source_system = data.sourceErp;
+  if (data.action !== undefined) payload.action = data.action;
+  if (data.sourceErp !== undefined) payload.source_system = data.sourceErp;
+  if (data.targetErp !== undefined) payload.target_system = data.targetErp;
+  if (data.sourceProductId !== undefined) payload.source_product_id = data.sourceProductId;
+  if (data.targetProductId !== undefined) payload.target_product_id = data.targetProductId;
+  if (data.sourceConnectionMethodId !== undefined) payload.source_connection_method_id = data.sourceConnectionMethodId;
+  if (data.targetConnectionMethodId !== undefined) payload.target_connection_method_id = data.targetConnectionMethodId;
+  if (data.orgId !== undefined) payload.org_id = data.orgId;
+  if (data.companyId !== undefined) payload.company_id = data.companyId;
+  if (data.companyName !== undefined) payload.company_name = data.companyName;
+  if (data.description !== undefined) payload.description = data.description;
+
+  if (data.masterDataSelections !== undefined && data.masterDataSelections.length > 0) {
+    payload.master_data_selections = data.masterDataSelections;
   }
 
-  if (data.targetErp !== undefined) {
-    payload.target_system = data.targetErp;
-  }
-
-  if (data.orgId !== undefined) {
-    payload.org_id = data.orgId;
-  }
-
-  if (data.companyId !== undefined) {
-    payload.company_id = data.companyId;
-  }
-
-  if (data.companyName !== undefined) {
-    payload.company_name = data.companyName;
-  }
-
-  if (data.description !== undefined) {
-    payload.description = data.description;
+  if (data.openingBalanceSelections !== undefined && data.openingBalanceSelections.length > 0) {
+    payload.opening_balance_selections = data.openingBalanceSelections;
   }
 
   if (data.members !== undefined && data.members.length > 0) {
     payload.members = data.members.map((m) => ({
-      id: m.id,
-      name: m.name,
       email: m.email,
-      role: m.role,
+      permission: m.role,
     }));
   }
 

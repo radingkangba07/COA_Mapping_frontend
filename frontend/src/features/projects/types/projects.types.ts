@@ -5,6 +5,7 @@ import type { ProjectPermission } from './project-access.types';
 // ─── Value Objects ──────────────────────────────────────────────────────────
 
 export type ProjectStatus =
+  | 'active'
   | 'draft'
   | 'in_progress'
   | 'pending_review'
@@ -50,12 +51,19 @@ export interface ProjectGroup {
 
 export interface ProjectCreate {
   readonly name: string;
+  readonly action?: 'draft' | 'create';
   readonly sourceErp?: string | undefined;
   readonly targetErp?: string | undefined;
+  readonly sourceProductId?: string | undefined;
+  readonly targetProductId?: string | undefined;
+  readonly sourceConnectionMethodId?: string | undefined;
+  readonly targetConnectionMethodId?: string | undefined;
   readonly orgId?: string | undefined;
   readonly companyId?: string | undefined;
   readonly companyName?: string | undefined;
   readonly description?: string | undefined;
+  readonly masterDataSelections?: readonly { readonly data_type: string; readonly selected: boolean }[];
+  readonly openingBalanceSelections?: readonly { readonly account_type: string; readonly include: boolean }[];
   readonly members?: readonly {
     readonly id: string;
     readonly name: string;
