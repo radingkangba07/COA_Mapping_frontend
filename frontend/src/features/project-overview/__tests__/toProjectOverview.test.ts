@@ -44,9 +44,9 @@ describe('toProjectOverview', () => {
     expect(result.lastEditedAt).toEqual(new Date('2026-06-30T10:42:00.000Z'));
   });
 
-  it('counts totalWorkstreams across all groups', () => {
+  it('counts totalWorkstreams across all groups (included only)', () => {
     const result = toProjectOverview(BASE_DTO);
-    expect(result.totalWorkstreams).toBe(4); // 3 + 1
+    expect(result.totalWorkstreams).toBe(3); // 2 included in master-data + 1 in opening-balances
   });
 
   it('maps workstream code to projectId field', () => {
