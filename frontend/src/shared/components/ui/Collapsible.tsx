@@ -86,6 +86,7 @@ export const Collapsible = React.forwardRef<View, CollapsibleProps>(
       <View
         ref={ref}
         className={cn('overflow-hidden rounded-lg border border-border bg-card', className)}
+        style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 }}
         testID={testID}
       >
         <Pressable

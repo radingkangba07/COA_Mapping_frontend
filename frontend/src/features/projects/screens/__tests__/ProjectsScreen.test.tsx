@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { render, screen, fireEvent } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AppError } from '@/shared/types/result.types';
 
@@ -104,30 +104,20 @@ jest.mock('../../components/DashboardStats', () => ({
   },
 }));
 
-jest.mock('../../components/NewProjectDialog', () => ({
-  NewProjectDialog: ({
-    visible,
-    testID,
-  }: {
-    visible: boolean;
-    onClose: () => void;
-    testID: string;
-  }) => {
-    const { View, Text } = require('react-native');
-    return (
-      <View testID={testID}>
-        {visible ? <Text testID="dialog-content">Dialog Open</Text> : null}
-      </View>
-    );
-  },
-}));
-
 jest.mock('@/shared/components/feedback/EmptyState', () => ({
   EmptyState: (props: Record<string, unknown>) => {
-    const { View, Text } = require('react-native');
+    const { View, Text, Pressable } = require('react-native');
+    const action = props.action as
+      | { label: string; onPress: () => void }
+      | undefined;
     return (
       <View testID={props.testID as string}>
         <Text>{props.title as string}</Text>
+        {action !== undefined ? (
+          <Pressable testID="projects-empty-action" onPress={action.onPress}>
+            <Text>{action.label}</Text>
+          </Pressable>
+        ) : null}
       </View>
     );
   },
@@ -222,14 +212,27 @@ describe('ProjectsScreen', () => {
     expect(screen.getByTestId('projects-list')).toBeTruthy();
   });
 
-  it('renders the new project dialog container when projects exist', () => {
+  it('navigates to ProjectScope (no dialog) when the list Create button is pressed', () => {
     mockUseProjectsViewModel.mockReturnValue({
       ...defaultViewModel,
       projects: [{ projectId: 'p1', name: 'Test', status: 'draft' }],
       total: 1,
     });
     renderScreen();
-    expect(screen.getByTestId('new-project-dialog')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('new-project-btn'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('ProjectScope');
+    expect(screen.queryByTestId('new-project-dialog')).toBeNull();
+  });
+
+  it('navigates to ProjectScope when the empty-state New Project action is pressed', () => {
+    renderScreen();
+
+    fireEvent.press(screen.getByTestId('projects-empty-action'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('ProjectScope');
+    expect(screen.queryByTestId('new-project-dialog')).toBeNull();
   });
 
   it('shows loading skeleton when isLoading and no projects', () => {
