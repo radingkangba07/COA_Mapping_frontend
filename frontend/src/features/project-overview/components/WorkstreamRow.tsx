@@ -85,12 +85,8 @@ export const WorkstreamRow = ({
     );
   }
 
-  return (
-    <Pressable
-      onPress={() => onOpen(w)}
-      style={({ pressed }) => [rowBase, pressed && { backgroundColor: colors.muted }]}
-      testID={testID}
-    >
+  const sharedCells = (
+    <>
       <View style={{ flex: colFlex.name }}><CellText>{w.name}</CellText></View>
       <View style={{ flex: colFlex.projectId }}>
         <Text style={{ fontSize: 12, fontFamily: 'JetBrainsMono', color: colors.mutedForeground }}>
@@ -111,11 +107,32 @@ export const WorkstreamRow = ({
       <View style={{ flex: colFlex.currentStage, paddingLeft: 8 }}>
         <CellText>{w.currentStage}</CellText>
       </View>
+    </>
+  );
+
+  // Only Chart of Accounts has a built flow — other included workstreams are
+  // visible but not yet openable.
+  if (w.name === 'Chart of Accounts') {
+    return (
+      <Pressable
+        onPress={() => onOpen(w)}
+        style={({ pressed }) => [rowBase, pressed && { backgroundColor: colors.muted }]}
+        testID={testID}
+      >
+        {sharedCells}
+        <View style={{ flex: colFlex.action }}>
+          <Text style={{ fontSize: 13, color: colors.accent, fontWeight: '600' }}>Open</Text>
+        </View>
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={rowBase} testID={testID}>
+      {sharedCells}
       <View style={{ flex: colFlex.action }}>
-        <Text style={{ fontSize: 13, color: colors.accent, fontWeight: '600' }}>
-          Open
-        </Text>
+        <Text style={{ fontSize: 12, color: colors.mutedForeground }}>—</Text>
       </View>
-    </Pressable>
+    </View>
   );
 };
