@@ -14,7 +14,7 @@ export const projectResponseSchema = z.object({
   name: z.string().min(1),
   source_system: z.string(),
   target_system: z.string(),
-  status: z.enum(['draft', 'in_progress', 'pending_review', 'completed']),
+  status: z.enum(['active', 'draft', 'in_progress', 'pending_review', 'completed']),
   org_id: z.string().nullable().optional(),
   company_id: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
