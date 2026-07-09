@@ -46,7 +46,8 @@ describe('toProjectOverview', () => {
 
   it('counts totalWorkstreams across all groups', () => {
     const result = toProjectOverview(BASE_DTO);
-    expect(result.totalWorkstreams).toBe(4); // 3 + 1
+    // ws-3 is not_included so totalWorkstreams counts only included: ws-1 + ws-2 + ob-1 = 3
+    expect(result.totalWorkstreams).toBe(3);
   });
 
   it('maps workstream code to projectId field', () => {
