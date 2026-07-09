@@ -4,6 +4,7 @@ import type { ProjectStatus } from '../types/projects.types';
 
 // Dark tonal badges matching reference design — primary dark bg + white text
 const STATUS_CONFIG: Record<ProjectStatus, { label: string; color: string; bgColor: string }> = {
+  active: { label: 'Active', color: '#003399', bgColor: 'rgba(0,51,153,0.10)' },
   draft: { label: 'Draft', color: '#6B7280', bgColor: 'rgba(107,114,128,0.12)' },
   in_progress: { label: 'In Progress', color: '#003399', bgColor: 'rgba(0,51,153,0.10)' },
   pending_review: { label: 'Review', color: '#D97706', bgColor: 'rgba(217,119,6,0.10)' },

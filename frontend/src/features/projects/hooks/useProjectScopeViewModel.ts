@@ -35,26 +35,46 @@ import {
  *
  * company carried from entry modal -> draft.companyId -> create payload
  */
+const _CONNECTION_METHOD_MAP: Record<string, string> = {
+  csv: 'csv_file',
+  mcp: 'mcp_server',
+};
+
 export function buildCreatePayload(draft: ProjectScopeDraft): ProjectCreate {
   return {
-    // manual name from entry modal -> draft.name -> create payload (NO generation)
     name: draft.name,
+    action: 'create',
     description: draft.description !== '' ? draft.description : undefined,
     companyId: draft.companyId ?? undefined,
-    // The create endpoint requires org_id; the company id doubles as the org
-    // id here, mirroring the existing useCreateProject fallback.
     orgId: draft.companyId ?? undefined,
     sourceErp: draft.source ?? undefined,
     targetErp: draft.target ?? undefined,
-    members:
-      draft.members.length > 0
-        ? draft.members.map((m) => ({
-            id: m.id,
-            name: m.name,
-            email: m.email,
-            role: m.role,
-          }))
+    sourceProductId: draft.source ?? undefined,
+    targetProductId: draft.target ?? undefined,
+    sourceConnectionMethodId: draft.sourceMethod
+      ? (_CONNECTION_METHOD_MAP[draft.sourceMethod] ?? draft.sourceMethod)
+      : undefined,
+    targetConnectionMethodId: draft.targetMethod
+      ? (_CONNECTION_METHOD_MAP[draft.targetMethod] ?? draft.targetMethod)
+      : undefined,
+    masterDataSelections: (() => {
+      if (draft.scope.selectedMasterData.length === 0) return undefined;
+      // selectedMasterData stores column-keyed entries ("chart-of-accounts:dataConversion").
+      // The API expects one entry per item ID, so strip the column suffix and deduplicate.
+      const uniqueIds = [
+        ...new Set(
+          draft.scope.selectedMasterData
+            .map((key) => key.split(':')[0])
+            .filter((id): id is string => id !== undefined),
+        ),
+      ];
+      return uniqueIds.map((id) => ({ data_type: id, selected: true }));
+    })(),
+    openingBalanceSelections:
+      draft.scope.selectedOpeningBalances.length > 0
+        ? draft.scope.selectedOpeningBalances.map((id) => ({ account_type: id, include: true }))
         : undefined,
+    members: undefined, // members are added after project creation
   };
 }
 
@@ -215,7 +235,11 @@ export function useProjectScopeViewModel(
     }
     setIsCreating(true);
     try {
-      const payload = buildCreatePayload(useProjectScopeStore.getState().draft);
+      const draft = useProjectScopeStore.getState().draft;
+      const base = buildCreatePayload(draft);
+      // Fall back to the user's employer org when no company was selected on entry
+      const effectiveOrgId = draft.companyId ?? (parentOrgId as string | null) ?? undefined;
+      const payload: typeof base = { ...base, orgId: base.orgId ?? effectiveOrgId };
       const result = await createProject(httpClient, payload);
       if (result.ok) {
         void queryClient.invalidateQueries({ queryKey: ['projects'] });
@@ -228,7 +252,7 @@ export function useProjectScopeViewModel(
     } finally {
       setIsCreating(false);
     }
-  }, [createDisabled, toast, queryClient]);
+  }, [createDisabled, toast, queryClient, parentOrgId]);
 
   return {
     draft,
