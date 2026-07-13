@@ -6,12 +6,15 @@ import type { OpeningBalanceRowVM } from '../hooks/useMigrationScopeViewModel';
 interface OpeningBalancesChecklistProps {
   readonly items: readonly OpeningBalanceRowVM[];
   readonly onToggle: (id: string) => void;
+  /** Selection counter rendered next to the "Opening Balances" header title. */
+  readonly counter?: React.ReactNode;
   readonly testID?: string;
 }
 
 export function OpeningBalancesChecklist({
   items,
   onToggle,
+  counter,
   testID,
 }: OpeningBalancesChecklistProps): React.JSX.Element {
   return (
@@ -21,9 +24,12 @@ export function OpeningBalancesChecklist({
         className="w-[calc(100%+16px)] -ml-2 flex-row items-center border-b border-border px-2 pb-1"
         testID={testID !== undefined ? `${testID}-header` : undefined}
       >
-        <Text className="w-[90%] font-heading text-xs font-bold text-foreground" numberOfLines={1}>
-          Opening Balances
-        </Text>
+        <View className="w-[90%] flex-row flex-wrap items-center gap-2">
+          <Text className="font-heading text-base font-semibold text-card-foreground">
+            Opening Balances
+          </Text>
+          {counter}
+        </View>
         <View className="w-[10%]" />
       </View>
 
@@ -33,13 +39,14 @@ export function OpeningBalancesChecklist({
             key={item.id}
             className="w-[calc(100%+16px)] -ml-2 flex-row items-center border-b border-border px-2 py-1"
           >
-            <Text className="w-[90%] font-body text-sm text-foreground">
+            <Text className="w-[90%] font-body text-sm font-medium text-muted-foreground">
               {item.label}
             </Text>
             <View className="w-[10%] items-center">
               <Checkbox
                 checked={item.selected}
                 onCheckedChange={() => onToggle(item.id)}
+                isDisabled
                 testID={testID !== undefined ? `${testID}-${item.id}` : undefined}
               />
             </View>

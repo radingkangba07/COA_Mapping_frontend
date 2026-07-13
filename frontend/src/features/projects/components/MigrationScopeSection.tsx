@@ -39,60 +39,46 @@ export function MigrationScopeSection({
 }: MigrationScopeSectionProps): React.JSX.Element {
   return (
     <View
-      className="flex-col gap-3 lg:flex-row lg:items-stretch lg:gap-3"
+      className="flex-col gap-3 lg:flex-row lg:items-stretch lg:gap-2"
       testID={testID}
     >
-      <View className="gap-2 rounded-lg border border-border bg-card p-2 lg:flex-1">
-        <View className="w-[calc(100%+16px)] -ml-2 gap-0.5 border-b border-border px-2 pb-1">
-          <View className="flex-row items-center">
-            <Text className="w-[30%] font-heading text-base font-semibold text-card-foreground">
-              Master Data
-            </Text>
-            <View className="w-[70%] items-start">
-              <Badge
-                variant="outline"
-                className="rounded-md border-0 bg-[#E9EAF7] px-2 py-1"
-                textClassName="text-[#003399]"
-                testID={testID !== undefined ? `${testID}-md-counter` : undefined}
-              >
-                {`${masterDataCount} of ${masterDataTotal} selected`}
-              </Badge>
-            </View>
-          </View>
-        </View>
-
+      <View className="gap-2 rounded-lg border border-border bg-card p-2 lg:grow lg:basis-[80px]">
         <View className="pb-2">
           <MasterDataTable
             rows={masterData}
             onToggleColumn={onToggleMasterDataColumn}
+            counter={
+              <Badge
+                variant="outline"
+                className="rounded-md border-0 bg-primary/10 px-2 py-1"
+                textClassName="text-primary"
+                testID={testID !== undefined ? `${testID}-md-counter` : undefined}
+              >
+                {`${masterDataCount} of ${masterDataTotal} selected`}
+              </Badge>
+            }
             testID={testID !== undefined ? `${testID}-master-data` : undefined}
           />
         </View>
       </View>
 
+      {/* Master Data grows by the arrow-zone width (80px) so Opening Balances
+          starts exactly where the Target ERP card starts in the section above. */}
       <View className="gap-2 rounded-lg border border-border bg-card p-2 lg:flex-1 lg:flex-col">
-        <View className="w-[calc(100%+16px)] -ml-2 gap-0.5 border-b border-border px-2 pb-1">
-          <View className="flex-row items-center">
-            <Text className="w-[40%] font-heading text-base font-semibold text-card-foreground">
-              Opening Balances
-            </Text>
-            <View className="w-[60%] items-start">
-              <Badge
-                variant="outline"
-                className="rounded-md border-0 bg-[#E9EAF7] px-2 py-1"
-                textClassName="text-[#003399]"
-                testID={testID !== undefined ? `${testID}-ob-counter` : undefined}
-              >
-                {`${openingBalancesCount} of ${openingBalancesTotal} selected`}
-              </Badge>
-            </View>
-          </View>
-        </View>
-
         <View className="pb-2">
           <OpeningBalancesChecklist
             items={openingBalances}
             onToggle={onToggleOpeningBalance}
+            counter={
+              <Badge
+                variant="outline"
+                className="rounded-md border-0 bg-primary/10 px-2 py-1"
+                textClassName="text-primary"
+                testID={testID !== undefined ? `${testID}-ob-counter` : undefined}
+              >
+                {`${openingBalancesCount} of ${openingBalancesTotal} selected`}
+              </Badge>
+            }
             testID={
               testID !== undefined ? `${testID}-opening-balances` : undefined
             }

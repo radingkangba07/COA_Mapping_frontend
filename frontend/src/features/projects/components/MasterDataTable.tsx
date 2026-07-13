@@ -1,16 +1,15 @@
 import React, { useCallback } from 'react';
 import { View, Text } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
 import { Checkbox } from '@/shared/components/ui/Checkbox';
-import { colors } from '@/config/theme';
 import type { MasterDataRowVM } from '../hooks/useMigrationScopeViewModel';
+import { CHART_OF_ACCOUNTS_ID } from './MigrationScope.config';
 import type { MasterDataColumn } from './MigrationScope.config';
-
-const CHEVRON_SIZE = 16;
 
 interface MasterDataTableProps {
   readonly rows: readonly MasterDataRowVM[];
   readonly onToggleColumn: (id: string, column: MasterDataColumn) => void;
+  /** Selection counter rendered next to the "Master Data" header title. */
+  readonly counter?: React.ReactNode;
   readonly testID?: string;
 }
 
@@ -28,6 +27,8 @@ function MasterDataRow({
   onToggleColumn,
   testID,
 }: MasterDataRowProps): React.JSX.Element {
+  const isMuted = row.id !== CHART_OF_ACCOUNTS_ID;
+
   const handleDataConversion = useCallback(() => {
     onToggleColumn(row.id, 'dataConversion');
   }, [onToggleColumn, row.id]);
@@ -42,15 +43,21 @@ function MasterDataRow({
       testID={testID !== undefined ? `${testID}-row-${row.id}` : undefined}
     >
       <View className="w-[calc(100%+16px)] -ml-2 flex-row items-center gap-1.5 border-b border-border px-2 py-1">
-        <ChevronRight size={CHEVRON_SIZE} color={colors.mutedForeground} />
         <View className="flex-1 flex-row items-center">
-          <Text className="w-[50%] font-heading text-sm font-semibold text-card-foreground">
+          <Text
+            className={
+              isMuted
+                ? 'w-[50%] font-body text-sm font-medium text-muted-foreground'
+                : 'w-[50%] font-body text-sm font-medium text-foreground'
+            }
+          >
             {row.label}
           </Text>
           <View className="w-[20%] items-center">
             <Checkbox
               checked={row.dataConversion}
               onCheckedChange={handleDataConversion}
+              isDisabled={row.id !== CHART_OF_ACCOUNTS_ID}
               testID={
                 testID !== undefined
                   ? `${testID}-${row.id}-dataConversion`
@@ -62,6 +69,7 @@ function MasterDataRow({
             <Checkbox
               checked={row.mdm}
               onCheckedChange={handleMdm}
+              isDisabled
               testID={testID !== undefined ? `${testID}-${row.id}-mdm` : undefined}
             />
           </View>
@@ -74,6 +82,7 @@ function MasterDataRow({
 export function MasterDataTable({
   rows,
   onToggleColumn,
+  counter,
   testID,
 }: MasterDataTableProps): React.JSX.Element {
   return (
@@ -83,16 +92,17 @@ export function MasterDataTable({
         className="w-[calc(100%+16px)] -ml-2 flex-row items-center gap-1.5 border-b border-border px-2 pb-1"
         testID={testID !== undefined ? `${testID}-header` : undefined}
       >
-        {/* Spacer to align "Master Data" above the row label (past the chevron). */}
-        <View style={{ width: CHEVRON_SIZE }} />
         <View className="flex-1 flex-row items-center">
-          <Text className="w-[50%] font-heading text-xs font-bold text-foreground">
-            Master Data
-          </Text>
-          <Text className="w-[20%] text-center font-heading text-xs font-bold text-foreground">
+          <View className="w-[50%] flex-row flex-wrap items-center gap-2">
+            <Text className="font-heading text-base font-semibold text-card-foreground">
+              Master Data
+            </Text>
+            {counter}
+          </View>
+          <Text className="w-[20%] text-center font-body text-xs font-medium text-foreground">
             Data Conversion
           </Text>
-          <Text className="w-[30%] text-center font-heading text-xs font-bold text-foreground">
+          <Text className="w-[30%] text-center font-body text-xs font-medium text-foreground">
             Master Data Management
           </Text>
         </View>
