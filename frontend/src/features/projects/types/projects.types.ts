@@ -56,6 +56,8 @@ export interface ProjectCreate {
   readonly targetErp?: string | undefined;
   readonly sourceProductId?: string | undefined;
   readonly targetProductId?: string | undefined;
+  readonly sourceVendorId?: string | undefined;
+  readonly targetVendorId?: string | undefined;
   readonly sourceConnectionMethodId?: string | undefined;
   readonly targetConnectionMethodId?: string | undefined;
   readonly orgId?: string | undefined;

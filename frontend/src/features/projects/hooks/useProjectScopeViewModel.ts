@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { useToast } from '@/shared/hooks/useToast';
+import { getERPById } from '@/shared/constants/erp-systems';
 import { useERPConfig } from '@/features/erp-config/hooks/useERPConfig';
 import {
   CONNECTION_METHODS,
@@ -53,6 +54,10 @@ export function buildCreatePayload(draft: ProjectScopeDraft): ProjectCreate {
     targetErp: draft.target ?? undefined,
     sourceProductId: draft.source ?? undefined,
     targetProductId: draft.target ?? undefined,
+    // Each product belongs to exactly one vendor, so the backend vendor key is
+    // derived from the selected product — action=create requires both.
+    sourceVendorId: draft.source ? getERPById(draft.source)?.vendorId : undefined,
+    targetVendorId: draft.target ? getERPById(draft.target)?.vendorId : undefined,
     sourceConnectionMethodId: draft.sourceMethod
       ? (_CONNECTION_METHOD_MAP[draft.sourceMethod] ?? draft.sourceMethod)
       : undefined,
