@@ -7,6 +7,7 @@ import type {
 } from '../types/project-overview.types';
 import type { Workstream, WorkstreamStatus } from '../types/workstream.types';
 import type { ProjectStatus } from '@/features/projects/types/projects.types';
+import { augmentNotIncluded } from '../utils/augmentNotIncluded';
 
 // ─── Status normalisation ────────────────────────────────────────────────────
 
@@ -71,8 +72,8 @@ function computeProgress(groups: readonly WorkstreamGroupModel[]): number {
 // ─── Public entry point ──────────────────────────────────────────────────────
 
 export function toProjectOverview(dto: ProjectOverviewDTO): ProjectOverview {
-  const groups = dto.groups.map(toGroup);
-  const totalWorkstreams = groups.reduce((n, g) => n + g.items.length, 0);
+  const groups = augmentNotIncluded(dto.groups.map(toGroup));
+  const totalWorkstreams = groups.reduce((n, g) => n + g.items.filter((w) => w.included).length, 0);
 
   return {
     id: dto.id,

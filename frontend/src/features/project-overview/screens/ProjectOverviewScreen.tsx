@@ -70,7 +70,7 @@ const openWorkstream = useOpenWorkstream(projectId);
               testID="project-overview-main"
             >
               <StatCards
-                workstreams={overview.groups.flatMap((g) => g.items)}
+                workstreams={overview.groups.flatMap((g) => g.items).filter((w) => w.included)}
                 isLoading={isLoading}
                 testID="project-overview-stat-cards"
               />

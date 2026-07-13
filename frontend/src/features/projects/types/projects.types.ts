@@ -5,6 +5,7 @@ import type { ProjectPermission } from './project-access.types';
 // ─── Value Objects ──────────────────────────────────────────────────────────
 
 export type ProjectStatus =
+  | 'active'
   | 'draft'
   | 'in_progress'
   | 'pending_review'
