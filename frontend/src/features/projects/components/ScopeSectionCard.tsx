@@ -8,6 +8,8 @@ interface ScopeSectionCardProps {
   headerRight?: React.ReactNode;
   /** 'end' pins headerRight to the far edge; 'inline' places it right after the title text. */
   headerRightPosition?: 'end' | 'inline';
+  /** 'below' stacks the description under the title; 'inline' places it right after the title text. */
+  descriptionPosition?: 'below' | 'inline';
   children?: React.ReactNode;
   className?: string;
   testID?: string;
@@ -18,24 +20,37 @@ export const ScopeSectionCard = ({
   description,
   headerRight,
   headerRightPosition = 'end',
+  descriptionPosition = 'below',
   children,
   className,
   testID,
 }: ScopeSectionCardProps): React.JSX.Element => {
   const hasChildren = React.Children.count(children) > 0;
 
-  const titleBlock = (
-    <>
-      <Text className="font-heading text-base font-semibold text-card-foreground">
-        {title}
-      </Text>
-      {description !== undefined ? (
-        <Text className="font-body text-sm text-muted-foreground mt-1">
+  const titleText = (
+    <Text className="font-heading text-base font-semibold text-card-foreground">
+      {title}
+    </Text>
+  );
+
+  const titleBlock =
+    description !== undefined && descriptionPosition === 'inline' ? (
+      <View className="flex-row flex-wrap items-baseline gap-2">
+        {titleText}
+        <Text className="font-body text-sm text-muted-foreground">
           {description}
         </Text>
-      ) : null}
-    </>
-  );
+      </View>
+    ) : (
+      <>
+        {titleText}
+        {description !== undefined ? (
+          <Text className="font-body text-sm text-muted-foreground mt-1">
+            {description}
+          </Text>
+        ) : null}
+      </>
+    );
 
   return (
     <View
