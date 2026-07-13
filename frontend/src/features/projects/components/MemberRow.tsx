@@ -1,23 +1,24 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
-import { Trash2 } from 'lucide-react-native';
+import { View, Text } from 'react-native';
+import { Edit3, Trash2 } from 'lucide-react-native';
 import { colors } from '@/config/theme';
 import { cn } from '@/shared/utils/string.utils';
 import { Badge } from '@/shared/components/ui/Badge';
+import { Button } from '@/shared/components/ui/Button';
 import type { ProjectPermission } from '../types/project-access.types';
 import type { ProjectScopeMember } from '../types/project-scope.types';
 import { RolePillSelector } from './RolePillSelector';
 import { SCOPE_MEMBER_ROLES, memberRoleLabel } from './MemberRoles.config';
 
-const ROLE_BADGE_CLASS: Record<ProjectPermission, { className: string; textClassName: string }> = {
-  admin:    { className: 'bg-primary/10', textClassName: 'text-primary' },
-  editor:   { className: 'bg-primary/10', textClassName: 'text-primary' },
-  approver: { className: 'bg-primary/10', textClassName: 'text-primary' },
-  viewer:   { className: 'bg-primary/10', textClassName: 'text-primary' },
-};
+// Same pill treatment as the mapping table's "AI suggestion" badge
+// (AccountTypeGroup), applied to every role value.
+const ROLE_PILL_CLASS =
+  'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30';
 
 interface MemberRowProps {
   readonly member: ProjectScopeMember;
+  /** 1-based position shown in the unlabelled number column. */
+  readonly position: number;
   readonly onUpdateRole: (id: string, role: ProjectPermission) => void;
   readonly onRemove: (id: string) => void;
   readonly isLast: boolean;
@@ -26,6 +27,7 @@ interface MemberRowProps {
 
 export function MemberRow({
   member,
+  position,
   onUpdateRole,
   onRemove,
   isLast,
@@ -56,8 +58,15 @@ export function MemberRow({
       )}
       testID={testID !== undefined ? `${testID}-row-${member.id}` : undefined}
     >
+      <View className="w-[5%] items-center">
+        <View className="h-6 w-6 items-center justify-center rounded-full border border-border bg-muted">
+          <Text className="font-body text-xs font-medium text-muted-foreground">
+            {position}
+          </Text>
+        </View>
+      </View>
       <Text
-        className="w-[30%] font-body text-sm font-medium text-foreground"
+        className="w-[25%] font-body text-sm font-medium text-foreground"
         numberOfLines={1}
       >
         {member.name}
@@ -76,44 +85,44 @@ export function MemberRow({
         ) : (
           <Badge
             variant="outline"
-            className={cn('rounded-md border-0 px-2 py-1', ROLE_BADGE_CLASS[member.role].className)}
-            textClassName={ROLE_BADGE_CLASS[member.role].textClassName}
+            className={cn('px-1.5 py-0.5', ROLE_PILL_CLASS)}
+            textClassName={cn('text-xs', ROLE_PILL_CLASS)}
           >
             {memberRoleLabel(member.role)}
           </Badge>
         )}
       </View>
 
-      <View className="w-[15%] items-center">
-        <Pressable
+      {/* Combined actions column — edit + remove grouped around the center. */}
+      <View className="w-[25%] flex-row items-center justify-center gap-4">
+        <Button
+          variant="outline"
+          size="sm"
           onPress={handleEditRole}
-          accessibilityRole="button"
           accessibilityLabel={`Edit role for ${member.name}`}
-          className="rounded-md border border-primary px-2 py-1"
           testID={
             testID !== undefined
               ? `${testID}-edit-role-${member.id}`
               : undefined
           }
         >
-          <Text className="font-body text-xs font-medium text-primary">
-            Edit Role
-          </Text>
-        </Pressable>
-      </View>
-
-      <View className="w-[10%] items-center">
-        <Pressable
+          <View className="flex-row items-center gap-1.5">
+            <Edit3 size={14} color={colors.foreground} />
+            <Text className="text-xs font-medium text-foreground">Edit</Text>
+          </View>
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
           onPress={handleRemove}
-          accessibilityRole="button"
+          className="h-7 px-2 border-red-200 dark:border-red-800"
           accessibilityLabel={`Remove ${member.name}`}
-          className="rounded-md p-0.5"
           testID={
             testID !== undefined ? `${testID}-remove-${member.id}` : undefined
           }
         >
-          <Trash2 size={16} color={colors.destructive} />
-        </Pressable>
+          <Trash2 size={12} color={colors.destructive} />
+        </Button>
       </View>
     </View>
   );

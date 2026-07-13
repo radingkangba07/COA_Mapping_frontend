@@ -21,6 +21,7 @@ const PILL_BG: Record<ProjectPermission, string> = {
   editor: 'bg-accent',
   approver: 'bg-warning',
   admin: 'bg-success',
+  owner: 'bg-primary',
 };
 
 const PILL_TEXT: Record<ProjectPermission, string> = {
@@ -28,6 +29,7 @@ const PILL_TEXT: Record<ProjectPermission, string> = {
   editor: 'text-accent-foreground',
   approver: 'text-warning-foreground',
   admin: 'text-success-foreground',
+  owner: 'text-primary-foreground',
 };
 
 const PILL_ICON: Record<ProjectPermission, string> = {
@@ -35,6 +37,7 @@ const PILL_ICON: Record<ProjectPermission, string> = {
   editor: '#FFFFFF',
   approver: '#FFFFFF',
   admin: '#FFFFFF',
+  owner: '#FFFFFF',
 };
 
 const MENU_WIDTH = 132;
