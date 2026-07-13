@@ -6,6 +6,8 @@ interface ScopeSectionCardProps {
   title: string;
   description?: string;
   headerRight?: React.ReactNode;
+  /** 'end' pins headerRight to the far edge; 'inline' places it right after the title text. */
+  headerRightPosition?: 'end' | 'inline';
   children?: React.ReactNode;
   className?: string;
   testID?: string;
@@ -15,6 +17,7 @@ export const ScopeSectionCard = ({
   title,
   description,
   headerRight,
+  headerRightPosition = 'end',
   children,
   className,
   testID,
@@ -41,8 +44,16 @@ export const ScopeSectionCard = ({
       testID={testID}
     >
       {headerRight !== undefined ? (
-        <View className="flex-row items-start gap-4">
-          <View className="flex-1">{titleBlock}</View>
+        <View
+          className={
+            headerRightPosition === 'inline'
+              ? 'flex-row items-center gap-4'
+              : 'flex-row items-start gap-4'
+          }
+        >
+          <View className={headerRightPosition === 'inline' ? undefined : 'flex-1'}>
+            {titleBlock}
+          </View>
           {headerRight}
         </View>
       ) : (

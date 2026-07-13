@@ -128,7 +128,7 @@ const ErpCard = ({
 export const ErpSectionSearch = (): React.JSX.Element => (
   <View className="flex-col items-end gap-1 flex-shrink-0">
     <Text
-      className="font-body text-sm text-primary"
+      className="font-body text-xs font-medium text-foreground"
       accessibilityRole="link"
     >
       Need more ERP options?
