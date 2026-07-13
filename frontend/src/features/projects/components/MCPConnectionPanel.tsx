@@ -23,6 +23,9 @@ interface MCPConnectionPanelProps {
   // When provided, the panel is locked to a single side: the scope selector is
   // hidden and the form's scope is forced to this value.
   fixedScope?: McpConfigureScope;
+  // Mutes the whole panel (greyed out, non-interactive) until an MCP
+  // connection method is selected in Step 3.
+  isDisabled?: boolean;
   className?: string;
   testID?: string;
 }
@@ -31,10 +34,11 @@ export const MCPConnectionPanel = ({
   value,
   onChange,
   fixedScope,
+  isDisabled = false,
   className,
   testID = 'mcp-connection-panel',
 }: MCPConnectionPanelProps): React.JSX.Element => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
   const [urlTouched, setUrlTouched] = useState(false);
   const [touched, setTouched] = useState(false);
   const [form, setForm] = useState<McpConnectionForm>(() => {
@@ -139,6 +143,12 @@ export const MCPConnectionPanel = ({
   );
 
   return (
+    <View
+      className={isDisabled ? 'flex-1 opacity-50' : 'flex-1'}
+      pointerEvents={isDisabled ? 'none' : 'auto'}
+      accessibilityState={{ disabled: isDisabled }}
+      testID={`${testID}-container`}
+    >
     <Collapsible
       isOpen={isOpen}
       onToggle={handleToggle}
@@ -171,5 +181,6 @@ export const MCPConnectionPanel = ({
         <TestConnectionFlow connection={form} testID={`${testID}-test-connection`} />
       </View>
     </Collapsible>
+    </View>
   );
 };

@@ -46,12 +46,15 @@ export const ConnectionDetails = ({
     [onConnectionChange],
   );
 
+  const isMcpSelected = sourceMethod === 'mcp' || targetMethod === 'mcp';
+
   return (
     <View className="flex-1" testID={testID}>
       <MCPConnectionPanel
         className="flex-1"
         value={form}
         onChange={handleFormChange}
+        isDisabled={!isMcpSelected}
         testID="mcp-panel"
       />
     </View>
