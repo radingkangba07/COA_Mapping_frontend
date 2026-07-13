@@ -83,12 +83,14 @@ export function ProjectSummaryBar({
       style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 }}
       testID={testID}
     >
-      <Text className="font-heading text-base font-semibold text-card-foreground">
-        Project Summary
-      </Text>
-      <Text className="font-body text-sm text-muted-foreground mt-1">
-        Review your selections and project configuration.
-      </Text>
+      <View className="flex-row flex-wrap items-baseline gap-2">
+        <Text className="font-heading text-base font-semibold text-card-foreground">
+          Project Summary
+        </Text>
+        <Text className="font-body text-sm text-muted-foreground">
+          Review your selections and project configuration
+        </Text>
+      </View>
 
       <View className="mt-4 flex-row flex-wrap gap-y-5">
         {chips.map((chip) => (
