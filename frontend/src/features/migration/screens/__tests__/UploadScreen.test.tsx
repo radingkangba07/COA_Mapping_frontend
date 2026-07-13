@@ -44,8 +44,12 @@ jest.mock('../../components/MigrationLayout', () => {
 
 // ─── Navigation mocks ──────────────────────────────────────────────────────
 const mockNavigate = jest.fn();
+const mockParentNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: mockNavigate }),
+  useNavigation: () => ({
+    navigate: mockNavigate,
+    getParent: jest.fn(() => ({ navigate: mockParentNavigate })),
+  }),
 }));
 
 jest.mock('@/navigation/types', () => ({
@@ -173,10 +177,10 @@ describe('UploadScreen', () => {
     expect(screen.getByTestId('upload-erp-summary')).toBeTruthy();
   });
 
-  it('navigates back when Back button pressed', () => {
+  it('navigates back to ProjectsTab when Back button pressed', () => {
     render(<UploadScreen />);
     fireEvent.press(screen.getByTestId('upload-back-button'));
-    expect(mockNavigate).toHaveBeenCalledWith('ERPSelect', { projectId: 'test-project-1' });
+    expect(mockParentNavigate).toHaveBeenCalledWith('ProjectsTab');
   });
 
   it('calls processFiles when Process Files button pressed', async () => {

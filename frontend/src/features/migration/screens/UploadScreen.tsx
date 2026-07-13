@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable, ScrollView, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { AppTabsParamList } from '@/navigation/types';
 import { CheckCircle, Circle, Eye, Info, X } from 'lucide-react-native';
 import { Button } from '@/shared/components/ui/Button';
 import { Card } from '@/shared/components/ui/Card';
@@ -11,9 +13,7 @@ import { MigrationLayout } from '../components/MigrationLayout';
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
 import { FileUploader } from '../components/FileUploader/FileUploader';
 import { SampleFilesTable } from '../components/SampleFilesTable';
-import { FetchFromErpStep } from '../components/FetchFromErpStep/FetchFromErpStep';
 import { useMigrationViewModel } from '../hooks/useMigrationViewModel';
-import { useFetchFromErp } from '../hooks/useFetchFromErp';
 import { useMigrationStore } from '../store/migration.store';
 import { useHydrateProject } from '../hooks/useHydrateProject';
 import { useMigrationScreenRoute } from '@/navigation/types';
@@ -59,10 +59,6 @@ export function UploadScreen(): React.JSX.Element {
     processFiles, handleDownloadSample,
     handlePreviewSample, previewData, previewTitle, isPreviewOpen, closePreview,
   } = useMigrationViewModel();
-
-  const {
-    method, connectionReady, sourceErpName, targetErpName, fetch, runFetch, refetch, useCsvFallback,
-  } = useFetchFromErp();
 
   const onSourceFilePicked = useCallback(
     (file: File | { uri: string; name: string; mimeType: string }): void => {
@@ -119,9 +115,12 @@ export function UploadScreen(): React.JSX.Element {
     navigation.goBack();
   }, [navigation]);
 
+  // Navigate back to Project Overview (ProjectsStack is restored to its last
+  // state, which is ProjectOverview after WorkstreamDetailScreen pops itself).
   const handleBack = useCallback((): void => {
-    navigation.navigate('ERPSelect', { projectId });
-  }, [navigation, projectId]);
+    const tabNav = navigation.getParent<BottomTabNavigationProp<AppTabsParamList>>();
+    tabNav?.navigate('ProjectsTab');
+  }, [navigation]);
 
   const handleContinue = useCallback(async (): Promise<void> => {
     await processFiles();
@@ -215,58 +214,36 @@ export function UploadScreen(): React.JSX.Element {
                   </Text>
                 </View>
               ) : null}
-              {method === 'mcp' ? (
-                // DA-52: MCP connection method → fetch COA directly from the ERP.
-                <FetchFromErpStep
-                  sourceErpName={sourceErpName}
-                  targetErpName={targetErpName}
-                  connectionReady={connectionReady}
-                  status={fetch.status}
-                  progress={fetch.progress}
-                  counts={fetch.counts}
-                  sampleSource={fetch.sampleSource}
-                  sampleTarget={fetch.sampleTarget}
-                  errorMessage={fetch.errorMessage}
-                  onFetch={runFetch}
-                  onRefetch={refetch}
-                  onUseCsvFallback={useCsvFallback}
-                  testID="fetch-from-erp-step"
-                />
-              ) : (
-                // CSV fallback — retained unchanged when method === 'csv'.
-                <>
-                  <FileUploader
-                    sourceFile={sourceFileInfo}
-                    targetFile={targetFileInfo}
-                    mappingFile={mappingFileInfo}
-                    onSourceFilePicked={onSourceFilePicked}
-                    onTargetFilePicked={onTargetFilePicked}
-                    onMappingFilePicked={onMappingFilePicked}
-                    onSourceRemove={handleRemoveSourceFile}
-                    onTargetRemove={handleRemoveTargetFile}
-                    onMappingRemove={handleRemoveMappingFile}
-                    onSourcePreview={onSourcePreview}
-                    onTargetPreview={onTargetPreview}
-                    onMappingPreview={onMappingPreview}
-                    isUploading={isLoading}
-                    testID="upload-file-uploader"
-                  />
+              <FileUploader
+                sourceFile={sourceFileInfo}
+                targetFile={targetFileInfo}
+                mappingFile={mappingFileInfo}
+                onSourceFilePicked={onSourceFilePicked}
+                onTargetFilePicked={onTargetFilePicked}
+                onMappingFilePicked={onMappingFilePicked}
+                onSourceRemove={handleRemoveSourceFile}
+                onTargetRemove={handleRemoveTargetFile}
+                onMappingRemove={handleRemoveMappingFile}
+                onSourcePreview={onSourcePreview}
+                onTargetPreview={onTargetPreview}
+                onMappingPreview={onMappingPreview}
+                isUploading={isLoading}
+                testID="upload-file-uploader"
+              />
 
-                  <View className="border-t border-border mt-4 pt-4">
-                    <SampleFilesTable
-                      sourceErpId={sourceERP?.id}
-                      sourceErpName={sourceERP?.name}
-                      targetErpId={targetERP?.id}
-                      targetErpName={targetERP?.name}
-                      onDownload={onDownloadSample}
-                      onPreview={onPreviewSample}
-                      onLoadAll={handleLoadAllSamples}
-                      isLoading={isLoading}
-                      testID="sample-files-table"
-                    />
-                  </View>
-                </>
-              )}
+              <View className="border-t border-border mt-4 pt-4">
+                <SampleFilesTable
+                  sourceErpId={sourceERP?.id}
+                  sourceErpName={sourceERP?.name}
+                  targetErpId={targetERP?.id}
+                  targetErpName={targetERP?.name}
+                  onDownload={onDownloadSample}
+                  onPreview={onPreviewSample}
+                  onLoadAll={handleLoadAllSamples}
+                  isLoading={isLoading}
+                  testID="sample-files-table"
+                />
+              </View>
             </Card.Content>
           </Card>
 

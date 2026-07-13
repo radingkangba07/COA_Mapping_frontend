@@ -44,7 +44,7 @@ describe('toProjectOverview', () => {
     expect(result.lastEditedAt).toEqual(new Date('2026-06-30T10:42:00.000Z'));
   });
 
-  it('counts totalWorkstreams across all groups', () => {
+  it('counts totalWorkstreams across all groups (included only)', () => {
     const result = toProjectOverview(BASE_DTO);
     // ws-3 is not_included so totalWorkstreams counts only included: ws-1 + ws-2 + ob-1 = 3
     expect(result.totalWorkstreams).toBe(3);

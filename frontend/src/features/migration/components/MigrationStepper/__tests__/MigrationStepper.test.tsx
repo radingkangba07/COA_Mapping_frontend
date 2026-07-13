@@ -33,8 +33,9 @@ jest.mock('@/shared/utils/platform.utils', () => ({
 
 import { MigrationStepper } from '../MigrationStepper';
 
+// Stepper starts at Upload Files (store step 1). STEP_OFFSET=1 means
+// completedSteps and currentStep use store step values (1–4), not display indices.
 const STEP_LABELS = [
-  'Select Systems',
   'Upload Files',
   'Type Mapping',
   'Account Mapping',
@@ -42,9 +43,9 @@ const STEP_LABELS = [
 ];
 
 describe('MigrationStepper', () => {
-  it('renders all 5 step labels', () => {
+  it('renders all 4 step labels', () => {
     render(
-      <MigrationStepper currentStep={0} completedSteps={[]} />,
+      <MigrationStepper currentStep={1} completedSteps={[]} />,
     );
     for (const label of STEP_LABELS) {
       expect(screen.getByText(label)).toBeTruthy();
@@ -53,15 +54,15 @@ describe('MigrationStepper', () => {
 
   it('shows step number for active step', () => {
     render(
-      <MigrationStepper currentStep={2} completedSteps={[0, 1]} />,
+      <MigrationStepper currentStep={2} completedSteps={[1]} />,
     );
-    // Active step (index 2) should show "3"
-    expect(screen.getByText('3')).toBeTruthy();
+    // Store step 2 → display index 1 → shows "2"
+    expect(screen.getByText('2')).toBeTruthy();
   });
 
   it('shows Check icon for completed steps', () => {
     render(
-      <MigrationStepper currentStep={2} completedSteps={[0, 1]} />,
+      <MigrationStepper currentStep={3} completedSteps={[1, 2]} />,
     );
     const checkIcons = screen.getAllByTestId('check-icon');
     expect(checkIcons).toHaveLength(2);
@@ -69,42 +70,41 @@ describe('MigrationStepper', () => {
 
   it('shows step number for upcoming steps', () => {
     render(
-      <MigrationStepper currentStep={0} completedSteps={[]} />,
+      <MigrationStepper currentStep={1} completedSteps={[]} />,
     );
-    // Steps 2-5 are upcoming, should show their numbers
+    // Display indices 1–3 are upcoming and show their numbers (2, 3, 4)
     expect(screen.getByText('2')).toBeTruthy();
     expect(screen.getByText('3')).toBeTruthy();
     expect(screen.getByText('4')).toBeTruthy();
-    expect(screen.getByText('5')).toBeTruthy();
   });
 
   it('fires onStepPress only for completed steps', () => {
     const onStepPress = jest.fn();
     render(
       <MigrationStepper
-        currentStep={2}
-        completedSteps={[0, 1]}
+        currentStep={3}
+        completedSteps={[1, 2]}
         onStepPress={onStepPress}
       />,
     );
 
-    // Press completed step (index 0)
+    // Display index 0 → store step 1 (completed) → fires onStepPress(1)
     fireEvent.press(screen.getByTestId('step-0'));
-    expect(onStepPress).toHaveBeenCalledWith(0);
-
-    // Press completed step (index 1)
-    fireEvent.press(screen.getByTestId('step-1'));
     expect(onStepPress).toHaveBeenCalledWith(1);
+
+    // Display index 1 → store step 2 (completed) → fires onStepPress(2)
+    fireEvent.press(screen.getByTestId('step-1'));
+    expect(onStepPress).toHaveBeenCalledWith(2);
 
     expect(onStepPress).toHaveBeenCalledTimes(2);
   });
 
   it('disables upcoming steps', () => {
     render(
-      <MigrationStepper currentStep={1} completedSteps={[0]} />,
+      <MigrationStepper currentStep={1} completedSteps={[]} />,
     );
-    // Step index 2 is upcoming — should be disabled
-    const upcomingStep = screen.getByTestId('step-2');
+    // Display index 1 (store step 2) is upcoming — should be disabled
+    const upcomingStep = screen.getByTestId('step-1');
     expect(upcomingStep.props.accessibilityState).toEqual(
       expect.objectContaining({ disabled: true }),
     );
@@ -112,9 +112,10 @@ describe('MigrationStepper', () => {
 
   it('disables active step (only completed are pressable)', () => {
     render(
-      <MigrationStepper currentStep={2} completedSteps={[0, 1]} />,
+      <MigrationStepper currentStep={2} completedSteps={[1]} />,
     );
-    const activeStep = screen.getByTestId('step-2');
+    // Display index 1 (store step 2) is active — should be disabled
+    const activeStep = screen.getByTestId('step-1');
     expect(activeStep.props.accessibilityState).toEqual(
       expect.objectContaining({ disabled: true }),
     );
@@ -122,16 +123,16 @@ describe('MigrationStepper', () => {
 
   it('has testID "migration-stepper" on root', () => {
     render(
-      <MigrationStepper currentStep={0} completedSteps={[]} />,
+      <MigrationStepper currentStep={1} completedSteps={[]} />,
     );
     expect(screen.getByTestId('migration-stepper')).toBeTruthy();
   });
 
   it('has testID "step-{index}" on individual steps', () => {
     render(
-      <MigrationStepper currentStep={0} completedSteps={[]} />,
+      <MigrationStepper currentStep={1} completedSteps={[]} />,
     );
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 4; i++) {
       expect(screen.getByTestId(`step-${i}`)).toBeTruthy();
     }
   });
@@ -140,12 +141,12 @@ describe('MigrationStepper', () => {
     const onStepPress = jest.fn();
     render(
       <MigrationStepper
-        currentStep={1}
-        completedSteps={[0]}
+        currentStep={2}
+        completedSteps={[1]}
         onStepPress={onStepPress}
       />,
     );
-    // Active step (index 1) is disabled, pressing should not fire
+    // Active step = display index 1 (store step 2) — pressing should not fire
     fireEvent.press(screen.getByTestId('step-1'));
     expect(onStepPress).not.toHaveBeenCalled();
   });
