@@ -42,7 +42,7 @@ export const StatCard = ({
   return (
     <View
       className="rounded-lg border border-border bg-card"
-      style={{ padding: 14, gap: 4 }}
+      style={{ padding: 14, gap: 4, flex: 1 }}
       testID={testID}
     >
       <Text

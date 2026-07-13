@@ -230,20 +230,8 @@ describe('useProjectScopeViewModel', () => {
 
       const payload = buildCreatePayload(draft);
 
-      expect(payload.members).toEqual([
-        {
-          id: 'alice@example.com',
-          name: 'Alice',
-          email: 'alice@example.com',
-          role: 'admin',
-        },
-        {
-          id: 'bob@example.com',
-          name: 'Bob',
-          email: 'bob@example.com',
-          role: 'viewer',
-        },
-      ]);
+      // Members are excluded from the create payload and added after project creation
+      expect(payload.members).toBeUndefined();
     });
 
     it('omits members when the draft has none', () => {

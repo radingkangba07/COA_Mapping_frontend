@@ -90,10 +90,28 @@ export function toAppError(error: unknown): AppError {
     const pickStringField = (key: string): string | undefined => {
       if (typeof responseData !== 'object' || responseData === null) return undefined;
       const value = (responseData as Record<string, unknown>)[key];
-      return typeof value === 'string' ? value : undefined;
+      if (typeof value === 'string') return value;
+      // FastAPI Pydantic validation errors return detail as an array of objects
+      if (Array.isArray(value)) {
+        return value
+          .map((item: unknown) => {
+            if (typeof item === 'object' && item !== null) {
+              const i = item as Record<string, unknown>;
+              const loc = Array.isArray(i.loc) ? (i.loc as unknown[]).join('.') : '';
+              const msg = typeof i.msg === 'string' ? i.msg : '';
+              return loc ? `${loc}: ${msg}` : msg;
+            }
+            return String(item);
+          })
+          .filter(Boolean)
+          .join('; ');
+      }
+      return undefined;
     };
-    // Backend may return either { message } (custom) or { detail } (FastAPI default).
+    // Backend may return either { message } (custom) or { detail } (FastAPI default / array).
     const serverMessage = pickStringField('message') ?? pickStringField('detail');
+    // eslint-disable-next-line no-console
+    console.error('[HTTP] error response:', JSON.stringify(responseData));
 
     return {
       code: `HTTP_${String(status)}`,
