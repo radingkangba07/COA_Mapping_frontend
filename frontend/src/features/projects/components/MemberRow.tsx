@@ -10,10 +10,10 @@ import { RolePillSelector } from './RolePillSelector';
 import { SCOPE_MEMBER_ROLES, memberRoleLabel } from './MemberRoles.config';
 
 const ROLE_BADGE_CLASS: Record<ProjectPermission, { className: string; textClassName: string }> = {
-  admin:    { className: 'bg-[#E9EAF7]', textClassName: 'text-[#003399]' },
-  editor:   { className: 'bg-[#E9EAF7]', textClassName: 'text-[#003399]' },
-  approver: { className: 'bg-[#E9EAF7]', textClassName: 'text-[#003399]' },
-  viewer:   { className: 'bg-[#E9EAF7]', textClassName: 'text-[#003399]' },
+  admin:    { className: 'bg-primary/10', textClassName: 'text-primary' },
+  editor:   { className: 'bg-primary/10', textClassName: 'text-primary' },
+  approver: { className: 'bg-primary/10', textClassName: 'text-primary' },
+  viewer:   { className: 'bg-primary/10', textClassName: 'text-primary' },
 };
 
 interface MemberRowProps {
@@ -89,14 +89,14 @@ export function MemberRow({
           onPress={handleEditRole}
           accessibilityRole="button"
           accessibilityLabel={`Edit role for ${member.name}`}
-          className="rounded-md border border-[#003399] px-2 py-1"
+          className="rounded-md border border-primary px-2 py-1"
           testID={
             testID !== undefined
               ? `${testID}-edit-role-${member.id}`
               : undefined
           }
         >
-          <Text className="font-body text-xs font-medium text-[#003399]">
+          <Text className="font-body text-xs font-medium text-primary">
             Edit Role
           </Text>
         </Pressable>
