@@ -70,6 +70,8 @@ export function toCreatePayload(
   if (data.targetErp !== undefined) payload.target_system = data.targetErp;
   if (data.sourceProductId !== undefined) payload.source_product_id = data.sourceProductId;
   if (data.targetProductId !== undefined) payload.target_product_id = data.targetProductId;
+  if (data.sourceVendorId !== undefined) payload.source_vendor_id = data.sourceVendorId;
+  if (data.targetVendorId !== undefined) payload.target_vendor_id = data.targetVendorId;
   if (data.sourceConnectionMethodId !== undefined) payload.source_connection_method_id = data.sourceConnectionMethodId;
   if (data.targetConnectionMethodId !== undefined) payload.target_connection_method_id = data.targetConnectionMethodId;
   if (data.orgId !== undefined) payload.org_id = data.orgId;

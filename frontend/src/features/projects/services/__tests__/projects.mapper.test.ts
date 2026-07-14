@@ -126,6 +126,17 @@ describe('toCreatePayload', () => {
     expect(payload.description).toBe('Desc');
   });
 
+  it('includes source_vendor_id and target_vendor_id when provided', () => {
+    const payload = toCreatePayload({
+      name: 'X',
+      sourceVendorId: 'sap',
+      targetVendorId: 'oracle',
+    });
+
+    expect(payload.source_vendor_id).toBe('sap');
+    expect(payload.target_vendor_id).toBe('oracle');
+  });
+
   it('omits optional fields when not provided', () => {
     const payload = toCreatePayload({ name: 'X' });
 
