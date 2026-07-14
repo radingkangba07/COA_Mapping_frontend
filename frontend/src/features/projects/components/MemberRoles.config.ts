@@ -6,6 +6,7 @@ export interface MemberRoleOption {
 }
 
 export const SCOPE_MEMBER_ROLES: readonly MemberRoleOption[] = [
+  { value: 'owner', label: 'Owner' },
   { value: 'admin', label: 'Admin' },
   { value: 'editor', label: 'Modifier' },
   { value: 'viewer', label: 'Viewer' },

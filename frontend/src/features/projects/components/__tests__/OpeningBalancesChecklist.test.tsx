@@ -43,13 +43,17 @@ describe('OpeningBalancesChecklist', () => {
     expect(screen.getAllByRole('checkbox')).toHaveLength(5);
   });
 
-  it('calls onToggle with the item id when a checkbox is pressed', () => {
+  it('renders all checkboxes disabled — pressing them does not toggle', () => {
     const onToggle = jest.fn();
     render(
       <OpeningBalancesChecklist testID="ob" items={items} onToggle={onToggle} />,
     );
 
+    expect(
+      screen.getByTestId('ob-historical-balance-sheet-start'),
+    ).toHaveProp('accessibilityState', { checked: false, disabled: true });
+
     fireEvent.press(screen.getByTestId('ob-historical-balance-sheet-start'));
-    expect(onToggle).toHaveBeenCalledWith('historical-balance-sheet-start');
+    expect(onToggle).not.toHaveBeenCalled();
   });
 });

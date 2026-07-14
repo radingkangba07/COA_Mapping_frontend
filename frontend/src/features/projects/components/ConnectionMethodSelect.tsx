@@ -1,16 +1,21 @@
 import React, { useCallback } from 'react';
 import { Select, type SelectOption } from '@/shared/components/ui/Select';
-import type { ConnectionMethod } from '../types/project-scope.types';
+import {
+  CONNECTION_METHODS,
+  type ConnectionMethod,
+} from '../types/project-scope.types';
 
 // DA-55: per-side connection-method dropdown. Two methods only for now —
 // Cloud/On-Premise from the design are intentionally OUT OF SCOPE.
+// Values come from CONNECTION_METHODS so the dropdown and every comparison
+// share one definition.
 const CONNECTION_METHOD_OPTIONS: readonly SelectOption[] = [
-  { label: 'MCP Server', value: 'mcp' },
-  { label: 'CSV File Upload', value: 'csv' },
+  { label: 'MCP Server', value: CONNECTION_METHODS.MCP },
+  { label: 'CSV File Upload', value: CONNECTION_METHODS.CSV },
 ];
 
 function isConnectionMethod(value: string): value is ConnectionMethod {
-  return value === 'mcp' || value === 'csv';
+  return Object.values(CONNECTION_METHODS).includes(value as ConnectionMethod);
 }
 
 interface ConnectionMethodSelectProps {

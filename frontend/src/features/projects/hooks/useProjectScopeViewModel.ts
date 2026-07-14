@@ -3,11 +3,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { useToast } from '@/shared/hooks/useToast';
 import { useERPConfig } from '@/features/erp-config/hooks/useERPConfig';
-import type {
-  ConnectionMethod,
-  MCPConnection,
-  ProjectScopeDraft,
-  ProjectScopeSeed,
+import {
+  CONNECTION_METHODS,
+  type ConnectionMethod,
+  type MCPConnection,
+  type ProjectScopeDraft,
+  type ProjectScopeSeed,
 } from '../types/project-scope.types';
 import type { ProjectCreate, ProjectGroup } from '../types/projects.types';
 import type { OrgId } from '@/shared/types/common.types';
@@ -35,9 +36,10 @@ import {
  *
  * company carried from entry modal -> draft.companyId -> create payload
  */
-const _CONNECTION_METHOD_MAP: Record<string, string> = {
-  csv: 'csv_file',
-  mcp: 'mcp_server',
+// Translates dropdown values (CONNECTION_METHODS) to backend catalog ids.
+const _CONNECTION_METHOD_MAP: Record<ConnectionMethod, string> = {
+  [CONNECTION_METHODS.CSV]: 'csv_file',
+  [CONNECTION_METHODS.MCP]: 'mcp_server',
 };
 
 export function buildCreatePayload(draft: ProjectScopeDraft): ProjectCreate {

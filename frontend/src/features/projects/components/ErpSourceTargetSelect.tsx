@@ -10,13 +10,18 @@ import {
   getUniqueVendors,
 } from '@/shared/constants/erp-systems';
 import type { ERPSystem } from '@/features/erp-config/types/erp-config.types';
-import type { ConnectionMethod } from '../types/project-scope.types';
+import {
+  CONNECTION_METHODS,
+  type ConnectionMethod,
+} from '../types/project-scope.types';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
+// Values come from CONNECTION_METHODS so the dropdown and every comparison
+// share one definition.
 const CONNECTION_METHOD_OPTIONS: SelectOption[] = [
-  { label: 'MCP Server (Model Context Protocol)', value: 'mcp' },
-  { label: 'CSV File Upload', value: 'csv' },
+  { label: 'MCP Server (Model Context Protocol)', value: CONNECTION_METHODS.MCP },
+  { label: 'CSV File Upload', value: CONNECTION_METHODS.CSV },
 ];
 
 const VENDOR_OPTIONS: SelectOption[] = getUniqueVendors().map((v) => ({

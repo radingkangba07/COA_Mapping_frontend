@@ -2,7 +2,7 @@ import type { UserId } from '@/shared/types/common.types';
 
 // ─── Permission Types ──────────────────────────────────────────────────────
 
-export const PROJECT_PERMISSIONS = ['viewer', 'editor', 'approver', 'admin'] as const;
+export const PROJECT_PERMISSIONS = ['viewer', 'editor', 'approver', 'admin', 'owner'] as const;
 export type ProjectPermission = (typeof PROJECT_PERMISSIONS)[number];
 
 // ─── Domain Types ──────────────────────────────────────────────────────────
@@ -35,6 +35,7 @@ const RANK: Record<ProjectPermission, number> = {
   editor: 2,
   approver: 3,
   admin: 4,
+  owner: 5,
 };
 
 export const permissionRank = (p: ProjectPermission): number => RANK[p];

@@ -54,6 +54,7 @@ const ROLE_VARIANT = {
   editor: 'accent',
   approver: 'warning',
   admin: 'success',
+  owner: 'success',
 } as const satisfies Record<ProjectPermission, 'secondary' | 'accent' | 'warning' | 'success'>;
 
 // ─── Props ───────────────────────────────────────────────────────────────────
