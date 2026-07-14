@@ -4,14 +4,15 @@ import {
   OPENING_BALANCE_ITEMS,
 } from '../components/MigrationScope.config';
 import type { MasterDataColumn } from '../components/MigrationScope.config';
-import type {
-  AggregationMode,
-  ConnectionMethod,
-  MCPConnection,
-  ProjectScopeDraft,
-  ProjectScopeMember,
-  ProjectScopeStore,
-  RequestStatus,
+import {
+  CONNECTION_METHODS,
+  type AggregationMode,
+  type ConnectionMethod,
+  type MCPConnection,
+  type ProjectScopeDraft,
+  type ProjectScopeMember,
+  type ProjectScopeStore,
+  type RequestStatus,
 } from '../types/project-scope.types';
 
 // ─── Master Data Column Encoding ──────────────────────────────────────────────
@@ -110,8 +111,8 @@ export const selectCanCreateProject = (state: ProjectScopeStore): boolean => {
   const erpsDistinct = draft.source !== draft.target;
   // CSV needs no test connection; an MCP side requires the single shared
   // connection to have a successful test connection.
-  const sourceSatisfied = draft.sourceMethod === 'csv' || connectionReady;
-  const targetSatisfied = draft.targetMethod === 'csv' || connectionReady;
+  const sourceSatisfied = draft.sourceMethod === CONNECTION_METHODS.CSV || connectionReady;
+  const targetSatisfied = draft.targetMethod === CONNECTION_METHODS.CSV || connectionReady;
 
   return (
     hasCompany &&

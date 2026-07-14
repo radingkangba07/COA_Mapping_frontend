@@ -8,7 +8,16 @@ import type { ProjectPermission } from './project-access.types';
 // sides (mirrors the panel's "Configure for" selector).
 export type McpScope = 'source' | 'target' | 'both';
 export type McpAuthType = 'none' | 'bearer' | 'basic' | 'apiKey';
-export type ConnectionMethod = 'mcp' | 'csv';
+
+// Single source of truth for connection-method values. The Step 3 dropdown
+// options, the store defaults, and every comparison derive from this constant
+// so a value can never drift between the UI and the checks that read it.
+export const CONNECTION_METHODS = {
+  MCP: 'mcp',
+  CSV: 'csv',
+} as const;
+export type ConnectionMethod =
+  (typeof CONNECTION_METHODS)[keyof typeof CONNECTION_METHODS];
 export type RequestStatus = 'idle' | 'loading' | 'success' | 'error';
 
 export interface McpHeader {

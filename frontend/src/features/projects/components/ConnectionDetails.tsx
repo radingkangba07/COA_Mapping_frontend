@@ -1,6 +1,10 @@
 import React, { useCallback, useState } from 'react';
 import { View } from 'react-native';
-import type { ConnectionMethod, MCPConnection } from '../types/project-scope.types';
+import {
+  CONNECTION_METHODS,
+  type ConnectionMethod,
+  type MCPConnection,
+} from '../types/project-scope.types';
 import {
   createInitialMcpForm,
   type McpConfigureScope,
@@ -30,9 +34,9 @@ export const ConnectionDetails = ({
 }: ConnectionDetailsProps): React.JSX.Element => {
   const [form, setForm] = useState<McpConnectionForm>(() => {
     const scope: McpConfigureScope =
-      sourceMethod === 'mcp' && targetMethod === 'mcp'
+      sourceMethod === CONNECTION_METHODS.MCP && targetMethod === CONNECTION_METHODS.MCP
         ? 'both'
-        : targetMethod === 'mcp'
+        : targetMethod === CONNECTION_METHODS.MCP
           ? 'target'
           : 'source';
     return seedForm(connection, scope);
@@ -46,7 +50,8 @@ export const ConnectionDetails = ({
     [onConnectionChange],
   );
 
-  const isMcpSelected = sourceMethod === 'mcp' || targetMethod === 'mcp';
+  const isMcpSelected =
+    sourceMethod === CONNECTION_METHODS.MCP || targetMethod === CONNECTION_METHODS.MCP;
 
   return (
     <View className="flex-1" testID={testID}>
