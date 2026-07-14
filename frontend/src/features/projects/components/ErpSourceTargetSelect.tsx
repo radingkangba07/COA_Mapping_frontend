@@ -1,28 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import { View, Text, TextInput } from 'react-native';
 import { ArrowRight, Info, Search } from 'lucide-react-native';
 import { Select } from '@/shared/components/ui/Select';
-import type { SelectOption } from '@/shared/components/ui/Select';
 import { colors } from '@/config/theme';
-import {
-  getERPById,
-  getProductsByVendor,
-  getUniqueVendors,
-} from '@/shared/constants/erp-systems';
+import { useErpCascade } from '../hooks/useErpCascade';
 import type { ERPSystem } from '@/features/erp-config/types/erp-config.types';
 import type { ConnectionMethod } from '../types/project-scope.types';
-
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-const CONNECTION_METHOD_OPTIONS: SelectOption[] = [
-  { label: 'MCP Server (Model Context Protocol)', value: 'mcp' },
-  { label: 'CSV File Upload', value: 'csv' },
-];
-
-const VENDOR_OPTIONS: SelectOption[] = getUniqueVendors().map((v) => ({
-  label: v,
-  value: v,
-}));
 
 // ─── ErpCard ─────────────────────────────────────────────────────────────────
 
@@ -34,6 +17,7 @@ interface ErpCardProps {
   isLoading: boolean;
   onSelectErp: (id: string | null) => void;
   onSelectMethod: (method: ConnectionMethod) => void;
+  onVendorResolved?: (vendor: string | null) => void;
 }
 
 const ErpCard = ({
@@ -44,27 +28,20 @@ const ErpCard = ({
   isLoading,
   onSelectErp,
   onSelectMethod,
+  onVendorResolved,
 }: ErpCardProps): React.JSX.Element => {
-  const [localVendor, setLocalVendor] = useState<string | null>(
-    getERPById(selectedErpId ?? '')?.vendor ?? null,
-  );
+  const {
+    vendorOptions,
+    productOptions,
+    connectionMethodOptions,
+    selectedVendor,
+    isLoadingVendors,
+    isLoadingProducts,
+    onVendorChange,
+    onProductChange,
+  } = useErpCascade(selectedErpId, onSelectErp, onSelectMethod, role, onVendorResolved);
 
-  // Sync vendor when ERP id is hydrated from draft or cleared externally
-  useEffect(() => {
-    setLocalVendor(getERPById(selectedErpId ?? '')?.vendor ?? null);
-  }, [selectedErpId]);
-
-  const productOptions: SelectOption[] = getProductsByVendor(
-    localVendor ?? '',
-  ).map((e) => ({ label: e.productName, value: e.id }));
-
-  const handleVendorChange = useCallback(
-    (vendor: string) => {
-      setLocalVendor(vendor);
-      onSelectErp(null); // clear product when vendor changes
-    },
-    [onSelectErp],
-  );
+  const disabled = isLoading;
 
   return (
     <View
@@ -80,11 +57,11 @@ const ErpCard = ({
           Step 1: Select Vendor
         </Text>
         <Select
-          options={VENDOR_OPTIONS}
-          value={localVendor ?? undefined}
-          onValueChange={handleVendorChange}
-          placeholder="Select vendor"
-          disabled={isLoading}
+          options={vendorOptions}
+          value={selectedVendor ?? undefined}
+          onValueChange={onVendorChange}
+          placeholder={isLoadingVendors ? 'Loading vendors…' : 'Select vendor'}
+          disabled={disabled || isLoadingVendors}
           testID={`erp-vendor-select-${role}`}
         />
       </View>
@@ -96,9 +73,9 @@ const ErpCard = ({
         <Select
           options={productOptions}
           value={selectedErpId ?? undefined}
-          onValueChange={(v) => onSelectErp(v)}
-          placeholder="Select product"
-          disabled={localVendor === null || isLoading}
+          onValueChange={onProductChange}
+          placeholder={isLoadingProducts ? 'Loading products…' : 'Select product'}
+          disabled={disabled || selectedVendor === null || isLoadingProducts}
           testID={`erp-product-select-${role}`}
         />
       </View>
@@ -111,11 +88,11 @@ const ErpCard = ({
           <Info size={14} color={colors.mutedForeground} />
         </View>
         <Select
-          options={CONNECTION_METHOD_OPTIONS}
+          options={connectionMethodOptions}
           value={selectedMethod}
           onValueChange={(v) => onSelectMethod(v as ConnectionMethod)}
           placeholder="Select connection method"
-          disabled={selectedErpId === null}
+          disabled={disabled || selectedErpId === null || connectionMethodOptions.length === 0}
           testID={`erp-method-select-${role}`}
         />
       </View>
@@ -123,7 +100,7 @@ const ErpCard = ({
   );
 };
 
-// ─── ErpSectionSearch — rendered as headerRight in the section card ───────────
+// ─── ErpSectionSearch ─────────────────────────────────────────────────────────
 
 export const ErpSectionSearch = (): React.JSX.Element => (
   <View className="flex-col items-end gap-1 flex-shrink-0">
@@ -159,11 +136,12 @@ export interface ErpSourceTargetSelectProps {
   onSelectTarget: (id: string | null) => void;
   onSelectSourceMethod: (method: ConnectionMethod) => void;
   onSelectTargetMethod: (method: ConnectionMethod) => void;
+  onSelectSourceVendor?: (vendor: string | null) => void;
+  onSelectTargetVendor?: (vendor: string | null) => void;
   testID?: string;
 }
 
 export const ErpSourceTargetSelect = ({
-  erpSystems,
   source,
   target,
   sourceMethod,
@@ -173,9 +151,11 @@ export const ErpSourceTargetSelect = ({
   onSelectTarget,
   onSelectSourceMethod,
   onSelectTargetMethod,
+  onSelectSourceVendor,
+  onSelectTargetVendor,
   testID,
 }: ErpSourceTargetSelectProps): React.JSX.Element => {
-  const loading = isLoading && erpSystems.length === 0;
+  const loading = isLoading;
 
   return (
     <View className="flex-col gap-2 lg:flex-row lg:items-stretch" testID={testID}>
@@ -187,6 +167,7 @@ export const ErpSourceTargetSelect = ({
         isLoading={loading}
         onSelectErp={onSelectSource}
         onSelectMethod={onSelectSourceMethod}
+        onVendorResolved={onSelectSourceVendor}
       />
 
       <View className="items-center justify-center py-1">
@@ -203,6 +184,7 @@ export const ErpSourceTargetSelect = ({
         isLoading={loading}
         onSelectErp={onSelectTarget}
         onSelectMethod={onSelectTargetMethod}
+        onVendorResolved={onSelectTargetVendor}
       />
     </View>
   );

@@ -119,6 +119,8 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
                 onSelectTarget={vm.setTarget}
                 onSelectSourceMethod={vm.setSourceMethod}
                 onSelectTargetMethod={vm.setTargetMethod}
+                onSelectSourceVendor={vm.setSourceVendorId}
+                onSelectTargetVendor={vm.setTargetVendorId}
                 testID="erp-source-target-select"
               />
             </ScopeSectionCard>

@@ -136,6 +136,8 @@ const baseVM: ProjectScopeViewModel = {
   setCompanyId: mockSetCompanyId,
   setSource: mockSetSource,
   setTarget: mockSetTarget,
+  setSourceVendorId: jest.fn(),
+  setTargetVendorId: jest.fn(),
   setSourceMethod: mockSetSourceMethod,
   setTargetMethod: mockSetTargetMethod,
   updateConnection: mockUpdateConnection,

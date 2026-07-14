@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { useToast } from '@/shared/hooks/useToast';
 import { useERPConfig } from '@/features/erp-config/hooks/useERPConfig';
+import { getERPById } from '@/shared/constants/erp-systems';
 import type {
   ConnectionMethod,
   MCPConnection,
@@ -40,7 +41,17 @@ const _CONNECTION_METHOD_MAP: Record<string, string> = {
   mcp: 'mcp_server',
 };
 
-export function buildCreatePayload(draft: ProjectScopeDraft): ProjectCreate {
+export function buildCreatePayload(
+  draft: ProjectScopeDraft,
+  vendorOverride?: { sourceVendorId?: string | null; targetVendorId?: string | null },
+): ProjectCreate {
+  const sourceVendorId =
+    vendorOverride?.sourceVendorId ??
+    (draft.source ? (getERPById(draft.source)?.vendor?.toLowerCase() ?? undefined) : undefined);
+  const targetVendorId =
+    vendorOverride?.targetVendorId ??
+    (draft.target ? (getERPById(draft.target)?.vendor?.toLowerCase() ?? undefined) : undefined);
+
   return {
     name: draft.name,
     action: 'create',
@@ -49,6 +60,8 @@ export function buildCreatePayload(draft: ProjectScopeDraft): ProjectCreate {
     orgId: draft.companyId ?? undefined,
     sourceErp: draft.source ?? undefined,
     targetErp: draft.target ?? undefined,
+    sourceVendorId,
+    targetVendorId,
     sourceProductId: draft.source ?? undefined,
     targetProductId: draft.target ?? undefined,
     sourceConnectionMethodId: draft.sourceMethod
@@ -117,6 +130,8 @@ export interface ProjectScopeViewModel {
   readonly setCompanyId: (id: string | null) => void;
   readonly setSource: (id: string | null) => void;
   readonly setTarget: (id: string | null) => void;
+  readonly setSourceVendorId: (vendor: string | null) => void;
+  readonly setTargetVendorId: (vendor: string | null) => void;
   readonly setSourceMethod: (m: ConnectionMethod) => void;
   readonly setTargetMethod: (m: ConnectionMethod) => void;
   readonly updateConnection: (patch: Partial<MCPConnection>) => void;
@@ -154,6 +169,9 @@ export function useProjectScopeViewModel(
   const toast = useToast();
   const queryClient = useQueryClient();
   const [isCreating, setIsCreating] = useState(false);
+  // Vendor IDs resolved by the cascade selects (not in draft store — UI-only state).
+  const [sourceVendorId, setSourceVendorId] = useState<string | null>(null);
+  const [targetVendorId, setTargetVendorId] = useState<string | null>(null);
 
   // ─── ERP list ──────────────────────────────────────────────────────────────
   const { erpSystems, isLoading: isLoadingErps } = useERPConfig();
@@ -236,7 +254,7 @@ export function useProjectScopeViewModel(
     setIsCreating(true);
     try {
       const draft = useProjectScopeStore.getState().draft;
-      const base = buildCreatePayload(draft);
+      const base = buildCreatePayload(draft, { sourceVendorId, targetVendorId });
       // Fall back to the user's employer org when no company was selected on entry
       const effectiveOrgId = draft.companyId ?? (parentOrgId as string | null) ?? undefined;
       const payload: typeof base = { ...base, orgId: base.orgId ?? effectiveOrgId };
@@ -283,6 +301,8 @@ export function useProjectScopeViewModel(
     setCompanyId,
     setSource,
     setTarget,
+    setSourceVendorId,
+    setTargetVendorId,
     setSourceMethod,
     setTargetMethod,
     updateConnection,
