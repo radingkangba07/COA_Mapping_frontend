@@ -45,7 +45,7 @@ export const ProjectScopeHeader = ({
       )}
 
       <View className="flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <View>
+        <View className="flex-1 flex-row flex-wrap items-baseline gap-2">
         <Text className="font-heading text-2xl font-bold text-foreground">
           Create Data Migration Project
         </Text>

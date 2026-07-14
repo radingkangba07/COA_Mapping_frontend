@@ -60,18 +60,18 @@ export function AddMembersSection({
     >
       {/* Single header row — 4 percentage columns */}
       <View className="flex-row items-center" testID={controlTestID}>
-        {/* 35% — title + description */}
-        <View className="w-[40%] pr-1.5">
+        {/* title + inline description */}
+        <View className="w-[50%] flex-row flex-wrap items-baseline gap-2 pr-1.5">
           <Text className="font-heading text-base font-semibold text-card-foreground">
             3. Add Members
           </Text>
-          <Text className="font-body text-sm text-muted-foreground mt-0.5">
-            Add project members and assign their roles.
+          <Text className="font-body text-sm text-muted-foreground">
+            Add project members and assign their roles
           </Text>
         </View>
 
-        {/* 25% — search / email input */}
-        <View className="w-[22%] px-1">
+        {/* search / email input */}
+        <View className="w-[18%] px-1">
           <View className="h-10 flex-row items-center gap-1 rounded-md border border-input bg-background px-1.5">
             <Search size={16} color={colors.mutedForeground} />
             <TextInput
@@ -88,8 +88,8 @@ export function AddMembersSection({
           </View>
         </View>
 
-        {/* 25% — role select */}
-        <View className="w-[22%] px-1">
+        {/* role select */}
+        <View className="w-[16%] px-1">
           <Select
             placeholder="Select role"
             options={roleOptions}
@@ -105,7 +105,7 @@ export function AddMembersSection({
             onPress={handleAdd}
             disabled={isDisabled}
             accessibilityState={{ disabled: isDisabled }}
-            className="w-[80%] bg-[#F4F4F5]"
+            className="w-full bg-[#F4F4F5]"
             textClassName="text-[#3758bd]"
             testID={controlTestID !== undefined ? `${controlTestID}-add` : undefined}
           >

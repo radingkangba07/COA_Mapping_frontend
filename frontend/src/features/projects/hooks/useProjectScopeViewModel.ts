@@ -2,13 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { useToast } from '@/shared/hooks/useToast';
-import { useERPConfig } from '@/features/erp-config/hooks/useERPConfig';
 import { getERPById } from '@/shared/constants/erp-systems';
-import type {
-  ConnectionMethod,
-  MCPConnection,
-  ProjectScopeDraft,
-  ProjectScopeSeed,
+import { useERPConfig } from '@/features/erp-config/hooks/useERPConfig';
+import {
+  CONNECTION_METHODS,
+  type ConnectionMethod,
+  type MCPConnection,
+  type ProjectScopeDraft,
+  type ProjectScopeSeed,
 } from '../types/project-scope.types';
 import type { ProjectCreate, ProjectGroup } from '../types/projects.types';
 import type { OrgId } from '@/shared/types/common.types';
@@ -36,9 +37,10 @@ import {
  *
  * company carried from entry modal -> draft.companyId -> create payload
  */
-const _CONNECTION_METHOD_MAP: Record<string, string> = {
-  csv: 'csv_file',
-  mcp: 'mcp_server',
+// Translates dropdown values (CONNECTION_METHODS) to backend catalog ids.
+const _CONNECTION_METHOD_MAP: Record<ConnectionMethod, string> = {
+  [CONNECTION_METHODS.CSV]: 'csv_file',
+  [CONNECTION_METHODS.MCP]: 'mcp_server',
 };
 
 export function buildCreatePayload(
@@ -47,10 +49,10 @@ export function buildCreatePayload(
 ): ProjectCreate {
   const sourceVendorId =
     vendorOverride?.sourceVendorId ??
-    (draft.source ? (getERPById(draft.source)?.vendor?.toLowerCase() ?? undefined) : undefined);
+    (draft.source ? (getERPById(draft.source)?.vendorId ?? undefined) : undefined);
   const targetVendorId =
     vendorOverride?.targetVendorId ??
-    (draft.target ? (getERPById(draft.target)?.vendor?.toLowerCase() ?? undefined) : undefined);
+    (draft.target ? (getERPById(draft.target)?.vendorId ?? undefined) : undefined);
 
   return {
     name: draft.name,
@@ -60,10 +62,10 @@ export function buildCreatePayload(
     orgId: draft.companyId ?? undefined,
     sourceErp: draft.source ?? undefined,
     targetErp: draft.target ?? undefined,
-    sourceVendorId,
-    targetVendorId,
     sourceProductId: draft.source ?? undefined,
     targetProductId: draft.target ?? undefined,
+    sourceVendorId,
+    targetVendorId,
     sourceConnectionMethodId: draft.sourceMethod
       ? (_CONNECTION_METHOD_MAP[draft.sourceMethod] ?? draft.sourceMethod)
       : undefined,
@@ -270,7 +272,7 @@ export function useProjectScopeViewModel(
     } finally {
       setIsCreating(false);
     }
-  }, [createDisabled, toast, queryClient, parentOrgId]);
+  }, [createDisabled, toast, queryClient, parentOrgId, sourceVendorId, targetVendorId]);
 
   return {
     draft,

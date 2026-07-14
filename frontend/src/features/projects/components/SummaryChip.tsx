@@ -32,7 +32,7 @@ export function SummaryChip({
   const hasValue = value !== null && value.length > 0;
   const displayValue = hasValue ? value : placeholder;
   const valueClassName = hasValue
-    ? 'font-body text-sm font-medium text-primary'
+    ? 'font-body text-sm font-medium text-foreground'
     : 'font-body text-sm italic text-muted-foreground';
 
   return (
@@ -42,7 +42,7 @@ export function SummaryChip({
       </View>
 
       <View className="flex-1 gap-0.5">
-        <Text className="font-body text-xs font-bold text-foreground" numberOfLines={1}>
+        <Text className="font-body text-sm font-medium text-foreground" numberOfLines={1}>
           {label}
         </Text>
         <Text

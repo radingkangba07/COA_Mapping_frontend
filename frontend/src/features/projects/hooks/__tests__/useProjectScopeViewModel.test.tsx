@@ -201,6 +201,29 @@ describe('useProjectScopeViewModel', () => {
       expect(payload.description).toBe('a description');
     });
 
+    it('derives vendor ids from the selected products (action=create requires them)', () => {
+      const draft = {
+        ...createInitialDraft(),
+        companyId: 'co-9',
+        name: 'P',
+        source: 'sap',
+        target: 'oracle_netsuite',
+      };
+
+      const payload = buildCreatePayload(draft);
+
+      expect(payload.sourceVendorId).toBe('sap');
+      expect(payload.targetVendorId).toBe('oracle');
+    });
+
+    it('omits vendor ids when no products are selected', () => {
+      const draft = { ...createInitialDraft(), companyId: 'co-9', name: 'P' };
+      const payload = buildCreatePayload(draft);
+      expect(payload.sourceVendorId).toBeUndefined();
+      expect(payload.targetVendorId).toBeUndefined();
+    });
+
+
     it('omits description when empty', () => {
       const draft = { ...createInitialDraft(), companyId: 'co-9', name: 'P' };
       const payload = buildCreatePayload(draft);

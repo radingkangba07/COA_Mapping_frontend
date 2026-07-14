@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable, ScrollView, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { AppTabsParamList } from '@/navigation/types';
 import { CheckCircle, Circle, Eye, Info, X } from 'lucide-react-native';
 import { Button } from '@/shared/components/ui/Button';
 import { Card } from '@/shared/components/ui/Card';
@@ -119,9 +121,12 @@ export function UploadScreen(): React.JSX.Element {
     navigation.goBack();
   }, [navigation]);
 
+  // Navigate back to Project Overview (ProjectsStack is restored to its last
+  // state, which is ProjectOverview after WorkstreamDetailScreen pops itself).
   const handleBack = useCallback((): void => {
-    navigation.navigate('ERPSelect', { projectId });
-  }, [navigation, projectId]);
+    const tabNav = navigation.getParent<BottomTabNavigationProp<AppTabsParamList>>();
+    tabNav?.navigate('ProjectsTab');
+  }, [navigation]);
 
   const handleContinue = useCallback(async (): Promise<void> => {
     await processFiles();

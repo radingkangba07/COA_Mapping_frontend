@@ -1,5 +1,7 @@
 import React, { useCallback, useState } from 'react';
-import { View } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
+import { Plus } from 'lucide-react-native';
+import { colors } from '@/config/theme';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -70,7 +72,25 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
 
         {/* Metadata panel: Company + Project Name + Description written live to
             the draft store. */}
-        <ScopeSectionCard title="Project Details" testID="section-project-details">
+        <ScopeSectionCard
+          title="Project Details"
+          headerRightPosition="inline"
+          headerRight={
+            vm.parentOrgId !== null ? (
+              <Pressable
+                onPress={() => setCreateCompanyVisible(true)}
+                className="flex-row items-center gap-1"
+                testID="project-scope-create-company-btn"
+              >
+                <Plus size={14} color={colors.primary} />
+                <Text className="font-body text-xs font-medium text-primary">
+                  Click to add a New Company
+                </Text>
+              </Pressable>
+            ) : undefined
+          }
+          testID="section-project-details"
+        >
           <ProjectScopeEntry
             companyId={vm.companyId}
             name={vm.name}
@@ -79,11 +99,6 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
             onSelectCompany={vm.setCompanyId}
             onChangeName={vm.setName}
             onChangeDescription={vm.setDescription}
-            onCreateCompany={
-              vm.parentOrgId !== null
-                ? () => setCreateCompanyVisible(true)
-                : undefined
-            }
             testID="project-scope-entry"
           />
         </ScopeSectionCard>
@@ -103,8 +118,9 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
           <View className="flex-col gap-3.5 lg:flex-[13]">
             <ScopeSectionCard
               className="pt-2 px-4 pb-4"
-              title="1. Select Source and Target ERP Systems"
-              description="Choose the source and target ERP systems for your migration."
+              title="1. Select ERP Systems"
+              description="Choose the source and target ERP systems"
+              descriptionPosition="inline"
               headerRight={<ErpSectionSearch />}
               testID="section-select-erp"
             >
@@ -128,7 +144,8 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
             <ScopeSectionCard
               className="pt-2 px-4 pb-4"
               title="2. Select Migration Scope"
-              description="Choose the master data and opening balances you want to migrate."
+              description="Choose the master data and opening balances you want to migrate"
+              descriptionPosition="inline"
               testID="section-migration-scope"
             >
               <MigrationScopeSection

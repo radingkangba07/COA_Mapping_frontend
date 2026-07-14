@@ -38,14 +38,15 @@ export function MembersTable({
         className="flex-row items-center border-b border-border px-1.5 py-1.5"
         testID={testID !== undefined ? `${testID}-header` : undefined}
       >
-        <Text className="w-[30%] font-body text-xs font-semibold uppercase text-muted-foreground">
+        {/* unlabelled number column */}
+        <View className="w-[5%]" />
+        <Text className="w-[25%] font-heading text-base font-semibold text-card-foreground">
           Member
         </Text>
-        <Text className="w-[45%] text-center font-body text-xs font-semibold uppercase text-muted-foreground">
+        <Text className="w-[45%] text-center font-heading text-base font-semibold text-card-foreground">
           Role
         </Text>
-        <View className="w-[15%]" />
-        <Text className="w-[10%] text-center font-body text-xs font-semibold uppercase text-muted-foreground">
+        <Text className="w-[25%] text-center font-heading text-base font-semibold text-card-foreground">
           Actions
         </Text>
       </View>
@@ -54,6 +55,7 @@ export function MembersTable({
         <MemberRow
           key={member.id}
           member={member}
+          position={index + 1}
           onUpdateRole={onUpdateRole}
           onRemove={onRemove}
           isLast={index === lastIndex}
