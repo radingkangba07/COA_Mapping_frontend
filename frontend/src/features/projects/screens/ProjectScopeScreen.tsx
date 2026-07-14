@@ -118,8 +118,9 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
           <View className="flex-col gap-3.5 lg:flex-[13]">
             <ScopeSectionCard
               className="pt-2 px-4 pb-4"
-              title="1. Select Source and Target ERP Systems"
-              description="Choose the source and target ERP systems for your migration."
+              title="1. Select ERP Systems"
+              description="Choose the source and target ERP systems"
+              descriptionPosition="inline"
               headerRight={<ErpSectionSearch />}
               testID="section-select-erp"
             >
@@ -141,7 +142,8 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
             <ScopeSectionCard
               className="pt-2 px-4 pb-4"
               title="2. Select Migration Scope"
-              description="Choose the master data and opening balances you want to migrate."
+              description="Choose the master data and opening balances you want to migrate"
+              descriptionPosition="inline"
               testID="section-migration-scope"
             >
               <MigrationScopeSection

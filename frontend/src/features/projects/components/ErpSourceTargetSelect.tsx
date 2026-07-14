@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TextInput } from 'react-native';
-import { ArrowRight, Info, Search } from 'lucide-react-native';
+import { ArrowRight, Search } from 'lucide-react-native';
 import { Select } from '@/shared/components/ui/Select';
 import type { SelectOption } from '@/shared/components/ui/Select';
 import { colors } from '@/config/theme';
@@ -71,12 +71,12 @@ const ErpCard = ({
       className="flex-1 rounded-lg border border-border bg-background p-2 gap-2"
       testID={`erp-card-${role}`}
     >
-      <Text className="font-heading text-sm font-semibold text-foreground">
+      <Text className="font-heading text-base font-semibold text-card-foreground">
         {label}
       </Text>
 
       <View className="gap-1">
-        <Text className="font-body text-sm font-bold text-foreground">
+        <Text className="font-body text-sm font-medium text-foreground">
           Step 1: Select Vendor
         </Text>
         <Select
@@ -90,7 +90,7 @@ const ErpCard = ({
       </View>
 
       <View className="gap-1">
-        <Text className="font-body text-sm font-bold text-foreground">
+        <Text className="font-body text-sm font-medium text-foreground">
           Step 2: Select Product
         </Text>
         <Select
@@ -104,12 +104,9 @@ const ErpCard = ({
       </View>
 
       <View className="gap-1">
-        <View className="flex-row items-center gap-1">
-          <Text className="font-body text-sm font-bold text-foreground">
-            Step 3: Select Connection Method
-          </Text>
-          <Info size={14} color={colors.mutedForeground} />
-        </View>
+        <Text className="font-body text-sm font-medium text-foreground">
+          Step 3: Select Connection Method
+        </Text>
         <Select
           options={CONNECTION_METHOD_OPTIONS}
           value={selectedMethod}
@@ -127,12 +124,6 @@ const ErpCard = ({
 
 export const ErpSectionSearch = (): React.JSX.Element => (
   <View className="flex-col items-end gap-1 flex-shrink-0">
-    <Text
-      className="font-body text-xs font-medium text-foreground"
-      accessibilityRole="link"
-    >
-      Need more ERP options?
-    </Text>
     <View className="flex-row items-center gap-1 rounded-md border border-input bg-background px-1.5 py-1">
       <Search size={14} color={colors.mutedForeground} />
       <TextInput
@@ -189,7 +180,7 @@ export const ErpSourceTargetSelect = ({
         onSelectMethod={onSelectSourceMethod}
       />
 
-      <View className="items-center justify-center py-1">
+      <View className="items-center justify-center py-1 lg:px-4">
         <View className="h-10 w-10 items-center justify-center rounded-full border border-border bg-background">
           <ArrowRight size={16} color={colors.foreground} />
         </View>
