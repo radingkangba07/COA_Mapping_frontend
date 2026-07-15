@@ -7,8 +7,8 @@ export const lightColors = {
   foreground: '#09090B',
   surface: '#F4F4F5',
   surfaceHighlight: '#FAFAFA',
-  border: '#E4E4E7',
-  input: '#E4E4E7',
+  border: '#A0A0A0',
+  input: '#A0A0A0',
   ring: '#2563EB',
   primary: '#003399',
   primaryForeground: '#FFFFFF',
@@ -117,6 +117,17 @@ export const radius = {
   full: 9999,
 } as const;
 
+// ─── Shadows ────────────────────────────────────────────────────────────────
+
+/** Soft card elevation — matches ScopeSectionCard on the New Project screen. */
+export const cardShadow = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.08,
+  shadowRadius: 4,
+  elevation: 2,
+} as const;
+
 // ─── Theme Bundle ───────────────────────────────────────────────────────────
 
 export const theme = {
@@ -124,4 +135,5 @@ export const theme = {
   typography,
   spacing,
   radius,
+  cardShadow,
 } as const;

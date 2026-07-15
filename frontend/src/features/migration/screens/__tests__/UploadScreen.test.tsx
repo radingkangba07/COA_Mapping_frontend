@@ -44,8 +44,12 @@ jest.mock('../../components/MigrationLayout', () => {
 
 // ─── Navigation mocks ──────────────────────────────────────────────────────
 const mockNavigate = jest.fn();
+const mockParentNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: mockNavigate }),
+  useNavigation: () => ({
+    navigate: mockNavigate,
+    getParent: jest.fn(() => ({ navigate: mockParentNavigate })),
+  }),
 }));
 
 jest.mock('@/navigation/types', () => ({
@@ -80,6 +84,29 @@ jest.mock('../../hooks/useMigrationViewModel', () => ({
 
 jest.mock('../../hooks/useHydrateProject', () => ({
   useHydrateProject: () => ({ isHydrating: false, error: null, retry: jest.fn() }),
+}));
+
+// Force the CSV branch so the existing FileUploader-based assertions hold. The
+// real hook now defaults method to 'mcp' (DA-52), which renders FetchFromErpStep
+// instead. The 'mcp' branch is covered separately in UploadScreen.fetch-branch.test.
+jest.mock('../../hooks/useFetchFromErp', () => ({
+  useFetchFromErp: () => ({
+    method: 'csv',
+    connectionReady: false,
+    sourceErpName: undefined,
+    targetErpName: undefined,
+    fetch: {
+      status: 'idle',
+      progress: 0,
+      counts: { source: 0, target: 0 },
+      sampleSource: [],
+      sampleTarget: [],
+      errorMessage: null,
+    },
+    runFetch: jest.fn(),
+    refetch: jest.fn(),
+    useCsvFallback: jest.fn(),
+  }),
 }));
 
 // ─── Child component stubs ──────────────────────────────────────────────────
@@ -150,10 +177,10 @@ describe('UploadScreen', () => {
     expect(screen.getByTestId('upload-erp-summary')).toBeTruthy();
   });
 
-  it('navigates back when Back button pressed', () => {
+  it('navigates back to ProjectsTab when Back button pressed', () => {
     render(<UploadScreen />);
     fireEvent.press(screen.getByTestId('upload-back-button'));
-    expect(mockNavigate).toHaveBeenCalledWith('ERPSelect', { projectId: 'test-project-1' });
+    expect(mockParentNavigate).toHaveBeenCalledWith('ProjectsTab');
   });
 
   it('calls processFiles when Process Files button pressed', async () => {

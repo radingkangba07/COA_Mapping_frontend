@@ -9,6 +9,7 @@ import type {
   GroupedMapping,
   MappingCreateDTO,
   BulkSaveResponseDTO,
+  ConfidenceLevel,
 } from '@/features/migration/types/mapping.types';
 import type { TypeMappingRow } from '@/features/migration/types/migration.types';
 
@@ -232,6 +233,41 @@ export async function updateMappingStatus(
       status,
     });
     return ok(undefined);
+  } catch (error: unknown) {
+    return err(toAppError(error));
+  }
+}
+
+export interface ConfirmBandResponseDTO {
+  project_id: string;
+  level: string;
+  confirmed: number;
+  reset: number;
+  inserted: number;
+}
+
+/**
+ * POST /api/v1/mappings/project/{projectId}/confirm-band — persist a confirm-band
+ * action: `confirmedSuggestionIds` are approved, `deselectedSuggestionIds` (in-band
+ * accounts left unchecked) are reset back to `suggested`, in one transaction.
+ */
+export async function confirmBand(
+  client: HttpClient,
+  projectId: string,
+  level: ConfidenceLevel,
+  confirmedSuggestionIds: readonly string[],
+  deselectedSuggestionIds: readonly string[],
+): Promise<Result<ConfirmBandResponseDTO, AppError>> {
+  try {
+    const response = await client.post<ConfirmBandResponseDTO>(
+      `/api/v1/mappings/project/${projectId}/confirm-band`,
+      {
+        level,
+        confirmed_suggestion_ids: confirmedSuggestionIds,
+        deselected_suggestion_ids: deselectedSuggestionIds,
+      },
+    );
+    return ok(response.data);
   } catch (error: unknown) {
     return err(toAppError(error));
   }

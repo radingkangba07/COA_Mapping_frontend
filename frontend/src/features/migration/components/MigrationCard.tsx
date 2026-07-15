@@ -10,6 +10,7 @@ const STATUS_VARIANT: Record<
   ProjectStatus,
   { label: string; variant: 'secondary' | 'warning' | 'outline' | 'success' }
 > = {
+  active: { label: 'Active', variant: 'warning' },
   draft: { label: 'Draft', variant: 'secondary' },
   in_progress: { label: 'In Progress', variant: 'warning' },
   pending_review: { label: 'Pending Review', variant: 'outline' },

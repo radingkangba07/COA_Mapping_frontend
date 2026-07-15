@@ -1,9 +1,11 @@
 import type { ProjectId, UserId, CompanyId, OrgId } from '@/shared/types/common.types';
 import type { AppError } from '@/shared/types/result.types';
+import type { ProjectPermission } from './project-access.types';
 
 // ─── Value Objects ──────────────────────────────────────────────────────────
 
 export type ProjectStatus =
+  | 'active'
   | 'draft'
   | 'in_progress'
   | 'pending_review'
@@ -49,12 +51,33 @@ export interface ProjectGroup {
 
 export interface ProjectCreate {
   readonly name: string;
+  readonly action?: 'draft' | 'create';
   readonly sourceErp?: string | undefined;
   readonly targetErp?: string | undefined;
+  readonly sourceProductId?: string | undefined;
+  readonly targetProductId?: string | undefined;
+  readonly sourceVendorId?: string | undefined;
+  readonly targetVendorId?: string | undefined;
+  readonly sourceConnectionMethodId?: string | undefined;
+  readonly targetConnectionMethodId?: string | undefined;
   readonly orgId?: string | undefined;
   readonly companyId?: string | undefined;
   readonly companyName?: string | undefined;
   readonly description?: string | undefined;
+  readonly masterDataSelections?: readonly {
+    readonly data_type: string;
+    /** Legacy aggregate flag (data_conversion || mdm) — kept for backends that predate the capability flags. */
+    readonly selected: boolean;
+    readonly data_conversion: boolean;
+    readonly mdm: boolean;
+  }[];
+  readonly openingBalanceSelections?: readonly { readonly account_type: string; readonly include: boolean }[];
+  readonly members?: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly email: string;
+    readonly role: ProjectPermission;
+  }[] | undefined;
 }
 
 export interface ProjectUpdate {

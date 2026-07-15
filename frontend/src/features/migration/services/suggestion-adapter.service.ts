@@ -10,8 +10,11 @@ import type {
 // ─── Status Mapping ────────────────────────────────────────────────────────
 
 function normalizeStatus(status: string): AccountMapping['status'] {
-  if (status === 'confirmed') return 'confirmed';
-  if (status === 'pending') return 'pending';
+  // Backend mapping_status values ('approved') mean the same thing as the
+  // legacy FE-only 'confirmed' string emitted by the bulk-status endpoint —
+  // both must render as confirmed in the UI.
+  if (status === 'confirmed' || status === 'approved') return 'confirmed';
+  if (status === 'pending' || status === 'suggested') return 'pending';
   return undefined;
 }
 

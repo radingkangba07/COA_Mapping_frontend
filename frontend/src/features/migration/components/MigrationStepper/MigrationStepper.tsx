@@ -5,13 +5,16 @@ import { cn } from '@/shared/utils/string.utils';
 import { StepItem, ConnectorLine } from './MigrationStepperParts';
 import type { StepStatus } from './MigrationStepperParts';
 
+// ERP selection happens on the Project Overview screen; wizard starts at Upload.
+// STEP_OFFSET maps display index 0 → store step 1 (UPLOAD).
 const STEPS = [
-  'Select Systems',
   'Upload Files',
   'Type Mapping',
   'Account Mapping',
   'Preview & Export',
 ] as const;
+
+const STEP_OFFSET = 1;
 
 interface MigrationStepperProps {
   currentStep: number;
@@ -20,20 +23,21 @@ interface MigrationStepperProps {
 }
 
 function getStepStatus(
-  index: number,
+  displayIndex: number,
   currentStep: number,
   completedSteps: readonly number[],
 ): StepStatus {
-  if (completedSteps.includes(index)) return 'completed';
-  if (index === currentStep) return 'active';
+  const storeStep = displayIndex + STEP_OFFSET;
+  if (completedSteps.includes(storeStep)) return 'completed';
+  if (storeStep === currentStep) return 'active';
   return 'upcoming';
 }
 
 function getLineColor(
-  leftIndex: number,
+  leftDisplayIndex: number,
   completedSteps: readonly number[],
 ): string {
-  return completedSteps.includes(leftIndex)
+  return completedSteps.includes(leftDisplayIndex + STEP_OFFSET)
     ? colors.primary
     : colors.border;
 }
@@ -44,9 +48,10 @@ export const MigrationStepper = ({
   onStepPress,
 }: MigrationStepperProps) => {
   const handleStepPress = useCallback(
-    (index: number) => {
-      if (completedSteps.includes(index) && onStepPress) {
-        onStepPress(index);
+    (displayIndex: number) => {
+      const storeStep = displayIndex + STEP_OFFSET;
+      if (completedSteps.includes(storeStep) && onStepPress) {
+        onStepPress(storeStep);
       }
     },
     [completedSteps, onStepPress],
@@ -87,7 +92,7 @@ export const MigrationStepper = ({
         testID="stepper-mobile"
       >
         <Text className="font-heading text-sm font-semibold text-foreground">
-          Step {currentStep + 1}: {STEPS[currentStep]}
+          Step {currentStep}: {STEPS[currentStep - STEP_OFFSET]}
         </Text>
         <View className="flex-row items-center gap-1.5">
           {STEPS.map((label, index) => {

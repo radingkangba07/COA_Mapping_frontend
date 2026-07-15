@@ -14,6 +14,9 @@ on:
       - "services/frontend/**"
       - ".github/workflows/deploy-prod.yml"
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Lint & Test
@@ -49,17 +52,20 @@ jobs:
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: dataportation.ai
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: GH_TOKEN
           script: |
             set -e
+            REPO="https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
             cd /opt/coa-migration/environments/production/frontend
             git config --global --add safe.directory /opt/coa-migration/environments/production/frontend
-            git fetch origin main
-            git checkout main
-            git reset --hard origin/main
+            git fetch "$REPO" main
+            git checkout -B main FETCH_HEAD
             git clean -fd
             cd /opt/coa-migration/environments/production
             docker compose -p coa-production -f docker-compose.production.yml build frontend

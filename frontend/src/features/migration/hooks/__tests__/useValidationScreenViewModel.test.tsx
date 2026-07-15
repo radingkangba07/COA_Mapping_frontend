@@ -59,6 +59,20 @@ jest.mock('../useValidation', () => ({
   useValidation: () => ({ errors: [], warnings: [] }),
 }));
 
+// Defaults to "proceed" so existing confirm-flow tests don't need to opt into
+// the no-selection dialog explicitly. Tests targeting the dialog itself
+// override this per-test.
+const mockConfirmNoSelection = jest.fn<Promise<boolean>, [unknown]>().mockResolvedValue(true);
+jest.mock('@/shared/hooks/useConfirm', () => ({
+  useConfirm: () => ({
+    confirm: mockConfirmNoSelection,
+    isVisible: false,
+    confirmOptions: null,
+    onConfirm: jest.fn(),
+    onCancel: jest.fn(),
+  }),
+}));
+
 // Zustand store mock — state + getState for internal reads
 interface MockStoreState {
   currentStep: number;
@@ -74,6 +88,8 @@ interface MockStoreState {
   targetTypes: readonly string[];
   targetData: readonly Record<string, unknown>[];
   hasUnsavedChanges: boolean;
+  selection: Record<string, true>;
+  confirmedAccountKeys: Record<string, true>;
   setStep: jest.Mock;
   completeStep: jest.Mock;
   confirmConfidenceLevel: jest.Mock;
@@ -83,6 +99,12 @@ interface MockStoreState {
   restoreAccount: jest.Mock;
   markChangesSaved: jest.Mock;
   setConfidenceFilter: jest.Mock;
+  toggleAccountSelection: jest.Mock;
+  setSelectionForKeys: jest.Mock;
+  clearSelection: jest.Mock;
+  bulkDeleteSelected: jest.Mock;
+  confirmAccountsByKeys: jest.Mock;
+  resetBandConfirmation: jest.Mock;
 }
 
 const mockSetConfidenceFilter = jest.fn();
@@ -101,6 +123,8 @@ const mockStoreState: MockStoreState = {
   targetTypes: [],
   targetData: [],
   hasUnsavedChanges: false,
+  selection: {},
+  confirmedAccountKeys: {},
   setStep: jest.fn(),
   completeStep: jest.fn(),
   confirmConfidenceLevel: mockConfirmConfidenceLevel,
@@ -110,6 +134,12 @@ const mockStoreState: MockStoreState = {
   restoreAccount: jest.fn(),
   markChangesSaved: mockMarkChangesSaved,
   setConfidenceFilter: mockSetConfidenceFilter,
+  toggleAccountSelection: jest.fn(),
+  setSelectionForKeys: jest.fn(),
+  clearSelection: jest.fn(),
+  bulkDeleteSelected: jest.fn(),
+  confirmAccountsByKeys: jest.fn(),
+  resetBandConfirmation: jest.fn(),
 };
 
 jest.mock('../../store/migration.store', () => {
@@ -210,9 +240,25 @@ describe('useValidationScreenViewModel.handleConfirm', () => {
     });
   });
 
-  it('calls updateMappingStatus with the high range when confirming high', async () => {
+  it('calls confirmAccountsByKeys with selected keys when confirming high', async () => {
+    mockStoreState.selection = {
+      'Asset::1000::Cash': true,
+      'Asset::2000::Bank': true,
+    };
+    mockStoreState.groupedMappings = [
+      {
+        source_type: 'Asset',
+        target_type: 'Fixed Asset',
+        confidence: 95,
+        accounts: [
+          { source_number: '1000', source_name: 'Cash', target_name: 'Cash Equiv', score: 95, remark: '' },
+          { source_number: '2000', source_name: 'Bank', target_name: 'Bank Equiv', score: 92, remark: '' },
+        ],
+      },
+    ];
+
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
 
@@ -220,45 +266,29 @@ describe('useValidationScreenViewModel.handleConfirm', () => {
       await result.current.handleConfirm('high');
     });
 
-    expect(mockConfirmConfidenceLevel).toHaveBeenCalledWith('high');
-    expect(mockUpdateMappingStatus).toHaveBeenCalledTimes(1);
-    const call = mockUpdateMappingStatus.mock.calls[0];
-    expect(call?.[1]).toBe(projectId);
-    // min_score for high, status now 'confirmed', max_score 100
-    expect(call?.[3]).toBe('confirmed');
-    expect(mockShowSuccess).toHaveBeenCalledWith(
-      'Confirmed',
-      expect.stringContaining('High'),
+    expect(mockConfirmNoSelection).not.toHaveBeenCalled();
+    expect(mockStoreState.confirmAccountsByKeys).toHaveBeenCalledWith(
+      'high',
+      expect.arrayContaining(['Asset::1000::Cash', 'Asset::2000::Bank']),
     );
-    // Save path is not used by Confirm anymore
-    expect(mockSaveMappings).not.toHaveBeenCalled();
-    expect(mockMarkChangesSaved).not.toHaveBeenCalled();
+    expect(mockShowSuccess).toHaveBeenCalledWith('Confirmed', expect.stringContaining('High'));
   });
 
-  it('sends status "pending" when toggling off a previously-confirmed level', async () => {
-    mockStoreState.confirmedHigh = true; // starts confirmed → confirm again toggles OFF
+  it('calls confirmAccountsByKeys with selected keys when confirming medium', async () => {
+    mockStoreState.selection = { 'Asset::3000::Debtors': true };
+    mockStoreState.groupedMappings = [
+      {
+        source_type: 'Asset',
+        target_type: 'Current Asset',
+        confidence: 80,
+        accounts: [
+          { source_number: '3000', source_name: 'Debtors', target_name: 'Receivables', score: 80, remark: '' },
+        ],
+      },
+    ];
 
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
-      { wrapper: createWrapper() },
-    );
-
-    await act(async () => {
-      await result.current.handleConfirm('high');
-    });
-
-    expect(mockUpdateMappingStatus).toHaveBeenCalledTimes(1);
-    const call = mockUpdateMappingStatus.mock.calls[0];
-    expect(call?.[3]).toBe('pending');
-  });
-
-  it('reverts the local toggle and shows an error toast on status-update failure', async () => {
-    mockUpdateMappingStatus.mockResolvedValue(
-      err({ code: 'HTTP_500', message: 'Server down' }),
-    );
-
-    const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
 
@@ -266,42 +296,157 @@ describe('useValidationScreenViewModel.handleConfirm', () => {
       await result.current.handleConfirm('medium');
     });
 
-    // Called twice: once to set, once to revert
-    expect(mockConfirmConfidenceLevel).toHaveBeenCalledTimes(2);
-    expect(mockConfirmConfidenceLevel).toHaveBeenNthCalledWith(1, 'medium');
-    expect(mockConfirmConfidenceLevel).toHaveBeenNthCalledWith(2, 'medium');
-    expect(mockShowError).toHaveBeenCalledWith('Confirm failed', 'Server down');
-    expect(mockShowSuccess).not.toHaveBeenCalled();
+    expect(mockConfirmNoSelection).not.toHaveBeenCalled();
+    expect(mockStoreState.confirmAccountsByKeys).toHaveBeenCalledWith(
+      'medium',
+      expect.arrayContaining(['Asset::3000::Debtors']),
+    );
+    expect(mockShowSuccess).toHaveBeenCalledWith('Confirmed', expect.stringContaining('Medium'));
   });
 
-  it('de-dupes overlapping handleConfirm calls via the in-flight ref guard', async () => {
-    let resolveFirst: ((r: Result<void, AppError>) => void) | null = null;
-    mockUpdateMappingStatus.mockImplementationOnce(
-      () =>
-        new Promise<Result<void, AppError>>((resolve) => {
-          resolveFirst = resolve;
-        }),
-    );
+  it('calls confirmAccountsByKeys with selected keys when confirming low', async () => {
+    mockStoreState.selection = { 'Asset::4000::Sundry': true };
+    mockStoreState.groupedMappings = [
+      {
+        source_type: 'Asset',
+        target_type: 'Current Asset',
+        confidence: 40,
+        accounts: [
+          { source_number: '4000', source_name: 'Sundry', target_name: 'Misc', score: 40, remark: '' },
+        ],
+      },
+    ];
 
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
 
     await act(async () => {
-      const first = result.current.handleConfirm('high');
-      const second = result.current.handleConfirm('high');
-
-      // Only the first call should touch the store/service
-      expect(mockConfirmConfidenceLevel).toHaveBeenCalledTimes(1);
-      expect(mockUpdateMappingStatus).toHaveBeenCalledTimes(1);
-
-      resolveFirst?.(ok(undefined));
-      await Promise.all([first, second]);
+      await result.current.handleConfirm('low');
     });
 
-    expect(mockUpdateMappingStatus).toHaveBeenCalledTimes(1);
-    expect(mockConfirmConfidenceLevel).toHaveBeenCalledTimes(1);
+    expect(mockConfirmNoSelection).not.toHaveBeenCalled();
+    expect(mockStoreState.confirmAccountsByKeys).toHaveBeenCalledWith(
+      'low',
+      expect.arrayContaining(['Asset::4000::Sundry']),
+    );
+    expect(mockShowSuccess).toHaveBeenCalledWith('Confirmed', expect.stringContaining('Low'));
+  });
+
+  it('confirms all in-band accounts when nothing is checked (select-all fallback)', async () => {
+    mockStoreState.selection = {};
+    mockStoreState.groupedMappings = [
+      {
+        source_type: 'Asset',
+        target_type: 'Fixed Asset',
+        confidence: 95,
+        accounts: [
+          { source_number: '1000', source_name: 'Cash', target_name: 'Cash Equiv', score: 95, remark: '' },
+          { source_number: '2000', source_name: 'Bank', target_name: 'Bank Equiv', score: 92, remark: '' },
+        ],
+      },
+    ];
+
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
+      { wrapper: createWrapper() },
+    );
+
+    await act(async () => {
+      await result.current.handleConfirm('high');
+    });
+
+    expect(mockConfirmNoSelection).not.toHaveBeenCalled();
+    expect(mockStoreState.confirmAccountsByKeys).toHaveBeenCalledWith(
+      'high',
+      expect.arrayContaining(['Asset::1000::Cash', 'Asset::2000::Bank']),
+    );
+    expect(mockShowSuccess).toHaveBeenCalledWith('Confirmed', expect.stringContaining('High'));
+  });
+
+  it('shows a dialog and does not confirm when the band has no accounts at all', async () => {
+    mockStoreState.selection = {};
+    mockStoreState.groupedMappings = [];
+
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
+      { wrapper: createWrapper() },
+    );
+
+    await act(async () => {
+      await result.current.handleConfirm('high');
+    });
+
+    expect(mockConfirmNoSelection).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'No Accounts to Confirm' }),
+    );
+    expect(mockStoreState.confirmAccountsByKeys).not.toHaveBeenCalled();
+    expect(mockShowSuccess).not.toHaveBeenCalled();
+  });
+});
+
+describe('useValidationScreenViewModel.handleResetBand', () => {
+  const projectId = 'proj-1';
+  const navigateBack = jest.fn();
+  const navigateForward = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockStoreState.groupedMappings = [makeGroupedMapping()];
+    mockStoreState.confidenceFilter = null;
+  });
+
+  it('calls resetBandConfirmation with "high" when resetting high band', () => {
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
+      { wrapper: createWrapper() },
+    );
+
+    act(() => {
+      result.current.handleResetBand('high');
+    });
+
+    expect(mockStoreState.resetBandConfirmation).toHaveBeenCalledWith('high');
+  });
+
+  it('calls resetBandConfirmation with "medium" when resetting medium band', () => {
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
+      { wrapper: createWrapper() },
+    );
+
+    act(() => {
+      result.current.handleResetBand('medium');
+    });
+
+    expect(mockStoreState.resetBandConfirmation).toHaveBeenCalledWith('medium');
+  });
+
+  it('calls resetBandConfirmation with "low" when resetting low band', () => {
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
+      { wrapper: createWrapper() },
+    );
+
+    act(() => {
+      result.current.handleResetBand('low');
+    });
+
+    expect(mockStoreState.resetBandConfirmation).toHaveBeenCalledWith('low');
+  });
+
+  it('does not call confirmAccountsByKeys when resetting', () => {
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
+      { wrapper: createWrapper() },
+    );
+
+    act(() => {
+      result.current.handleResetBand('high');
+    });
+
+    expect(mockStoreState.confirmAccountsByKeys).not.toHaveBeenCalled();
   });
 });
 
@@ -322,7 +467,7 @@ describe('useValidationScreenViewModel.handleSaveMappings', () => {
 
   it('calls saveMappings with DTOs from the store and marks changes saved', async () => {
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
 
@@ -354,7 +499,7 @@ describe('useValidationScreenViewModel.handleSaveMappings', () => {
     mockToMappingCreateDTOs.mockReturnValue([]);
 
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
 
@@ -375,7 +520,7 @@ describe('useValidationScreenViewModel.handleSaveMappings', () => {
     );
 
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
 
@@ -422,7 +567,7 @@ describe('useValidationScreenViewModel.filteredMappings', () => {
 
   it('shows all active accounts when filter is null', () => {
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
     const allAccounts = result.current.filteredMappings.flatMap((g) => g.accounts);
@@ -431,7 +576,7 @@ describe('useValidationScreenViewModel.filteredMappings', () => {
 
   it('shows only ≥90% accounts when filter is high', () => {
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
     act(() => { result.current.handleFilterPress('high'); });
@@ -442,7 +587,7 @@ describe('useValidationScreenViewModel.filteredMappings', () => {
 
   it('shows only 70–89% accounts when filter is medium', () => {
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
     act(() => { result.current.handleFilterPress('medium'); });
@@ -453,7 +598,7 @@ describe('useValidationScreenViewModel.filteredMappings', () => {
 
   it('shows only <70% accounts when filter is low', () => {
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
     act(() => { result.current.handleFilterPress('low'); });
@@ -467,7 +612,7 @@ describe('useValidationScreenViewModel.filteredMappings', () => {
       { source_type: 'LowOnly', target_type: 'T', confidence: 60, accounts: [lowAccount] },
     ];
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
     act(() => { result.current.handleFilterPress('high'); });
@@ -480,7 +625,7 @@ describe('useValidationScreenViewModel.filteredMappings', () => {
       { source_type: 'G', target_type: 'T', confidence: 100, accounts: [tombstoned, mediumAccount] },
     ];
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
     const allAccounts = result.current.filteredMappings.flatMap((g) => g.accounts);
@@ -505,7 +650,7 @@ describe('useValidationScreenViewModel.targetAccounts', () => {
   it('returns empty array when targetData is empty', () => {
     mockStoreState.targetData = [];
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
     expect(result.current.targetAccounts).toEqual([]);
@@ -517,7 +662,7 @@ describe('useValidationScreenViewModel.targetAccounts', () => {
       { account_name: 'Revenue', account_number: '4000' },
     ];
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
     expect(result.current.targetAccounts).toEqual(
@@ -535,7 +680,7 @@ describe('useValidationScreenViewModel.targetAccounts', () => {
       { account_name: 'Revenue', account_number: '4000' },
     ];
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
     expect(result.current.targetAccounts).toHaveLength(2);
@@ -547,7 +692,7 @@ describe('useValidationScreenViewModel.targetAccounts', () => {
       { account_name: 'Cash' }, // no number column
     ];
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
     expect(result.current.targetAccounts).toEqual([{ name: 'Cash', number: '' }]);
@@ -560,7 +705,7 @@ describe('useValidationScreenViewModel.targetAccounts', () => {
       { account_name: 'Middle Account', account_number: '5000' },
     ];
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
     expect(result.current.targetAccounts.map((a) => a.name)).toEqual([
@@ -577,7 +722,7 @@ describe('useValidationScreenViewModel.targetAccounts', () => {
       { account_name: '   ', account_number: '0001' },
     ];
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
     expect(result.current.targetAccounts).toHaveLength(1);
@@ -600,7 +745,7 @@ describe('useValidationScreenViewModel.handleAccountNameChange', () => {
 
   it('calls updateAccountName with targetNumber when provided', () => {
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
 
@@ -628,7 +773,7 @@ describe('useValidationScreenViewModel.handleAccountNameChange', () => {
 
   it('calls updateAccountName with null targetNumber when clearing selection', () => {
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
 
@@ -649,7 +794,7 @@ describe('useValidationScreenViewModel.handleAccountNameChange', () => {
 
   it('calls updateAccountName without targetNumber when arg is omitted', () => {
     const { result } = renderHook(
-      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward),
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
       { wrapper: createWrapper() },
     );
 

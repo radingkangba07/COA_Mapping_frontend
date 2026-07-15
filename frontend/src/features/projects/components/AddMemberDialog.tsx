@@ -54,6 +54,7 @@ const ROLE_VARIANT = {
   editor: 'accent',
   approver: 'warning',
   admin: 'success',
+  owner: 'success',
 } as const satisfies Record<ProjectPermission, 'secondary' | 'accent' | 'warning' | 'success'>;
 
 // ─── Props ───────────────────────────────────────────────────────────────────
@@ -238,7 +239,7 @@ export function AddMemberDialog({
         <View className="gap-4">
           {/* Current members */}
           <View className="gap-2" testID="add-member-dialog-list">
-            <Text className="font-body text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <Text className="font-body text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Current Members
             </Text>
             {isLoading ? (
@@ -322,7 +323,7 @@ export function AddMemberDialog({
           <View className="h-px bg-border" />
 
           {/* Invite form */}
-          <Text className="font-body text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <Text className="font-body text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Invite Member
           </Text>
           <Controller

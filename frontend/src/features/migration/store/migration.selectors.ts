@@ -84,7 +84,10 @@ export const selectMappingStats = (state: MigrationStore): MappingStats => {
       (s >= CONFIDENCE_THRESHOLDS.MEDIUM && s < CONFIDENCE_THRESHOLDS.HIGH && state.confirmedMedium) ||
       (s < CONFIDENCE_THRESHOLDS.MEDIUM && state.confirmedLow);
 
-    if (account.user_changed === true || isConfirmedByBand) {
+    if (
+      account.user_changed === true ||
+      (account as { status?: string }).status === 'confirmed'
+    ) {
       confirmedCount += 1;
     }
   }
@@ -163,5 +166,49 @@ export const selectDeletedAccounts = (
 
 // ─── Confirmation Selectors ──────────────────────────────────────────────────
 
-export const selectAllConfirmed = (state: MigrationStore): boolean =>
-  state.confirmedHigh && state.confirmedMedium && state.confirmedLow;
+export const selectAllConfirmed = (state: MigrationStore): boolean => {
+  const activeAccounts = state.groupedMappings
+    .flatMap((g) => g.accounts)
+    .filter((a) => a.is_active !== false);
+
+  let hasHigh = false;
+  let hasMedium = false;
+  let hasLow = false;
+
+  for (const account of activeAccounts) {
+    const s = Math.round(account.score);
+    if (s >= CONFIDENCE_THRESHOLDS.HIGH) hasHigh = true;
+    else if (s >= CONFIDENCE_THRESHOLDS.MEDIUM) hasMedium = true;
+    else hasLow = true;
+    if (hasHigh && hasMedium && hasLow) break;
+  }
+
+  return (
+    (!hasHigh || state.confirmedHigh) &&
+    (!hasMedium || state.confirmedMedium) &&
+    (!hasLow || state.confirmedLow)
+  );
+};
+
+// ─── Selection Selectors ─────────────────────────────────────────────────────
+
+export type TriState = boolean | 'indeterminate';
+
+export { computeTriState } from '@/features/migration/utils/selection.utils';
+
+export const selectSelectedCount = (state: MigrationStore): number =>
+  Object.keys(state.selection).length;
+
+export const selectSelectedMappings = (state: MigrationStore): GroupedMapping[] =>
+  state.groupedMappings
+    .map((group) => ({
+      ...group,
+      accounts: group.accounts.filter(
+        (a) =>
+          a.is_active !== false &&
+          state.selection[
+            `${group.source_type}::${a.source_number}::${a.source_name}`
+          ] === true,
+      ),
+    }))
+    .filter((group) => group.accounts.length > 0);
