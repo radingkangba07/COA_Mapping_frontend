@@ -13,9 +13,7 @@ import { MigrationLayout } from '../components/MigrationLayout';
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
 import { FileUploader } from '../components/FileUploader/FileUploader';
 import { SampleFilesTable } from '../components/SampleFilesTable';
-import { FetchFromErpStep } from '../components/FetchFromErpStep/FetchFromErpStep';
 import { useMigrationViewModel } from '../hooks/useMigrationViewModel';
-import { useFetchFromErp } from '../hooks/useFetchFromErp';
 import { useMigrationStore } from '../store/migration.store';
 import { useHydrateProject } from '../hooks/useHydrateProject';
 import { useMigrationScreenRoute } from '@/navigation/types';
@@ -61,10 +59,6 @@ export function UploadScreen(): React.JSX.Element {
     processFiles, handleDownloadSample,
     handlePreviewSample, previewData, previewTitle, isPreviewOpen, closePreview,
   } = useMigrationViewModel();
-
-  const {
-    method, connectionReady, sourceErpName, targetErpName, fetch, runFetch, refetch, useCsvFallback,
-  } = useFetchFromErp();
 
   const onSourceFilePicked = useCallback(
     (file: File | { uri: string; name: string; mimeType: string }): void => {
@@ -220,58 +214,36 @@ export function UploadScreen(): React.JSX.Element {
                   </Text>
                 </View>
               ) : null}
-              {method === 'mcp' ? (
-                // DA-52: MCP connection method → fetch COA directly from the ERP.
-                <FetchFromErpStep
-                  sourceErpName={sourceErpName}
-                  targetErpName={targetErpName}
-                  connectionReady={connectionReady}
-                  status={fetch.status}
-                  progress={fetch.progress}
-                  counts={fetch.counts}
-                  sampleSource={fetch.sampleSource}
-                  sampleTarget={fetch.sampleTarget}
-                  errorMessage={fetch.errorMessage}
-                  onFetch={runFetch}
-                  onRefetch={refetch}
-                  onUseCsvFallback={useCsvFallback}
-                  testID="fetch-from-erp-step"
-                />
-              ) : (
-                // CSV fallback — retained unchanged when method === 'csv'.
-                <>
-                  <FileUploader
-                    sourceFile={sourceFileInfo}
-                    targetFile={targetFileInfo}
-                    mappingFile={mappingFileInfo}
-                    onSourceFilePicked={onSourceFilePicked}
-                    onTargetFilePicked={onTargetFilePicked}
-                    onMappingFilePicked={onMappingFilePicked}
-                    onSourceRemove={handleRemoveSourceFile}
-                    onTargetRemove={handleRemoveTargetFile}
-                    onMappingRemove={handleRemoveMappingFile}
-                    onSourcePreview={onSourcePreview}
-                    onTargetPreview={onTargetPreview}
-                    onMappingPreview={onMappingPreview}
-                    isUploading={isLoading}
-                    testID="upload-file-uploader"
-                  />
+              <FileUploader
+                sourceFile={sourceFileInfo}
+                targetFile={targetFileInfo}
+                mappingFile={mappingFileInfo}
+                onSourceFilePicked={onSourceFilePicked}
+                onTargetFilePicked={onTargetFilePicked}
+                onMappingFilePicked={onMappingFilePicked}
+                onSourceRemove={handleRemoveSourceFile}
+                onTargetRemove={handleRemoveTargetFile}
+                onMappingRemove={handleRemoveMappingFile}
+                onSourcePreview={onSourcePreview}
+                onTargetPreview={onTargetPreview}
+                onMappingPreview={onMappingPreview}
+                isUploading={isLoading}
+                testID="upload-file-uploader"
+              />
 
-                  <View className="border-t border-border mt-4 pt-4">
-                    <SampleFilesTable
-                      sourceErpId={sourceERP?.id}
-                      sourceErpName={sourceERP?.name}
-                      targetErpId={targetERP?.id}
-                      targetErpName={targetERP?.name}
-                      onDownload={onDownloadSample}
-                      onPreview={onPreviewSample}
-                      onLoadAll={handleLoadAllSamples}
-                      isLoading={isLoading}
-                      testID="sample-files-table"
-                    />
-                  </View>
-                </>
-              )}
+              <View className="border-t border-border mt-4 pt-4">
+                <SampleFilesTable
+                  sourceErpId={sourceERP?.id}
+                  sourceErpName={sourceERP?.name}
+                  targetErpId={targetERP?.id}
+                  targetErpName={targetERP?.name}
+                  onDownload={onDownloadSample}
+                  onPreview={onPreviewSample}
+                  onLoadAll={handleLoadAllSamples}
+                  isLoading={isLoading}
+                  testID="sample-files-table"
+                />
+              </View>
             </Card.Content>
           </Card>
 
