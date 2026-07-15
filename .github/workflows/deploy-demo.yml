@@ -65,8 +65,12 @@ jobs:
           script: |
             set -e
             REPO="https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
-            cd /opt/coa-migration/environments/demo/frontend
-            git config --global --add safe.directory /opt/coa-migration/environments/demo/frontend
+            TARGET="/opt/coa-migration/environments/demo/frontend"
+            git config --global --add safe.directory "$TARGET"
+            if [ ! -d "$TARGET/.git" ]; then
+              git clone --no-checkout "$REPO" "$TARGET"
+            fi
+            cd "$TARGET"
             git fetch "$REPO" feat/erp-cascade-connection-methods
             git checkout -B feat/erp-cascade-connection-methods FETCH_HEAD
             git clean -fd
