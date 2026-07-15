@@ -169,6 +169,20 @@ jest.mock('../../hooks/useProjectSummaryViewModel', () => ({
   }),
 }));
 
+// useErpCascade calls useQuery internally; stub it so the test needs no QueryClientProvider.
+jest.mock('../../hooks/useErpCascade', () => ({
+  useErpCascade: jest.fn(() => ({
+    vendorOptions: [],
+    productOptions: [],
+    connectionMethodOptions: [],
+    selectedVendor: null,
+    isLoadingVendors: false,
+    isLoadingProducts: false,
+    onVendorChange: jest.fn(),
+    onProductChange: jest.fn(),
+  })),
+}));
+
 // ─── Imports (after mocks) ──────────────────────────────────────────────────
 
 import { ProjectScopeScreen } from '../ProjectScopeScreen';
