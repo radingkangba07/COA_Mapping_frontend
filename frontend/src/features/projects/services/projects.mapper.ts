@@ -14,6 +14,8 @@ export const projectResponseSchema = z.object({
   name: z.string().min(1),
   source_system: z.string(),
   target_system: z.string(),
+  source_connection_method: z.string().nullable().optional(),
+  target_connection_method: z.string().nullable().optional(),
   status: z.enum(['active', 'draft', 'in_progress', 'pending_review', 'completed']),
   org_id: z.string().nullable().optional(),
   company_id: z.string().nullable().optional(),
@@ -37,12 +39,20 @@ export const projectListResponseSchema = z.object({
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
 
-export function toProject(dto: ProjectResponseDTO): Project {
+// Connection-method catalog ids are returned by project GETs and consumed by
+// the project overview summary panel; they are not (yet) part of the Project
+// domain type, so they ride along as an intersection.
+export function toProject(dto: ProjectResponseDTO): Project & {
+  readonly sourceConnectionMethodId?: string | undefined;
+  readonly targetConnectionMethodId?: string | undefined;
+} {
   return {
     projectId: createProjectId(dto.id),
     name: dto.name,
     sourceErp: dto.source_system,
     targetErp: dto.target_system,
+    sourceConnectionMethodId: dto.source_connection_method ?? undefined,
+    targetConnectionMethodId: dto.target_connection_method ?? undefined,
     status: dto.status,
     orgId: dto.org_id ? createOrgId(dto.org_id) : undefined,
     companyId: dto.company_id ? createCompanyId(dto.company_id) : undefined,
