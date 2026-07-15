@@ -121,7 +121,7 @@ export const McpHeadersEditor = ({
   return (
     <View className="gap-2" testID={testID}>
       <View className="flex-row items-center justify-between">
-        <Text className="font-heading text-sm font-medium text-card-foreground">
+        <Text className="font-heading text-sm font-semibold text-card-foreground">
           Headers (Optional)
         </Text>
         <Button
