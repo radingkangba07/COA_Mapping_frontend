@@ -230,6 +230,38 @@ describe('useProjectScopeViewModel', () => {
       expect(payload.description).toBeUndefined();
     });
 
+    it('carries per-item capability flags for master data selections', () => {
+      const base = createInitialDraft();
+      const draft = {
+        ...base,
+        companyId: 'co-9',
+        name: 'P',
+        scope: {
+          ...base.scope,
+          selectedMasterData: [
+            'chart-of-accounts:dataConversion',
+            'customers:mdm',
+            'vendors:dataConversion',
+            'vendors:mdm',
+          ],
+        },
+      };
+
+      const payload = buildCreatePayload(draft);
+
+      expect(payload.masterDataSelections).toEqual([
+        { data_type: 'chart-of-accounts', selected: true, data_conversion: true, mdm: false },
+        { data_type: 'customers', selected: true, data_conversion: false, mdm: true },
+        { data_type: 'vendors', selected: true, data_conversion: true, mdm: true },
+      ]);
+    });
+
+    it('omits master data selections when nothing is ticked', () => {
+      const draft = { ...createInitialDraft(), companyId: 'co-9', name: 'P' };
+      const payload = buildCreatePayload(draft);
+      expect(payload.masterDataSelections).toBeUndefined();
+    });
+
     it('includes mapped members when the draft has members', () => {
       const draft = {
         ...createInitialDraft(),

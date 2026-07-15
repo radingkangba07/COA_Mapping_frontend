@@ -64,7 +64,13 @@ export interface ProjectCreate {
   readonly companyId?: string | undefined;
   readonly companyName?: string | undefined;
   readonly description?: string | undefined;
-  readonly masterDataSelections?: readonly { readonly data_type: string; readonly selected: boolean }[];
+  readonly masterDataSelections?: readonly {
+    readonly data_type: string;
+    /** Legacy aggregate flag (data_conversion || mdm) — kept for backends that predate the capability flags. */
+    readonly selected: boolean;
+    readonly data_conversion: boolean;
+    readonly mdm: boolean;
+  }[];
   readonly openingBalanceSelections?: readonly { readonly account_type: string; readonly include: boolean }[];
   readonly members?: readonly {
     readonly id: string;

@@ -75,15 +75,28 @@ export function buildCreatePayload(
     masterDataSelections: (() => {
       if (draft.scope.selectedMasterData.length === 0) return undefined;
       // selectedMasterData stores column-keyed entries ("chart-of-accounts:dataConversion").
-      // The API expects one entry per item ID, so strip the column suffix and deduplicate.
-      const uniqueIds = [
-        ...new Set(
-          draft.scope.selectedMasterData
-            .map((key) => key.split(':')[0])
-            .filter((id): id is string => id !== undefined),
-        ),
-      ];
-      return uniqueIds.map((id) => ({ data_type: id, selected: true }));
+      // Group per item so each entry carries its capability flags — the
+      // DC/MDM distinction must survive to the API. `selected` stays for
+      // backward compatibility with backends that predate the flags.
+      const flagsById = new Map<string, { dataConversion: boolean; mdm: boolean }>();
+      for (const key of draft.scope.selectedMasterData) {
+        const [id, column] = key.split(':');
+        if (id === undefined || id.length === 0) continue;
+        const flags = flagsById.get(id) ?? { dataConversion: false, mdm: false };
+        if (column === 'mdm') {
+          flags.mdm = true;
+        } else {
+          // 'dataConversion' or legacy un-suffixed keys
+          flags.dataConversion = true;
+        }
+        flagsById.set(id, flags);
+      }
+      return [...flagsById].map(([id, flags]) => ({
+        data_type: id,
+        selected: true,
+        data_conversion: flags.dataConversion,
+        mdm: flags.mdm,
+      }));
     })(),
     openingBalanceSelections:
       draft.scope.selectedOpeningBalances.length > 0

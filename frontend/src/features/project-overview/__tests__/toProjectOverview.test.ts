@@ -124,4 +124,46 @@ describe('toProjectOverview', () => {
     const result = toProjectOverview(dto);
     expect(result.overallProgress).toBe(0);
   });
+
+  it('synthesizes a fully greyed Opening Balances section when the backend omits it', () => {
+    // Real backend keys use underscores and only include groups that have rows.
+    const dto: ProjectOverviewDTO = {
+      ...BASE_DTO,
+      groups: [
+        {
+          key: 'master_data',
+          title: 'Master Data',
+          workstreams: [
+            { id: 'ws-1', code: 'MD-001', name: 'Chart of Accounts', status: 'not_started', progress: 0, current_stage: 'ERP Select', included: true },
+          ],
+        },
+      ],
+    };
+
+    const result = toProjectOverview(dto);
+
+    expect(result.groups).toHaveLength(2);
+    // Master Data keeps its real row plus 8 greyed canonical rows.
+    expect(result.groups[0]!.key).toBe('master_data');
+    expect(result.groups[0]!.items).toHaveLength(9);
+    // Opening Balances is synthesized entirely from the canonical list.
+    const ob = result.groups[1]!;
+    expect(ob.key).toBe('opening_balances');
+    expect(ob.title).toBe('Opening Balances');
+    expect(ob.items).toHaveLength(5);
+    expect(ob.items.every((w) => w.status === 'not_included' && !w.included)).toBe(true);
+    // Synthesized rows never count toward totals.
+    expect(result.totalWorkstreams).toBe(1);
+  });
+
+  it('synthesizes both sections for a project with no workstreams at all', () => {
+    const dto: ProjectOverviewDTO = { ...BASE_DTO, groups: [] };
+
+    const result = toProjectOverview(dto);
+
+    expect(result.groups.map((g) => g.key)).toEqual(['master_data', 'opening_balances']);
+    expect(result.groups[0]!.items).toHaveLength(9);
+    expect(result.groups[1]!.items).toHaveLength(5);
+    expect(result.totalWorkstreams).toBe(0);
+  });
 });
