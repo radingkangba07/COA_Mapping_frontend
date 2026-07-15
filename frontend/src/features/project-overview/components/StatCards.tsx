@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, useWindowDimensions } from 'react-native';
+import { View, Text } from 'react-native';
 import { Skeleton } from '@/shared/components/ui/Skeleton';
 import { colors } from '@/config/theme';
 import { countByStatus } from '../utils/countByStatus';
@@ -25,12 +25,9 @@ export const StatCards = ({
   isLoading = false,
   testID,
 }: StatCardsProps): React.JSX.Element => {
-  const { width } = useWindowDimensions();
   const counts = useMemo(() => countByStatus(workstreams), [workstreams]);
 
   const GAP = 8;
-  const overallFontSize = width >= 1100 ? 20 : 18;
-  const overallLabelSize = width >= 1100 ? 10 : 9;
 
   const tiles: readonly TileDefinition[] = [
     { label: 'Total',           subtitle: 'Workstreams in scope', tone: 'default', value: counts.total          },
@@ -62,28 +59,21 @@ export const StatCards = ({
       {/* Overall Progress — full-width below the tiles */}
       <View
         className="rounded-lg border border-border bg-card"
-        style={{ padding: 14, gap: 6 }}
+        style={{ padding: 14, gap: 4 }}
         testID="stat-card-overall-progress"
       >
-        <Text
-          style={{
-            fontSize: overallLabelSize,
-            fontWeight: '700',
-            letterSpacing: 0.8,
-            textTransform: 'uppercase',
-            color: colors.mutedForeground,
-          }}
-        >
+        <Text className="font-heading text-base font-semibold text-card-foreground">
           Overall Progress
         </Text>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {/* Percentage sits beside the progress bar */}
+        <View className="flex-row items-center" style={{ gap: 8 }}>
           {isLoading ? (
-            <Skeleton height={overallFontSize + 4} width={52} borderRadius={4} />
+            <Skeleton height={30} width={52} borderRadius={4} />
           ) : (
             <Text
-              className="font-heading"
-              style={{ fontSize: overallFontSize, fontWeight: '500', color: colors.primary }}
+              className="font-heading text-3xl font-medium"
+              style={{ color: colors.primary }}
             >
               {counts.progressPercent}%
             </Text>
@@ -112,10 +102,7 @@ export const StatCards = ({
           )}
         </View>
 
-        <Text
-          className="font-body text-muted-foreground"
-          style={{ fontSize: overallLabelSize }}
-        >
+        <Text className="font-body text-sm text-muted-foreground">
           {counts.completed} of {counts.total} completed
         </Text>
       </View>

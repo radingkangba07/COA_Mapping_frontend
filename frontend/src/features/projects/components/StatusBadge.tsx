@@ -1,40 +1,47 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { cn } from '@/shared/utils/string.utils';
+import { Badge } from '@/shared/components/ui/Badge';
 import type { ProjectStatus } from '../types/projects.types';
 
-// Dark tonal badges matching reference design — primary dark bg + white text
-const STATUS_CONFIG: Record<ProjectStatus, { label: string; color: string; bgColor: string }> = {
-  active: { label: 'Active', color: '#003399', bgColor: 'rgba(0,51,153,0.10)' },
-  draft: { label: 'Draft', color: '#6B7280', bgColor: 'rgba(107,114,128,0.12)' },
-  in_progress: { label: 'In Progress', color: '#003399', bgColor: 'rgba(0,51,153,0.10)' },
-  pending_review: { label: 'Review', color: '#D97706', bgColor: 'rgba(217,119,6,0.10)' },
-  completed: { label: 'Completed', color: '#16A34A', bgColor: 'rgba(22,163,74,0.10)' },
+// Same pill treatment as the mapping table's "AI suggestion" badge — tint
+// classes per status instead of hardcoded hex values, so dark mode works.
+const STATUS_CONFIG: Record<ProjectStatus, { label: string; pill: string }> = {
+  active: { label: 'Active', pill: 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30' },
+  in_progress: { label: 'In Progress', pill: 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30' },
+  draft: { label: 'Draft', pill: 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-900/30' },
+  pending_review: { label: 'Review', pill: 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30' },
+  completed: { label: 'Completed', pill: 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30' },
 };
 
 interface StatusBadgeProps {
   status: ProjectStatus;
+  /** 'sm' matches table pills; 'md' sits comfortably next to page titles. */
+  size?: 'sm' | 'md';
   className?: string;
   testID?: string;
 }
 
 export const StatusBadge = ({
   status,
+  size = 'sm',
+  className,
   testID,
 }: StatusBadgeProps): React.JSX.Element => {
   const config = STATUS_CONFIG[status];
 
   return (
-    <View
-      className="self-start rounded-full px-2.5 py-0.5"
-      style={{ backgroundColor: config.bgColor }}
+    <Badge
+      variant="outline"
+      className={cn(
+        'self-start',
+        size === 'md' ? 'px-2.5 py-1' : 'px-1.5 py-0.5',
+        config.pill,
+        className,
+      )}
+      textClassName={cn(size === 'md' ? 'text-sm' : 'text-xs', config.pill)}
       testID={testID}
     >
-      <Text
-        className="font-body text-xs font-medium"
-        style={{ color: config.color }}
-      >
-        {config.label}
-      </Text>
-    </View>
+      {config.label}
+    </Badge>
   );
 };

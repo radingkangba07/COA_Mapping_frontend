@@ -50,7 +50,7 @@ function CompanyTypeBadge({ orgType }: { orgType?: CompanyOrgType }): React.JSX.
       className="rounded-full px-2 py-0.5"
       style={{ backgroundColor: meta.backgroundColor }}
     >
-      <Text className="font-body text-[11px] font-semibold" style={{ color: meta.color }}>
+      <Text className="font-body text-xs font-semibold" style={{ color: meta.color }}>
         {meta.label}
       </Text>
     </View>

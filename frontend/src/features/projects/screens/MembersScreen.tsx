@@ -123,7 +123,7 @@ export const MembersScreen = (): React.JSX.Element => {
       <View className="my-4 h-px bg-border" />
 
       {/* Members section */}
-      <Text className="mb-2 font-heading text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <Text className="mb-2 font-body text-xs font-medium uppercase tracking-wide text-muted-foreground">
         Members
       </Text>
 
@@ -185,7 +185,7 @@ export const MembersScreen = (): React.JSX.Element => {
       {/* Pending invitations section */}
       {isOwner && invitations.length > 0 && (
         <View className="mt-6">
-          <Text className="mb-2 font-heading text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Text className="mb-2 font-body text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Pending Invitations
           </Text>
           <Card>
