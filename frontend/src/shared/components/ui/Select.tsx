@@ -31,6 +31,8 @@ interface SelectProps {
   className?: string;
   testID?: string;
   searchable?: boolean;
+  /** Renders a type-to-search input inside the dropdown modal instead of a plain list. */
+  combobox?: boolean;
 }
 
 export const Select = React.forwardRef<View, SelectProps>(
@@ -46,6 +48,7 @@ export const Select = React.forwardRef<View, SelectProps>(
       className,
       testID,
       searchable = false,
+      combobox = false,
     },
     ref,
   ) => {
@@ -69,6 +72,7 @@ export const Select = React.forwardRef<View, SelectProps>(
       (optionValue: string) => {
         onValueChange(optionValue);
         setIsOpen(false);
+        setSearch('');
       },
       [onValueChange],
     );
@@ -109,9 +113,23 @@ export const Select = React.forwardRef<View, SelectProps>(
 
     const keyExtractor = useCallback((item: SelectOption) => item.value, []);
 
-    const filteredOptions = searchable && search.length > 0
-      ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
-      : options;
+    const showSearch = combobox || searchable;
+    const filteredOptions =
+      showSearch && search.length > 0
+        ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
+        : options;
+
+    const dropdownStyle =
+      isWeb && triggerLayout !== null
+        ? {
+            top: triggerLayout.y + triggerLayout.height + 4,
+            left: triggerLayout.x,
+            width: triggerLayout.width,
+            maxHeight: 280,
+          }
+        : isWeb
+          ? { maxHeight: 280 }
+          : { maxHeight: '50%' as const };
 
     return (
       <View className={cn('gap-1.5', className)} testID={testID} ref={ref}>
@@ -121,12 +139,13 @@ export const Select = React.forwardRef<View, SelectProps>(
           </Text>
         )}
 
+        {/* ── Trigger ────────────────────────────────────────────────────── */}
         <Pressable
           ref={triggerRef}
           onPress={handleOpen}
           disabled={disabled}
           className={cn(
-            'h-10 flex-row items-center justify-between rounded-md border bg-background px-3 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background',
+            'h-10 flex-row items-center justify-between rounded-md border bg-background px-3',
             hasError ? 'border-destructive' : 'border-input',
             disabled && 'opacity-50',
           )}
@@ -134,7 +153,7 @@ export const Select = React.forwardRef<View, SelectProps>(
         >
           <Text
             className={cn(
-              'font-body text-sm',
+              'font-body text-sm flex-1',
               selectedOption !== undefined && !disabled
                 ? 'text-foreground'
                 : 'text-muted-foreground',
@@ -146,6 +165,7 @@ export const Select = React.forwardRef<View, SelectProps>(
           <ChevronDown size={16} color={colors.mutedForeground} />
         </Pressable>
 
+        {/* ── Dropdown modal ─────────────────────────────────────────────── */}
         <Modal
           visible={isOpen}
           transparent
@@ -159,20 +179,11 @@ export const Select = React.forwardRef<View, SelectProps>(
             <View
               className={cn(
                 'overflow-hidden rounded-md border border-border bg-background shadow-lg',
-                isWeb ? 'absolute' : 'absolute bottom-0 left-0 right-0 rounded-t-xl pb-8',
+                isWeb
+                  ? 'absolute'
+                  : 'absolute bottom-0 left-0 right-0 rounded-t-xl pb-8',
               )}
-              style={
-                isWeb && triggerLayout !== null
-                  ? {
-                      top: triggerLayout.y + triggerLayout.height + 4,
-                      left: triggerLayout.x,
-                      width: triggerLayout.width,
-                      maxHeight: 240,
-                    }
-                  : isWeb
-                    ? { maxHeight: 240 }
-                    : { maxHeight: '50%' }
-              }
+              style={dropdownStyle}
               onStartShouldSetResponder={() => true}
             >
               {!isWeb && (
@@ -180,24 +191,28 @@ export const Select = React.forwardRef<View, SelectProps>(
                   <View className="h-1 w-10 rounded-full bg-muted-foreground/30" />
                 </View>
               )}
-              {searchable && (
-                <View className="border-b border-border px-3 py-2">
+
+              {/* Search input — shown for both combobox and searchable modes */}
+              {showSearch && (
+                <View className="border-b border-border px-3 py-3">
                   <TextInput
                     value={search}
                     onChangeText={setSearch}
-                    placeholder="Search..."
+                    placeholder="Type to search…"
                     placeholderTextColor={colors.mutedForeground}
                     autoFocus
-                    className="font-body text-sm text-foreground"
+                    className="font-body text-sm text-foreground h-9"
                     testID={testID !== undefined ? `${testID}-search` : undefined}
                   />
                 </View>
               )}
+
               <FlatList
                 data={filteredOptions}
                 keyExtractor={keyExtractor}
                 renderItem={renderItem}
                 bounces={false}
+                keyboardShouldPersistTaps="always"
               />
             </View>
           </Pressable>

@@ -60,8 +60,9 @@ const ErpCard = ({
           options={vendorOptions}
           value={selectedVendor ?? undefined}
           onValueChange={onVendorChange}
-          placeholder={isLoadingVendors ? 'Loading vendors…' : 'Select vendor'}
+          placeholder={isLoadingVendors ? 'Loading vendors…' : 'Type to search vendor…'}
           disabled={disabled || isLoadingVendors}
+          combobox
           testID={`erp-vendor-select-${role}`}
         />
       </View>
