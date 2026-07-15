@@ -100,12 +100,20 @@ export function useErpCascade(
     : null;
 
   const connectionMethodOptions: SelectOption[] = selectedProduct
-    ? selectedProduct.connection_methods
-        .filter((cm) => cm in CM_TO_METHOD) // only show methods the UI supports
-        .map((cm) => ({
-          label: CM_LABELS[cm] ?? cm,
-          value: CM_TO_METHOD[cm] as string,
-        }))
+    ? [...selectedProduct.connection_methods]
+        .sort((a, b) => {
+          const aSupported = a in CM_TO_METHOD ? 0 : 1;
+          const bSupported = b in CM_TO_METHOD ? 0 : 1;
+          return aSupported - bSupported;
+        })
+        .map((cm) => {
+          const isSupported = cm in CM_TO_METHOD;
+          return {
+            label: CM_LABELS[cm] ?? cm,
+            value: isSupported ? (CM_TO_METHOD[cm] as string) : cm,
+            disabled: !isSupported,
+          };
+        })
     : [];
 
   const onVendorChange = useCallback(

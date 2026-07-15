@@ -17,6 +17,7 @@ import { colors } from '@/config/theme';
 export interface SelectOption {
   label: string;
   value: string;
+  disabled?: boolean;
 }
 
 interface SelectProps {
@@ -80,13 +81,15 @@ export const Select = React.forwardRef<View, SelectProps>(
     const renderItem = useCallback(
       ({ item }: ListRenderItemInfo<SelectOption>) => {
         const isSelected = item.value === value;
+        const isDisabled = item.disabled === true;
         return (
           <Pressable
             className={cn(
               'flex-row items-center justify-between px-3 py-2.5',
               isSelected && 'bg-accent/10',
+              isDisabled && 'opacity-40',
             )}
-            onPress={() => handleSelect(item.value)}
+            onPress={isDisabled ? undefined : () => handleSelect(item.value)}
             testID={testID !== undefined ? `${testID}-option-${item.value}` : undefined}
           >
             <Text
