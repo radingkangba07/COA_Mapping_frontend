@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
-import { colors } from '@/config/theme';
+import { cardShadow, colors } from '@/config/theme';
 import { WorkstreamRow, useColFlex } from './WorkstreamRow';
 import type { Workstream } from '../types/workstream.types';
 
@@ -27,13 +27,12 @@ export const WorkstreamGroup = ({
   const colFlex = useColFlex();
 
   const TABLE_HEADERS: { label: string; flex: number; paddingLeft?: number }[] = [
-    { label: 'Workstream',    flex: colFlex.name                          },
-    { label: 'Project ID',    flex: colFlex.projectId                     },
-    { label: 'Status',        flex: colFlex.status,   paddingLeft: 8      },
-    { label: '',              flex: colFlex.percent                        },
-    { label: 'Progress',      flex: colFlex.progress                      },
-    { label: 'Current Stage', flex: colFlex.currentStage, paddingLeft: 8  },
-    { label: 'Action',        flex: colFlex.action                        },
+    { label: 'Workstream',    flex: colFlex.name                            },
+    { label: 'Project ID',    flex: colFlex.projectId                       },
+    { label: 'Status',        flex: colFlex.status,   paddingLeft: 8        },
+    { label: 'Progress',      flex: colFlex.percent + colFlex.progress      },
+    { label: 'Current Stage', flex: colFlex.currentStage, paddingLeft: 8    },
+    { label: 'Action',        flex: colFlex.action                          },
   ];
 
   const isExpanded = expanded !== undefined ? expanded : internalExpanded;
@@ -50,13 +49,8 @@ export const WorkstreamGroup = ({
 
   return (
     <View
-      style={{
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 8,
-        backgroundColor: colors.card,
-        overflow: 'hidden',
-      }}
+      className="rounded-lg border border-border bg-card"
+      style={{ overflow: 'hidden', ...cardShadow }}
       testID={testID}
     >
       {/* ── Header ─────────────────────────────────────── */}
@@ -72,7 +66,7 @@ export const WorkstreamGroup = ({
         testID={testID ? `${testID}-header` : undefined}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Text style={{ fontSize: 16, fontWeight: '600', color: colors.foreground }}>
+          <Text className="font-heading text-base font-semibold text-card-foreground">
             {title}
           </Text>
           <View
@@ -99,7 +93,7 @@ export const WorkstreamGroup = ({
       {/* ── Table ──────────────────────────────────────── */}
       {isExpanded && (
         <View
-          style={{ borderTopWidth: 1, borderTopColor: colors.border }}
+          className="border-t border-border"
           testID={testID ? `${testID}-table` : undefined}
         >
           {/* Table header row */}
@@ -114,13 +108,8 @@ export const WorkstreamGroup = ({
             {TABLE_HEADERS.map((col) => (
               <View key={col.label} style={{ flex: col.flex, paddingLeft: col.paddingLeft }}>
                 <Text
-                  style={{
-                    fontSize: 11,
-                    fontWeight: '700',
-                    color: colors.mutedForeground,
-                    letterSpacing: 0.06,
-                    textTransform: 'uppercase',
-                  }}
+                  className="font-heading text-base text-card-foreground"
+                  style={{ textAlign: 'center' }}
                   numberOfLines={1}
                 >
                   {col.label}

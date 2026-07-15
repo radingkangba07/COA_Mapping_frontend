@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text } from 'react-native';
 import { Skeleton } from '@/shared/components/ui/Skeleton';
-import { colors } from '@/config/theme';
+import { cardShadow, colors } from '@/config/theme';
 import { countByStatus } from '../utils/countByStatus';
 import { StatCard } from './StatCard';
 import type { StatTone } from './StatCard';
@@ -59,7 +59,7 @@ export const StatCards = ({
       {/* Overall Progress — full-width below the tiles */}
       <View
         className="rounded-lg border border-border bg-card"
-        style={{ padding: 14, gap: 4 }}
+        style={{ padding: 14, gap: 4, ...cardShadow }}
         testID="stat-card-overall-progress"
       >
         <Text className="font-heading text-base font-semibold text-card-foreground">

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { Skeleton } from '@/shared/components/ui/Skeleton';
+import { cardShadow } from '@/config/theme';
 
 export type StatTone = 'default' | 'success' | 'info' | 'warning' | 'danger' | 'muted';
 
@@ -34,7 +35,7 @@ export const StatCard = ({
   return (
     <View
       className="rounded-lg border border-border bg-card"
-      style={{ padding: 14, gap: 4, flex: 1 }}
+      style={{ padding: 14, gap: 4, flex: 1, ...cardShadow }}
       testID={testID}
     >
       {/* Title left, count right on the same row */}

@@ -48,7 +48,7 @@ const SectionHeading = ({ title }: { readonly title: string }): React.JSX.Elemen
 );
 
 const PanelDivider = (): React.JSX.Element => (
-  <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 10 }} />
+  <View className="bg-border" style={{ height: 1, marginVertical: 10 }} />
 );
 
 export const ProjectSummaryPanel = ({

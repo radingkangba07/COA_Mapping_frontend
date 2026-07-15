@@ -1,23 +1,21 @@
 import React from 'react';
-import { View, Text } from 'react-native';
-import { colors } from '@/config/theme';
+import { Text } from 'react-native';
+import { Badge } from '@/shared/components/ui/Badge';
+import { cn } from '@/shared/utils/string.utils';
 import type { WorkstreamStatus } from '../types/workstream.types';
 
 export type BadgeStatus = WorkstreamStatus | 'not_included';
 
-interface StatusConfig {
-  readonly label: string;
-  readonly bg: string;
-  readonly textColor: () => string;
-}
-
-const STATUS_CONFIG: Record<BadgeStatus, StatusConfig> = {
-  completed:       { label: 'Completed',       bg: 'rgba(21,128,61,0.12)',   textColor: () => colors.success        },
-  in_progress:     { label: 'In Progress',     bg: 'rgba(37,99,235,0.12)',   textColor: () => colors.accent         },
-  review_required: { label: 'Review Required', bg: 'rgba(180,83,9,0.12)',    textColor: () => colors.warning        },
-  blocked:         { label: 'Blocked',         bg: 'rgba(215,34,34,0.12)',   textColor: () => colors.destructive    },
-  not_started:     { label: 'Not Started',     bg: 'rgba(158,158,158,0.12)', textColor: () => colors.mutedForeground },
-  not_included:    { label: 'Not Included',    bg: 'rgba(158,158,158,0.12)', textColor: () => colors.mutedForeground },
+// Same pill treatment as the mapping table's "AI suggestion" badge — outline
+// Badge with tint classes per status instead of hardcoded rgba values, so
+// dark mode works.
+const STATUS_CONFIG: Record<BadgeStatus, { label: string; pill: string }> = {
+  completed:       { label: 'Completed',       pill: 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30' },
+  in_progress:     { label: 'In Progress',     pill: 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30' },
+  review_required: { label: 'Review Required', pill: 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30' },
+  blocked:         { label: 'Blocked',         pill: 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30' },
+  not_started:     { label: 'Not Started',     pill: 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-900/30' },
+  not_included:    { label: 'Not Included',    pill: 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-900/30' },
 };
 
 interface StatusBadgeProps {
@@ -28,27 +26,14 @@ interface StatusBadgeProps {
 export const StatusBadge = ({ status, testID }: StatusBadgeProps): React.JSX.Element => {
   const config = STATUS_CONFIG[status];
   return (
-    <View
-      style={{
-        alignSelf: 'flex-start',
-        backgroundColor: config.bg,
-        borderRadius: 99,
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-      }}
+    <Badge
+      variant="outline"
+      className={cn('self-center px-1.5 py-0.5', config.pill)}
       testID={testID}
     >
-      <Text
-        style={{
-          fontSize: 11,
-          fontWeight: '600',
-          color: config.textColor(),
-          letterSpacing: 0.1,
-        }}
-        numberOfLines={1}
-      >
+      <Text className={cn('font-body text-base font-medium', config.pill)} numberOfLines={1}>
         {config.label}
       </Text>
-    </View>
+    </Badge>
   );
 };
