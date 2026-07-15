@@ -87,14 +87,12 @@ const openWorkstream = useOpenWorkstream(projectId);
               style={
                 isNarrow
                   ? { borderTopWidth: 1, borderTopColor: colors.border }
-                  : { width: 280, borderLeftWidth: 1, borderLeftColor: colors.border }
+                  : { width: 360, borderLeftWidth: 1, borderLeftColor: colors.border }
               }
             >
               <ProjectSummaryPanel
                 project={project}
                 groups={overview.groups}
-                sourceDeployment={overview.sourceDeployment}
-                targetDeployment={overview.targetDeployment}
                 testID="project-overview-summary-panel"
               />
             </View>
