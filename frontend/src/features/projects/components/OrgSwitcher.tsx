@@ -38,7 +38,7 @@ interface OrgSwitcherProps {
 function SectionHeader({ label }: { label: string }): React.JSX.Element {
   return (
     <View className="px-4 pt-3 pb-1.5">
-      <Text className="font-body text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+      <Text className="font-body text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </Text>
     </View>

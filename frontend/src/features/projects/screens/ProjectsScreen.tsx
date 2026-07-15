@@ -230,7 +230,7 @@ export const ProjectsScreen = (): React.JSX.Element => {
     <Screen testID="projects-screen">
       {/* Page header */}
       <View className="pt-5 pb-2">
-        <Text className="font-heading text-xl font-bold text-foreground">
+        <Text className="font-heading text-2xl font-bold text-foreground">
           Dashboard
         </Text>
         <Text className="font-body text-xs text-muted-foreground mt-0.5">

@@ -1,7 +1,6 @@
 import React from 'react';
-import { View, Text, useWindowDimensions } from 'react-native';
+import { View, Text } from 'react-native';
 import { Skeleton } from '@/shared/components/ui/Skeleton';
-import { colors } from '@/config/theme';
 
 export type StatTone = 'default' | 'success' | 'info' | 'warning' | 'danger' | 'muted';
 
@@ -14,16 +13,15 @@ interface StatCardProps {
   readonly testID?: string;
 }
 
-function countColor(tone: StatTone): string {
-  switch (tone) {
-    case 'success': return colors.success;
-    case 'info':    return colors.accent;
-    case 'warning': return colors.warning;
-    case 'danger':  return colors.destructive;
-    case 'muted':   return colors.mutedForeground;
-    default:        return colors.foreground;
-  }
-}
+// Count colors per tone — darker green/blue for legibility at 2xl size.
+const TONE_TEXT_CLASS: Record<StatTone, string> = {
+  default: 'text-foreground',
+  success: 'text-green-800 dark:text-green-400',
+  info:    'text-blue-800 dark:text-blue-400',
+  warning: 'text-yellow-600 dark:text-yellow-400',
+  danger:  'text-amber-900 dark:text-amber-500',
+  muted:   'text-muted-foreground',
+};
 
 export const StatCard = ({
   value,
@@ -33,48 +31,34 @@ export const StatCard = ({
   isLoading = false,
   testID,
 }: StatCardProps): React.JSX.Element => {
-  const { width } = useWindowDimensions();
-
-  const valueFontSize  = width >= 1100 ? 22 : width >= 768 ? 20 : 16;
-  const labelFontSize  = width >= 1100 ? 10 : 9;
-  const subFontSize    = width >= 1100 ? 11 : 10;
-
   return (
     <View
       className="rounded-lg border border-border bg-card"
       style={{ padding: 14, gap: 4, flex: 1 }}
       testID={testID}
     >
-      <Text
-        style={{
-          fontSize: labelFontSize,
-          fontWeight: '700',
-          letterSpacing: 0.8,
-          textTransform: 'uppercase',
-          color: colors.mutedForeground,
-        }}
-        numberOfLines={1}
-      >
-        {label}
-      </Text>
-
-      {isLoading ? (
-        <Skeleton height={valueFontSize + 6} width={48} borderRadius={4} />
-      ) : (
+      {/* Title left, count right on the same row */}
+      <View className="flex-row items-center justify-between gap-2">
         <Text
-          className="font-heading"
-          style={{ fontSize: valueFontSize, fontWeight: '500', lineHeight: valueFontSize * 1.2, color: countColor(tone) }}
+          className="font-heading text-base font-semibold text-card-foreground"
+          numberOfLines={1}
         >
-          {value}
+          {label}
         </Text>
-      )}
+
+        {isLoading ? (
+          <Skeleton height={30} width={48} borderRadius={4} />
+        ) : (
+          <Text
+            className={`font-heading text-3xl font-medium ${TONE_TEXT_CLASS[tone]}`}
+          >
+            {value}
+          </Text>
+        )}
+      </View>
 
       {subtitle !== undefined && (
-        <Text
-          className="font-body text-muted-foreground"
-          style={{ fontSize: subFontSize, lineHeight: subFontSize * 1.4 }}
-          numberOfLines={2}
-        >
+        <Text className="font-body text-sm text-muted-foreground" numberOfLines={2}>
           {subtitle}
         </Text>
       )}
