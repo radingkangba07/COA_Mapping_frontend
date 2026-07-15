@@ -1,0 +1,9 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: services/frontend/Dockerfile
+      args:
+        API_BASE_URL: ""
+        APP_ENV: demo
+    restart: unless-stopped

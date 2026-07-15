@@ -74,7 +74,6 @@ jobs:
             git fetch "$REPO" feat/erp-cascade-connection-methods
             git checkout -B feat/erp-cascade-connection-methods FETCH_HEAD
             git clean -fd
-            cd /opt/coa-migration/environments/demo
             docker compose -p coa-demo -f docker-compose.demo.yml build frontend
             docker compose -p coa-demo -f docker-compose.demo.yml up -d frontend
             docker restart coa-gateway-nginx
