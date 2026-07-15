@@ -53,7 +53,7 @@ const ErpCard = ({
       </Text>
 
       <View className="gap-1">
-        <Text className="font-body text-sm font-bold text-foreground">
+        <Text className="font-body text-sm font-medium text-foreground">
           Step 1: Select Vendor
         </Text>
         <Select
@@ -68,7 +68,7 @@ const ErpCard = ({
       </View>
 
       <View className="gap-1">
-        <Text className="font-body text-sm font-bold text-foreground">
+        <Text className="font-body text-sm font-medium text-foreground">
           Step 2: Select Product
         </Text>
         <Select
@@ -83,7 +83,7 @@ const ErpCard = ({
 
       <View className="gap-1">
         <View className="flex-row items-center gap-1">
-          <Text className="font-body text-sm font-bold text-foreground">
+          <Text className="font-body text-sm font-medium text-foreground">
             Step 3: Select Connection Method
           </Text>
           <Info size={14} color={colors.mutedForeground} />
