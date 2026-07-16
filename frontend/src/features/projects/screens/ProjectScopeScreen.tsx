@@ -82,8 +82,8 @@ export const ProjectScopeScreen = (): React.JSX.Element => {
                 className="flex-row items-center gap-1"
                 testID="project-scope-create-company-btn"
               >
-                <Plus size={14} color={colors.primary} />
-                <Text className="font-body text-xs font-medium text-primary">
+                <Plus size={16} color={colors.primary} />
+                <Text className="font-body text-base font-medium text-primary">
                   Click to add a New Company
                 </Text>
               </Pressable>
