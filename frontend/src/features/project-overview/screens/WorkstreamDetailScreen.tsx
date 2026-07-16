@@ -20,6 +20,7 @@ function findERP(value: string, systems: readonly ERPSystem[]): ERPSystem | unde
 }
 
 type ContextResp = {
+  status: string | null;
   current_stage: string | null;
   project: { source_system: string; target_system: string };
 };
@@ -58,7 +59,9 @@ export function WorkstreamDetailScreen(): React.JSX.Element {
         if (sourceERP) store.setSourceERP(sourceERP);
         if (targetERP) store.setTargetERP(targetERP);
 
-        const { step, screen } = stageToStep(data.current_stage);
+        const { step, screen } = data.status === 'completed'
+          ? { step: 4, screen: 'FinalPreview' }
+          : stageToStep(data.current_stage);
         // Mark all steps prior to the current one as complete so the stepper renders correctly.
         for (let i = 0; i < step; i++) {
           store.completeStep(i);
