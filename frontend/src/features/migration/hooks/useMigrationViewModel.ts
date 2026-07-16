@@ -190,6 +190,12 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
           .patch(`/api/v1/projects/${projectId}/workstreams/${workstreamId}`, { current_stage: 'Type Mapping' })
           .catch(() => {});
       }
+
+      // Persist file metadata and type mapping rows so they survive navigation
+      // away and back (e.g. tapping Projects, refreshing, or re-opening the
+      // workstream). Raw row arrays are intentionally excluded — they are large
+      // and not needed to render the Type Mapping screen.
+      useMigrationStore.getState().persistFileState();
     } finally {
       actions.setLoading(false);
     }

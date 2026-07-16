@@ -59,6 +59,11 @@ export function WorkstreamDetailScreen(): React.JSX.Element {
         // the stepper shows future stages as already complete.
         store.reset();
 
+        // Restore file metadata and type mapping rows from cache so that
+        // re-opening a workstream at the Type Mapping stage doesn't show an
+        // empty mapping table. Runs after reset so it's not wiped immediately.
+        await useMigrationStore.getState().hydrateFileState(workstreamId);
+
         const sourceERP = findERP(data.project.source_system, systems);
         const targetERP = findERP(data.project.target_system, systems);
 

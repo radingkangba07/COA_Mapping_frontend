@@ -106,6 +106,8 @@ interface MigrationActions {
   confirmAccountsByKeys: (level: ConfidenceLevel, keys: string[]) => void;
   resetBandConfirmation: (level: ConfidenceLevel) => void;
   hydrateConfirmation: () => Promise<void>;
+  persistFileState: () => void;
+  hydrateFileState: (workstreamId: string) => Promise<boolean>;
   deleteAccount: (sourceType: string, sourceName: string, suggestionId?: string) => void;
   restoreAccount: (deletedIdx: number) => void;
 
@@ -206,7 +208,17 @@ function clearDownstreamState(state: MigrationState, fromStep: number): void {
 
 // ─── Persistence helpers ─────────────────────────────────────────────────────
 
+const FILE_STATE_STORAGE_PREFIX = 'coa_migration_file_state';
 const CONFIRMATION_STORAGE_KEY = 'coa_migration_confirmation';
+
+interface PersistedFileState {
+  workstreamId: string;
+  sourceFile: UploadedFile | null;
+  targetFile: UploadedFile | null;
+  mappingFile: UploadedFile | null;
+  typeMappingRows: TypeMappingRow[];
+  targetTypes: string[];
+}
 
 interface PersistedConfirmation {
   projectId: string | null;
@@ -829,6 +841,41 @@ export const useMigrationStore = create<MigrationStore>()(
       set((state) => {
         state.confidenceFilter = filter;
       });
+    },
+
+    persistFileState: (): void => {
+      const s = useMigrationStore.getState();
+      if (!s.workstreamId || !s.sourceFile) return;
+      const data: PersistedFileState = {
+        workstreamId: s.workstreamId,
+        sourceFile: s.sourceFile,
+        targetFile: s.targetFile,
+        mappingFile: s.mappingFile,
+        typeMappingRows: s.typeMappingRows,
+        targetTypes: s.targetTypes,
+      };
+      storageService
+        .set(`${FILE_STATE_STORAGE_PREFIX}_${s.workstreamId}`, JSON.stringify(data))
+        .catch(() => {});
+    },
+
+    hydrateFileState: async (workstreamId: string): Promise<boolean> => {
+      try {
+        const raw = await storageService.get(`${FILE_STATE_STORAGE_PREFIX}_${workstreamId}`);
+        if (!raw) return false;
+        const saved = JSON.parse(raw) as Partial<PersistedFileState>;
+        if (saved.workstreamId !== workstreamId) return false;
+        set((state) => {
+          if (saved.sourceFile) state.sourceFile = castDraft(saved.sourceFile);
+          if (saved.targetFile) state.targetFile = castDraft(saved.targetFile);
+          if (saved.mappingFile) state.mappingFile = castDraft(saved.mappingFile);
+          if (saved.typeMappingRows?.length) state.typeMappingRows = saved.typeMappingRows;
+          if (saved.targetTypes?.length) state.targetTypes = saved.targetTypes;
+        });
+        return true;
+      } catch {
+        return false;
+      }
     },
 
     hydrateConfirmation: async (): Promise<void> => {
