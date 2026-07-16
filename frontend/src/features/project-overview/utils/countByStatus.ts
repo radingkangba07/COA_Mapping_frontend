@@ -46,6 +46,6 @@ export function countByStatus(workstreams: readonly Workstream[]): StatusCounts 
     reviewRequired,
     blocked,
     notStarted,
-    progressPercent: total === 0 ? 0 : Math.round((completed / total) * 100),
+    progressPercent: total === 0 ? 0 : Math.round(workstreams.reduce((sum, w) => sum + w.progress, 0) / total),
   };
 }

@@ -183,6 +183,13 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
       actions.completeStep(1);
       actions.setStep(2);
       syncStep(2);
+
+      const { workstreamId, projectId } = useMigrationStore.getState();
+      if (workstreamId && projectId) {
+        httpClient
+          .patch(`/api/v1/projects/${projectId}/workstreams/${workstreamId}`, { current_stage: 'Type Mapping' })
+          .catch(() => {});
+      }
     } finally {
       actions.setLoading(false);
     }

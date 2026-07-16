@@ -19,6 +19,19 @@ function findERP(value: string, systems: readonly ERPSystem[]): ERPSystem | unde
   );
 }
 
+type ContextResp = {
+  current_stage: string | null;
+  project: { source_system: string; target_system: string };
+};
+
+function stageToStep(currentStage: string | null): { step: number; screen: string } {
+  if (!currentStage || currentStage === 'Upload Files') return { step: 1, screen: 'Upload' };
+  if (currentStage === 'Type Mapping') return { step: 2, screen: 'Mapping' };
+  if (currentStage.startsWith('Account Mapping:')) return { step: 3, screen: 'Validation' };
+  if (currentStage === 'Preview & Export') return { step: 4, screen: 'FinalPreview' };
+  return { step: 1, screen: 'Upload' };
+}
+
 export function WorkstreamDetailScreen(): React.JSX.Element {
   const route = useRoute<RouteProp<ProjectsStackParamList, 'WorkstreamDetail'>>();
   const navigation = useNavigation();
@@ -28,8 +41,9 @@ export function WorkstreamDetailScreen(): React.JSX.Element {
     let cancelled = false;
 
     async function prepareAndNavigate(): Promise<void> {
+      let targetScreen = 'Upload';
+
       try {
-        type ContextResp = { project: { source_system: string; target_system: string } };
         const { data } = await httpClient.get<ContextResp>(
           `/api/v1/workstreams/${workstreamId}/context`,
         );
@@ -43,8 +57,16 @@ export function WorkstreamDetailScreen(): React.JSX.Element {
 
         if (sourceERP) store.setSourceERP(sourceERP);
         if (targetERP) store.setTargetERP(targetERP);
-        store.setStep(1);
+
+        const { step, screen } = stageToStep(data.current_stage);
+        // Mark all steps prior to the current one as complete so the stepper renders correctly.
+        for (let i = 0; i < step; i++) {
+          store.completeStep(i);
+        }
+        store.setStep(step);
         store.setProjectId(projectId);
+        store.setWorkstreamId(workstreamId);
+        targetScreen = screen;
       } catch {
         // Context fetch failed — UploadScreen will hydrate from the project API
       }
@@ -52,13 +74,13 @@ export function WorkstreamDetailScreen(): React.JSX.Element {
       if (cancelled) return;
 
       // Pop WorkstreamDetail from ProjectsStack so that when the user presses
-      // Back on the Upload screen, ProjectsTab restores to ProjectOverview.
+      // Back on the target screen, ProjectsTab restores to ProjectOverview.
       navigation.dispatch(StackActions.pop());
 
-      // Switch to MigrationTab and push Upload onto its stack.
+      // Switch to MigrationTab and push the correct screen onto its stack.
       const tabNav = navigation.getParent<BottomTabNavigationProp<AppTabsParamList>>();
       tabNav?.navigate('MigrationTab', {
-        screen: 'Upload',
+        screen: targetScreen as 'Upload',
         params: { projectId },
       });
     }

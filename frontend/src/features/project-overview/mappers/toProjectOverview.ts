@@ -39,6 +39,13 @@ function toProjectStatus(raw: string): ProjectStatus {
 
 // ─── Workstream mapping ──────────────────────────────────────────────────────
 
+function formatCurrentStage(raw: string | null | undefined): string {
+  if (!raw) return 'Not Started';
+  // Collapse "Account Mapping: Low/Medium/Strong Confidence" → "Account Mapping"
+  if (raw.startsWith('Account Mapping:')) return 'Account Mapping';
+  return raw;
+}
+
 function toWorkstream(dto: WorkstreamDTO): Workstream {
   const status = toWorkstreamStatus(dto.status);
   return {
@@ -47,7 +54,7 @@ function toWorkstream(dto: WorkstreamDTO): Workstream {
     projectId: dto.code,   // code displayed as project ID in the table column
     status,
     progress: Math.min(100, Math.max(0, dto.progress)),
-    currentStage: dto.current_stage ?? 'Not Started',
+    currentStage: formatCurrentStage(dto.current_stage),
     included: status !== 'not_included' && dto.included,
   };
 }

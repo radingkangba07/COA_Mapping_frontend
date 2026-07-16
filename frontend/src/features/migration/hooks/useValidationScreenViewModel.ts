@@ -402,6 +402,16 @@ export function useValidationScreenViewModel(
     actions.completeStep(3);
     actions.setStep(4);
     syncStep(4);
+
+    const { workstreamId, projectId: storedProjectId } = useMigrationStore.getState();
+    if (workstreamId && storedProjectId) {
+      httpClient
+        .patch(`/api/v1/projects/${storedProjectId}/workstreams/${workstreamId}`, {
+          current_stage: 'Preview & Export',
+        })
+        .catch(() => {});
+    }
+
     navigateForward(projectId);
   }, [actions, syncStep, navigateForward, projectId]);
 

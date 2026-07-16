@@ -197,6 +197,13 @@ export const MappingScreen = (): React.JSX.Element => {
           useMigrationStore.getState().completeStep(2);
           useMigrationStore.getState().setStep(3);
           syncStep(3);
+          const wsId = useMigrationStore.getState().workstreamId;
+          const pid = useMigrationStore.getState().projectId;
+          if (wsId && pid) {
+            httpClient
+              .patch(`/api/v1/projects/${pid}/workstreams/${wsId}`, { current_stage: 'Account Mapping: Low Confidence' })
+              .catch(() => {});
+          }
           navigation.navigate('Validation', { projectId });
         }
       })();
@@ -292,6 +299,12 @@ export const MappingScreen = (): React.JSX.Element => {
       useMigrationStore.getState().completeStep(2);
       useMigrationStore.getState().setStep(3);
       syncStep(3);
+      const wsId = useMigrationStore.getState().workstreamId;
+      if (wsId) {
+        httpClient
+          .patch(`/api/v1/projects/${projectId}/workstreams/${wsId}`, { current_stage: 'Account Mapping: Low Confidence' })
+          .catch(() => {});
+      }
       navigation.navigate('Validation', { projectId });
     }
   }, [navigation, projectId, showError, showSuccess, syncStep, pollJobStatus, accountTypeMappings]);
