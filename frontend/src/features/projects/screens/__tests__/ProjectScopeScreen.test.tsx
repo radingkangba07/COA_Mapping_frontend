@@ -104,6 +104,8 @@ const baseVM: ProjectScopeViewModel = {
     description: 'd',
     source: null,
     target: null,
+    sourceVendor: null,
+    targetVendor: null,
     method: 'mcp',
     sourceMethod: 'csv',
     targetMethod: 'csv',
