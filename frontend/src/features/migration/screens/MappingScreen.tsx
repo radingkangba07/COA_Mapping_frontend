@@ -267,6 +267,15 @@ export const MappingScreen = (): React.JSX.Element => {
     setIsProcessing(true);
     setProcessingMessage('Submitting mapping job...');
 
+    // Advance the workstream stage immediately on button click — Type Mapping is
+    // done the moment the user commits to proceeding, regardless of job duration.
+    const wsId = useMigrationStore.getState().workstreamId;
+    if (wsId) {
+      httpClient
+        .patch(`/api/v1/projects/${projectId}/workstreams/${wsId}`, { current_stage: 'Account Mapping: Low Confidence' })
+        .catch(() => {});
+    }
+
     let jobId = store.jobId;
 
     // Create the mapping job if one doesn't exist yet
@@ -299,12 +308,6 @@ export const MappingScreen = (): React.JSX.Element => {
       useMigrationStore.getState().completeStep(2);
       useMigrationStore.getState().setStep(3);
       syncStep(3);
-      const wsId = useMigrationStore.getState().workstreamId;
-      if (wsId) {
-        httpClient
-          .patch(`/api/v1/projects/${projectId}/workstreams/${wsId}`, { current_stage: 'Account Mapping: Low Confidence' })
-          .catch(() => {});
-      }
       navigation.navigate('Validation', { projectId });
     }
   }, [navigation, projectId, showError, showSuccess, syncStep, pollJobStatus, accountTypeMappings]);
