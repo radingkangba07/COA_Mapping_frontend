@@ -41,6 +41,7 @@ function toProjectStatus(raw: string): ProjectStatus {
 
 function formatCurrentStage(raw: string | null | undefined): string {
   if (!raw) return 'Not Started';
+  if (raw.startsWith('Account Mapping:')) return 'Account Mapping';
   return raw;
 }
 

@@ -65,7 +65,7 @@ interface ValidationScreenViewModel {
   readonly handleRestoreAccount: (deletedIndex: number) => void;
   readonly handleToggleDeleted: () => void;
   readonly handleBack: () => void;
-  readonly handleContinue: () => void;
+  readonly handleContinue: () => Promise<void>;
   readonly handleSaveMappings: () => Promise<boolean>;
   readonly hasUnsavedChanges: boolean;
   readonly isSaving: boolean;
@@ -344,6 +344,24 @@ export function useValidationScreenViewModel(
       actions.confirmAccountsByKeys(_level, keysToConfirm);
       const levelLabel = _level.charAt(0).toUpperCase() + _level.slice(1);
       showSuccess('Confirmed', `${levelLabel} accounts confirmed`);
+
+      // Advance the workstream sub-stage so progress % updates immediately.
+      // High → enters sub-stage 2 (+10%), Medium → enters sub-stage 3 (+10%),
+      // Low → advances to Preview & Export (+10% = 90%). The backend guard
+      // prevents regression if the user re-confirms an already-passed band.
+      const nextStage: Record<ConfidenceLevel, string> = {
+        high: 'Account Mapping: 2',
+        medium: 'Account Mapping: 3',
+        low: 'Preview & Export',
+      };
+      const { workstreamId: wsId, projectId: storedPid } = useMigrationStore.getState();
+      if (wsId && storedPid) {
+        httpClient
+          .patch(`/api/v1/projects/${storedPid}/workstreams/${wsId}`, {
+            current_stage: nextStage[_level],
+          })
+          .catch(() => {});
+      }
     }, [actions, showSuccess, selection, groupedMappings, confirmNoSelection]);
 
   const handleResetBand = useCallback(
@@ -398,7 +416,10 @@ export function useValidationScreenViewModel(
     navigateToFinalPreview(projectId);
   }, [navigateToFinalPreview, projectId]);
 
-  const handleContinue = useCallback((): void => {
+  const handleContinue = useCallback(async (): Promise<void> => {
+    const saved = await handleSaveMappings();
+    if (!saved) return;
+
     actions.completeStep(3);
     actions.setStep(4);
     syncStep(4);
@@ -413,7 +434,7 @@ export function useValidationScreenViewModel(
     }
 
     navigateForward(projectId);
-  }, [actions, syncStep, navigateForward, projectId]);
+  }, [actions, syncStep, navigateForward, projectId, handleSaveMappings]);
 
   return {
     currentStep, completedSteps, sourceFile, sourceERP, targetERP, confidenceFilter,

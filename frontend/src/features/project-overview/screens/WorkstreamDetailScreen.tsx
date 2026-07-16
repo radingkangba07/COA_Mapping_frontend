@@ -28,7 +28,7 @@ type ContextResp = {
 function stageToStep(currentStage: string | null): { step: number; screen: string } {
   if (!currentStage || currentStage === 'Upload Files') return { step: 1, screen: 'Upload' };
   if (currentStage === 'Type Mapping') return { step: 2, screen: 'Mapping' };
-  if (currentStage === 'Account Mapping') return { step: 3, screen: 'Validation' };
+  if (currentStage.startsWith('Account Mapping:')) return { step: 3, screen: 'Validation' };
   if (currentStage === 'Preview & Export') return { step: 4, screen: 'FinalPreview' };
   return { step: 1, screen: 'Upload' };
 }
@@ -53,6 +53,12 @@ export function WorkstreamDetailScreen(): React.JSX.Element {
 
         const systems = useERPConfigStore.getState().erpSystems;
         const store = useMigrationStore.getState();
+
+        // Reset stale completedSteps before setting fresh ones — completeStep
+        // only ever adds, so without a reset a prior session's steps persist and
+        // the stepper shows future stages as already complete.
+        store.reset();
+
         const sourceERP = findERP(data.project.source_system, systems);
         const targetERP = findERP(data.project.target_system, systems);
 
@@ -62,7 +68,6 @@ export function WorkstreamDetailScreen(): React.JSX.Element {
         const { step, screen } = data.status === 'completed'
           ? { step: 4, screen: 'FinalPreview' }
           : stageToStep(data.current_stage);
-        // Mark all steps prior to the current one as complete so the stepper renders correctly.
         for (let i = 0; i < step; i++) {
           store.completeStep(i);
         }
