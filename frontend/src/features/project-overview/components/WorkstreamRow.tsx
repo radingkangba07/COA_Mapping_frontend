@@ -44,7 +44,7 @@ interface WorkstreamRowProps {
 
 const CellText = ({ children, muted = false }: { children: React.ReactNode; muted?: boolean }): React.JSX.Element => (
   <Text
-    className={`text-center font-body text-base font-medium ${muted ? 'text-muted-foreground' : 'text-foreground'}`}
+    className={`text-center font-body text-base ${muted ? 'text-muted-foreground' : 'text-foreground'}`}
     numberOfLines={1}
   >
     {children}
@@ -69,12 +69,12 @@ export const WorkstreamRow = ({
     return (
       <View className="border-t border-border" style={rowBase} testID={testID}>
         <View style={{ flex: colFlex.name }}>
-          <Text className="text-center font-body text-base font-medium text-muted-foreground" numberOfLines={1}>
+          <Text className="text-center font-body text-base text-muted-foreground" numberOfLines={1}>
             {w.name}
           </Text>
         </View>
         <View style={{ flex: colFlex.projectId }}>
-          <Text className="text-center font-body text-base font-medium text-muted-foreground" numberOfLines={1}>
+          <Text className="text-center font-body text-base text-muted-foreground" numberOfLines={1}>
             {w.projectId}
           </Text>
         </View>
@@ -85,12 +85,12 @@ export const WorkstreamRow = ({
           <CellText muted>—</CellText>
         </View>
         <View style={{ flex: colFlex.currentStage, paddingLeft: 8 }}>
-          <Text className="text-center font-body text-base font-medium text-muted-foreground" numberOfLines={1}>
+          <Text className="text-center font-body text-base text-muted-foreground" numberOfLines={1}>
             —
           </Text>
         </View>
         <View style={{ flex: colFlex.action }}>
-          <Text className="text-center font-body text-base font-medium text-muted-foreground" numberOfLines={1}>
+          <Text className="text-center font-body text-base text-muted-foreground" numberOfLines={1}>
             Not Included
           </Text>
         </View>
@@ -101,12 +101,12 @@ export const WorkstreamRow = ({
   const sharedCells = (
     <>
       <View style={{ flex: colFlex.name }}>
-        <Text className="text-center font-body text-base font-medium text-foreground" numberOfLines={1}>
+        <Text className="text-center font-body text-base text-foreground" numberOfLines={1}>
           {w.name}
         </Text>
       </View>
       <View style={{ flex: colFlex.projectId }}>
-        <Text className="text-center font-body text-base font-medium text-foreground" numberOfLines={1}>
+        <Text className="text-center font-body text-base text-foreground" numberOfLines={1}>
           {w.projectId}
         </Text>
       </View>
@@ -123,7 +123,7 @@ export const WorkstreamRow = ({
           paddingRight: 16,
         }}
       >
-        <Text className="text-center font-body text-base font-medium text-primary" numberOfLines={1}>
+        <Text className="text-center font-body text-base text-primary" numberOfLines={1}>
           {w.progress}%
         </Text>
         <View style={{ flex: 1, maxWidth: 260 }}>
@@ -131,7 +131,7 @@ export const WorkstreamRow = ({
         </View>
       </View>
       <View style={{ flex: colFlex.currentStage, paddingLeft: 8 }}>
-        <Text className="text-center font-body text-base font-medium text-foreground" numberOfLines={1}>
+        <Text className="text-center font-body text-base text-foreground" numberOfLines={1}>
           {w.currentStage}
         </Text>
       </View>
@@ -150,7 +150,7 @@ export const WorkstreamRow = ({
         >
           {sharedCells}
           <View style={{ flex: colFlex.action }}>
-            <Text className="text-center font-body text-base font-medium text-accent" numberOfLines={1}>
+            <Text className="text-center font-body text-base text-accent" numberOfLines={1}>
               Open
             </Text>
           </View>
@@ -163,7 +163,7 @@ export const WorkstreamRow = ({
     <View className="border-t border-border" style={rowBase} testID={testID}>
       {sharedCells}
       <View style={{ flex: colFlex.action }}>
-        <Text className="text-center font-body text-base font-medium text-muted-foreground" numberOfLines={1}>—</Text>
+        <Text className="text-center font-body text-base text-muted-foreground" numberOfLines={1}>—</Text>
       </View>
     </View>
   );

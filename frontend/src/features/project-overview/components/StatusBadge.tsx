@@ -31,7 +31,7 @@ export const StatusBadge = ({ status, testID }: StatusBadgeProps): React.JSX.Ele
       className={cn('self-center px-1.5 py-0.5', config.pill)}
       testID={testID}
     >
-      <Text className={cn('font-body text-base font-medium', config.pill)} numberOfLines={1}>
+      <Text className={cn('font-body text-sm', config.pill)} numberOfLines={1}>
         {config.label}
       </Text>
     </Badge>

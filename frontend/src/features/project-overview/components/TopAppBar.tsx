@@ -44,13 +44,13 @@ export const TopAppBar = ({
       {/* Row 1: Projects › Project Name  [Status]  ✏️ */}
       <View className="flex-row items-center" style={{ gap: 8 }}>
         <Pressable onPress={onBack} testID="topbar-back">
-          <Text className="font-heading text-3xl font-bold text-foreground">
+          <Text className="font-heading text-2xl font-bold text-foreground">
             {parentLabel}
           </Text>
         </Pressable>
         <ChevronRight size={14} color={colors.mutedForeground} />
         <Text
-          className="font-heading text-3xl font-bold text-foreground"
+          className="font-heading text-2xl font-bold text-foreground"
           numberOfLines={1}
         >
           {currentLabel}
