@@ -41,8 +41,6 @@ function toProjectStatus(raw: string): ProjectStatus {
 
 function formatCurrentStage(raw: string | null | undefined): string {
   if (!raw) return 'Not Started';
-  // Collapse "Account Mapping: Low/Medium/Strong Confidence" → "Account Mapping"
-  if (raw.startsWith('Account Mapping:')) return 'Account Mapping';
   return raw;
 }
 

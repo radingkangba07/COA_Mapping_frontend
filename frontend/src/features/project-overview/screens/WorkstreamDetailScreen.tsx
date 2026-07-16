@@ -27,7 +27,7 @@ type ContextResp = {
 function stageToStep(currentStage: string | null): { step: number; screen: string } {
   if (!currentStage || currentStage === 'Upload Files') return { step: 1, screen: 'Upload' };
   if (currentStage === 'Type Mapping') return { step: 2, screen: 'Mapping' };
-  if (currentStage.startsWith('Account Mapping:')) return { step: 3, screen: 'Validation' };
+  if (currentStage === 'Account Mapping') return { step: 3, screen: 'Validation' };
   if (currentStage === 'Preview & Export') return { step: 4, screen: 'FinalPreview' };
   return { step: 1, screen: 'Upload' };
 }

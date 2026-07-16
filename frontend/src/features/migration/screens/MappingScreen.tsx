@@ -201,7 +201,7 @@ export const MappingScreen = (): React.JSX.Element => {
           const pid = useMigrationStore.getState().projectId;
           if (wsId && pid) {
             httpClient
-              .patch(`/api/v1/projects/${pid}/workstreams/${wsId}`, { current_stage: 'Account Mapping: Low Confidence' })
+              .patch(`/api/v1/projects/${pid}/workstreams/${wsId}`, { current_stage: 'Account Mapping' })
               .catch(() => {});
           }
           navigation.navigate('Validation', { projectId });
@@ -272,7 +272,7 @@ export const MappingScreen = (): React.JSX.Element => {
     const wsId = useMigrationStore.getState().workstreamId;
     if (wsId) {
       httpClient
-        .patch(`/api/v1/projects/${projectId}/workstreams/${wsId}`, { current_stage: 'Account Mapping: Low Confidence' })
+        .patch(`/api/v1/projects/${projectId}/workstreams/${wsId}`, { current_stage: 'Account Mapping' })
         .catch(() => {});
     }
 
