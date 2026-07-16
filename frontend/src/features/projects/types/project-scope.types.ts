@@ -73,6 +73,8 @@ export interface ProjectScopeDraft {
   readonly description: string; // from modal
   readonly source: string | null; // source ERP id
   readonly target: string | null; // target ERP id
+  readonly sourceVendor: string | null; // vendor selected for source (UI only, not sent to API)
+  readonly targetVendor: string | null; // vendor selected for target (UI only, not sent to API)
   // LEGACY single method — retained ONLY for the untouchable features/migration
   // consumer (UploadScreen / useFetchFromErp). The PER-SIDE methods below are the
   // source of truth for the Project Scope page + Create gate.
@@ -112,6 +114,8 @@ export interface ProjectScopeActions {
   setDescription: (description: string) => void;
   setSource: (erpId: string | null) => void;
   setTarget: (erpId: string | null) => void;
+  setSourceVendor: (vendor: string | null) => void;
+  setTargetVendor: (vendor: string | null) => void;
   // LEGACY — retained for features/migration's useCsvFallback. Sets only the
   // legacy `method` field; per-side setters below drive the page.
   setMethod: (method: ConnectionMethod) => void;
