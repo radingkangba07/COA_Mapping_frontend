@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMigrationStore } from '../store/migration.store';
@@ -80,7 +80,8 @@ interface ValidationScreenViewModel {
   readonly handleToggleMaster: (checked: boolean) => void;
   readonly handleBulkDelete: () => void;
   readonly handleClearSelection: () => void;
-  readonly handleReviewSave: () => void;
+  readonly handleReviewSave: () => Promise<void>;
+  readonly hasMappingsSaved: boolean;
   // ─── No-selection confirm guard ──────────────────────────────────────────
   readonly noSelectionDialogVisible: boolean;
   readonly noSelectionDialogOptions: { title: string; message: string; confirmText?: string; cancelText?: string } | null;
@@ -233,6 +234,14 @@ export function useValidationScreenViewModel(
   const queryClient = useQueryClient();
   const [isDeletedOpen, setIsDeletedOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [hasMappingsSaved, setHasMappingsSaved] = useState(false);
+
+  // Reset the saved flag whenever the user makes new edits after a save so
+  // the Continue button re-locks and the banner clears.
+  useEffect(() => {
+    if (hasUnsavedChanges) setHasMappingsSaved(false);
+  }, [hasUnsavedChanges]);
+
   const invalidateSuggestions = useCallback((): void => {
     void queryClient.invalidateQueries({
       queryKey: ['mapping-suggestions', projectId],
@@ -329,38 +338,46 @@ export function useValidationScreenViewModel(
         }
       }
 
+      const levelLabel = _level.charAt(0).toUpperCase() + _level.slice(1);
+
       if (inBandKeys.length === 0) {
-        const levelLabel = _level.charAt(0).toUpperCase() + _level.slice(1);
+        // No accounts in this band — show the dialog so the user is aware,
+        // then fall through to still advance the sub-stage. Skipping the
+        // advance here would cause the next band's confirm to bridge two
+        // sub-stages at once, producing a 20% jump instead of 10%.
         await confirmNoSelection({
           title: 'No Accounts to Confirm',
           message: `There are no ${levelLabel.toLowerCase()} score accounts to confirm.`,
         });
-        return;
+        // No accounts to mark — the allConfirmed selector already treats
+        // an empty band as implicitly confirmed, so no store action needed.
+      } else {
+        // No rows checked → treat it as "confirm all" for this band.
+        // Otherwise confirm exactly what's checked.
+        const keysToConfirm = hasInBandSelection ? selectedKeys : inBandKeys;
+        actions.confirmAccountsByKeys(_level, keysToConfirm);
       }
 
-      // No rows checked → treat it as "confirm all" for this band.
-      // Otherwise confirm exactly what's checked.
-      const keysToConfirm = hasInBandSelection ? selectedKeys : inBandKeys;
-      actions.confirmAccountsByKeys(_level, keysToConfirm);
-      const levelLabel = _level.charAt(0).toUpperCase() + _level.slice(1);
       showSuccess('Confirmed', `${levelLabel} accounts confirmed`);
 
       // Advance the workstream sub-stage so progress % updates immediately.
-      // High → enters sub-stage 2 (+10%), Medium → enters sub-stage 3 (+10%),
-      // Low → advances to Preview & Export (+10% = 90%). The backend guard
-      // prevents regression if the user re-confirms an already-passed band.
-      const nextStage: Record<ConfidenceLevel, string> = {
+      // High → enters sub-stage 2 (+10%), Medium → enters sub-stage 3 (+10%).
+      // Low confirm intentionally does NOT advance to Preview & Export — the
+      // Continue button handles that final transition.
+      const nextStage: Partial<Record<ConfidenceLevel, string>> = {
         high: 'Account Mapping: 2',
         medium: 'Account Mapping: 3',
-        low: 'Preview & Export',
       };
-      const { workstreamId: wsId, projectId: storedPid } = useMigrationStore.getState();
-      if (wsId && storedPid) {
-        httpClient
-          .patch(`/api/v1/projects/${storedPid}/workstreams/${wsId}`, {
-            current_stage: nextStage[_level],
-          })
-          .catch(() => {});
+      const stage = nextStage[_level];
+      if (stage) {
+        const { workstreamId: wsId, projectId: storedPid } = useMigrationStore.getState();
+        if (wsId && storedPid) {
+          httpClient
+            .patch(`/api/v1/projects/${storedPid}/workstreams/${wsId}`, {
+              current_stage: stage,
+            })
+            .catch(() => {});
+        }
       }
     }, [actions, showSuccess, selection, groupedMappings, confirmNoSelection]);
 
@@ -395,7 +412,7 @@ export function useValidationScreenViewModel(
     const dtos = toMappingCreateDTOs(projectId, store.groupedMappings);
     if (dtos.length === 0) {
       setIsSaving(false);
-      // Quiet no-op — used by handleContinue's auto-save on a clean state.
+      setHasMappingsSaved(true);
       return true;
     }
     const result = await saveMappings(httpClient, projectId, dtos);
@@ -405,6 +422,7 @@ export function useValidationScreenViewModel(
       showSuccess('Mappings saved', `${inserted} inserted, ${updated} updated`);
       invalidateSuggestions();
       setIsSaving(false);
+      setHasMappingsSaved(true);
       return true;
     }
     showError('Save failed', result.error.message);
@@ -412,13 +430,15 @@ export function useValidationScreenViewModel(
     return false;
   }, [projectId, actions, showSuccess, showError, invalidateSuggestions]);
 
-  const handleReviewSave = useCallback((): void => {
-    navigateToFinalPreview(projectId);
-  }, [navigateToFinalPreview, projectId]);
+  const handleReviewSave = useCallback(async (): Promise<void> => {
+    await handleSaveMappings();
+  }, [handleSaveMappings]);
 
   const handleContinue = useCallback(async (): Promise<void> => {
-    const saved = await handleSaveMappings();
-    if (!saved) return;
+    if (groupedMappings.length > 0 && !hasMappingsSaved) {
+      showError('Save required', 'Please save your account mappings before continuing to export.');
+      return;
+    }
 
     actions.completeStep(3);
     actions.setStep(4);
@@ -434,7 +454,7 @@ export function useValidationScreenViewModel(
     }
 
     navigateForward(projectId);
-  }, [actions, syncStep, navigateForward, projectId, handleSaveMappings]);
+  }, [actions, syncStep, navigateForward, projectId, groupedMappings.length, hasMappingsSaved, showError]);
 
   return {
     currentStep, completedSteps, sourceFile, sourceERP, targetERP, confidenceFilter,
@@ -443,7 +463,7 @@ export function useValidationScreenViewModel(
     isDeletedOpen, handleStepPress, handleFilterPress, handleConfirm, handleResetBand, handleTypeChange,
     handleAccountNameChange, handleDeleteAccount, handleRestoreAccount,
     handleToggleDeleted, handleBack, handleContinue, handleSaveMappings,
-    hasUnsavedChanges, isSaving,
+    hasUnsavedChanges, isSaving, hasMappingsSaved,
     selection, lockedKeys, isMasterLocked, masterTriState, selectedCount,
     handleToggleRow, handleToggleGroup, handleToggleMaster,
     handleBulkDelete, handleClearSelection, handleReviewSave,

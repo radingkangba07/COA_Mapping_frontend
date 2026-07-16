@@ -304,6 +304,19 @@ export const ValidationScreen = (): React.JSX.Element => {
           </View>
         </View>
 
+        {/* Mappings saved banner */}
+        {vm.hasMappingsSaved && (
+          <Card className="mt-4 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20" testID="mappings-saved-banner">
+            <Card.Content className="py-3 flex-row items-center gap-3">
+              <CheckCircle2 size={20} color="#16A34A" />
+              <View className="flex-1">
+                <Text className="font-heading text-sm font-semibold text-foreground">Mappings Saved</Text>
+                <Text className="font-body text-xs text-muted-foreground mt-0.5">Your account mappings have been saved successfully.</Text>
+              </View>
+            </Card.Content>
+          </Card>
+        )}
+
         {/* Stats filter cards */}
         <MappingStatsBar
           totalAccounts={vm.stats.totalAccounts}
@@ -567,7 +580,7 @@ export const ValidationScreen = (): React.JSX.Element => {
               <Text className="text-sm font-medium text-foreground">Save Mapping</Text>
             </View>
           </Button>
-          <Button onPress={vm.handleContinue} disabled={!vm.allConfirmed || vm.isSaving} isLoading={vm.isSaving} accessibilityLabel="Continue to export" testID="continue-button">
+          <Button onPress={vm.handleContinue} disabled={!vm.allConfirmed || vm.isSaving || (vm.stats.totalAccounts > 0 && !vm.hasMappingsSaved)} isLoading={vm.isSaving} accessibilityLabel="Continue to export" testID="continue-button">
             <View className="flex-row items-center gap-2">
               <Text className="text-sm font-medium text-primary-foreground">Continue to Export</Text>
               <ArrowRight size={ICON_SIZE} color={colors.primaryForeground} />

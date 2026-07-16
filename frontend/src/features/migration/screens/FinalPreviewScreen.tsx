@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -23,6 +23,7 @@ import { useSaveMappings } from '../hooks/useSaveMappings';
 import { useMigrationStore } from '../store/migration.store';
 import { useShallow } from 'zustand/react/shallow';
 import { selectMappingStats } from '../store/migration.selectors';
+import { httpClient } from '@/shared/services/http/http.instance';
 import { useMigrationScreenRoute } from '@/navigation/types';
 import { createProjectId } from '@/shared/types/common.types';
 import { cn } from '@/shared/utils/string.utils';
@@ -70,29 +71,63 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
   const stats = useMigrationStore(useShallow(selectMappingStats));
   const { save, isSaving } = useSaveMappings(projectId);
 
-  const rows = useMemo((): readonly PreviewRow[] =>
-    groupedMappings.flatMap((group) =>
-      group.accounts
-        .filter((account) => account.is_active !== false && (account as { status?: string }).status === 'confirmed')
-        .map((account, idx) => ({
-          key: `${group.source_type}-${account.source_number}-${idx}`,
-          sourceNumber: account.source_number,
-          sourceName: account.source_name,
-          sourceType: group.source_type,
-          targetNumber: account.target_number,
-          targetName: account.target_name,
-          targetType: group.target_type,
-          score: Math.round(account.score),
-        })),
-    ),
-  [groupedMappings]);
+  // When the user navigates back via WorkstreamDetailScreen, the store is
+  // reset and groupedMappings is empty. Fetch saved mappings from the DB so
+  // the preview table is always populated, regardless of navigation path.
+  interface ApiAccount { source_number: string; source_name: string; target_name: string; score: number; }
+  interface ApiGroup { source_type: string; target_type: string; accounts: ApiAccount[]; }
+  const [apiRows, setApiRows] = useState<readonly PreviewRow[] | null>(null);
+  useEffect(() => {
+    if (isHydrating || groupedMappings.length > 0 || apiRows !== null) return;
+    httpClient.get<ApiGroup[]>(`/api/v1/mappings/project/${projectId}?limit=100`)
+      .then(({ data }) => {
+        setApiRows(data.flatMap((group) =>
+          group.accounts.map((account, idx) => ({
+            key: `${group.source_type}-${account.source_number}-${idx}`,
+            sourceNumber: account.source_number,
+            sourceName: account.source_name,
+            sourceType: group.source_type,
+            targetNumber: null,
+            targetName: account.target_name,
+            targetType: group.target_type,
+            score: Math.round(account.score),
+          }))
+        ));
+      })
+      .catch(() => { setApiRows([]); });
+  }, [isHydrating, groupedMappings.length, projectId, apiRows]);
+
+  const rows = useMemo((): readonly PreviewRow[] => {
+    // Prefer in-memory grouped mappings (direct navigation from ValidationScreen).
+    if (groupedMappings.length > 0) {
+      return groupedMappings.flatMap((group) =>
+        group.accounts
+          .filter((account) => account.is_active !== false && (account as { status?: string }).status === 'confirmed')
+          .map((account, idx) => ({
+            key: `${group.source_type}-${account.source_number}-${idx}`,
+            sourceNumber: account.source_number,
+            sourceName: account.source_name,
+            sourceType: group.source_type,
+            targetNumber: account.target_number,
+            targetName: account.target_name,
+            targetType: group.target_type,
+            score: Math.round(account.score),
+          })),
+      );
+    }
+    // Fallback: DB-fetched rows — all are confirmed (they were explicitly saved).
+    return apiRows ?? [];
+  }, [groupedMappings, apiRows]);
 
   const confirmedCount = rows.length;
+  // When loading from DB, all rows are saved = confirmed. notConfirmed only
+  // applies to the in-memory path where unconfirmed accounts may still exist.
   const notConfirmedCount = useMemo(
-    () =>
-      groupedMappings.flatMap((g) => g.accounts).filter(
-        (a) => a.is_active !== false && (a as { status?: string }).status !== 'confirmed',
-      ).length,
+    () => groupedMappings.length > 0
+      ? groupedMappings.flatMap((g) => g.accounts).filter(
+          (a) => a.is_active !== false && (a as { status?: string }).status !== 'confirmed',
+        ).length
+      : 0,
     [groupedMappings],
   );
 
