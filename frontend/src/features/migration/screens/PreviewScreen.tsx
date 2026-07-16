@@ -13,6 +13,7 @@ import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorF
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
 import { ExportFormatPicker } from '@/features/export/components/ExportFormatPicker';
 import { useExportViewModel } from '@/features/export/hooks/useExportViewModel';
+import { httpClient } from '@/shared/services/http/http.instance';
 import { usePreviewScreenViewModel } from '../hooks/usePreviewScreenViewModel';
 import { useMigrationStore } from '../store/migration.store';
 import { MIGRATION_STEPS } from '@/shared/constants/migration-steps';
@@ -113,6 +114,12 @@ export const PreviewScreen = (): React.JSX.Element => {
     const success = await markComplete();
     if (success) {
       completeStep(MIGRATION_STEPS.FINAL_PREVIEW);
+      const { workstreamId, projectId: storedPid } = useMigrationStore.getState();
+      if (workstreamId && storedPid) {
+        httpClient
+          .patch(`/api/v1/projects/${storedPid}/workstreams/${workstreamId}`, { status: 'completed' })
+          .catch(() => {});
+      }
     }
   }, [markComplete, completeStep]);
 
