@@ -16,6 +16,12 @@
         "APP_ENV": "staging"
       }
     },
+    "demo": {
+      "distribution": "internal",
+      "env": {
+        "APP_ENV": "demo"
+      }
+    },
     "production": {
       "env": {
         "APP_ENV": "production"
