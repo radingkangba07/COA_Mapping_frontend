@@ -45,7 +45,7 @@ jobs:
         run: npm test -- --ci --coverage
 
   deploy:
-    name: Deploy to demo
+    name: Deploy to Demo
     needs: test
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -61,13 +61,8 @@ jobs:
           envs: GH_TOKEN
           script: |
             set -e
-            REPO="https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
-            cd /opt/coa-migration/environments/demo/frontend
-            git config --global --add safe.directory /opt/coa-migration/environments/demo/frontend
-            git fetch "$REPO" demo
             git checkout -B demo FETCH_HEAD
             git clean -fd
-            cd /opt/coa-migration/environments/demo
             docker compose -p coa-demo -f docker-compose.demo.yml build frontend
             docker compose -p coa-demo -f docker-compose.demo.yml up -d frontend
             docker restart coa-gateway-nginx
