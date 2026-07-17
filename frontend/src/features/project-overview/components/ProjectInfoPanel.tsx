@@ -58,7 +58,7 @@ const SectionLabel = ({
 );
 
 const PanelDivider = (): React.JSX.Element => (
-  <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 2 }} />
+  <View className="bg-border" style={{ height: 1, marginVertical: 2 }} />
 );
 
 const MetaBlock = ({
@@ -137,7 +137,7 @@ export const ProjectInfoPanel = ({
       testID={testID}
     >
       {/* ── Project title + creator ──────────────────────── */}
-      <View style={{ padding: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+      <View className="border-b border-border" style={{ padding: 14 }}>
         <Text
           style={{ fontSize: 14, fontWeight: '700', color: colors.foreground, lineHeight: 20 }}
           numberOfLines={2}
@@ -155,6 +155,7 @@ export const ProjectInfoPanel = ({
       {/* ── Members button ───────────────────────────────── */}
       <Pressable
         onPress={onMembersPress}
+        className="border border-border"
         style={({ pressed }) => ({
           flexDirection: 'row',
           alignItems: 'center',
@@ -165,8 +166,6 @@ export const ProjectInfoPanel = ({
           paddingVertical: 8,
           paddingHorizontal: 12,
           borderRadius: 8,
-          borderWidth: 1,
-          borderColor: colors.border,
           backgroundColor: pressed ? colors.muted : colors.card,
         })}
         testID={testID ? `${testID}-members-btn` : undefined}
@@ -178,7 +177,7 @@ export const ProjectInfoPanel = ({
       </Pressable>
 
       {/* ── Members list ─────────────────────────────────── */}
-      <View style={{ padding: 14, borderTopWidth: 1, borderTopColor: colors.border, marginTop: 12 }}>
+      <View className="border-t border-border" style={{ padding: 14, marginTop: 12 }}>
         <SectionLabel title="Members" count={members.length} />
         <View style={{ gap: 8 }}>
           {members.length === 0 ? (

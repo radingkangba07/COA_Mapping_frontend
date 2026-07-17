@@ -21,10 +21,10 @@ export type ColFlex = {
 type ColFlexMap = { readonly sm: ColFlex; readonly md: ColFlex; readonly lg: ColFlex; readonly xl: ColFlex };
 
 const COL_FLEX_MAP: ColFlexMap = {
-  sm: { name: 2.2, projectId: 0.85, status: 1.6,  percent: 0.6,  progress: 1.8, currentStage: 1.1, action: 0.65 },
-  md: { name: 2.3, projectId: 0.9,  status: 1.6,  percent: 0.62, progress: 1.9, currentStage: 1.2, action: 0.7  },
-  lg: { name: 2.2, projectId: 0.85, status: 1.5,  percent: 0.6,  progress: 2.0, currentStage: 1.3, action: 0.7  },
-  xl: { name: 2.0, projectId: 0.75, status: 1.3,  percent: 0.55, progress: 2.0, currentStage: 1.2, action: 0.65 },
+  sm: { name: 1.8, projectId: 0.7,  status: 1.3, percent: 0.55, progress: 1.4, currentStage: 1.05, action: 1.0  },
+  md: { name: 1.9, projectId: 0.7,  status: 1.3, percent: 0.55, progress: 1.5, currentStage: 1.05, action: 1.0  },
+  lg: { name: 1.8, projectId: 0.7,  status: 1.2, percent: 0.55, progress: 1.5, currentStage: 1.1,  action: 1.0  },
+  xl: { name: 1.7, projectId: 0.65, status: 1.1, percent: 0.5,  progress: 1.5, currentStage: 1.0,  action: 0.95 },
 };
 
 // Kept for backward compatibility (tests, direct imports) — uses lg values.
@@ -44,7 +44,7 @@ interface WorkstreamRowProps {
 
 const CellText = ({ children, muted = false }: { children: React.ReactNode; muted?: boolean }): React.JSX.Element => (
   <Text
-    style={{ fontSize: 13, color: muted ? colors.mutedForeground : colors.foreground }}
+    className={`text-center font-body text-base font-medium ${muted ? 'text-muted-foreground' : 'text-foreground'}`}
     numberOfLines={1}
   >
     {children}
@@ -60,8 +60,6 @@ export const WorkstreamRow = ({
   const rowBase: React.ComponentProps<typeof View>['style'] = {
     flexDirection: 'row',
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
     paddingVertical: 10,
     paddingHorizontal: 12,
     opacity: w.included ? 1 : 0.5,
@@ -69,17 +67,32 @@ export const WorkstreamRow = ({
 
   if (!w.included) {
     return (
-      <View style={rowBase} testID={testID}>
-        <View style={{ flex: colFlex.name }}><CellText muted>{w.name}</CellText></View>
-        <View style={{ flex: colFlex.projectId }}><CellText muted>{w.projectId}</CellText></View>
+      <View className="border-t border-border" style={rowBase} testID={testID}>
+        <View style={{ flex: colFlex.name }}>
+          <Text className="text-center font-body text-base font-medium text-muted-foreground" numberOfLines={1}>
+            {w.name}
+          </Text>
+        </View>
+        <View style={{ flex: colFlex.projectId }}>
+          <Text className="text-center font-body text-base font-medium text-muted-foreground" numberOfLines={1}>
+            {w.projectId}
+          </Text>
+        </View>
         <View style={{ flex: colFlex.status, paddingLeft: 8 }}>
           <StatusBadge status="not_included" />
         </View>
-        <View style={{ flex: colFlex.percent }}><CellText muted>—</CellText></View>
-        <View style={{ flex: colFlex.progress, paddingRight: 16 }}><CellText muted>—</CellText></View>
-        <View style={{ flex: colFlex.currentStage, paddingLeft: 8 }}><CellText muted>—</CellText></View>
+        <View style={{ flex: colFlex.percent + colFlex.progress, paddingRight: 16 }}>
+          <CellText muted>—</CellText>
+        </View>
+        <View style={{ flex: colFlex.currentStage, paddingLeft: 8 }}>
+          <Text className="text-center font-body text-base font-medium text-muted-foreground" numberOfLines={1}>
+            —
+          </Text>
+        </View>
         <View style={{ flex: colFlex.action }}>
-          <Text style={{ fontSize: 12, color: colors.mutedForeground }}>Not Included</Text>
+          <Text className="text-center font-body text-base font-medium text-muted-foreground" numberOfLines={1}>
+            Not Included
+          </Text>
         </View>
       </View>
     );
@@ -87,25 +100,40 @@ export const WorkstreamRow = ({
 
   const sharedCells = (
     <>
-      <View style={{ flex: colFlex.name }}><CellText>{w.name}</CellText></View>
+      <View style={{ flex: colFlex.name }}>
+        <Text className="text-center font-body text-base font-medium text-foreground" numberOfLines={1}>
+          {w.name}
+        </Text>
+      </View>
       <View style={{ flex: colFlex.projectId }}>
-        <Text style={{ fontSize: 12, fontFamily: 'JetBrainsMono', color: colors.mutedForeground }}>
+        <Text className="text-center font-body text-base font-medium text-foreground" numberOfLines={1}>
           {w.projectId}
         </Text>
       </View>
       <View style={{ flex: colFlex.status, paddingLeft: 8 }}>
         <StatusBadge status={w.status} />
       </View>
-      <View style={{ flex: colFlex.percent }}>
-        <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primary }}>
+      <View
+        style={{
+          flex: colFlex.percent + colFlex.progress,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          paddingRight: 16,
+        }}
+      >
+        <Text className="text-center font-body text-base font-medium text-primary" numberOfLines={1}>
           {w.progress}%
         </Text>
-      </View>
-      <View style={{ flex: colFlex.progress, paddingRight: 16 }}>
-        <ProgressBar value={w.progress} />
+        <View style={{ flex: 1, maxWidth: 260 }}>
+          <ProgressBar value={w.progress} />
+        </View>
       </View>
       <View style={{ flex: colFlex.currentStage, paddingLeft: 8 }}>
-        <CellText>{w.currentStage}</CellText>
+        <Text className="text-center font-body text-base font-medium text-foreground" numberOfLines={1}>
+          {w.currentStage}
+        </Text>
       </View>
     </>
   );
@@ -114,24 +142,28 @@ export const WorkstreamRow = ({
   // visible but not yet openable.
   if (w.name === 'Chart of Accounts') {
     return (
-      <Pressable
-        onPress={() => onOpen(w)}
-        style={({ pressed }) => [rowBase, pressed && { backgroundColor: colors.muted }]}
-        testID={testID}
-      >
-        {sharedCells}
-        <View style={{ flex: colFlex.action }}>
-          <Text style={{ fontSize: 13, color: colors.accent, fontWeight: '600' }}>Open</Text>
-        </View>
-      </Pressable>
+      <View className="border-t border-border">
+        <Pressable
+          onPress={() => onOpen(w)}
+          style={({ pressed }) => [rowBase, pressed && { backgroundColor: colors.muted }]}
+          testID={testID}
+        >
+          {sharedCells}
+          <View style={{ flex: colFlex.action }}>
+            <Text className="text-center font-body text-base font-medium text-accent" numberOfLines={1}>
+              Open
+            </Text>
+          </View>
+        </Pressable>
+      </View>
     );
   }
 
   return (
-    <View style={rowBase} testID={testID}>
+    <View className="border-t border-border" style={rowBase} testID={testID}>
       {sharedCells}
       <View style={{ flex: colFlex.action }}>
-        <Text style={{ fontSize: 12, color: colors.mutedForeground }}>—</Text>
+        <Text className="text-center font-body text-base font-medium text-muted-foreground" numberOfLines={1}>—</Text>
       </View>
     </View>
   );
