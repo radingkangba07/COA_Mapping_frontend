@@ -1,5 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { ERP_CATALOGUE } from '../data/erp-catalogue.data';
+import { useQuery } from '@tanstack/react-query';
+import { httpClient } from '@/shared/services/http/http.instance';
+import { getCatalogueVendors } from '../services/erp-catalogue.service';
 import { useProjectScopeStore } from '../store/project-scope.store';
 import { storageService } from '@/shared/services/storage/storage.service';
 import { STORAGE_KEYS } from '@/shared/services/storage/storage.types';
@@ -52,7 +54,18 @@ export function useErpCascade(
     role === 'source' ? s.setSourceVendor : s.setTargetVendor,
   );
 
-  const catalogue = ERP_CATALOGUE;
+  // Single query — full vendor → product → connection method tree, cached 10 min
+  const catalogueQuery = useQuery({
+    queryKey: ['erp-catalogue'] as const,
+    queryFn: async () => {
+      const result = await getCatalogueVendors(httpClient);
+      if (!result.ok) throw result.error;
+      return result.data;
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const catalogue = catalogueQuery.data ?? [];
 
   // Products for the selected vendor — derived locally, no extra fetch
   const currentProducts =
@@ -163,8 +176,8 @@ export function useErpCascade(
     productOptions,
     connectionMethodOptions,
     selectedVendor,
-    isLoadingVendors: false,
-    isLoadingProducts: false,
+    isLoadingVendors: catalogueQuery.isLoading,
+    isLoadingProducts: catalogueQuery.isLoading,
     onVendorChange,
     onProductChange,
   };
