@@ -4,6 +4,8 @@ import { httpClient } from '@/shared/services/http/http.instance';
 import { useToast } from '@/shared/hooks/useToast';
 import { getERPById } from '@/shared/constants/erp-systems';
 import { useERPConfig } from '@/features/erp-config/hooks/useERPConfig';
+import { storageService } from '@/shared/services/storage/storage.service';
+import { STORAGE_KEYS } from '@/shared/services/storage/storage.types';
 import {
   CONNECTION_METHODS,
   type ConnectionMethod,
@@ -160,11 +162,37 @@ export interface ProjectScopeViewModel {
 export function useProjectScopeViewModel(
   seed: ProjectScopeSeed,
 ): ProjectScopeViewModel {
-  // Seed the draft once on mount from entry-modal route params.
-  // Depend on primitive seed fields (not the object) to avoid re-seeding loops.
+  // Seed the draft once on mount from entry-modal route params,
+  // then restore any cached ERP selections for this company.
   const { companyId, name, description } = seed;
   useEffect(() => {
-    useProjectScopeStore.getState().initFromSeed({ companyId, name, description });
+    const store = useProjectScopeStore.getState();
+    store.initFromSeed({ companyId, name, description });
+
+    if (!companyId) return;
+    void storageService.get(STORAGE_KEYS.ERP_PREFS).then((raw) => {
+      if (!raw) return;
+      try {
+        const map: Record<string, {
+          sourceVendor: string | null;
+          source: string | null;
+          sourceMethod: ConnectionMethod | null;
+          targetVendor: string | null;
+          target: string | null;
+          targetMethod: ConnectionMethod | null;
+        }> = JSON.parse(raw);
+        const prefs = map[companyId];
+        if (!prefs) return;
+        if (prefs.sourceVendor) store.setSourceVendor(prefs.sourceVendor);
+        if (prefs.source) store.setSource(prefs.source);
+        if (prefs.sourceMethod) store.setSourceMethod(prefs.sourceMethod);
+        if (prefs.targetVendor) store.setTargetVendor(prefs.targetVendor);
+        if (prefs.target) store.setTarget(prefs.target);
+        if (prefs.targetMethod) store.setTargetMethod(prefs.targetMethod);
+      } catch {
+        // Corrupt cache — ignore and let the user fill in fresh
+      }
+    });
     // Seeding once on mount is the intent — exclude seed fields from deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -277,6 +305,22 @@ export function useProjectScopeViewModel(
       if (result.ok) {
         void queryClient.invalidateQueries({ queryKey: ['projects'] });
         toast.showSuccess('Project created');
+        // Persist ERP selections for this company before wiping the draft
+        if (draft.companyId) {
+          const cid = draft.companyId;
+          void storageService.get(STORAGE_KEYS.ERP_PREFS).then((raw) => {
+            const map = raw ? (() => { try { return JSON.parse(raw) as Record<string, unknown>; } catch { return {}; } })() : {};
+            map[cid] = {
+              sourceVendor: draft.sourceVendor,
+              source: draft.source,
+              sourceMethod: draft.sourceMethod,
+              targetVendor: draft.targetVendor,
+              target: draft.target,
+              targetMethod: draft.targetMethod,
+            };
+            void storageService.set(STORAGE_KEYS.ERP_PREFS, JSON.stringify(map));
+          });
+        }
         useProjectScopeStore.getState().reset();
         return true;
       }
