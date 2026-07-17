@@ -2,13 +2,13 @@ name: Frontend demo Deploy
 
 on:
   push:
-    branches: [feat/erp-cascade-connection-methods]
+    branches: [demo]
     paths:
       - "frontend/**"
       - "services/frontend/**"
       - ".github/workflows/deploy-demo.yml"
   pull_request:
-    branches: [feat/erp-cascade-connection-methods]
+    branches: [demo]
     paths:
       - "frontend/**"
       - "services/frontend/**"
@@ -45,16 +45,13 @@ jobs:
         run: npm test -- --ci --coverage
 
   deploy:
-    name: Deploy to Demo
+    name: Deploy to demo
     needs: test
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
-
-
-
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -65,16 +62,13 @@ jobs:
           script: |
             set -e
             REPO="https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
-            TARGET="/opt/coa-migration/environments/demo/frontend"
-            git config --global --add safe.directory "$TARGET"
-            if [ ! -d "$TARGET/.git" ]; then
-              git clone --no-checkout "$REPO" "$TARGET"
-            fi
-            cd "$TARGET"
-            git fetch "$REPO" feat/erp-cascade-connection-methods
-            git checkout -B feat/erp-cascade-connection-methods FETCH_HEAD
+            cd /opt/coa-migration/environments/demo/frontend
+            git config --global --add safe.directory /opt/coa-migration/environments/demo/frontend
+            git fetch "$REPO" demo
+            git checkout -B demo FETCH_HEAD
             git clean -fd
+            cd /opt/coa-migration/environments/demo
             docker compose -p coa-demo -f docker-compose.demo.yml build frontend
             docker compose -p coa-demo -f docker-compose.demo.yml up -d frontend
             docker restart coa-gateway-nginx
-            echo "demo frontend deployed from branch: feat/erp-cascade-connection-methods"
+            echo "demo frontend deployed from branch: demo"
