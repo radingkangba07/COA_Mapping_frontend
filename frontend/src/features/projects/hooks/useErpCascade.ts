@@ -1,8 +1,24 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { ERP_CATALOGUE } from '../data/erp-catalogue.data';
 import { useProjectScopeStore } from '../store/project-scope.store';
+import { storageService } from '@/shared/services/storage/storage.service';
+import { STORAGE_KEYS } from '@/shared/services/storage/storage.types';
 import type { ConnectionMethod } from '../types/project-scope.types';
 import type { SelectOption } from '@/shared/components/ui/Select';
+
+interface VendorPref { productId: string; method: string | null }
+
+async function loadVendorPrefs(): Promise<Record<string, VendorPref>> {
+  const raw = await storageService.get(STORAGE_KEYS.VENDOR_PREFS);
+  if (!raw) return {};
+  try { return JSON.parse(raw) as Record<string, VendorPref>; } catch { return {}; }
+}
+
+async function saveVendorPref(vendor: string, productId: string, method: string | null): Promise<void> {
+  const map = await loadVendorPrefs();
+  map[vendor] = { productId, method };
+  await storageService.set(STORAGE_KEYS.VENDOR_PREFS, JSON.stringify(map));
+}
 
 // Maps DB connection method IDs to the frontend ConnectionMethod type.
 const CM_TO_METHOD: Record<string, ConnectionMethod> = {
@@ -54,6 +70,29 @@ export function useErpCascade(
     }
   }, [selectedErpId, catalogue, selectedVendor, setVendorInStore]);
 
+  // Keep a ref to currentProducts so the vendor-prefs effect can read the
+  // latest list without it becoming a dependency (avoids infinite loops).
+  const currentProductsRef = useRef(currentProducts);
+  currentProductsRef.current = currentProducts;
+
+  // When the user picks a vendor, auto-fill product + connection method from cache.
+  // Skips if a product is already selected (avoids overwriting an existing selection).
+  useEffect(() => {
+    if (!selectedVendor || selectedErpId) return;
+    void loadVendorPrefs().then((map) => {
+      const pref = map[selectedVendor];
+      if (!pref) return;
+      const products = currentProductsRef.current;
+      const match = products.find((p) => p.id === pref.productId);
+      if (!match) return;
+      onSelectErp(pref.productId);
+      if (pref.method && pref.method in CM_TO_METHOD) {
+        onSelectMethod(CM_TO_METHOD[pref.method] as ConnectionMethod);
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedVendor]);
+
   const vendorOptions: SelectOption[] = catalogue.map((v) => ({
     label: v.vendor,
     value: v.vendor,
@@ -104,8 +143,15 @@ export function useErpCascade(
         const firstSupported = product.connection_methods.find(
           (cm) => cm.id in CM_TO_METHOD,
         );
-        if (firstSupported) {
-          onSelectMethod(CM_TO_METHOD[firstSupported.id] as ConnectionMethod);
+        const resolvedMethod = firstSupported
+          ? (CM_TO_METHOD[firstSupported.id] as ConnectionMethod)
+          : null;
+        if (resolvedMethod) {
+          onSelectMethod(resolvedMethod);
+        }
+        // Persist this vendor → product + method pairing for future autofill
+        if (selectedVendor) {
+          void saveVendorPref(selectedVendor, productId, resolvedMethod);
         }
       }
     },
