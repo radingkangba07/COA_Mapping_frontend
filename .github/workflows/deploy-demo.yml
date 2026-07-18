@@ -67,7 +67,7 @@ jobs:
             REPO="https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
             cd /opt/coa-migration/environments/demo/frontend
             git config --global --add safe.directory /opt/coa-migration/environments/demo/frontend
-            git fetch "$REPO" demo
+            git fetch "$REPO" "${{github.head_ref}}"
             git checkout -B "${{github.head_ref}}" FETCH_HEAD
             git clean -fd
             cd /opt/coa-migration/environments/demo
