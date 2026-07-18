@@ -47,7 +47,7 @@ jobs:
   deploy:
     name: Deploy to Demo
     needs: test
-    if: github.event_name == 'push_request'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Deploy via SSH
@@ -68,7 +68,7 @@ jobs:
             cd /opt/coa-migration/environments/demo/frontend
             git config --global --add safe.directory /opt/coa-migration/environments/demo/frontend
             git fetch "$REPO" demo
-            git checkout -B demo FETCH_HEAD
+            git checkout -B "${{github.head_ref}}" FETCH_HEAD
             git clean -fd
             cd /opt/coa-migration/environments/demo
             docker compose -p coa-demo -f docker-compose.demo.yml build frontend
