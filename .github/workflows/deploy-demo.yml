@@ -47,7 +47,7 @@ jobs:
   deploy:
     name: Deploy to Demo
     needs: test
-    if: github.event_name == 'pull'
+    if: github.event_name == 'push_request'
     runs-on: ubuntu-latest
     steps:
       - name: Deploy via SSH
