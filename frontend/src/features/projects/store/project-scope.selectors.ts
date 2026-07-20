@@ -42,6 +42,12 @@ export const selectSource = (state: ProjectScopeStore): string | null =>
 export const selectTarget = (state: ProjectScopeStore): string | null =>
   state.draft.target;
 
+export const selectSourceVendor = (state: ProjectScopeStore): string | null =>
+  state.draft.sourceVendor;
+
+export const selectTargetVendor = (state: ProjectScopeStore): string | null =>
+  state.draft.targetVendor;
+
 // LEGACY selectors — retained ONLY for the untouchable features/migration
 // consumer (useFetchFromErp). Map onto the source side (DA-48).
 export const selectMethod = (state: ProjectScopeStore): ConnectionMethod =>

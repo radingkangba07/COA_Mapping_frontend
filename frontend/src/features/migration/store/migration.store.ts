@@ -56,6 +56,7 @@ interface MigrationState {
   pendingMappingRemoval: boolean;
 
   projectId: string | null;
+  workstreamId: string | null;
   jobId: string | null;
   isLoading: boolean;
   error: AppError | null;
@@ -122,6 +123,7 @@ interface MigrationActions {
 
   invalidateFromStep: (step: number) => void;
   setProjectId: (id: string) => void;
+  setWorkstreamId: (id: string | null) => void;
   setJobId: (jobId: string | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: AppError | null) => void;
@@ -164,6 +166,7 @@ const initialState: MigrationState = {
   pendingMappingRemoval: false,
 
   projectId: null,
+  workstreamId: null,
   jobId: null,
   isLoading: false,
   error: null,
@@ -795,6 +798,12 @@ export const useMigrationStore = create<MigrationStore>()(
           state.confidenceFilter = null;
         }
         state.projectId = id;
+      });
+    },
+
+    setWorkstreamId: (id: string | null): void => {
+      set((state) => {
+        state.workstreamId = id;
       });
     },
 

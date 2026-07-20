@@ -43,7 +43,17 @@ const _CONNECTION_METHOD_MAP: Record<ConnectionMethod, string> = {
   [CONNECTION_METHODS.MCP]: 'mcp_server',
 };
 
-export function buildCreatePayload(draft: ProjectScopeDraft): ProjectCreate {
+export function buildCreatePayload(
+  draft: ProjectScopeDraft,
+  vendorOverride?: { sourceVendorId?: string | null; targetVendorId?: string | null },
+): ProjectCreate {
+  const sourceVendorId =
+    vendorOverride?.sourceVendorId ??
+    (draft.source ? (getERPById(draft.source)?.vendorId ?? undefined) : undefined);
+  const targetVendorId =
+    vendorOverride?.targetVendorId ??
+    (draft.target ? (getERPById(draft.target)?.vendorId ?? undefined) : undefined);
+
   return {
     name: draft.name,
     action: 'create',
@@ -54,10 +64,8 @@ export function buildCreatePayload(draft: ProjectScopeDraft): ProjectCreate {
     targetErp: draft.target ?? undefined,
     sourceProductId: draft.source ?? undefined,
     targetProductId: draft.target ?? undefined,
-    // Each product belongs to exactly one vendor, so the backend vendor key is
-    // derived from the selected product — action=create requires both.
-    sourceVendorId: draft.source ? getERPById(draft.source)?.vendorId : undefined,
-    targetVendorId: draft.target ? getERPById(draft.target)?.vendorId : undefined,
+    sourceVendorId,
+    targetVendorId,
     sourceConnectionMethodId: draft.sourceMethod
       ? (_CONNECTION_METHOD_MAP[draft.sourceMethod] ?? draft.sourceMethod)
       : undefined,
@@ -137,6 +145,8 @@ export interface ProjectScopeViewModel {
   readonly setCompanyId: (id: string | null) => void;
   readonly setSource: (id: string | null) => void;
   readonly setTarget: (id: string | null) => void;
+  readonly setSourceVendorId: (vendor: string | null) => void;
+  readonly setTargetVendorId: (vendor: string | null) => void;
   readonly setSourceMethod: (m: ConnectionMethod) => void;
   readonly setTargetMethod: (m: ConnectionMethod) => void;
   readonly updateConnection: (patch: Partial<MCPConnection>) => void;
@@ -151,11 +161,9 @@ export function useProjectScopeViewModel(
   seed: ProjectScopeSeed,
 ): ProjectScopeViewModel {
   // Seed the draft once on mount from entry-modal route params.
-  // Depend on primitive seed fields (not the object) to avoid re-seeding loops.
   const { companyId, name, description } = seed;
   useEffect(() => {
     useProjectScopeStore.getState().initFromSeed({ companyId, name, description });
-    // Seeding once on mount is the intent — exclude seed fields from deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -174,6 +182,9 @@ export function useProjectScopeViewModel(
   const toast = useToast();
   const queryClient = useQueryClient();
   const [isCreating, setIsCreating] = useState(false);
+  // Vendor IDs resolved by the cascade selects (not in draft store — UI-only state).
+  const [sourceVendorId, setSourceVendorId] = useState<string | null>(null);
+  const [targetVendorId, setTargetVendorId] = useState<string | null>(null);
 
   // ─── ERP list ──────────────────────────────────────────────────────────────
   const { erpSystems, isLoading: isLoadingErps } = useERPConfig();
@@ -256,7 +267,7 @@ export function useProjectScopeViewModel(
     setIsCreating(true);
     try {
       const draft = useProjectScopeStore.getState().draft;
-      const base = buildCreatePayload(draft);
+      const base = buildCreatePayload(draft, { sourceVendorId, targetVendorId });
       // Fall back to the user's employer org when no company was selected on entry
       const effectiveOrgId = draft.companyId ?? (parentOrgId as string | null) ?? undefined;
       const payload: typeof base = { ...base, orgId: base.orgId ?? effectiveOrgId };
@@ -272,7 +283,7 @@ export function useProjectScopeViewModel(
     } finally {
       setIsCreating(false);
     }
-  }, [createDisabled, toast, queryClient, parentOrgId]);
+  }, [createDisabled, toast, queryClient, parentOrgId, sourceVendorId, targetVendorId]);
 
   return {
     draft,
@@ -303,6 +314,8 @@ export function useProjectScopeViewModel(
     setCompanyId,
     setSource,
     setTarget,
+    setSourceVendorId,
+    setTargetVendorId,
     setSourceMethod,
     setTargetMethod,
     updateConnection,

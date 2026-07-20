@@ -25,7 +25,7 @@ RUN if [ -n "$BASE_URL" ]; then \
 
 # EXPO_PUBLIC_ vars must be in .env.production — Metro uses this file during `expo export`
 # Remove all .env* files first so no stale values leak through
-RUN rm -f .env .env.development .env.staging .env.production && \
+RUN rm -f .env .env.development .env.staging .env.demo .env.production && \
     printf "EXPO_PUBLIC_API_BASE_URL=%s\nEXPO_PUBLIC_APP_ENV=%s\n" "$API_BASE_URL" "$APP_ENV" > .env.production
 
 # Build the Expo web application

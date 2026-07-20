@@ -52,6 +52,8 @@ export function createInitialDraft(): ProjectScopeDraft {
     description: '',
     source: null,
     target: null,
+    sourceVendor: null,
+    targetVendor: null,
     // LEGACY method preserves the migration UploadScreen default (MCP).
     method: CONNECTION_METHODS.MCP,
     // PER-SIDE methods default to CSV (File Upload needs no test connection),
@@ -181,6 +183,18 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
     setTarget: (erpId: string | null): void => {
       set((state) => {
         state.draft.target = erpId;
+      });
+    },
+
+    setSourceVendor: (vendor: string | null): void => {
+      set((state) => {
+        state.draft.sourceVendor = vendor;
+      });
+    },
+
+    setTargetVendor: (vendor: string | null): void => {
+      set((state) => {
+        state.draft.targetVendor = vendor;
       });
     },
 
