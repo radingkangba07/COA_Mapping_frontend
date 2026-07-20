@@ -60,6 +60,7 @@ interface AccountTypeGroupProps {
   forceOpen?: boolean;
   scoreSortDirection?: ScoreSortDirection;
   testID?: string;
+  isReadOnly?: boolean;
   // ─── Selection ──────────────────────────────────────────────────────────────
   selection?: Record<string, true>;
   // Keys already confirmed — their checkboxes render checked but cannot be
@@ -84,6 +85,7 @@ interface AccountRowProps {
   testID?: string;
   isSelected?: boolean;
   isLocked?: boolean;
+  isReadOnly?: boolean;
   onToggleSelect?: (sourceType: string, account: AccountMapping) => void;
 }
 
@@ -100,6 +102,7 @@ const AccountRow = memo(({
   testID,
   isSelected = false,
   isLocked = false,
+  isReadOnly = false,
   onToggleSelect,
 }: AccountRowProps) => {
   const handleSelectChange = useCallback(
@@ -210,7 +213,7 @@ const AccountRow = memo(({
 
       {/* Action */}
       <View className="w-[10%] flex-row items-center justify-center gap-1">
-        <Button
+        {!isReadOnly && <Button
           size="sm"
           variant={isEditing ? 'default' : 'outline'}
           onPress={handleEdit}
@@ -230,8 +233,8 @@ const AccountRow = memo(({
               </>
             )}
           </View>
-        </Button>
-        <Button
+        </Button>}
+        {!isReadOnly && <Button
           size="sm"
           variant="outline"
           onPress={handleDelete}
@@ -239,7 +242,7 @@ const AccountRow = memo(({
           accessibilityLabel="Delete account"
         >
           <Trash2 size={12} color={colors.destructive} />
-        </Button>
+        </Button>}
       </View>
     </View>
   );
@@ -262,6 +265,7 @@ export const AccountTypeGroup = ({
   forceOpen,
   scoreSortDirection = 'none',
   testID,
+  isReadOnly = false,
   selection = {},
   lockedKeys = {},
   onToggleGroupSelect,
@@ -420,6 +424,7 @@ export const AccountTypeGroup = ({
               testID={testID !== undefined ? `${testID}-row-${displayIndex}` : undefined}
               isSelected={!!selection[selectionKey(sourceType, account)]}
               isLocked={!!lockedKeys[selectionKey(sourceType, account)]}
+              isReadOnly={isReadOnly}
               onToggleSelect={onToggleRowSelect}
             />
           ))}

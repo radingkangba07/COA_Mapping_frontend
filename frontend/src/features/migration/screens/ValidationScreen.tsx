@@ -19,6 +19,7 @@ import {
   ChevronsDownUp,
 } from 'lucide-react-native';
 import { MigrationLayout } from '../components/MigrationLayout';
+import { ReadOnlyBanner } from '../components/ReadOnlyBanner';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { Badge } from '@/shared/components/ui/Badge';
@@ -101,6 +102,11 @@ export const ValidationScreen = (): React.JSX.Element => {
 
   const handleGoBack = useCallback(() => navigation.goBack(), [navigation]);
 
+  const handleReadOnlyContinue = useCallback(
+    () => navigation.navigate('FinalPreview', { projectId }),
+    [navigation, projectId],
+  );
+
   const navigateBack = useCallback(
     (id: string) => navigation.navigate('Mapping', { projectId: id }),
     [navigation],
@@ -126,6 +132,7 @@ export const ValidationScreen = (): React.JSX.Element => {
   // page size (500) instead of paginating. `total` from the response is the
   // authoritative row count surfaced in the header.
   const suggestions = useMappingSuggestions(projectId);
+  const isReadOnly = useMigrationStore((s) => s.isReadOnly);
   const setGroupedMappings = useMigrationStore((s) => s.setGroupedMappings);
 
   // Push suggestion snapshots into the store so the existing VM (stats,
@@ -133,12 +140,17 @@ export const ValidationScreen = (): React.JSX.Element => {
   // Wait for hydration to finish — hydration calls store.reset() asynchronously,
   // which would wipe groupedMappings after this effect runs if we don't wait.
   // Skip the update when the query errored — don't wipe existing store data.
+  // Skip empty results — a transient empty response from a background refetch
+  // (e.g. after WorkstreamDetailScreen reset the store and re-navigated here)
+  // must not clear the store while a second refetch is already in flight.
+  const storeGroupedMappingsLength = useMigrationStore((s) => s.groupedMappings.length);
   useEffect((): void => {
     if (isHydrating) return;
     if (suggestions.isLoading) return;
     if (suggestions.error !== null) return;
+    if (suggestions.suggestions.length === 0 && storeGroupedMappingsLength > 0) return;
     setGroupedMappings(adaptSuggestionsToGroupedMappings(suggestions.suggestions));
-  }, [isHydrating, suggestions.isLoading, suggestions.error, suggestions.suggestions, setGroupedMappings]);
+  }, [isHydrating, suggestions.isLoading, suggestions.error, suggestions.suggestions, setGroupedMappings, storeGroupedMappingsLength]);
 
   const refetchRef = useRef(suggestions.refetch);
   refetchRef.current = suggestions.refetch;
@@ -224,7 +236,12 @@ export const ValidationScreen = (): React.JSX.Element => {
     );
   }
 
-  const isLoadingData = suggestions.isLoading && vm.stats.totalAccounts === 0 && vm.filteredMappings.length === 0;
+  // Show skeleton when loading OR when a background refetch is in flight and
+  // the store is still empty (WorkstreamDetailScreen reset the store before
+  // navigating here, so the effect that repopulates groupedMappings from the
+  // cache hasn't fired yet).
+  const isLoadingData = vm.stats.totalAccounts === 0 && vm.filteredMappings.length === 0
+    && (suggestions.isLoading || suggestions.isFetching || suggestions.suggestions.length > 0);
 
   if (isLoadingData) {
     return (
@@ -262,6 +279,7 @@ export const ValidationScreen = (): React.JSX.Element => {
       testID="validation-screen"
     >
       <View className="max-w-4xl lg:max-w-6xl flex-1 self-center w-full py-6 gap-6">
+        {isReadOnly && <ReadOnlyBanner />}
         <MigrationStepper
           currentStep={vm.currentStep}
           completedSteps={vm.completedSteps}
@@ -281,8 +299,8 @@ export const ValidationScreen = (): React.JSX.Element => {
               </View>
             )}
           </View>
-          <View className="flex-row items-center gap-4">
-            <View className="items-end gap-1.5">
+          <View className="flex-row items-center gap-3">
+            <View className="items-end gap-1.5 mr-1">
               <Text className="font-body text-sm font-medium text-foreground">
                 {vm.stats.totalTypes} / {vm.stats.totalTypes} types mapped
               </Text>
@@ -290,9 +308,27 @@ export const ValidationScreen = (): React.JSX.Element => {
                 <View className="h-full rounded-full bg-primary" style={{ width: '100%' }} />
               </View>
             </View>
+            <Button variant="outline" onPress={vm.handleBack} accessibilityLabel="Back to mapping" testID="back-button">
+              <View className="flex-row items-center gap-1.5">
+                <ArrowLeft size={ICON_SIZE} color={colors.foreground} />
+                <Text className="text-sm font-medium text-foreground">Back</Text>
+              </View>
+            </Button>
+            <Button
+              onPress={isReadOnly ? handleReadOnlyContinue : vm.handleContinue}
+              disabled={!isReadOnly && (!vm.allConfirmed || vm.isSaving || (vm.stats.totalAccounts > 0 && !vm.hasMappingsSaved))}
+              isLoading={!isReadOnly && vm.isSaving}
+              accessibilityLabel="Continue to export"
+              testID="continue-button"
+            >
+              <View className="flex-row items-center gap-1.5">
+                <Text className="text-sm font-medium text-primary-foreground">Continue to Export</Text>
+                <ArrowRight size={ICON_SIZE} color={colors.primaryForeground} />
+              </View>
+            </Button>
             <Button
               onPress={vm.handleReviewSave}
-              disabled={!vm.allConfirmed}
+              disabled={!vm.allConfirmed || isReadOnly}
               accessibilityLabel="Review and save"
               testID="review-save-button"
             >
@@ -379,6 +415,7 @@ export const ValidationScreen = (): React.JSX.Element => {
                     variant="outline"
                     size="sm"
                     onPress={() => vm.handleResetBand(level)}
+                    disabled={isReadOnly}
                     accessibilityLabel={`Edit and reconfirm ${level} score`}
                     testID={`confirm-${level}`}
                   >
@@ -392,6 +429,7 @@ export const ValidationScreen = (): React.JSX.Element => {
                     size="sm"
                     className={CONFIRMATION_BUTTON_CLASSES[level]}
                     onPress={() => vm.handleConfirm(level)}
+                    disabled={isReadOnly}
                     accessibilityLabel={`Confirm ${level} score`}
                     testID={`confirm-${level}`}
                   >
@@ -426,7 +464,7 @@ export const ValidationScreen = (): React.JSX.Element => {
                     <Text className="text-sm text-foreground">{account.sourceName}</Text>
                     <Text className="text-xs text-muted-foreground">{account.sourceType}</Text>
                   </View>
-                  <Button variant="outline" size="sm" onPress={() => vm.handleRestoreAccount(index)} accessibilityLabel={`Restore ${account.sourceName}`} testID={`restore-${index}`}>
+                  <Button variant="outline" size="sm" onPress={() => vm.handleRestoreAccount(index)} disabled={isReadOnly} accessibilityLabel={`Restore ${account.sourceName}`} testID={`restore-${index}`}>
                     <View className="flex-row items-center gap-1">
                       <RotateCcw size={ICON_SIZE} color={colors.foreground} />
                       <Text className="text-xs font-medium text-foreground">Restore</Text>
@@ -476,12 +514,14 @@ export const ValidationScreen = (): React.JSX.Element => {
         </Text>
 
         {/* Bulk selection action bar — visible when ≥1 row is selected */}
-        <SelectionActionBar
-          count={vm.selectedCount}
-          onDelete={vm.handleBulkDelete}
-          onClear={vm.handleClearSelection}
-          testID="selection-action-bar"
-        />
+        {!isReadOnly && (
+          <SelectionActionBar
+            count={vm.selectedCount}
+            onDelete={vm.handleBulkDelete}
+            onClear={vm.handleClearSelection}
+            testID="selection-action-bar"
+          />
+        )}
 
         {/* Table — single bordered container: header + all groups */}
         <View className="rounded-lg border border-border overflow-hidden">
@@ -549,6 +589,7 @@ export const ValidationScreen = (): React.JSX.Element => {
                   forceOpen={allExpanded}
                   scoreSortDirection={scoreSortDirection}
                   testID={`group-${groupKey}`}
+                  isReadOnly={isReadOnly}
                   selection={vm.selection}
                   lockedKeys={vm.lockedKeys}
                   onToggleGroupSelect={(checked, groupKeys) => vm.handleToggleGroup(group.source_type, checked, groupKeys)}
@@ -559,34 +600,6 @@ export const ValidationScreen = (): React.JSX.Element => {
           </View>
         </View>
 
-        {/* Footer buttons */}
-        <View className="mt-6 flex-row items-center justify-end gap-3">
-          <Button variant="outline" onPress={vm.handleBack} accessibilityLabel="Back to mapping" testID="back-button">
-            <View className="flex-row items-center gap-2">
-              <ArrowLeft size={ICON_SIZE} color={colors.foreground} />
-              <Text className="text-sm font-medium text-foreground">Back</Text>
-            </View>
-          </Button>
-          <Button
-            variant="outline"
-            onPress={vm.handleSaveMappings}
-            disabled={vm.isSaving}
-            isLoading={vm.isSaving}
-            accessibilityLabel="Save mapping changes"
-            testID="save-button"
-          >
-            <View className="flex-row items-center gap-2">
-              <Save size={ICON_SIZE} color={colors.foreground} />
-              <Text className="text-sm font-medium text-foreground">Save Mapping</Text>
-            </View>
-          </Button>
-          <Button onPress={vm.handleContinue} disabled={!vm.allConfirmed || vm.isSaving || (vm.stats.totalAccounts > 0 && !vm.hasMappingsSaved)} isLoading={vm.isSaving} accessibilityLabel="Continue to export" testID="continue-button">
-            <View className="flex-row items-center gap-2">
-              <Text className="text-sm font-medium text-primary-foreground">Continue to Export</Text>
-              <ArrowRight size={ICON_SIZE} color={colors.primaryForeground} />
-            </View>
-          </Button>
-        </View>
       </View>
 
       <ConfirmedReviewModal

@@ -10,6 +10,7 @@ import { Card } from '@/shared/components/ui/Card';
 import { Spinner } from '@/shared/components/ui/Spinner';
 import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorFallback';
 import { MigrationLayout } from '../components/MigrationLayout';
+import { ReadOnlyBanner } from '../components/ReadOnlyBanner';
 import { MigrationStepper } from '../components/MigrationStepper/MigrationStepper';
 import { FileUploader } from '../components/FileUploader/FileUploader';
 import { SampleFilesTable } from '../components/SampleFilesTable';
@@ -45,6 +46,7 @@ export function UploadScreen(): React.JSX.Element {
   const { projectId } = route.params;
   const { isHydrating, error, retry } = useHydrateProject(createProjectId(projectId));
 
+  const isReadOnly = useMigrationStore((s) => s.isReadOnly);
   const clearPendingRemovals = useMigrationStore((s) => s.clearPendingRemovals);
 
   useEffect(() => {
@@ -180,6 +182,7 @@ export function UploadScreen(): React.JSX.Element {
       testID="upload-screen"
     >
       <View className="flex-1 max-w-5xl lg:max-w-6xl self-center w-full py-4 gap-4">
+        {isReadOnly && <ReadOnlyBanner />}
         <View className="flex-1 gap-4">
           <MigrationStepper
             currentStep={currentStep}
@@ -257,7 +260,7 @@ export function UploadScreen(): React.JSX.Element {
             </Button>
             <Button
               onPress={() => void handleContinue()}
-              disabled={!canProceedFromStep1}
+              disabled={!canProceedFromStep1 || isReadOnly}
               isLoading={isLoading}
               testID="upload-continue-button"
             >

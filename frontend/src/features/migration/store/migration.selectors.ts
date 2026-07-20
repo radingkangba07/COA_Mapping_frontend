@@ -59,6 +59,43 @@ export interface MappingStats {
   readonly confirmedCount: number;
 }
 
+export function computeMappingStats(groupedMappings: readonly GroupedMapping[]): MappingStats {
+  const allAccounts = groupedMappings
+    .flatMap((g) => g.accounts)
+    .filter((a) => a.is_active !== false);
+
+  let highConfidence = 0;
+  let mediumConfidence = 0;
+  let lowConfidence = 0;
+  let confirmedCount = 0;
+
+  for (const account of allAccounts) {
+    const s = Math.round(account.score);
+    if (s >= CONFIDENCE_THRESHOLDS.HIGH) {
+      highConfidence += 1;
+    } else if (s >= CONFIDENCE_THRESHOLDS.MEDIUM) {
+      mediumConfidence += 1;
+    } else {
+      lowConfidence += 1;
+    }
+    if (
+      account.user_changed === true ||
+      (account as { status?: string }).status === 'confirmed'
+    ) {
+      confirmedCount += 1;
+    }
+  }
+
+  return {
+    totalTypes: groupedMappings.filter((g) => g.source_type).length,
+    totalAccounts: allAccounts.length,
+    highConfidence,
+    mediumConfidence,
+    lowConfidence,
+    confirmedCount,
+  };
+}
+
 export const selectMappingStats = (state: MigrationStore): MappingStats => {
   const allAccounts = state.groupedMappings
     .flatMap((g) => g.accounts)

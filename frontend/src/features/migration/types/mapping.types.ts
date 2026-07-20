@@ -83,6 +83,7 @@ export interface MappingCreateDTO {
   readonly source_account_name?: string | undefined;
   readonly source_account_number?: string | undefined;
   readonly target_account_name?: string | undefined;
+  readonly target_account_number?: string | undefined;
   readonly confidence_score?: number | undefined;
   readonly mapping_status?: string | undefined;
   readonly mapping_source?: string | undefined;

@@ -36,6 +36,7 @@ interface MigrationState {
   mappingData: Record<string, unknown>[];
 
   typeMappingRows: TypeMappingRow[];
+  typeMappingCount: number;
   hasUnsavedChanges: boolean;
   hasUnsavedTypeMappings: boolean;
   targetTypes: string[];
@@ -60,6 +61,7 @@ interface MigrationState {
   jobId: string | null;
   isLoading: boolean;
   error: AppError | null;
+  isReadOnly: boolean;
 }
 
 // ─── Actions ────────────────────────────────────────────────────────────────
@@ -105,6 +107,7 @@ interface MigrationActions {
   confirmConfidenceLevel: (level: ConfidenceLevel) => void;
   confirmAccountsByKeys: (level: ConfidenceLevel, keys: string[]) => void;
   resetBandConfirmation: (level: ConfidenceLevel) => void;
+  clearAllBandConfirmation: () => void;
   hydrateConfirmation: () => Promise<void>;
   persistFileState: () => void;
   hydrateFileState: (workstreamId: string) => Promise<boolean>;
@@ -129,6 +132,7 @@ interface MigrationActions {
   setJobId: (jobId: string | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: AppError | null) => void;
+  setReadOnly: (value: boolean) => void;
   reset: () => void;
 }
 
@@ -151,6 +155,7 @@ const initialState: MigrationState = {
   mappingData: [],
 
   typeMappingRows: [],
+  typeMappingCount: 0,
   hasUnsavedChanges: false,
   hasUnsavedTypeMappings: false,
   targetTypes: [],
@@ -172,6 +177,7 @@ const initialState: MigrationState = {
   jobId: null,
   isLoading: false,
   error: null,
+  isReadOnly: false,
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -218,6 +224,7 @@ interface PersistedFileState {
   mappingFile: UploadedFile | null;
   typeMappingRows: TypeMappingRow[];
   targetTypes: string[];
+  typeMappingCount?: number;
 }
 
 interface PersistedConfirmation {
@@ -349,6 +356,8 @@ export const useMigrationStore = create<MigrationStore>()(
           ...r,
           targetTypes: [...r.targetTypes],
         }));
+        const count = new Set(rows.map((r) => r.sourceType).filter(Boolean)).size;
+        if (count > 0) state.typeMappingCount = count;
       });
     },
 
@@ -358,6 +367,8 @@ export const useMigrationStore = create<MigrationStore>()(
           ...r,
           targetTypes: [...r.targetTypes],
         }));
+        const count = new Set(rows.map((r) => r.sourceType).filter(Boolean)).size;
+        if (count > 0) state.typeMappingCount = count;
       });
     },
 
@@ -417,17 +428,14 @@ export const useMigrationStore = create<MigrationStore>()(
       set((state) => {
         state.groupedMappings = castDraft(mappings);
 
-        const { HIGH, MEDIUM } = CONFIDENCE_THRESHOLDS;
-        const bandConfirmed: Record<ConfidenceLevel, number> = { high: 0, medium: 0, low: 0 };
-
         // First pass: adopt server-confirmed statuses into confirmedAccountKeys.
         // The suggestions endpoint already carries the true mapping_status
         // (normalized to 'confirmed' by the adapter) — this is what makes
-        // confirmed rows, their checkbox lock, and the checked state show up
-        // correctly on a brand-new session/device that never wrote to this
-        // browser's localStorage. Only ever ADD here (never remove) so an
-        // in-flight optimistic confirm from confirmAccountsByKeys can't be
-        // raced/undone by a suggestions refetch that hasn't caught up yet.
+        // confirmed rows and their checkboxes show up correctly on a brand-new
+        // session/device that never wrote to this browser's localStorage.
+        // Only ever ADD here (never remove) so an in-flight optimistic confirm
+        // from confirmAccountsByKeys can't be raced/undone by a suggestions
+        // refetch that hasn't caught up yet.
         for (const group of state.groupedMappings) {
           for (const account of group.accounts) {
             const k = selectionKey(group.source_type, account);
@@ -438,9 +446,10 @@ export const useMigrationStore = create<MigrationStore>()(
         }
 
         // Second pass: re-apply confirmedAccountKeys (now server+local union)
-        // onto the account list, keep the checkbox checked, and tally
-        // confirmed counts per band from the FULL suggestion list (including
-        // rows never materialized into coa_mappings).
+        // onto the account list and keep the checkbox checked. Band-level flags
+        // (confirmedHigh/Medium/Low) are NOT derived here — they are set only by
+        // explicit user action so that revisiting ValidationScreen always starts
+        // with unconfirmed bands regardless of prior server state.
         for (const group of state.groupedMappings) {
           for (const account of group.accounts) {
             const k = selectionKey(group.source_type, account);
@@ -448,20 +457,9 @@ export const useMigrationStore = create<MigrationStore>()(
               (account as { status: string }).status = 'confirmed';
               state.selection[k] = true;
             }
-            if (account.is_active === false) continue;
-            const s = Math.round(account.score);
-            const level: ConfidenceLevel = s >= HIGH ? 'high' : s >= MEDIUM ? 'medium' : 'low';
-            if (state.confirmedAccountKeys[k]) bandConfirmed[level] += 1;
           }
         }
 
-        // "Edit & Reconfirm" shows as soon as ANY account in the band is
-        // confirmed — matches confirmAccountsByKeys' immediate local flag,
-        // so the button doesn't flip on the next reload once this
-        // server-truth recompute runs.
-        state.confirmedHigh = bandConfirmed.high > 0;
-        state.confirmedMedium = bandConfirmed.medium > 0;
-        state.confirmedLow = bandConfirmed.low > 0;
       });
     },
 
@@ -662,6 +660,16 @@ export const useMigrationStore = create<MigrationStore>()(
       }
     },
 
+    clearAllBandConfirmation: (): void => {
+      set((state) => {
+        state.confirmedHigh = false;
+        state.confirmedMedium = false;
+        state.confirmedLow = false;
+        state.confirmedAccountKeys = {};
+      });
+      clearConfirmation();
+    },
+
     deleteAccount: (sourceType: string, sourceName: string, suggestionId?: string): void => {
       set((state) => {
         const group = state.groupedMappings.find(
@@ -853,6 +861,7 @@ export const useMigrationStore = create<MigrationStore>()(
         mappingFile: s.mappingFile,
         typeMappingRows: s.typeMappingRows,
         targetTypes: s.targetTypes,
+        typeMappingCount: s.typeMappingCount,
       };
       storageService
         .set(`${FILE_STATE_STORAGE_PREFIX}_${s.workstreamId}`, JSON.stringify(data))
@@ -871,6 +880,7 @@ export const useMigrationStore = create<MigrationStore>()(
           if (saved.mappingFile) state.mappingFile = castDraft(saved.mappingFile);
           if (saved.typeMappingRows?.length) state.typeMappingRows = saved.typeMappingRows;
           if (saved.targetTypes?.length) state.targetTypes = saved.targetTypes;
+          if (saved.typeMappingCount) state.typeMappingCount = saved.typeMappingCount;
         });
         return true;
       } catch {
@@ -898,8 +908,14 @@ export const useMigrationStore = create<MigrationStore>()(
       }
     },
 
+    setReadOnly: (value: boolean): void => {
+      set((state) => {
+        state.isReadOnly = value;
+      });
+    },
+
     reset: (): void => {
-      set((state) => ({ ...initialState, confidenceFilter: state.confidenceFilter, workstreamId: state.workstreamId }));
+      set((state) => ({ ...initialState, confidenceFilter: state.confidenceFilter, workstreamId: state.workstreamId, isReadOnly: state.isReadOnly, typeMappingCount: state.typeMappingCount }));
     },
   })),
 );

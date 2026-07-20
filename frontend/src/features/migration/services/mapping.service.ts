@@ -122,7 +122,9 @@ export function toMappingCreateDTOs(
           project_id: projectId,
           suggestion_id: account.suggestion_id,
           source_account_name: account.source_name,
+          source_account_number: account.source_number || undefined,
           target_account_name: account.target_name,
+          target_account_number: account.target_number || undefined,
           source_account_type: group.source_type,
           target_account_type: group.target_type,
         };
@@ -154,6 +156,7 @@ export function toMappingCreateDTOs(
         source_account_name: account.source_name,
         source_account_number: account.source_number || undefined,
         target_account_name: account.target_name,
+        target_account_number: account.target_number || undefined,
         source_account_type: group.source_type,
         target_account_type: group.target_type,
       });
@@ -279,7 +282,7 @@ export async function getMappings(
 ): Promise<Result<GroupedMapping[], AppError>> {
   try {
     const response = await client.get<GroupedMapping[]>(
-      `/api/v1/mappings/project/${projectId}`,
+      `/api/v1/mappings/project/${projectId}?limit=500`,
     );
     return ok(response.data);
   } catch (error: unknown) {

@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { MigrationLayout } from '../components/MigrationLayout';
+import { ReadOnlyBanner } from '../components/ReadOnlyBanner';
 import { Card } from '@/shared/components/ui/Card';
 import { Badge } from '@/shared/components/ui/Badge';
 import { Button } from '@/shared/components/ui/Button';
@@ -21,8 +22,6 @@ import { MigrationStepper } from '../components/MigrationStepper/MigrationSteppe
 import { useHydrateProject } from '../hooks/useHydrateProject';
 import { useSaveMappings } from '../hooks/useSaveMappings';
 import { useMigrationStore } from '../store/migration.store';
-import { useShallow } from 'zustand/react/shallow';
-import { selectMappingStats } from '../store/migration.selectors';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { useMigrationScreenRoute } from '@/navigation/types';
 import { createProjectId } from '@/shared/types/common.types';
@@ -66,32 +65,40 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
   const currentStep = useMigrationStore((s) => s.currentStep);
   const completedSteps = useMigrationStore((s) => s.completedSteps);
   const sourceFile = useMigrationStore((s) => s.sourceFile);
+  const typeMappingRows = useMigrationStore((s) => s.typeMappingRows);
+  const isReadOnly = useMigrationStore((s) => s.isReadOnly);
+  const typeMappingCount = useMigrationStore((s) => s.typeMappingCount);
   const completeStep = useMigrationStore((s) => s.completeStep);
   const setStep = useMigrationStore((s) => s.setStep);
-  const stats = useMigrationStore(useShallow(selectMappingStats));
   const { save, isSaving } = useSaveMappings(projectId);
 
   // When the user navigates back via WorkstreamDetailScreen, the store is
   // reset and groupedMappings is empty. Fetch saved mappings from the DB so
   // the preview table is always populated, regardless of navigation path.
-  interface ApiAccount { source_number: string; source_name: string; target_name: string; score: number; }
+  interface ApiAccount { source_number: string; source_name: string; target_number?: string | null; target_name: string; score: number; status?: string; }
   interface ApiGroup { source_type: string; target_type: string; accounts: ApiAccount[]; }
   const [apiRows, setApiRows] = useState<readonly PreviewRow[] | null>(null);
+  // Total distinct source-type groups from the API (all active mappings, not
+  // just confirmed ones) — used as the denominator for "N / 14 types mapped".
+  const [apiTotalTypeCount, setApiTotalTypeCount] = useState<number | null>(null);
   useEffect(() => {
     if (isHydrating || groupedMappings.length > 0 || apiRows !== null) return;
-    httpClient.get<ApiGroup[]>(`/api/v1/mappings/project/${projectId}?limit=100`)
+    httpClient.get<ApiGroup[]>(`/api/v1/mappings/project/${projectId}?limit=500`)
       .then(({ data }) => {
+        setApiTotalTypeCount(new Set(data.map((g) => g.source_type).filter(Boolean)).size);
         setApiRows(data.flatMap((group) =>
-          group.accounts.map((account, idx) => ({
-            key: `${group.source_type}-${account.source_number}-${idx}`,
-            sourceNumber: account.source_number,
-            sourceName: account.source_name,
-            sourceType: group.source_type,
-            targetNumber: null,
-            targetName: account.target_name,
-            targetType: group.target_type,
-            score: Math.round(account.score),
-          }))
+          group.accounts
+            .filter((account) => account.status === 'confirmed' || account.status === 'approved')
+            .map((account, idx) => ({
+              key: `${group.source_type}-${account.source_number}-${idx}`,
+              sourceNumber: account.source_number,
+              sourceName: account.source_name,
+              sourceType: group.source_type,
+              targetNumber: account.target_number ?? null,
+              targetName: account.target_name,
+              targetType: group.target_type,
+              score: Math.round(account.score),
+            }))
         ));
       })
       .catch(() => { setApiRows([]); });
@@ -120,6 +127,27 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
   }, [groupedMappings, apiRows]);
 
   const confirmedCount = rows.length;
+
+  // Denominator: total distinct source types from Stage 2 Type Mapping.
+  // typeMappingCount is persisted in localStorage and survives store resets.
+  const totalTypeCount = useMemo(() => {
+    if (typeMappingCount > 0) return typeMappingCount;
+    const fromTypeMappingRows = new Set(typeMappingRows.map((r) => r.sourceType).filter(Boolean)).size;
+    if (fromTypeMappingRows > 0) return fromTypeMappingRows;
+    if (groupedMappings.length > 0) {
+      return new Set(groupedMappings.map((g) => g.source_type).filter(Boolean)).size;
+    }
+    return apiTotalTypeCount ?? 0;
+  }, [typeMappingCount, typeMappingRows, groupedMappings, apiTotalTypeCount]);
+
+  // Numerator: distinct source types in the confirmed rows.
+  const rowTotalTypes = useMemo(
+    () => new Set(rows.map((r) => r.sourceType).filter(Boolean)).size,
+    [rows],
+  );
+
+  const rowTotalAccounts = rows.length;
+
   // When loading from DB, all rows are saved = confirmed. notConfirmed only
   // applies to the in-memory path where unconfirmed accounts may still exist.
   const notConfirmedCount = useMemo(
@@ -132,10 +160,15 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
   );
 
   const handleBack = useCallback((): void => {
-    navigation.goBack();
-  }, [navigation]);
+    setStep(3);
+    navigation.navigate('Validation', { projectId });
+  }, [navigation, setStep, projectId]);
 
   const handleContinueToExport = useCallback(async (): Promise<void> => {
+    if (isReadOnly) {
+      navigation.navigate('Preview', { projectId });
+      return;
+    }
     // The user has reviewed the final mapping table — this is the commit
     // point. Save (including is_active=false tombstones for deletes) before
     // moving to the export screen. Bail on failure so the user stays here
@@ -191,6 +224,7 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
       testID="final-preview-screen"
     >
       <View className="max-w-4xl lg:max-w-6xl flex-1 self-center w-full py-6 gap-6">
+        {isReadOnly && <ReadOnlyBanner />}
         <MigrationStepper
           currentStep={currentStep}
           completedSteps={completedSteps}
@@ -205,7 +239,7 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
               <View className="mt-1 flex-row items-center gap-1.5">
                 <FileSpreadsheet size={14} color={colors.mutedForeground} />
                 <Text className="font-body text-sm text-muted-foreground">
-                  {sourceFile.name} &bull; {stats.totalAccounts} rows
+                  {sourceFile.name} &bull; {rowTotalAccounts} rows
                 </Text>
               </View>
             )}
@@ -213,7 +247,7 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
           <View className="flex-row items-center gap-4">
             <View className="items-end gap-1.5">
               <Text className="font-body text-sm font-medium text-foreground">
-                {stats.totalTypes} / {stats.totalTypes} types mapped
+                {rowTotalTypes} / {totalTypeCount || rowTotalTypes} types mapped
               </Text>
               <View className="h-2 w-32 rounded-full bg-gray-200 dark:bg-[#3E3E42] overflow-hidden">
                 <View className="h-full rounded-full bg-primary" style={{ width: '100%' }} />

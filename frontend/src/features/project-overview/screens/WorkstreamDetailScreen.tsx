@@ -58,6 +58,7 @@ export function WorkstreamDetailScreen(): React.JSX.Element {
         // only ever adds, so without a reset a prior session's steps persist and
         // the stepper shows future stages as already complete.
         store.reset();
+        store.setReadOnly(data.status === 'completed');
 
         // Restore file metadata and type mapping rows from cache so that
         // re-opening a workstream at the Type Mapping stage doesn't show an
@@ -71,13 +72,12 @@ export function WorkstreamDetailScreen(): React.JSX.Element {
         if (targetERP) store.setTargetERP(targetERP);
 
         const { step, screen } = data.status === 'completed'
-          ? { step: 4, screen: 'FinalPreview' }
+          ? { step: 4, screen: 'Preview' }
           : stageToStep(data.current_stage);
         for (let i = 0; i < step; i++) {
           store.completeStep(i);
         }
         store.setStep(step);
-        store.setProjectId(projectId);
         store.setWorkstreamId(workstreamId);
         targetScreen = screen;
       } catch {
