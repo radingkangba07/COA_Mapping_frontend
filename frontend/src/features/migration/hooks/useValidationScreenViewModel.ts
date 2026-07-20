@@ -341,24 +341,21 @@ export function useValidationScreenViewModel(
       const levelLabel = _level.charAt(0).toUpperCase() + _level.slice(1);
 
       if (inBandKeys.length === 0) {
-        // No accounts in this band — show the dialog so the user is aware,
-        // then fall through to still advance the sub-stage. Skipping the
-        // advance here would cause the next band's confirm to bridge two
-        // sub-stages at once, producing a 20% jump instead of 10%.
         await confirmNoSelection({
           title: 'No Accounts to Confirm',
           message: `There are no ${levelLabel.toLowerCase()} score accounts to confirm.`,
         });
-        // No accounts to mark — the allConfirmed selector already treats
-        // an empty band as implicitly confirmed, so no store action needed.
+        // No accounts to mark — the allConfirmed selector treats an empty
+        // band as implicitly confirmed, so no store action or toast needed.
+        // Still advance the sub-stage so the next band's confirm doesn't
+        // bridge two sub-stages at once (20% jump instead of 10%).
       } else {
         // No rows checked → treat it as "confirm all" for this band.
         // Otherwise confirm exactly what's checked.
         const keysToConfirm = hasInBandSelection ? selectedKeys : inBandKeys;
         actions.confirmAccountsByKeys(_level, keysToConfirm);
+        showSuccess('Confirmed', `${levelLabel} accounts confirmed`);
       }
-
-      showSuccess('Confirmed', `${levelLabel} accounts confirmed`);
 
       // Advance the workstream sub-stage so progress % updates immediately.
       // High → enters sub-stage 2 (+10%), Medium → enters sub-stage 3 (+10%).

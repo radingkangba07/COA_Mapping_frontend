@@ -175,6 +175,7 @@ const mockVM = {
   isDeletedOpen: false,
   hasUnsavedChanges: false,
   isSaving: false,
+  hasMappingsSaved: true,
   handleStepPress: jest.fn(),
   handleFilterPress: jest.fn(),
   handleConfirm: jest.fn(),

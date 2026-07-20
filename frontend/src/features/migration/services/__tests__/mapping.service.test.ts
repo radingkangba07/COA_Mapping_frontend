@@ -727,7 +727,7 @@ describe('getMappings', () => {
       'proj-123',
     );
 
-    expect(mockClient.get).toHaveBeenCalledWith('/api/v1/mappings/project/proj-123');
+    expect(mockClient.get).toHaveBeenCalledWith('/api/v1/mappings/project/proj-123?limit=500');
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.data).toHaveLength(2);

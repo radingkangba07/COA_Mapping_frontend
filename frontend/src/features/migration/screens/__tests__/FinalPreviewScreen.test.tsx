@@ -163,6 +163,9 @@ let mockStoreState: Record<string, unknown> = {};
 function buildStoreState(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     groupedMappings: [],
+    typeMappingRows: [],
+    typeMappingCount: 0,
+    isReadOnly: false,
     currentStep: 3,
     completedSteps: [0, 1, 2],
     sourceFile: { name: 'accounts.xlsx', rowCount: 10 },
@@ -425,16 +428,16 @@ describe('FinalPreviewScreen', () => {
       expect(screen.getByTestId('edit-mappings')).toBeTruthy();
     });
 
-    it('Back to Mapping calls navigation.goBack', () => {
+    it('Back to Mapping navigates to Validation screen', () => {
       render(<FinalPreviewScreen />);
       fireEvent.press(screen.getByTestId('back-to-mapping'));
-      expect(mockGoBack).toHaveBeenCalledTimes(1);
+      expect(mockNavigate).toHaveBeenCalledWith('Validation', { projectId: 'proj-1' });
     });
 
-    it('Edit button calls navigation.goBack', () => {
+    it('Edit button navigates to Validation screen', () => {
       render(<FinalPreviewScreen />);
       fireEvent.press(screen.getByTestId('edit-mappings'));
-      expect(mockGoBack).toHaveBeenCalledTimes(1);
+      expect(mockNavigate).toHaveBeenCalledWith('Validation', { projectId: 'proj-1' });
     });
 
     it('Continue to Export calls save and navigates on success', async () => {
