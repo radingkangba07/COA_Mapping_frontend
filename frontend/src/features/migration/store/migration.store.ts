@@ -878,7 +878,7 @@ export const useMigrationStore = create<MigrationStore>()(
           if (saved.sourceFile) state.sourceFile = castDraft(saved.sourceFile);
           if (saved.targetFile) state.targetFile = castDraft(saved.targetFile);
           if (saved.mappingFile) state.mappingFile = castDraft(saved.mappingFile);
-          if (saved.typeMappingRows?.length) state.typeMappingRows = saved.typeMappingRows;
+          if (saved.typeMappingRows?.length) state.typeMappingRows = castDraft(saved.typeMappingRows);
           if (saved.targetTypes?.length) state.targetTypes = saved.targetTypes;
           if (saved.typeMappingCount) state.typeMappingCount = saved.typeMappingCount;
         });
