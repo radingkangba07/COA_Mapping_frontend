@@ -153,7 +153,10 @@ export function useErpCascade(
       const product = currentProducts.find((p) => p.id === productId);
       if (product) {
         onVendorResolved?.(selectedVendor);
-        const firstSupported = product.connection_methods.find(
+        // Prefer csv_file over mcp_server — MCP requires a test connection which
+        // blocks the Create gate. CSV works immediately so it should be the default.
+        const csvMethod = product.connection_methods.find((cm) => cm.id === 'csv_file');
+        const firstSupported = csvMethod ?? product.connection_methods.find(
           (cm) => cm.id in CM_TO_METHOD,
         );
         const resolvedMethod = firstSupported
@@ -162,9 +165,10 @@ export function useErpCascade(
         if (resolvedMethod) {
           onSelectMethod(resolvedMethod);
         }
-        // Persist this vendor → product + method pairing for future autofill
+        // Persist the DB connection method ID (not the frontend alias) so the
+        // load-effect check `pref.method in CM_TO_METHOD` resolves correctly.
         if (selectedVendor) {
-          void saveVendorPref(selectedVendor, productId, resolvedMethod);
+          void saveVendorPref(selectedVendor, productId, firstSupported?.id ?? null);
         }
       }
     },
