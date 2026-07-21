@@ -14,6 +14,7 @@ import {
   Trash2,
 } from 'lucide-react-native';
 import { MigrationLayout } from '../components/MigrationLayout';
+import { ReadOnlyBanner } from '../components/ReadOnlyBanner';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { MultiSelect } from '@/shared/components/ui/MultiSelect';
@@ -51,6 +52,7 @@ export const MappingScreen = (): React.JSX.Element => {
 
   const { isHydrating, error, retry } = useHydrateProject(createProjectId(projectId));
 
+  const isReadOnly = useMigrationStore((s) => s.isReadOnly);
   const currentStep = useMigrationStore((s) => s.currentStep);
   const completedSteps = useMigrationStore((s) => s.completedSteps);
   const typeMappingRows = useMigrationStore((s) => s.typeMappingRows);
@@ -197,6 +199,13 @@ export const MappingScreen = (): React.JSX.Element => {
           useMigrationStore.getState().completeStep(2);
           useMigrationStore.getState().setStep(3);
           syncStep(3);
+          const wsId = useMigrationStore.getState().workstreamId;
+          const pid = useMigrationStore.getState().projectId;
+          if (wsId && pid) {
+            httpClient
+              .patch(`/api/v1/projects/${pid}/workstreams/${wsId}`, { current_stage: 'Account Mapping: 1' })
+              .catch(() => {});
+          }
           navigation.navigate('Validation', { projectId });
         }
       })();
@@ -260,6 +269,15 @@ export const MappingScreen = (): React.JSX.Element => {
     setIsProcessing(true);
     setProcessingMessage('Submitting mapping job...');
 
+    // Advance the workstream stage immediately on button click — Type Mapping is
+    // done the moment the user commits to proceeding, regardless of job duration.
+    const wsId = useMigrationStore.getState().workstreamId;
+    if (wsId) {
+      httpClient
+        .patch(`/api/v1/projects/${projectId}/workstreams/${wsId}`, { current_stage: 'Account Mapping: 1' })
+        .catch(() => {});
+    }
+
     let jobId = store.jobId;
 
     // Create the mapping job if one doesn't exist yet
@@ -289,6 +307,7 @@ export const MappingScreen = (): React.JSX.Element => {
 
     if (completed && !cancelledRef.current) {
       showSuccess('Mapping complete', 'Review your account mappings.');
+      useMigrationStore.getState().clearAllBandConfirmation();
       useMigrationStore.getState().completeStep(2);
       useMigrationStore.getState().setStep(3);
       syncStep(3);
@@ -405,6 +424,7 @@ export const MappingScreen = (): React.JSX.Element => {
       testID="mapping-screen"
     >
       <View className="max-w-4xl lg:max-w-6xl flex-1 self-center w-full py-6 gap-6">
+        {isReadOnly && <ReadOnlyBanner />}
         <MigrationStepper
           currentStep={currentStep}
           completedSteps={completedSteps}
@@ -489,7 +509,7 @@ export const MappingScreen = (): React.JSX.Element => {
                 Edit Mappings
               </Text>
               <View className="flex-row gap-2">
-                <Button variant="outline" size="sm" onPress={handleAddRow} testID="mapping-add-row">
+                <Button variant="outline" size="sm" onPress={handleAddRow} disabled={isReadOnly} testID="mapping-add-row">
                   <View className="flex-row items-center gap-1.5">
                     <Plus size={14} color={colors.foreground} />
                     <Text className="font-body text-xs font-medium text-foreground">Add Row</Text>
@@ -529,6 +549,7 @@ export const MappingScreen = (): React.JSX.Element => {
                   key={row.id}
                   row={row}
                   targetTypes={targetTypes}
+                  isReadOnly={isReadOnly}
                   onUpdateRow={handleUpdateRow}
                   onDeleteRow={handleDeleteRow}
                 />
@@ -563,7 +584,7 @@ export const MappingScreen = (): React.JSX.Element => {
           <Button
             variant="outline"
             onPress={() => void handleClearMappings()}
-            disabled={accountTypeMappings.isSaving}
+            disabled={accountTypeMappings.isSaving || isReadOnly}
             accessibilityLabel="Clear all type mappings"
             testID="mapping-clear-button"
           >
@@ -577,7 +598,7 @@ export const MappingScreen = (): React.JSX.Element => {
 
           <Button
             onPress={() => void handleProceed()}
-            disabled={!canProceed}
+            disabled={!canProceed || isReadOnly}
             isLoading={isMapping || accountTypeMappings.isSaving}
             accessibilityLabel="Continue to COA mapping"
             testID="mapping-proceed-button"
@@ -682,6 +703,7 @@ const MappingPreviewTable = React.memo(function MappingPreviewTable({
 interface AccountMappingRowProps {
   row: TypeMappingRow;
   targetTypes: readonly string[];
+  isReadOnly?: boolean;
   onUpdateRow: (
     id: string,
     update: Partial<Pick<TypeMappingRow, 'sourceType' | 'targetTypes'>>,
@@ -692,6 +714,7 @@ interface AccountMappingRowProps {
 const AccountMappingRow = React.memo(function AccountMappingRow({
   row,
   targetTypes,
+  isReadOnly = false,
   onUpdateRow,
   onDeleteRow,
 }: AccountMappingRowProps) {
@@ -760,16 +783,18 @@ const AccountMappingRow = React.memo(function AccountMappingRow({
       </View>
 
       {/* Delete button */}
-      <View className="items-end md:w-12 md:items-center">
-        <Button
-          variant="ghost"
-          size="icon"
-          onPress={handleDelete}
-          accessibilityLabel={`Delete ${row.sourceType} mapping`}
-        >
-          <Trash2 size={16} color={colors.destructive} />
-        </Button>
-      </View>
+      {!isReadOnly && (
+        <View className="items-end md:w-12 md:items-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            onPress={handleDelete}
+            accessibilityLabel={`Delete ${row.sourceType} mapping`}
+          >
+            <Trash2 size={16} color={colors.destructive} />
+          </Button>
+        </View>
+      )}
     </View>
   );
 });

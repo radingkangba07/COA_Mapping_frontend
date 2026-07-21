@@ -67,6 +67,7 @@ export const PreviewScreen = (): React.JSX.Element => {
     [vm, navigation, projectId],
   );
 
+  const isReadOnly = useMigrationStore((s) => s.isReadOnly);
   const completeStep = useMigrationStore((s) => s.completeStep);
 
   // Strip locally-deleted accounts before handing off to export — the export
@@ -142,6 +143,21 @@ export const PreviewScreen = (): React.JSX.Element => {
     );
   }
 
+  // Show spinner while the mappings API fetch is in flight and there is no
+  // data yet — covers the case where WorkstreamDetailScreen reset the store
+  // before navigating here, so allMappings is empty and apiMappings is
+  // loading from scratch (or refreshing from a stale cache).
+  if (vm.isFetchingMappings && tableRows.length === 0) {
+    return (
+      <MigrationLayout title="DataPortation" projectId={projectId} onBack={() => navigation.goBack()} testID="preview-screen">
+        <View className="flex-1 items-center justify-center">
+          <Spinner size="lg" />
+          <Text className="mt-4 font-body text-sm text-muted-foreground">Loading mapping data...</Text>
+        </View>
+      </MigrationLayout>
+    );
+  }
+
   return (
     <MigrationLayout
       title="DataPortation"
@@ -152,8 +168,16 @@ export const PreviewScreen = (): React.JSX.Element => {
       testID="preview-screen"
     >
       <View className="max-w-4xl lg:max-w-6xl flex-1 self-center w-full py-6 gap-6">
+        {isReadOnly && (
+          <View className="flex-row items-center gap-2 px-4 py-2.5 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700">
+            <CheckCircle2 size={14} color="#16A34A" />
+            <Text className="font-body text-sm text-green-800 dark:text-green-300">
+              This project has been completed. You can still download the export at any time.
+            </Text>
+          </View>
+        )}
         <MigrationStepper
-          currentStep={4}
+          currentStep={vm.currentStep}
           completedSteps={vm.completedSteps}
           onStepPress={handleStepPress}
         />
@@ -211,9 +235,9 @@ export const PreviewScreen = (): React.JSX.Element => {
                   <ScrollView horizontal contentContainerStyle={{ flexGrow: 1 }}>
                     <View className="min-w-[700px] lg:min-w-[900px] flex-1">
                       <View className="flex-row border-b border-border pb-2 mb-1">
-                        {['Source #', 'Source Name', 'Target Name', 'Score', 'Source Type', 'Target Type'].map(
+                        {['Source #', 'Source Name', 'Target #', 'Target Name', 'Score', 'Source Type', 'Target Type'].map(
                           (label, i) => {
-                            const w = i === 0 ? 'w-[80px] lg:w-[100px]' : i === 3 ? 'w-[60px] lg:w-[100px]' : i >= 4 ? 'w-[100px] lg:w-[130px]' : 'flex-1';
+                            const w = i === 0 ? 'w-[80px] lg:w-[100px]' : i === 2 ? 'w-[60px] lg:w-[80px]' : i === 4 ? 'w-[60px] lg:w-[100px]' : i >= 5 ? 'w-[100px] lg:w-[130px]' : 'flex-1';
                             return <Text key={label} className={cn(w, 'text-xs font-semibold text-muted-foreground')}>{label}</Text>;
                           },
                         )}
@@ -279,14 +303,21 @@ export const PreviewScreen = (): React.JSX.Element => {
               </Text>
             </View>
           </Button>
-          <Button onPress={handleComplete} disabled={isCompleting || !isOnline} accessibilityLabel="Mark migration complete" testID="complete-button">
-            <View className="flex-row items-center gap-2">
-              <CheckCircle2 size={ICON_SIZE} color={colors.primaryForeground} />
-              <Text className="text-sm font-medium text-primary-foreground">
-                {isCompleting ? 'Completing...' : 'Complete'}
-              </Text>
+          {isReadOnly ? (
+            <View className="flex-row items-center gap-2 px-4 py-2 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700">
+              <CheckCircle2 size={ICON_SIZE} color="#16A34A" />
+              <Text className="text-sm font-semibold text-green-700 dark:text-green-400">Project Completed</Text>
             </View>
-          </Button>
+          ) : (
+            <Button onPress={handleComplete} disabled={isCompleting || !isOnline} accessibilityLabel="Mark migration complete" testID="complete-button">
+              <View className="flex-row items-center gap-2">
+                <CheckCircle2 size={ICON_SIZE} color={colors.primaryForeground} />
+                <Text className="text-sm font-medium text-primary-foreground">
+                  {isCompleting ? 'Completing...' : 'Complete'}
+                </Text>
+              </View>
+            </Button>
+          )}
         </View>
       </View>
     </MigrationLayout>

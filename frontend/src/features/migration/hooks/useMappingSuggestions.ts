@@ -18,6 +18,7 @@ export interface UseMappingSuggestionsReturn {
   readonly skip: number;
   readonly limit: number;
   readonly isLoading: boolean;
+  readonly isFetching: boolean;
   readonly error: AppError | null;
   readonly refetch: () => Promise<UseQueryResult<SuggestionListResponse, AppError>>;
 }
@@ -77,6 +78,7 @@ export function useMappingSuggestions(
     skip: data?.skip ?? (opts?.skip ?? 0),
     limit: data?.limit ?? (opts?.limit ?? 0),
     isLoading: query.isLoading,
+    isFetching: query.isFetching,
     error: query.error ?? null,
     refetch: query.refetch,
   };

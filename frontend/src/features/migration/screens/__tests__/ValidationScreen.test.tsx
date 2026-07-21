@@ -102,6 +102,7 @@ jest.mock('../../hooks/useMappingSuggestions', () => ({
 
 // ─── Store mock ────────────────────────────────────────────────────────────
 const mockSetGroupedMappings = jest.fn();
+let mockValidationIsReadOnly = false;
 
 jest.mock('../../store/migration.store', () => {
   const getStoreState = (): Record<string, unknown> => ({
@@ -110,6 +111,7 @@ jest.mock('../../store/migration.store', () => {
     currentStep: 3,
     groupedMappings: [],
     setGroupedMappings: mockSetGroupedMappings,
+    isReadOnly: mockValidationIsReadOnly,
   });
   const useMigrationStore = Object.assign(
     jest.fn((selector?: (s: Record<string, unknown>) => unknown) => {
@@ -119,6 +121,11 @@ jest.mock('../../store/migration.store', () => {
     { getState: getStoreState, subscribe: jest.fn(() => () => undefined) },
   );
   return { useMigrationStore };
+});
+
+jest.mock('../../components/ReadOnlyBanner', () => {
+  const { View } = require('react-native');
+  return { ReadOnlyBanner: () => <View testID="read-only-banner" /> };
 });
 
 // ─── Adapter mock ──────────────────────────────────────────────────────────
@@ -175,6 +182,7 @@ const mockVM = {
   isDeletedOpen: false,
   hasUnsavedChanges: false,
   isSaving: false,
+  hasMappingsSaved: true,
   handleStepPress: jest.fn(),
   handleFilterPress: jest.fn(),
   handleConfirm: jest.fn(),
@@ -322,6 +330,7 @@ function baseEvent(
 describe('ValidationScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockValidationIsReadOnly = false;
     mockVM.allConfirmed = false;
     mockVM.confidenceFilter = null;
     mockVM.errors = [];
@@ -583,6 +592,54 @@ describe('ValidationScreen', () => {
       fireEvent.press(screen.getByText('Collapse All'));
       fireEvent.press(screen.getByText('Expand All'));
       expect(screen.getByText('Collapse All')).toBeTruthy();
+    });
+  });
+
+  describe('isReadOnly — continue button routing', () => {
+    it('calls vm.handleContinue when isReadOnly is false and allConfirmed is true', () => {
+      mockValidationIsReadOnly = false;
+      mockVM.allConfirmed = true;
+      render(<ValidationScreen />);
+      fireEvent.press(screen.getByTestId('continue-button'));
+      expect(mockVM.handleContinue).toHaveBeenCalledTimes(1);
+      expect(mockNavigate).not.toHaveBeenCalledWith('FinalPreview', expect.anything());
+    });
+
+    it('disables Continue when isReadOnly is false and allConfirmed is false', () => {
+      mockValidationIsReadOnly = false;
+      mockVM.allConfirmed = false;
+      render(<ValidationScreen />);
+      const button = screen.getByTestId('continue-button');
+      expect(button.props.accessibilityState?.disabled).toBe(true);
+    });
+
+    it('navigates to FinalPreview when isReadOnly is true and Continue is pressed', () => {
+      mockValidationIsReadOnly = true;
+      mockVM.allConfirmed = false;
+      render(<ValidationScreen />);
+      fireEvent.press(screen.getByTestId('continue-button'));
+      expect(mockNavigate).toHaveBeenCalledWith('FinalPreview', { projectId: 'test-project-1' });
+      expect(mockVM.handleContinue).not.toHaveBeenCalled();
+    });
+
+    it('does not disable Continue based on allConfirmed when isReadOnly is true', () => {
+      mockValidationIsReadOnly = true;
+      mockVM.allConfirmed = false;
+      render(<ValidationScreen />);
+      const button = screen.getByTestId('continue-button');
+      expect(button.props.accessibilityState?.disabled).not.toBe(true);
+    });
+
+    it('shows ReadOnlyBanner when isReadOnly is true', () => {
+      mockValidationIsReadOnly = true;
+      render(<ValidationScreen />);
+      expect(screen.getByTestId('read-only-banner')).toBeTruthy();
+    });
+
+    it('does not show ReadOnlyBanner when isReadOnly is false', () => {
+      mockValidationIsReadOnly = false;
+      render(<ValidationScreen />);
+      expect(screen.queryByTestId('read-only-banner')).toBeNull();
     });
   });
 });

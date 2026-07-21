@@ -62,6 +62,7 @@ const mockStoreState: Record<string, unknown> = {
   ],
   targetTypes: ['Asset', 'Liability', 'Equity'],
   isLoading: false,
+  isReadOnly: false,
   sourceFile: { fileId: 'src-file-001', name: 'source.xlsx', rowCount: 10 },
   targetFile: { fileId: 'tgt-file-001', name: 'target.xlsx', rowCount: 10 },
   mappingFile: null,
@@ -314,5 +315,46 @@ describe('MappingScreen', () => {
 
     expect(mockSaveMappings).toHaveBeenCalledTimes(1);
     expect(mockGetHierarchicalMapping).not.toHaveBeenCalled();
+  });
+
+  describe('isReadOnly — delete button visibility', () => {
+    beforeEach(() => {
+      mockStoreState.typeMappingRows = [
+        { id: '1', sourceType: 'Asset', targetTypes: ['Asset'], isCustom: false },
+      ];
+    });
+
+    it('shows per-row delete button when isReadOnly is false', () => {
+      mockStoreState.isReadOnly = false;
+      render(<MappingScreen />);
+      expect(screen.getByLabelText('Delete Asset mapping')).toBeTruthy();
+    });
+
+    it('hides per-row delete button when isReadOnly is true', () => {
+      mockStoreState.isReadOnly = true;
+      render(<MappingScreen />);
+      expect(screen.queryByLabelText('Delete Asset mapping')).toBeNull();
+    });
+
+    it('disables the Proceed button when isReadOnly is true', () => {
+      mockStoreState.isReadOnly = true;
+      render(<MappingScreen />);
+      const button = screen.getByTestId('mapping-proceed-button');
+      expect(button.props.accessibilityState?.disabled).toBe(true);
+    });
+
+    it('disables the Clear All button when isReadOnly is true', () => {
+      mockStoreState.isReadOnly = true;
+      render(<MappingScreen />);
+      const button = screen.getByTestId('mapping-clear-button');
+      expect(button.props.accessibilityState?.disabled).toBe(true);
+    });
+
+    it('disables the Add Row button when isReadOnly is true', () => {
+      mockStoreState.isReadOnly = true;
+      render(<MappingScreen />);
+      const button = screen.getByTestId('mapping-add-row');
+      expect(button.props.accessibilityState?.disabled).toBe(true);
+    });
   });
 });

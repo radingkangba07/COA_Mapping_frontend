@@ -19,6 +19,20 @@ function findERP(value: string, systems: readonly ERPSystem[]): ERPSystem | unde
   );
 }
 
+type ContextResp = {
+  status: string | null;
+  current_stage: string | null;
+  project: { source_system: string; target_system: string };
+};
+
+function stageToStep(currentStage: string | null): { step: number; screen: string } {
+  if (!currentStage || currentStage === 'Upload Files') return { step: 1, screen: 'Upload' };
+  if (currentStage === 'Type Mapping') return { step: 2, screen: 'Mapping' };
+  if (currentStage.startsWith('Account Mapping:')) return { step: 3, screen: 'Validation' };
+  if (currentStage === 'Preview & Export') return { step: 4, screen: 'FinalPreview' };
+  return { step: 1, screen: 'Upload' };
+}
+
 export function WorkstreamDetailScreen(): React.JSX.Element {
   const route = useRoute<RouteProp<ProjectsStackParamList, 'WorkstreamDetail'>>();
   const navigation = useNavigation();
@@ -28,8 +42,9 @@ export function WorkstreamDetailScreen(): React.JSX.Element {
     let cancelled = false;
 
     async function prepareAndNavigate(): Promise<void> {
+      let targetScreen = 'Upload';
+
       try {
-        type ContextResp = { project: { source_system: string; target_system: string } };
         const { data } = await httpClient.get<ContextResp>(
           `/api/v1/workstreams/${workstreamId}/context`,
         );
@@ -38,13 +53,33 @@ export function WorkstreamDetailScreen(): React.JSX.Element {
 
         const systems = useERPConfigStore.getState().erpSystems;
         const store = useMigrationStore.getState();
+
+        // Reset stale completedSteps before setting fresh ones — completeStep
+        // only ever adds, so without a reset a prior session's steps persist and
+        // the stepper shows future stages as already complete.
+        store.reset();
+        store.setReadOnly(data.status === 'completed');
+
+        // Restore file metadata and type mapping rows from cache so that
+        // re-opening a workstream at the Type Mapping stage doesn't show an
+        // empty mapping table. Runs after reset so it's not wiped immediately.
+        await useMigrationStore.getState().hydrateFileState(workstreamId);
+
         const sourceERP = findERP(data.project.source_system, systems);
         const targetERP = findERP(data.project.target_system, systems);
 
         if (sourceERP) store.setSourceERP(sourceERP);
         if (targetERP) store.setTargetERP(targetERP);
-        store.setStep(1);
-        store.setProjectId(projectId);
+
+        const { step, screen } = data.status === 'completed'
+          ? { step: 4, screen: 'Preview' }
+          : stageToStep(data.current_stage);
+        for (let i = 0; i < step; i++) {
+          store.completeStep(i);
+        }
+        store.setStep(step);
+        store.setWorkstreamId(workstreamId);
+        targetScreen = screen;
       } catch {
         // Context fetch failed — UploadScreen will hydrate from the project API
       }
@@ -52,13 +87,13 @@ export function WorkstreamDetailScreen(): React.JSX.Element {
       if (cancelled) return;
 
       // Pop WorkstreamDetail from ProjectsStack so that when the user presses
-      // Back on the Upload screen, ProjectsTab restores to ProjectOverview.
+      // Back on the target screen, ProjectsTab restores to ProjectOverview.
       navigation.dispatch(StackActions.pop());
 
-      // Switch to MigrationTab and push Upload onto its stack.
+      // Switch to MigrationTab and push the correct screen onto its stack.
       const tabNav = navigation.getParent<BottomTabNavigationProp<AppTabsParamList>>();
       tabNav?.navigate('MigrationTab', {
-        screen: 'Upload',
+        screen: targetScreen as 'Upload',
         params: { projectId },
       });
     }
