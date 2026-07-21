@@ -82,9 +82,38 @@ jest.mock('../../hooks/useMigrationViewModel', () => ({
   useMigrationViewModel: jest.fn(() => mockViewModel),
 }));
 
+// Track calls to useHydrateProject so we can assert it was called with the projectId
+const mockUseHydrateProject = jest.fn((_arg: unknown) => ({ isHydrating: false, error: null, retry: jest.fn() }));
 jest.mock('../../hooks/useHydrateProject', () => ({
-  useHydrateProject: () => ({ isHydrating: false, error: null, retry: jest.fn() }),
+  useHydrateProject: (arg: unknown) => mockUseHydrateProject(arg),
 }));
+
+// ─── Migration store mock (isReadOnly) ──────────────────────────────────────
+let mockUploadIsReadOnly = false;
+
+jest.mock('../../store/migration.store', () => {
+  const hook = (selector: (s: Record<string, unknown>) => unknown) => {
+    const state: Record<string, unknown> = {
+      isReadOnly: mockUploadIsReadOnly,
+      clearPendingRemovals: jest.fn(),
+      sourceData: [],
+      targetData: [],
+      mappingData: [],
+    };
+    return typeof selector === 'function' ? selector(state) : state;
+  };
+  hook.getState = () => ({
+    setStep: jest.fn(),
+    isReadOnly: mockUploadIsReadOnly,
+    clearPendingRemovals: jest.fn(),
+  });
+  return { useMigrationStore: hook };
+});
+
+jest.mock('../../components/ReadOnlyBanner', () => {
+  const { View } = require('react-native');
+  return { ReadOnlyBanner: () => <View testID="read-only-banner" /> };
+});
 
 // Force the CSV branch so the existing FileUploader-based assertions hold. The
 // real hook now defaults method to 'mcp' (DA-52), which renders FetchFromErpStep
@@ -189,5 +218,40 @@ describe('UploadScreen', () => {
     render(<UploadScreen />);
     fireEvent.press(screen.getByTestId('upload-continue-button'));
     expect(mockViewModel.processFiles).toHaveBeenCalled();
+  });
+
+  describe('isReadOnly', () => {
+    beforeEach(() => {
+      mockUploadIsReadOnly = false;
+    });
+
+    it('does not show ReadOnlyBanner when isReadOnly is false', () => {
+      mockUploadIsReadOnly = false;
+      render(<UploadScreen />);
+      expect(screen.queryByTestId('read-only-banner')).toBeNull();
+    });
+
+    it('shows ReadOnlyBanner when isReadOnly is true', () => {
+      mockUploadIsReadOnly = true;
+      render(<UploadScreen />);
+      expect(screen.getByTestId('read-only-banner')).toBeTruthy();
+    });
+
+    it('disables the Process Files button when isReadOnly is true', () => {
+      mockUploadIsReadOnly = true;
+      mockViewModel.canProceedFromStep1 = true;
+      render(<UploadScreen />);
+      const button = screen.getByTestId('upload-continue-button');
+      expect(button.props.accessibilityState?.disabled).toBe(true);
+    });
+  });
+
+  describe('useHydrateProject', () => {
+    it('is called with the projectId from route params', () => {
+      render(<UploadScreen />);
+      // createProjectId brands the string — we just check it was called with a truthy value
+      // derived from 'test-project-1'
+      expect(mockUseHydrateProject).toHaveBeenCalledWith(expect.stringContaining('test-project-1'));
+    });
   });
 });

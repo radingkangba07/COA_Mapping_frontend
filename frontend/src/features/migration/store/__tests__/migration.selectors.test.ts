@@ -6,6 +6,7 @@ import {
   selectTypeMappingSummary,
   selectMappingStats,
   selectAllConfirmed,
+  computeMappingStats,
 } from '@/features/migration/store/migration.selectors';
 import type { MigrationStore } from '@/features/migration/store/migration.store';
 import type { GroupedMapping, AccountMapping } from '@/features/migration/types/mapping.types';
@@ -117,6 +118,89 @@ function createGroup(overrides: Partial<GroupedMapping> = {}): GroupedMapping {
     ...overrides,
   };
 }
+
+// ─── computeMappingStats ─────────────────────────────────────────────────────
+
+describe('computeMappingStats', () => {
+  it('returns all zeros for empty input', () => {
+    expect(computeMappingStats([])).toEqual({
+      totalTypes: 0,
+      totalAccounts: 0,
+      highConfidence: 0,
+      mediumConfidence: 0,
+      lowConfidence: 0,
+      confirmedCount: 0,
+    });
+  });
+
+  it('excludes accounts where is_active is false', () => {
+    const groups = [
+      createGroup({
+        accounts: [
+          createAccount({ score: 95 }),
+          { ...createAccount({ score: 80 }), is_active: false },
+        ],
+      }),
+    ];
+    const result = computeMappingStats(groups);
+    expect(result.totalAccounts).toBe(1);
+    expect(result.highConfidence).toBe(1);
+    expect(result.mediumConfidence).toBe(0);
+  });
+
+  it('increments confirmedCount when user_changed is true', () => {
+    const groups = [
+      createGroup({
+        accounts: [
+          createAccount({ score: 95, user_changed: true }),
+          createAccount({ score: 80, user_changed: false }),
+        ],
+      }),
+    ];
+    expect(computeMappingStats(groups).confirmedCount).toBe(1);
+  });
+
+  it("increments confirmedCount when status is 'confirmed'", () => {
+    const groups = [
+      createGroup({
+        accounts: [
+          { ...createAccount({ score: 75 }), status: 'confirmed' },
+          createAccount({ score: 75 }),
+        ],
+      }),
+    ];
+    expect(computeMappingStats(groups).confirmedCount).toBe(1);
+  });
+
+  it('classifies score >= 90 as high', () => {
+    const result = computeMappingStats([createGroup({ accounts: [createAccount({ score: 90 })] })]);
+    expect(result.highConfidence).toBe(1);
+    expect(result.mediumConfidence).toBe(0);
+    expect(result.lowConfidence).toBe(0);
+  });
+
+  it('classifies score 70–89 as medium', () => {
+    const result = computeMappingStats([createGroup({ accounts: [createAccount({ score: 70 })] })]);
+    expect(result.highConfidence).toBe(0);
+    expect(result.mediumConfidence).toBe(1);
+    expect(result.lowConfidence).toBe(0);
+  });
+
+  it('classifies score < 70 as low', () => {
+    const result = computeMappingStats([createGroup({ accounts: [createAccount({ score: 69 })] })]);
+    expect(result.highConfidence).toBe(0);
+    expect(result.mediumConfidence).toBe(0);
+    expect(result.lowConfidence).toBe(1);
+  });
+
+  it('counts totalTypes correctly (groups with a source_type)', () => {
+    const groups = [
+      createGroup({ source_type: 'Asset' }),
+      createGroup({ source_type: 'Liability' }),
+    ];
+    expect(computeMappingStats(groups).totalTypes).toBe(2);
+  });
+});
 
 // ─── selectCurrentStep ──────────────────────────────────────────────────────
 
