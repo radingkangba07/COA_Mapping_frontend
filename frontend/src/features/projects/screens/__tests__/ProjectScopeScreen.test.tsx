@@ -104,6 +104,8 @@ const baseVM: ProjectScopeViewModel = {
     description: 'd',
     source: null,
     target: null,
+    sourceVendor: null,
+    targetVendor: null,
     method: 'mcp',
     sourceMethod: 'csv',
     targetMethod: 'csv',
@@ -136,6 +138,8 @@ const baseVM: ProjectScopeViewModel = {
   setCompanyId: mockSetCompanyId,
   setSource: mockSetSource,
   setTarget: mockSetTarget,
+  setSourceVendorId: jest.fn(),
+  setTargetVendorId: jest.fn(),
   setSourceMethod: mockSetSourceMethod,
   setTargetMethod: mockSetTargetMethod,
   updateConnection: mockUpdateConnection,
@@ -165,6 +169,20 @@ jest.mock('../../hooks/useProjectSummaryViewModel', () => ({
       members: '0',
     },
   }),
+}));
+
+// useErpCascade calls useQuery internally; stub it so the test needs no QueryClientProvider.
+jest.mock('../../hooks/useErpCascade', () => ({
+  useErpCascade: jest.fn(() => ({
+    vendorOptions: [],
+    productOptions: [],
+    connectionMethodOptions: [],
+    selectedVendor: null,
+    isLoadingVendors: false,
+    isLoadingProducts: false,
+    onVendorChange: jest.fn(),
+    onProductChange: jest.fn(),
+  })),
 }));
 
 // ─── Imports (after mocks) ──────────────────────────────────────────────────

@@ -223,6 +223,7 @@ describe('useProjectScopeViewModel', () => {
       expect(payload.targetVendorId).toBeUndefined();
     });
 
+
     it('omits description when empty', () => {
       const draft = { ...createInitialDraft(), companyId: 'co-9', name: 'P' };
       const payload = buildCreatePayload(draft);
