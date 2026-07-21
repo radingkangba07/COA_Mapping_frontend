@@ -41,6 +41,7 @@ export function useSidebarData(projectId: string): SidebarContentProps {
 
   return {
     projectId: project?.projectId ?? null,
+    displayCode: project?.displayCode,
     orgId: project?.orgId,
     projectName: project?.name,
     createdAt: project?.createdAt ?? undefined,

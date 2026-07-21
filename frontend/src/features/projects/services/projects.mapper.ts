@@ -17,6 +17,7 @@ export const projectResponseSchema = z.object({
   source_connection_method: z.string().nullable().optional(),
   target_connection_method: z.string().nullable().optional(),
   status: z.enum(['active', 'draft', 'in_progress', 'pending_review', 'completed']),
+  display_code: z.string().nullable().optional(),
   org_id: z.string().nullable().optional(),
   company_id: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
@@ -65,6 +66,7 @@ export function toProject(dto: ProjectResponseDTO): Project & {
     updatedByName: dto.updated_by_name ?? undefined,
     currentStep: dto.current_step,
     effectivePermission: dto.effective_permission ?? undefined,
+    displayCode: dto.display_code ?? undefined,
   };
 }
 

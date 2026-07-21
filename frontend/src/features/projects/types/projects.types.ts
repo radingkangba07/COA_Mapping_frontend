@@ -32,6 +32,7 @@ export interface Project {
   readonly updatedByName: string | undefined;
   readonly currentStep: number;
   readonly effectivePermission: string | undefined;
+  readonly displayCode: string | undefined;
 }
 
 export interface ProjectMember {
