@@ -70,7 +70,7 @@ export const TopAppBar = ({
           {resolveErpName(targetErp)}
         </Text>
         <Text className="font-mono text-sm text-muted-foreground ml-6">
-          Project ID: {displayCode ?? projectId.slice(0, 8)}
+          Project ID: {displayCode ?? projectId}
         </Text>
       </View>
     </View>
