@@ -20,6 +20,7 @@ interface TopAppBarProps {
   readonly sourceErp: string;
   readonly targetErp: string;
   readonly projectId: string;
+  readonly displayCode?: string;
   readonly onBack?: () => void;
   readonly testID?: string;
 }
@@ -30,6 +31,7 @@ export const TopAppBar = ({
   sourceErp,
   targetErp,
   projectId,
+  displayCode,
   onBack,
   testID,
 }: TopAppBarProps): React.JSX.Element => {
@@ -68,7 +70,7 @@ export const TopAppBar = ({
           {resolveErpName(targetErp)}
         </Text>
         <Text className="font-mono text-sm text-muted-foreground ml-6">
-          Project ID: {projectId}
+          Project ID: {displayCode ?? projectId.slice(0, 8)}
         </Text>
       </View>
     </View>
