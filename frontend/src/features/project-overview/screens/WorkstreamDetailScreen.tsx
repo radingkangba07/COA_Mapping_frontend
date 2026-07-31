@@ -72,7 +72,7 @@ export function WorkstreamDetailScreen(): React.JSX.Element {
         if (targetERP) store.setTargetERP(targetERP);
 
         const { step, screen } = data.status === 'completed'
-          ? { step: 4, screen: 'FinalPreview' }
+          ? { step: 4, screen: 'Preview' }
           : stageToStep(data.current_stage);
         for (let i = 0; i < step; i++) {
           store.completeStep(i);
