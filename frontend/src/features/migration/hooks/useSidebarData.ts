@@ -25,6 +25,7 @@ export function useSidebarData(projectId: string): SidebarContentProps {
   const targetERP = useMigrationStore((s) => s.targetERP);
   const sourceFile = useMigrationStore((s) => s.sourceFile);
   const targetFile = useMigrationStore((s) => s.targetFile);
+  const workstreamCode = useMigrationStore((s) => s.workstreamCode);
   const erpSystems = useERPConfigStore((s) => s.erpSystems);
 
   const resolvedSourceERP = sourceERP
@@ -41,7 +42,7 @@ export function useSidebarData(projectId: string): SidebarContentProps {
 
   return {
     projectId: project?.projectId ?? null,
-    displayCode: project?.displayCode,
+    displayCode: workstreamCode ?? project?.displayCode,
     orgId: project?.orgId,
     projectName: project?.name,
     createdAt: project?.createdAt ?? undefined,

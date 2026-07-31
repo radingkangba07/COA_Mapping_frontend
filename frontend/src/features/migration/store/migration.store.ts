@@ -58,6 +58,7 @@ interface MigrationState {
 
   projectId: string | null;
   workstreamId: string | null;
+  workstreamCode: string | null;
   jobId: string | null;
   isLoading: boolean;
   error: AppError | null;
@@ -129,6 +130,7 @@ interface MigrationActions {
   invalidateFromStep: (step: number) => void;
   setProjectId: (id: string) => void;
   setWorkstreamId: (id: string | null) => void;
+  setWorkstreamCode: (code: string | null) => void;
   setJobId: (jobId: string | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: AppError | null) => void;
@@ -174,6 +176,7 @@ const initialState: MigrationState = {
 
   projectId: null,
   workstreamId: null,
+  workstreamCode: null,
   jobId: null,
   isLoading: false,
   error: null,
@@ -827,6 +830,12 @@ export const useMigrationStore = create<MigrationStore>()(
       });
     },
 
+    setWorkstreamCode: (code: string | null): void => {
+      set((state) => {
+        state.workstreamCode = code;
+      });
+    },
+
     setJobId: (jobId: string | null): void => {
       set((state) => {
         state.jobId = jobId;
@@ -915,7 +924,7 @@ export const useMigrationStore = create<MigrationStore>()(
     },
 
     reset: (): void => {
-      set((state) => ({ ...initialState, confidenceFilter: state.confidenceFilter, workstreamId: state.workstreamId, isReadOnly: state.isReadOnly, typeMappingCount: state.typeMappingCount }));
+      set((state) => ({ ...initialState, confidenceFilter: state.confidenceFilter, workstreamId: state.workstreamId, workstreamCode: state.workstreamCode, isReadOnly: state.isReadOnly, typeMappingCount: state.typeMappingCount }));
     },
   })),
 );
