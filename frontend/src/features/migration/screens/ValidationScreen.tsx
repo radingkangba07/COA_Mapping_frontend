@@ -193,6 +193,19 @@ export const ValidationScreen = (): React.JSX.Element => {
     }
   }, [jobStream.error, showWarning]);
 
+  const autoSaveRef = useRef(vm.handleSaveMappings);
+  autoSaveRef.current = vm.handleSaveMappings;
+  const hasUnsavedRef = useRef(vm.hasUnsavedChanges);
+  hasUnsavedRef.current = vm.hasUnsavedChanges;
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('blur', () => {
+      if (hasUnsavedRef.current) {
+        void autoSaveRef.current();
+      }
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   const handleStepPress = useCallback(
     (step: number): void => {
       vm.handleStepPress(step);
