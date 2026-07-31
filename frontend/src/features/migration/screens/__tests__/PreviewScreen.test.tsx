@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 
 // ─── Icon mock ──────────────────────────────────────────────────────────────
 jest.mock('lucide-react-native', () => {
@@ -114,6 +114,12 @@ jest.mock('@/features/export/hooks/useExportViewModel', () => ({
 let mockIsOnline = true;
 jest.mock('@/shared/hooks/useOnlineGuard', () => ({
   useOnlineGuard: () => ({ isOnline: mockIsOnline }),
+}));
+
+// ─── Save mappings mock ─────────────────────────────────────────────────────
+const mockSave = jest.fn().mockResolvedValue(true);
+jest.mock('../../hooks/useSaveMappings', () => ({
+  useSaveMappings: jest.fn(() => ({ save: mockSave, isSaving: false })),
 }));
 
 // ─── Child component stubs ──────────────────────────────────────────────────
@@ -238,11 +244,11 @@ describe('PreviewScreen', () => {
     expect(screen.getByTestId('complete-button')).toBeTruthy();
   });
 
-  it('calls markComplete when Complete button is pressed', () => {
+  it('calls markComplete when Complete button is pressed', async () => {
     render(<PreviewScreen />);
     const button = screen.getByTestId('complete-button');
     fireEvent.press(button);
-    expect(mockMarkComplete).toHaveBeenCalled();
+    await waitFor(() => expect(mockMarkComplete).toHaveBeenCalled());
   });
 
   it('disables Complete button when not online', () => {
