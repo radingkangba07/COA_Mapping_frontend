@@ -213,7 +213,7 @@ export const ProjectInfoPanel = ({
               color: colors.mutedForeground,
             }}
           >
-            Project ID
+            Organisation ID
           </Text>
           <Text style={{ fontSize: 11.5, fontWeight: '500', color: colors.foreground, fontFamily: 'monospace' }}>
             {projectIdShort}
