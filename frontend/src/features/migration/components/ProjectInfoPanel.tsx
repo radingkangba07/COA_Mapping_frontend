@@ -67,7 +67,7 @@ export const ProjectInfoPanel = ({ projectId, testID }: ProjectInfoPanelProps) =
       <View className="gap-1">
         <Text className={LABEL}>Project ID</Text>
         <Text className="font-mono text-xs text-foreground">
-          {project.displayCode ?? String(project.projectId).slice(0, 8)}
+          {String(project.projectId).slice(0, 8)}
         </Text>
       </View>
 
