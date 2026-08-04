@@ -130,20 +130,21 @@ export function UploadScreen(): React.JSX.Element {
   }, [processFiles, navigation, projectId]);
 
   const handleLoadAllSamples = useCallback((): void => {
-    if (sourceERP?.id) void handleDownloadSample(sourceERP.id);
-    if (targetERP?.id) void handleDownloadSample(targetERP.id);
+    if (sourceERP?.id) void handleDownloadSample(sourceERP.id, 'source');
+    if (targetERP?.id) void handleDownloadSample(targetERP.id, 'target');
+    void handleDownloadSample('type_mapping', 'mapping');
   }, [sourceERP?.id, targetERP?.id, handleDownloadSample]);
 
   const onDownloadSample = useCallback(
-    (erpId: string, _type: 'source' | 'target'): void => {
-      void handleDownloadSample(erpId);
+    (erpId: string, type: 'source' | 'target' | 'mapping'): void => {
+      void handleDownloadSample(erpId, type);
     },
     [handleDownloadSample],
   );
 
   const onPreviewSample = useCallback(
-    (erpId: string, _type: 'source' | 'target'): void => {
-      void handlePreviewSample(erpId);
+    (erpId: string, type: 'source' | 'target' | 'mapping'): void => {
+      void handlePreviewSample(erpId, type);
     },
     [handlePreviewSample],
   );

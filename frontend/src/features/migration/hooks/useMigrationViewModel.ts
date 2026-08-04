@@ -53,8 +53,8 @@ interface UseMigrationViewModelReturn {
   readonly handleRemoveMappingFile: () => void;
   readonly processFiles: () => Promise<void>;
   readonly canProceedFromStep1: boolean;
-  readonly handleDownloadSample: (erpId: string) => Promise<void>;
-  readonly handlePreviewSample: (erpId: string) => Promise<void>;
+  readonly handleDownloadSample: (erpId: string, type: 'source' | 'target' | 'mapping') => Promise<void>;
+  readonly handlePreviewSample: (erpId: string, type: 'source' | 'target' | 'mapping') => Promise<void>;
   readonly previewData: Record<string, unknown>[] | null;
   readonly previewTitle: string;
   readonly isPreviewOpen: boolean;
@@ -202,7 +202,7 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
   }, [sourceFile, sourceData, targetData, mappingData, actions, syncStep, showError]);
 
   const handleDownloadSample = useCallback(
-    async (erpId: string): Promise<void> => {
+    async (erpId: string, _type: 'source' | 'target' | 'mapping'): Promise<void> => {
       actions.setLoading(true);
       try {
         const result = await downloadSampleData(httpClient, erpId);
@@ -230,13 +230,17 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const handlePreviewSample = useCallback(
-    async (erpId: string): Promise<void> => {
+    async (erpId: string, type: 'source' | 'target' | 'mapping'): Promise<void> => {
       actions.setLoading(true);
       try {
         const result = await getSampleData(httpClient, erpId);
         if (result.ok) {
           setPreviewData([...result.data.data]);
-          setPreviewTitle(`${result.data.erpName} Sample Data`);
+          setPreviewTitle(
+            type === 'mapping'
+              ? 'Account Type Mapping Sample'
+              : `${result.data.erpName} Sample Data`,
+          );
           setIsPreviewOpen(true);
         } else {
           showError('Preview failed', result.error.message);
