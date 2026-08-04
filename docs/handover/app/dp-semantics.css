@@ -1,0 +1,3 @@
+/* MOVED to app/css/dp-semantics.css. This forwarder exists only so older
+   references keep working; import the canonical path in new code. */
+@import './css/dp-semantics.css';

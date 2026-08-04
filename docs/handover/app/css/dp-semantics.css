@@ -1,0 +1,118 @@
+/* ============================================================================
+   dp-semantics.css  ·  DataPortation semantic style layer
+   ----------------------------------------------------------------------------
+   Lifted verbatim from the standard page. This is the reason the kit works:
+   markup declares MEANING via data-attributes, never colour.
+
+       <span data-impact="blocker">        not   <span style="color:#D72222">
+
+   Every one of these attributes is entity-agnostic. A blocker on Customers
+   looks identical to a blocker on Items, for free.
+
+   RULE: page templates must not set colour inline. If you find yourself
+   writing style="color:var(--error)", you want data-impact or data-find.
+   ========================================================================= */
+
+
+/* --- Row states ---------------------------------------------------------- */
+.dp-wizard tr[data-hl="true"]{background:color-mix(in srgb, var(--accent) 8%, transparent);}
+.dp-wizard tr[data-dim="true"]{opacity:.34;}
+.dp-wizard tr[data-sel="true"]{box-shadow:inset 3px 0 0 var(--primary);}
+.dp-wizard tr[data-clickable="true"]{cursor:pointer;}
+.dp-wizard tr[data-clickable="true"]:hover{background:var(--surface-hi);}
+
+
+/* --- Buttons ------------------------------------------------------------- */
+.dp-wizard button[data-active="true"]{
+  border-color:var(--accent) !important;
+  background:color-mix(in srgb, var(--accent) 12%, transparent) !important;
+  color:var(--accent) !important;
+}
+.dp-wizard button[data-tab="true"]{
+  border:none;background:transparent;color:var(--muted);
+  padding:11px 13px;font-size:12.5px;font-weight:600;
+  cursor:pointer;font-family:Inter,sans-serif;
+}
+.dp-wizard button[data-tab="true"]:hover{color:var(--fg);}
+.dp-wizard button[data-tab="true"][data-active="true"]{
+  color:var(--fg) !important;background:transparent !important;
+  box-shadow:inset 0 -2px 0 var(--primary);
+}
+.dp-wizard button[data-primary="true"]{
+  background:var(--primary);color:var(--primary-fg);border-color:var(--primary);
+}
+
+
+/* --- Migration impact / severity ----------------------------------------
+   Ranked. See config/dp-taxonomies.json for label + rank + needsReview.
+   blocker > review > warning > resolved > clean > na
+   ------------------------------------------------------------------------ */
+.dp-wizard [data-impact="blocker"] {color:var(--error);  background:color-mix(in srgb, var(--error) 13%, transparent);}
+.dp-wizard [data-impact="review"]  {color:var(--warning);background:color-mix(in srgb, var(--warning) 15%, transparent);}
+.dp-wizard [data-impact="warning"] {color:var(--accent); background:color-mix(in srgb, var(--accent) 13%, transparent);}
+.dp-wizard [data-impact="clean"]   {color:var(--success);background:color-mix(in srgb, var(--success) 13%, transparent);}
+.dp-wizard [data-impact="na"]      {color:var(--muted);  background:var(--surface);}
+.dp-wizard [data-impact="resolved"]{color:var(--success);background:color-mix(in srgb, var(--success) 13%, transparent);}
+
+
+/* --- Finding tone (per-field findings chips) ----------------------------- */
+.dp-wizard [data-find="dup"] {color:var(--error);  background:color-mix(in srgb, var(--error) 12%, transparent);}
+.dp-wizard [data-find="warn"]{color:var(--warning);background:color-mix(in srgb, var(--warning) 14%, transparent);}
+.dp-wizard [data-find="info"]{color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, transparent);}
+.dp-wizard [data-find="ok"]  {color:var(--success);background:color-mix(in srgb, var(--success) 12%, transparent);}
+
+
+/* --- Metric tone (numerals in metric bars and stat cards) ----------------
+   ok and info were added for the Upload page's stat cards, which previously
+   used inline var(--success) / var(--accent). Keeping them here means a stat
+   card and a metric cell tone identically.
+   ------------------------------------------------------------------------ */
+.dp-wizard [data-metrictone="blocker"]{color:var(--error);}
+.dp-wizard [data-metrictone="warn"]   {color:var(--warning);}
+.dp-wizard [data-metrictone="neutral"]{color:var(--fg);}
+.dp-wizard [data-metrictone="ok"]     {color:var(--success);}
+.dp-wizard [data-metrictone="info"]   {color:var(--accent);}
+.dp-wizard [data-metrictone="muted"]  {color:var(--muted);}
+
+/* --- Count badge --------------------------------------------------------
+   Add data-badge="true" alongside data-metrictone to render the value as a
+   tinted chip rather than a bare numeral.
+
+       <span data-metrictone="warn" data-badge="true">304</span>
+
+   The tint derives from `currentColor`, which the data-metrictone rule above
+   has already set. That is the whole trick: ONE rule covers all six tones, and
+   no JavaScript computes a colour. The design arrived as a JS ink map building
+   an inline style per tone — visually identical, but it put colour back into
+   page logic, which is what the semantic layer exists to prevent.
+   ------------------------------------------------------------------------ */
+.dp-wizard [data-metrictone][data-badge="true"]{
+  display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
+  min-width:28px;height:24px;padding:0 8px;border-radius:7px;
+  font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;
+  background:color-mix(in srgb, currentColor 13%, transparent);
+}
+
+
+/* --- Provenance ---------------------------------------------------------
+   The governance primitive. Never let these blur.
+     fact   — deterministic profiling output. Computed, reproducible.
+     ai     — model inference. Must be approved before it changes data.
+     action — a control the user can invoke.
+   Anything shown as "fact" must be traceable to the profiler.
+   ------------------------------------------------------------------------ */
+.dp-wizard [data-prov="fact"]  {color:var(--muted);}
+.dp-wizard [data-prov="ai"]    {color:var(--accent);}
+.dp-wizard [data-prov="action"]{color:var(--primary);}
+
+
+/* --- Sticky leading table columns ---------------------------------------
+   First three columns freeze during horizontal scroll. Offsets assume
+   col1 = 30px (checkbox), col2 = 22px (expand caret). If a page changes
+   those widths it must override left: on cols 2 and 3.
+   ------------------------------------------------------------------------ */
+.dp-wizard [data-dp-table] td:nth-child(-n+3){position:sticky;z-index:5;background:var(--card);}
+.dp-wizard [data-dp-table] th:nth-child(-n+3){position:sticky;z-index:9 !important;background:var(--surface);}
+.dp-wizard [data-dp-table] td:nth-child(1),.dp-wizard [data-dp-table] th:nth-child(1){left:0;}
+.dp-wizard [data-dp-table] td:nth-child(2),.dp-wizard [data-dp-table] th:nth-child(2){left:30px;}
+.dp-wizard [data-dp-table] td:nth-child(3),.dp-wizard [data-dp-table] th:nth-child(3){left:52px;box-shadow:1px 0 0 var(--border);}

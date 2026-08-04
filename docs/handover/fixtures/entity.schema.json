@@ -1,0 +1,1065 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DataPortation entity pack",
+  "description": "Contract for one master-data object across all 8 wizard steps. Derived from the FIELDS[] const in the standard Source Data Profile page and the config JSON already shipping inside Value Mapping Workspace. Swapping this file is the ONLY thing that turns the Items wizard into the Customers wizard — no page code changes.",
+  "type": "object",
+  "required": [
+    "id",
+    "label",
+    "source",
+    "target",
+    "identity",
+    "fields"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Master-data object this pack describes. COA is deliberately ABSENT: the Chart of Accounts flow is already built and running (features/migration in the parent repo) and must not be routed through this wizard. Do not re-add it.",
+      "enum": [
+        "customers",
+        "vendors",
+        "items",
+        "locations",
+        "contacts",
+        "vehicles",
+        "equipment",
+        "fixedAssets"
+      ]
+    },
+    "label": {
+      "type": "object",
+      "required": [
+        "singular",
+        "plural"
+      ],
+      "properties": {
+        "singular": {
+          "type": "string",
+          "examples": [
+            "Item",
+            "Customer"
+          ]
+        },
+        "plural": {
+          "type": "string",
+          "examples": [
+            "Items",
+            "Customers"
+          ]
+        },
+        "recordWord": {
+          "type": "string",
+          "description": "Noun used in prose, e.g. 'product' or 'account'. Falls back to singular.lowercase()."
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "object"
+      ],
+      "properties": {
+        "system": {
+          "type": "string",
+          "examples": [
+            "Legacy ERP",
+            "acs_accpac"
+          ]
+        },
+        "object": {
+          "type": "string",
+          "examples": [
+            "Item master extract"
+          ]
+        },
+        "rowCount": {
+          "type": "integer",
+          "description": "PROVENANCE: fact. Emitted by the profiler — do not hand-write."
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "required": [
+        "record"
+      ],
+      "description": "Which record in the target ERP this maps to. Target SYSTEM (Odoo/NetSuite/...) is project-level and lives in dp-targets.json, not here.",
+      "properties": {
+        "record": {
+          "type": "string",
+          "examples": [
+            "product.template",
+            "res.partner"
+          ]
+        },
+        "schemaVersion": {
+          "type": "string",
+          "examples": [
+            "2026.1"
+          ]
+        },
+        "recordsetVersion": {
+          "type": "string",
+          "examples": [
+            "tgt-2026.07.19"
+          ]
+        }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "description": "How a record is uniquely keyed on import. The single most migration-critical part of the pack.",
+      "required": [
+        "candidates"
+      ],
+      "properties": {
+        "candidates": {
+          "type": "array",
+          "description": "Field ids that could serve as the import key, best first. NEVER auto-confirmed — the user approves on the profile page.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "confirmed": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Set only by explicit user approval."
+        },
+        "compositeCandidates": {
+          "type": "array",
+          "description": "Fallbacks when no single field is unique, e.g. [['sku','subsidiary']].",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "description": "Validation and normalisation thresholds. Generalised from the config already inside Value Mapping Workspace.",
+      "properties": {
+        "requiredTargets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "requiredReferenceFields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "optionalReferenceFields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "nullTokens": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "n/a",
+            "na",
+            "none",
+            "null",
+            "-",
+            "--",
+            "tbd",
+            "unknown",
+            "not applicable"
+          ],
+          "description": "Treated as blank during profiling."
+        },
+        "confirmThreshold": {
+          "type": "integer",
+          "default": 50,
+          "description": "Confidence at or above which a match may be bulk-confirmed."
+        },
+        "nearEmptyPct": {
+          "type": "number",
+          "default": 5,
+          "description": "Populated below this % counts as near-empty."
+        },
+        "maxLength": {
+          "type": "object",
+          "properties": {
+            "char": {
+              "type": "integer"
+            },
+            "text": {
+              "type": "integer"
+            }
+          }
+        },
+        "allowedValues": {
+          "type": "object",
+          "description": "Keyed by target field id. Each entry lists canonical values and their accepted aliases.",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "value"
+              ],
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "aliases": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "description": "THE PRE-UPLOAD HALF OF THE PACK. Everything here is known before any file exists, so step 1 (Upload) can render from it: expected columns, a sample extract and the target record note. Steps 2-8 additionally use fields[]/readiness/metrics, which only exist AFTER the profiler runs. The Upload page must never read fields[] — at that point there is nothing to read. NOTE: the Upload page shows no stat cards in the final design, so there is no uploadStats key.",
+      "properties": {
+        "expectedColumns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Source column headers this object usually carries. Used to sanity-check an upload before profiling."
+        },
+        "sample": {
+          "type": "object",
+          "description": "A downloadable / loadable sample extract, so a user can try the wizard with no data of their own.",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string",
+              "description": "Inline CSV including the header row."
+            }
+          }
+        },
+        "targetNote": {
+          "type": "string",
+          "description": "Short line under the target system name, e.g. 'product.template'."
+        }
+      }
+    },
+    "mapping": {
+      "type": "object",
+      "description": "STEP 3 (Field Mapping). Source-to-target proposals plus the target field catalogue. Separate from fields[] because a profile describes SOURCE columns whereas this describes the CORRESPONDENCE between source and target — different shape, different lifecycle. NOTE ON LAYOUT: spec is step 1, the top-level fields/readiness/metrics are step 2, and this is step 3. Those three should eventually be namespaced consistently; they are not, because normalising them would mean rewriting the working profile page.",
+      "properties": {
+        "targetFields": {
+          "type": "array",
+          "description": "The target ERP's writable field catalogue for this record. Populates the target dropdown on every row.",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "examples": [
+                  "default_code",
+                  "list_price"
+                ]
+              },
+              "label": {
+                "type": "string",
+                "examples": [
+                  "Internal Reference"
+                ]
+              },
+              "dtype": {
+                "type": "string",
+                "examples": [
+                  "Char",
+                  "Monetary",
+                  "Many2one · account.account"
+                ]
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "identifier": {
+                "type": "boolean"
+              },
+              "writable": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "proposals": {
+          "type": "array",
+          "description": "One row per source field. confidence and why are PROVENANCE ai; validation and evidence are fact. Nothing here is applied until the user accepts it.",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "status"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string",
+                "description": "Source column header."
+              },
+              "sdtype": {
+                "type": "string",
+                "description": "Source datatype."
+              },
+              "role": {
+                "type": "string",
+                "description": "Inferred role — ai."
+              },
+              "samples": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "fact"
+              },
+              "targetId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Proposed target field id — ai."
+              },
+              "conf": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "ai — 0-100 confidence in the proposal."
+              },
+              "status": {
+                "type": "string",
+                "description": "Key in dp-taxonomies.json mappingStatus.states."
+              },
+              "validation": {
+                "type": "string",
+                "description": "Key in mappingValidation.states. fact."
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Codes from mappingEvidence.labels."
+              },
+              "handoff": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Key in mappingHandoff.states."
+              },
+              "why": {
+                "type": "string",
+                "description": "ai — why this target was proposed. Shown in the detail panel."
+              }
+            }
+          }
+        },
+        "missingTargets": {
+          "type": "array",
+          "description": "Required target fields with no source field supplying them. SAME ROW SHAPE as proposals so the table renders them without a special case — the shape is restated here rather than left as a bare object, because a loose node produced an untyped MissingTarget in entity.d.ts.",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "status",
+              "targetId"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string",
+                "description": "Source column header."
+              },
+              "sdtype": {
+                "type": "string",
+                "description": "Source datatype."
+              },
+              "role": {
+                "type": "string",
+                "description": "Inferred role — ai."
+              },
+              "samples": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "fact"
+              },
+              "targetId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Proposed target field id — ai."
+              },
+              "conf": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "ai — 0-100 confidence in the proposal."
+              },
+              "status": {
+                "type": "string",
+                "description": "Key in dp-taxonomies.json mappingStatus.states."
+              },
+              "validation": {
+                "type": "string",
+                "description": "Key in mappingValidation.states. fact."
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Codes from mappingEvidence.labels."
+              },
+              "handoff": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Key in mappingHandoff.states."
+              },
+              "why": {
+                "type": "string",
+                "description": "ai — why this target was proposed. Shown in the detail panel."
+              }
+            }
+          }
+        },
+        "cards": {
+          "type": "array",
+          "description": "Summary cards above the table. Counts are COMPUTED by DPBase.buildMappingCards() from proposals — never literal.",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "enum": [
+                  "high",
+                  "review",
+                  "none",
+                  "missing",
+                  "excluded"
+                ]
+              },
+              "label": {
+                "type": "string"
+              },
+              "impact": {
+                "type": "string",
+                "description": "Semantic tone; falls back to a sensible default per id."
+              },
+              "statuses": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Which mappingStatus values this card counts."
+              }
+            }
+          }
+        },
+        "autoAcceptAt": {
+          "type": "integer",
+          "default": 95,
+          "description": "Confidence at or above which a proposal is treated as high-confidence. Below it, a human confirms."
+        },
+        "pageSize": {
+          "type": "integer",
+          "default": 15
+        },
+        "readiness": {
+          "type": "object",
+          "description": "Step-3 readiness banner. Distinct from the top-level readiness, which is about DATA QUALITY; this is about MAPPING COVERAGE.",
+          "properties": {
+            "headline": {
+              "type": "string"
+            },
+            "tone": {
+              "type": "string",
+              "enum": [
+                "blocker",
+                "warn",
+                "neutral"
+              ]
+            },
+            "narrative": {
+              "type": "string",
+              "description": "ai"
+            },
+            "recommendedOrder": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              },
+              "description": "ai"
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              },
+              "description": "fact"
+            }
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "description": "The 5-up metric bar for steps 2-8. Every value is COMPUTED from fields[] by DPBase.buildMetrics() — never write a literal number here, or the Customers page will display Items totals. Each metric doubles as a table highlight.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "kind"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable key; drives the active state and the highlight."
+          },
+          "label": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "rowCount",
+              "fieldCount",
+              "impactCount",
+              "sumNulls",
+              "reviewCount",
+              "fieldStat"
+            ],
+            "description": "rowCount=source.rowCount · fieldCount=fields.length · impactCount=fields with impact · sumNulls=total blanks · reviewCount=fields still needing review (live, from state) · fieldStat=read a dotted path off one field"
+          },
+          "impact": {
+            "type": "string",
+            "description": "For kind=impactCount."
+          },
+          "field": {
+            "type": "string",
+            "description": "For kind=fieldStat: which field id to read."
+          },
+          "path": {
+            "type": "string",
+            "description": "For kind=fieldStat: dotted path, e.g. 'duplicates.rows' or 'enumeration.affectedRows'."
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "blocker",
+              "warn",
+              "neutral"
+            ],
+            "default": "neutral"
+          },
+          "highlight": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Field ids to highlight in the table when this metric is clicked."
+          },
+          "filter": {
+            "type": "string",
+            "description": "profileFilters id activated when clicked."
+          },
+          "tip": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "readiness": {
+      "type": "object",
+      "description": "The assessment banner. narrative and recommendedOrder are data-prov=ai; evidence is data-prov=fact.",
+      "properties": {
+        "headline": {
+          "type": "string",
+          "examples": [
+            "Migration readiness: Needs attention"
+          ]
+        },
+        "tone": {
+          "type": "string",
+          "enum": [
+            "blocker",
+            "warn",
+            "neutral"
+          ]
+        },
+        "narrative": {
+          "type": "string",
+          "description": "PROVENANCE: ai. Authored or model-generated."
+        },
+        "recommendedOrder": {
+          "type": "array",
+          "description": "PROVENANCE: ai. Ordered remediation steps.",
+          "items": {
+            "type": "object",
+            "required": [
+              "label"
+            ],
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "target": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "description": "PROVENANCE: fact. Every entry must be reproducible by the profiler.",
+          "items": {
+            "type": "object",
+            "required": [
+              "value",
+              "label"
+            ],
+            "properties": {
+              "value": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "fields": {
+      "type": "array",
+      "description": "The profiled source fields. MIXED PROVENANCE — see per-property notes. The profiler emits the stats; narratives are authored.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "datatype",
+          "impact"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "description": "Source column header as it appears in the CSV."
+          },
+          "semantic": {
+            "type": "string",
+            "description": "What the field means in business terms."
+          },
+          "role": {
+            "type": "string",
+            "description": "semanticRoles id or label from dp-taxonomies.json."
+          },
+          "roleTip": {
+            "type": "string"
+          },
+          "datatype": {
+            "type": "string",
+            "enum": [
+              "Text",
+              "Integer",
+              "Decimal",
+              "Date",
+              "DateTime",
+              "Boolean"
+            ]
+          },
+          "nullCount": {
+            "type": "integer",
+            "description": "fact"
+          },
+          "distinct": {
+            "type": "integer",
+            "description": "fact"
+          },
+          "uniqueness": {
+            "type": "number",
+            "description": "fact — percent"
+          },
+          "cardinality": {
+            "type": "string",
+            "description": "fact — High/Medium/Low/Constant"
+          },
+          "confidence": {
+            "type": "integer",
+            "description": "ai — model confidence in the inferred role, 0-100"
+          },
+          "impact": {
+            "type": "string",
+            "enum": [
+              "blocker",
+              "review",
+              "warning",
+              "clean",
+              "na",
+              "resolved"
+            ],
+            "description": "fact — derived from the stats by rule"
+          },
+          "impactReason": {
+            "type": "string",
+            "description": "authored — must explain the migration consequence, not restate the number"
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "fact — profileFilters ids this field appears under"
+          },
+          "sample": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "fact"
+          },
+          "findings": {
+            "type": "array",
+            "description": "fact",
+            "items": {
+              "type": "object",
+              "required": [
+                "t",
+                "tone"
+              ],
+              "properties": {
+                "t": {
+                  "type": "string"
+                },
+                "tone": {
+                  "type": "string",
+                  "enum": [
+                    "dup",
+                    "warn",
+                    "info",
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "duplicates": {
+            "type": "object",
+            "description": "fact — present only if duplicates were found",
+            "properties": {
+              "rows": {
+                "type": "integer"
+              },
+              "groups": {
+                "type": "integer"
+              },
+              "crossSub": {
+                "type": "integer"
+              },
+              "crossPct": {
+                "type": "number"
+              },
+              "composite": {
+                "type": "string"
+              }
+            }
+          },
+          "patterns": {
+            "type": "array",
+            "description": "fact",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "pct": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "patternAnomalies": {
+            "type": "integer",
+            "description": "fact"
+          },
+          "text": {
+            "type": "object",
+            "description": "fact — text fields only",
+            "properties": {
+              "minLen": {
+                "type": "integer"
+              },
+              "maxLen": {
+                "type": "integer"
+              },
+              "avgLen": {
+                "type": "number"
+              }
+            }
+          },
+          "range": {
+            "type": "object",
+            "description": "fact — numeric fields only. Values are pre-formatted strings so the page never formats numbers.",
+            "properties": {
+              "min": {
+                "type": "string"
+              },
+              "max": {
+                "type": "string"
+              },
+              "median": {
+                "type": "string"
+              },
+              "p95": {
+                "type": "string"
+              },
+              "outliers": {
+                "type": "integer"
+              },
+              "method": {
+                "type": "string",
+                "examples": [
+                  "IQR × 1.5"
+                ],
+                "description": "Outlier method must be disclosed — it is fact, so it must be reproducible."
+              },
+              "examples": {
+                "type": "string"
+              }
+            }
+          },
+          "dateProfile": {
+            "type": "object",
+            "description": "fact — date fields only",
+            "properties": {
+              "earliest": {
+                "type": "string"
+              },
+              "latest": {
+                "type": "string"
+              },
+              "invalid": {
+                "type": "integer"
+              },
+              "future": {
+                "type": "integer"
+              }
+            }
+          },
+          "nearEmpty": {
+            "type": "object",
+            "description": "fact + recommendation. Populated below rules.nearEmptyPct.",
+            "properties": {
+              "populated": {
+                "type": "integer"
+              },
+              "populatedPct": {
+                "type": "number"
+              },
+              "requiredByTarget": {
+                "type": "string"
+              },
+              "recommendation": {
+                "type": "string",
+                "description": "ai"
+              },
+              "safeToExclude": {
+                "type": "string",
+                "description": "ai"
+              }
+            }
+          },
+          "enumeration": {
+            "type": "object",
+            "description": "fact",
+            "properties": {
+              "candidate": {
+                "type": "string"
+              },
+              "validRef": {
+                "type": "integer"
+              },
+              "invalidSrc": {
+                "type": "integer"
+              },
+              "affectedRows": {
+                "type": "integer"
+              },
+              "aliasRows": {
+                "type": "integer"
+              },
+              "unresolved": {
+                "type": "integer"
+              },
+              "refIntegrity": {
+                "type": "string"
+              },
+              "categoryAvailable": {
+                "type": "integer"
+              },
+              "highConf": {
+                "type": "integer"
+              },
+              "ambiguous": {
+                "type": "integer"
+              },
+              "insufficient": {
+                "type": "integer"
+              }
+            }
+          },
+          "dist": {
+            "type": "array",
+            "description": "fact",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "pct": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "distTitle": {
+            "type": "string"
+          },
+          "invalidTable": {
+            "type": "array",
+            "description": "fact",
+            "items": {
+              "type": "object",
+              "properties": {
+                "src": {
+                  "type": "string"
+                },
+                "occ": {
+                  "type": "integer"
+                },
+                "canon": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "tone": {
+                  "type": "string",
+                  "enum": [
+                    "dup",
+                    "warn",
+                    "info",
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "interpretation": {
+            "type": "string",
+            "description": "ai — rendered under data-prov=ai. Must state that nothing is applied without approval."
+          },
+          "reasoning": {
+            "type": "string",
+            "description": "ai — why the role was inferred and what it maps to."
+          },
+          "actions": {
+            "type": "array",
+            "description": "action",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "label"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "primary": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "compare": {
+            "type": "object",
+            "description": "Values shown in the field-comparison tray.",
+            "properties": {
+              "cardinality": {
+                "type": "string"
+              },
+              "sem": {
+                "type": "string"
+              },
+              "overlap": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "copilotPrompts": {
+      "type": "array",
+      "description": "Suggested questions in the Migration Copilot. Should reference this entity's real fields.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sampleCsv": {
+      "type": "string",
+      "description": "Filename of a sample source extract for this entity."
+    }
+  }
+}

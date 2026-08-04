@@ -1,0 +1,440 @@
+{
+  "_comment": "Shared vocabulary for every DataPortation page and every master-data object. Extracted from the standard page (IMPACT_LABEL / IMPACT_RANK / NEEDS_REVIEW / PROFILE_FILTERS / COVERAGE_DIMS). Entity-agnostic by construction \u2014 nothing here mentions Items.",
+  "impact": {
+    "_comment": "Migration severity. rank drives sort order; needsReview drives the review queue.",
+    "order": [
+      "blocker",
+      "review",
+      "warning",
+      "resolved",
+      "clean",
+      "na"
+    ],
+    "needsReview": [
+      "blocker",
+      "review",
+      "warning"
+    ],
+    "states": {
+      "blocker": {
+        "label": "Blocker",
+        "rank": 5,
+        "definition": "Import will fail or produce wrong records until resolved."
+      },
+      "review": {
+        "label": "Review",
+        "rank": 4,
+        "definition": "Import will succeed but a human decision is required first."
+      },
+      "warning": {
+        "label": "Warning",
+        "rank": 3,
+        "definition": "Import will succeed; quality is degraded."
+      },
+      "resolved": {
+        "label": "Resolved",
+        "rank": 2,
+        "definition": "Was a blocker or review item; a decision has been applied."
+      },
+      "clean": {
+        "label": "Clean",
+        "rank": 1,
+        "definition": "No issues detected."
+      },
+      "na": {
+        "label": "Not applicable",
+        "rank": 0,
+        "definition": "Field is out of scope for this migration."
+      }
+    }
+  },
+  "find": {
+    "_comment": "Tone for individual finding chips on a field.",
+    "states": {
+      "dup": {
+        "label": "Duplication"
+      },
+      "warn": {
+        "label": "Warning"
+      },
+      "info": {
+        "label": "Informational"
+      },
+      "ok": {
+        "label": "Resolved / recognised"
+      }
+    }
+  },
+  "metricTone": {
+    "_comment": "Colour for a numeral in a metric bar or an Upload stat card. ok/info/muted were added for the Upload page, whose stat cards previously used inline colours.",
+    "states": {
+      "blocker": {},
+      "warn": {},
+      "neutral": {},
+      "ok": {},
+      "info": {},
+      "muted": {}
+    }
+  },
+  "prov": {
+    "_comment": "PROVENANCE \u2014 the governance primitive. Every number and sentence shown to a user must declare which of these it is. Never present ai output as fact.",
+    "states": {
+      "fact": {
+        "label": "Calculated evidence",
+        "note": "deterministic profiling, not model output",
+        "requiresApproval": false
+      },
+      "ai": {
+        "label": "AI interpretation",
+        "note": "model inference \u2014 nothing is applied until approved",
+        "requiresApproval": true
+      },
+      "action": {
+        "label": "Action",
+        "note": "a control the user can invoke",
+        "requiresApproval": false
+      }
+    }
+  },
+  "steps": {
+    "_comment": "The 8-step migration wizard. THIS is the canonical list \u2014 the four earlier pages are on a stale 7-step rail with three different label sets and must be brought onto this.",
+    "total": 8,
+    "items": [
+      {
+        "n": 1,
+        "id": "upload",
+        "label": "Upload Files",
+        "short": "Upload",
+        "copilot": false
+      },
+      {
+        "n": 2,
+        "id": "profile",
+        "label": "Source Data Profile",
+        "short": "Profile",
+        "copilot": true
+      },
+      {
+        "n": 3,
+        "id": "mapping",
+        "label": "Field Mapping",
+        "short": "Mapping",
+        "copilot": true
+      },
+      {
+        "n": 4,
+        "id": "values",
+        "label": "Value Mapping",
+        "short": "Values",
+        "copilot": true
+      },
+      {
+        "n": 5,
+        "id": "formats",
+        "label": "Formats",
+        "short": "Formats",
+        "copilot": true
+      },
+      {
+        "n": 6,
+        "id": "validation",
+        "label": "Validation",
+        "short": "Validation",
+        "copilot": true
+      },
+      {
+        "n": 7,
+        "id": "test",
+        "label": "Test Import",
+        "short": "Test",
+        "copilot": true
+      },
+      {
+        "n": 8,
+        "id": "import",
+        "label": "Final Import",
+        "short": "Import",
+        "copilot": true
+      }
+    ]
+  },
+  "profileFilters": {
+    "_comment": "Visual filters on the profile table. Each id must match a value used in a field's categories[] array.",
+    "items": [
+      {
+        "id": "all",
+        "label": "All Fields",
+        "tip": "Show every profiled source field"
+      },
+      {
+        "id": "blockers",
+        "label": "Blockers",
+        "tip": "Fields with migration-blocking issues"
+      },
+      {
+        "id": "identifiers",
+        "label": "Identifier Candidates",
+        "tip": "Fields the system infers may uniquely identify a record \u2014 not yet confirmed"
+      },
+      {
+        "id": "duplicates",
+        "label": "Duplicates",
+        "tip": "Fields containing duplicate rows or groups"
+      },
+      {
+        "id": "missing",
+        "label": "Missing Values",
+        "tip": "Fields with null / blank values"
+      },
+      {
+        "id": "invalid",
+        "label": "Invalid Values",
+        "tip": "Fields with values that fail validation or reference lookup"
+      },
+      {
+        "id": "nearEmpty",
+        "label": "Near-empty",
+        "tip": "Fields populated below the 5% threshold"
+      },
+      {
+        "id": "outliers",
+        "label": "Outliers",
+        "tip": "Numeric fields with statistical outliers"
+      },
+      {
+        "id": "enums",
+        "label": "Value list detected",
+        "tip": "Low-cardinality fields that map to a reference list"
+      },
+      {
+        "id": "refFailures",
+        "label": "Reference Failures",
+        "tip": "Fields whose values do not all match a target reference"
+      },
+      {
+        "id": "patterns",
+        "label": "Pattern Anomalies",
+        "tip": "Fields with values that break the dominant format pattern"
+      }
+    ]
+  },
+  "coverageDims": {
+    "_comment": "The 16 dimensions the profiler computes. Shown in the coverage popover so users can see what was and was not assessed. Every one of these is data-prov=fact.",
+    "items": [
+      "Row count",
+      "Null count & percentage",
+      "Uniqueness",
+      "Duplicate rows",
+      "Duplicate groups",
+      "Inferred datatype",
+      "Pattern distribution",
+      "Minimum & maximum",
+      "Cardinality / distinct count",
+      "Enumeration candidates",
+      "Outliers",
+      "Reference integrity",
+      "Identifier candidates",
+      "Near-empty columns",
+      "Invalid-value counts",
+      "Migration severity"
+    ]
+  },
+  "semanticRoles": {
+    "_comment": "The role a field plays in a migration. Entity-agnostic: Items has an identifier candidate (SKU), Customers has one too (Account No). roleTip is shown on hover and must stay honest about inference.",
+    "items": [
+      {
+        "id": "identifier",
+        "label": "Identifier candidate",
+        "tip": "A field the system infers may uniquely identify each record. Not a confirmed identifier until you approve it."
+      },
+      {
+        "id": "displayName",
+        "label": "Display name",
+        "tip": "Human-readable label for the record."
+      },
+      {
+        "id": "valueList",
+        "label": "Value list",
+        "tip": "A field with a small set of repeating values that map to a target reference list."
+      },
+      {
+        "id": "measure",
+        "label": "Measure",
+        "tip": "A numeric quantity."
+      },
+      {
+        "id": "reference",
+        "label": "Reference",
+        "tip": "A pointer to a record in another target object."
+      },
+      {
+        "id": "date",
+        "label": "Date",
+        "tip": "A date or timestamp."
+      },
+      {
+        "id": "flag",
+        "label": "Flag",
+        "tip": "A boolean."
+      },
+      {
+        "id": "freeText",
+        "label": "Free text",
+        "tip": "Unconstrained descriptive text."
+      },
+      {
+        "id": "audit",
+        "label": "Audit metadata",
+        "tip": "System-generated field, usually not migrated."
+      }
+    ]
+  },
+  "cardinality": {
+    "_comment": "Bucketing for distinct-count. Thresholds live in the profiler, not here.",
+    "order": [
+      "High",
+      "Medium",
+      "Low",
+      "Constant"
+    ]
+  },
+  "pagination": {
+    "pageSize": 30
+  },
+  "drawerTabs": {
+    "_comment": "Tabs in the field-detail drawer. A tab renders only if the field carries the data it needs \u2014 see dp-base.js buildDrawer().",
+    "items": [
+      {
+        "id": "evidence",
+        "label": "Evidence",
+        "requires": null
+      },
+      {
+        "id": "samples",
+        "label": "Sample values",
+        "requires": "sample"
+      },
+      {
+        "id": "distribution",
+        "label": "Distribution",
+        "requires": "dist"
+      },
+      {
+        "id": "duplicates",
+        "label": "Duplicates",
+        "requires": "duplicates"
+      },
+      {
+        "id": "patterns",
+        "label": "Patterns",
+        "requires": "patterns"
+      },
+      {
+        "id": "invalid",
+        "label": "Invalid values",
+        "requires": "invalidTable"
+      },
+      {
+        "id": "interpretation",
+        "label": "AI interpretation",
+        "requires": "interpretation"
+      }
+    ]
+  },
+  "mappingStatus": {
+    "_comment": "Field Mapping (step 3) row status. Each maps onto an existing impact state so no new colours are introduced \u2014 a Blocked mapping looks exactly like a blocker field on the profile page.",
+    "order": [
+      "Missing target",
+      "Blocked",
+      "Review required",
+      "Unmapped",
+      "Suggested",
+      "Excluded"
+    ],
+    "states": {
+      "Suggested": {
+        "impact": "clean",
+        "definition": "Confidence is high enough to accept without individual review."
+      },
+      "Review required": {
+        "impact": "review",
+        "definition": "A mapping is proposed but a human must confirm it."
+      },
+      "Blocked": {
+        "impact": "blocker",
+        "definition": "No compatible target; the field cannot be imported as-is."
+      },
+      "Unmapped": {
+        "impact": "warning",
+        "definition": "No target proposed yet."
+      },
+      "Missing target": {
+        "impact": "blocker",
+        "definition": "A required target field has no source field supplying it."
+      },
+      "Excluded": {
+        "impact": "na",
+        "definition": "Deliberately left out of the migration."
+      }
+    }
+  },
+  "mappingValidation": {
+    "_comment": "Deterministic type/compatibility check on a proposed mapping. PROVENANCE: fact \u2014 computed from datatypes, not inferred.",
+    "states": {
+      "Compatible": {
+        "impact": "clean"
+      },
+      "Warning": {
+        "impact": "warning"
+      },
+      "Blocked": {
+        "impact": "blocker"
+      },
+      "\u2014": {
+        "impact": "na"
+      }
+    }
+  },
+  "mappingHandoff": {
+    "_comment": "What still has to happen on a later step before this mapping will import cleanly. Drives the small chip under the proposed target.",
+    "states": {
+      "Ready": {
+        "find": "ok",
+        "step": null
+      },
+      "Format conversion required": {
+        "find": "info",
+        "step": "formats"
+      },
+      "Reference crosswalk required": {
+        "find": "warn",
+        "step": "values"
+      },
+      "Value mapping required": {
+        "find": "warn",
+        "step": "values"
+      }
+    }
+  },
+  "mappingEvidence": {
+    "_comment": "Evidence codes shown as chips on a mapping row. PROVENANCE: fact for name/samples/datatype/prior/required; the weighting that turns them into a confidence score is ai.",
+    "labels": {
+      "name": "Field name",
+      "samples": "Sample values",
+      "datatype": "Datatype",
+      "meaning": "Business meaning",
+      "prior": "Prior mapping",
+      "rule": "User rule",
+      "required": "Required target"
+    },
+    "short": {
+      "name": "Name",
+      "samples": "Values",
+      "datatype": "Type",
+      "meaning": "Meaning",
+      "prior": "Prior",
+      "rule": "Rule",
+      "required": "Required"
+    }
+  }
+}

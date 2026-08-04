@@ -1,0 +1,307 @@
+<!-- ============================================================================
+     upload.page.html  ·  Step 1 of 8 — Upload Files
+     ----------------------------------------------------------------------------
+     Retrofit of "Items Master Upload.html" (audited 1/5 before this).
+
+     STEP 1 IS STRUCTURALLY DIFFERENT from steps 2-8: no file has been profiled
+     yet, so there is no fields[], no readiness and no metrics. This page reads
+     ONLY entity.spec — the pre-upload half of the pack — plus the CSV the user
+     just dropped, parsed live in the browser.
+
+     It is also the only step with copilot:false in the taxonomy. DPBase honours
+     that automatically; there is no Copilot markup here and none should be added.
+
+     Build:
+       python3 build/assemble.py     --page upload --entity items
+       python3 build/lint_bindings.py --page upload --entity items
+       python3 build/assemble.py     --page upload --entity customers
+     ========================================================================= -->
+
+<!-- @block pageHeader -->
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:28px;flex-wrap:wrap;margin-top:14px;margin-bottom:18px;">
+            <div style="min-width:0;">
+              <div style="display:flex;align-items:baseline;gap:10px;">
+                <div style="font-family:Chivo,sans-serif;font-size:18px;font-weight:700;letter-spacing:-.3px;">{{ pageTitle }}</div>
+                <div style="font-size:12.5px;color:var(--muted);">{{ stepCounter }}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:8px;color:var(--muted);">
+                <svg width="15" height="15" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v5h6"></path></svg>
+                <span style="font-size:12.5px;">{{ uploadFileLine }}</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <button style="display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);background:var(--card);color:var(--fg);border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:500;cursor:pointer;font-family:Inter,sans-serif;" style-hover="background:var(--surface);"><svg width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg>Back</button>
+              <button sc-camel-on-click="{{ onContinue }}" style="{{ continueStyle }}">{{ continueLabel }}<svg width="15" height="15" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></button>
+            </div>
+          </div>
+
+<!-- @block pageBody -->
+
+          <!-- Stat cards were removed in the final design: the source-file preview
+               table below carries the same information more directly, and the
+               Profile page (step 2) is where measured counts belong. -->
+
+          <!-- ── 1. source upload · 2. target format ──────────────────────── -->
+          <div style="border:1px solid var(--border);border-radius:12px;background:var(--card);padding:18px;margin-bottom:16px;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:24px;">
+
+              <div style="min-width:0;display:flex;flex-direction:column;">
+                <div style="font-family:Chivo,sans-serif;font-size:15px;font-weight:700;margin-bottom:2px;">1. Source {{ entityLabel }}: Master Data <span data-metrictone="blocker">*</span></div>
+                <div style="font-size:12.5px;color:var(--muted);margin-bottom:12px;">Upload a source CSV to continue</div>
+
+                <sc-if value="{{ noFile }}" hint-placeholder-val="{{ true }}">
+                  <label style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;border:1.5px dashed var(--border);border-radius:10px;padding:34px 22px;cursor:pointer;background:var(--surface-hi);text-align:center;" style-hover="border-color:var(--primary);" sc-camel-on-drag-over="{{ onDragOver }}" sc-camel-on-drop="{{ onDrop }}">
+                    <input type="file" accept=".csv,text/csv" sc-camel-on-change="{{ onFileInput }}" style="display:none;">
+                    <div style="width:42px;height:42px;border-radius:10px;background:var(--chip);color:var(--chip-fg);display:flex;align-items:center;justify-content:center;">
+                      <svg width="19" height="19" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m17 8-5-5-5 5"></path><path d="M12 3v12"></path></svg>
+                    </div>
+                    <div style="font-size:13.5px;font-weight:600;">Drag &amp; drop your CSV here, or <span style="color:var(--accent);text-decoration:underline;">browse</span></div>
+                    <div style="font-size:12px;color:var(--muted);">CSV with a header row · up to 10&nbsp;MB</div>
+                    <div style="font-size:11.5px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px;">expects: {{ expectedColumnsLine }}</div>
+                  </label>
+                </sc-if>
+
+                <sc-if value="{{ hasFile }}" hint-placeholder-val="{{ false }}">
+                  <div style="border:1px solid var(--border);border-radius:10px;padding:14px;">
+                    <div style="display:flex;align-items:center;gap:11px;">
+                      <div data-impact="clean" style="width:38px;height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;flex-shrink:0;">CSV</div>
+                      <div style="min-width:0;flex:1;">
+                        <div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ fileName }}</div>
+                        <div style="font-size:12px;color:var(--muted);margin-top:2px;font-family:'JetBrains Mono',monospace;">{{ rowCountLabel }}</div>
+                      </div>
+                      <span style="display:inline-flex;align-items:center;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--chip-fg);background:var(--chip);border-radius:9999px;padding:4px 10px;flex-shrink:0;">Source</span>
+                    </div>
+
+                    <!-- column check: fact, computed against spec.expectedColumns -->
+                    <sc-if value="{{ hasColumnWarning }}">
+                      <div data-find="warn" style="margin-top:11px;border-radius:8px;padding:9px 11px;font-size:12px;line-height:1.5;">{{ columnWarning }}</div>
+                    </sc-if>
+
+                    <div style="display:flex;gap:9px;margin-top:12px;">
+                      <button sc-camel-on-click="{{ togglePreview }}" style="flex:1;border:1px solid var(--border);background:var(--card);border-radius:8px;padding:9px 0;font-size:12.5px;font-weight:600;color:var(--fg);cursor:pointer;font-family:Inter,sans-serif;" style-hover="background:var(--surface);">{{ previewLabel }}</button>
+                      <button sc-camel-on-click="{{ removeFile }}" title="Remove file" data-metrictone="blocker" style="width:40px;border:1px solid var(--border);background:var(--card);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:var(--surface);"><svg width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
+                    </div>
+                  </div>
+                </sc-if>
+              </div>
+
+              <div style="min-width:0;display:flex;flex-direction:column;">
+                <div style="font-family:Chivo,sans-serif;font-size:15px;font-weight:700;margin-bottom:2px;">2. Target System Format</div>
+                <div style="font-size:12.5px;color:var(--muted);margin-bottom:12px;">Set when the project was created</div>
+                <div style="flex:1;display:flex;flex-direction:column;justify-content:center;border:1px solid var(--border);border-radius:10px;padding:14px;background:var(--surface-hi);">
+                  <div style="display:flex;align-items:center;gap:11px;">
+                    <div style="{{ targetBadgeStyleLg }}">{{ targetInitials }}</div>
+                    <div style="min-width:0;flex:1;">
+                      <div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ targetName }}</div>
+                      <div style="font-size:12px;color:var(--muted);margin-top:2px;font-family:'JetBrains Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ targetRecord }}</div>
+                    </div>
+                    <span data-impact="clean" style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;border-radius:9999px;padding:4px 10px;flex-shrink:0;">
+                      <svg width="10" height="10" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>Target
+                    </span>
+                  </div>
+                  <div style="border-top:1px solid var(--border);margin-top:13px;padding-top:11px;font-size:12.5px;color:var(--muted);line-height:1.55;">{{ targetBlurb }}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── sample file ─────────────────────────────────────────────
+                 Content comes from entity.spec.sample, so Customers offers a
+                 customer extract rather than an items one.
+                 ---------------------------------------------------------- -->
+            <sc-if value="{{ hasSample }}" hint-placeholder-val="{{ true }}">
+              <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:16px;">
+                <div style="font-family:Chivo,sans-serif;font-size:15px;font-weight:700;">Sample File</div>
+                <div style="font-size:12.5px;color:var(--muted);margin-top:2px;">Preview or download a sample source file for testing</div>
+                <div style="display:flex;align-items:center;gap:14px;margin-top:13px;flex-wrap:wrap;">
+                  <div style="width:30px;height:30px;border-radius:7px;background:var(--surface);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;font-family:'JetBrains Mono',monospace;flex-shrink:0;">CSV</div>
+                  <div style="flex:1;min-width:140px;font-size:13.5px;font-weight:600;">{{ sampleName }}</div>
+                  <div style="flex:1.4;min-width:180px;font-size:12.5px;color:var(--muted);">{{ sampleDescription }}</div>
+                  <div style="display:flex;gap:9px;">
+                    <button sc-camel-on-click="{{ loadSample }}" style="border:1px solid var(--border);background:var(--card);border-radius:8px;padding:8px 15px;font-size:12.5px;font-weight:600;color:var(--fg);cursor:pointer;font-family:Inter,sans-serif;" style-hover="background:var(--surface);">Load</button>
+                    <button sc-camel-on-click="{{ downloadSample }}" style="border:1px solid var(--border);background:var(--card);border-radius:8px;padding:8px 15px;font-size:12.5px;font-weight:600;color:var(--fg);cursor:pointer;font-family:Inter,sans-serif;" style-hover="background:var(--surface);">Download</button>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+
+          <!-- ── source file preview ──────────────────────────────────────── -->
+          <sc-if value="{{ showPreview }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-bottom:16px;">
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <svg width="17" height="17" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary);"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M3 9h18M9 21V9"></path></svg>
+                <div style="font-family:Chivo,sans-serif;font-size:16px;font-weight:700;">Source File Preview</div>
+                <div style="font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--muted);border:1px solid var(--border);border-radius:9999px;padding:3px 10px;">{{ previewCountLabel }}</div>
+              </div>
+              <div style="font-size:12.5px;color:var(--muted);margin-top:9px;">Check the header row and a few sample values before continuing. Column names are matched to target fields in the next step.</div>
+
+              <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:14px;background:var(--card);">
+                <div style="overflow-x:auto;">
+                  <div style="display:flex;background:var(--surface);border-bottom:1px solid var(--border);min-width:100%;">
+                    <div style="width:64px;flex-shrink:0;padding:11px 14px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Src #</div>
+                    <sc-for list="{{ headerCells }}" as="cell" hint-placeholder-count="6">
+                      <div style="flex:1;min-width:130px;padding:11px 14px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ cell }}</div>
+                    </sc-for>
+                  </div>
+                  <sc-for list="{{ previewRows }}" as="row" hint-placeholder-count="8">
+                    <div style="display:flex;border-bottom:1px solid var(--border);min-width:100%;" style-hover="background:var(--surface-hi);">
+                      <div style="width:64px;flex-shrink:0;padding:11px 14px;font-size:12.5px;font-family:'JetBrains Mono',monospace;color:var(--muted);">{{ row.n }}</div>
+                      <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="6">
+                        <div style="flex:1;min-width:130px;padding:11px 14px;font-size:12.5px;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ cell }}</div>
+                      </sc-for>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <div style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;">{{ statusText }}</div>
+
+<!-- @block overlays -->
+
+  <!-- @include dp-overlays -->
+
+<!-- @script -->
+class Component extends DPBase {
+
+  entity = ENTITY;
+  stepId = 'upload';
+
+  state = {
+    ...DPBase.shellState,
+    fileName: null,
+    rows: [],
+    showPreview: false,
+  };
+
+  /* ---- file handling ------------------------------------------------- */
+  loadFile = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => this.setState({
+      fileName: file.name,
+      rows: this.parseCSV(e.target.result),
+      showPreview: true,
+    });
+    reader.readAsText(file);
+  };
+
+  loadSample = () => {
+    const s = (ENTITY.spec && ENTITY.spec.sample) || {};
+    if (!s.content) return;
+    this.setState({
+      fileName: (ENTITY.id || 'sample') + '-sample.csv',
+      rows: this.parseCSV(s.content),
+      showPreview: true,
+    });
+  };
+
+  downloadSample = () => {
+    const s = (ENTITY.spec && ENTITY.spec.sample) || {};
+    if (!s.content) return;
+    const blob = new Blob([s.content], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (ENTITY.id || 'sample') + '-sample.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  removeFile = () => this.setState({ fileName: null, rows: [], showPreview: false });
+  togglePreview = () => this.setState((s) => ({ showPreview: !s.showPreview }));
+
+  /**
+   * Compare the uploaded header against entity.spec.expectedColumns.
+   * PROVENANCE: fact — a deterministic set difference, no inference.
+   */
+  columnCheck(header) {
+    const expected = (ENTITY.spec && ENTITY.spec.expectedColumns) || [];
+    if (!expected.length || !header.length) return null;
+    const missing = expected.filter((c) => DPBase.colIndex(header, c) < 0);
+    if (!missing.length) return null;
+    return missing.length + ' expected column' + (missing.length > 1 ? 's are' : ' is')
+      + ' not present: ' + missing.join(', ') + '. Profiling will still run, but these '
+      + 'fields cannot be mapped.';
+  }
+
+  renderVals() {
+    const s = this.state;
+    const spec = ENTITY.spec || {};
+    const sample = spec.sample || {};
+    const hasFile = !!s.fileName;
+    const header = s.rows[0] || [];
+    const dataRows = Math.max(0, s.rows.length - 1);
+    const maxPreview = 8;
+    const warning = hasFile ? this.columnCheck(header) : null;
+
+    return {
+      /* 39 shell bindings. copilot:false on this step is honoured here — the
+         Copilot panel is suppressed with no page-level logic. */
+      ...this.shellVals(),
+
+      entityLabel: ENTITY.label.plural,
+      hasFile,
+      noFile: !hasFile,
+      fileName: s.fileName,
+
+      /* the shell's fileLine assumes a profiled pack; step 1 has no profile */
+      uploadFileLine: hasFile
+        ? s.fileName + ' · ' + fmt(dataRows) + ' rows'
+        : 'No source file selected · step 1 of ' + DP_TAX.steps.length,
+
+      rowCountLabel: fmt(dataRows) + ' rows loaded',
+
+      expectedColumnsLine: (spec.expectedColumns || []).slice(0, 4).join(', ')
+        + ((spec.expectedColumns || []).length > 4 ? ' …' : ''),
+      hasColumnWarning: !!warning,
+      columnWarning: warning || '',
+
+      /* target */
+      targetBadgeStyleLg: this.badgeStyle(36),
+      targetRecord: spec.targetNote || ENTITY.target.record,
+      targetBlurb: 'The uploaded ' + ENTITY.label.plural.toLowerCase()
+        + " data will be converted into this system's format. To change the target, "
+        + 'edit the project settings.',
+
+      /* sample */
+      hasSample: !!sample.content,
+      sampleName: sample.name || '',
+      sampleDescription: sample.description || '',
+      loadSample: this.loadSample,
+      downloadSample: this.downloadSample,
+
+      /* preview */
+      showPreview: hasFile && s.showPreview,
+      previewLabel: s.showPreview ? 'Hide preview' : 'Preview',
+      previewCountLabel: 'first ' + Math.min(maxPreview, dataRows) + ' of ' + fmt(dataRows) + ' rows',
+      headerCells: header,
+      previewRows: s.rows.slice(1, 1 + maxPreview).map((cells, i) => ({ cells, n: i + 1 })),
+      togglePreview: this.togglePreview,
+      removeFile: this.removeFile,
+
+      onFileInput: (e) => this.loadFile(e.target.files && e.target.files[0]),
+      onDragOver: (e) => e.preventDefault(),
+      onDrop: (e) => { e.preventDefault(); this.loadFile(e.dataTransfer.files && e.dataTransfer.files[0]); },
+
+      statusText: hasFile
+        ? s.fileName + ' → ' + this.target().name
+        : 'Waiting for a source ' + ENTITY.label.singular.toLowerCase() + ' file…',
+
+      /* continue is gated on a file existing */
+      continueLabel: 'Continue to ' + DP_TAX.steps[1].label + '  ',
+      onContinue: () => {},
+      continueStyle: 'display:inline-flex;align-items:center;gap:8px;border:none;border-radius:8px;'
+        + 'padding:8px 15px;font-size:12.5px;font-weight:600;font-family:Inter,sans-serif;'
+        + (hasFile
+            ? 'background:var(--primary);color:var(--primary-fg);cursor:pointer;'
+            : 'background:var(--surface);color:var(--muted);cursor:not-allowed;'),
+
+      /* overlays partial */
+      anyMenuOpen: false,
+      closeMenus: () => {},
+      coverageOpen: false,
+      toggleCoverage: () => {},
+    };
+  }
+}
