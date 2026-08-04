@@ -55,6 +55,7 @@ interface UseMigrationViewModelReturn {
   readonly canProceedFromStep1: boolean;
   readonly handleDownloadSample: (erpId: string, type: 'source' | 'target' | 'mapping') => Promise<void>;
   readonly handlePreviewSample: (erpId: string, type: 'source' | 'target' | 'mapping') => Promise<void>;
+  readonly handleLoadAllSamples: () => Promise<void>;
   readonly previewData: Record<string, unknown>[] | null;
   readonly previewTitle: string;
   readonly isPreviewOpen: boolean;
@@ -148,6 +149,48 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
     },
     [actions, pid, showSuccess, showError],
   );
+  const handleLoadAllSamples = useCallback(async (): Promise<void> => {
+    const rowsToCsv = (rows: Record<string, unknown>[]): string => {
+      if (rows.length === 0) return '';
+      const headers = Object.keys(rows[0]!);
+      return [
+        headers.join(','),
+        ...rows.map((row) =>
+          headers.map((h) => `"${String(row[h] ?? '').replace(/"/g, '""')}"`).join(','),
+        ),
+      ].join('\n');
+    };
+    const loadIntoSlot = async (
+      erpId: string,
+      filename: string,
+      handler: (file: PickedFile) => Promise<void>,
+    ): Promise<void> => {
+      const result = await getSampleData(httpClient, erpId);
+      if (!result.ok || result.data.data.length === 0) return;
+      const csv = rowsToCsv([...result.data.data]);
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const file = new File([blob], filename, { type: 'text/csv' });
+      await handler({ uri: URL.createObjectURL(blob), name: filename, mimeType: 'text/csv', file });
+    };
+    actions.setLoading(true);
+    try {
+      const tasks: Promise<void>[] = [];
+      if (sourceERP?.id) {
+        tasks.push(loadIntoSlot(sourceERP.id, `${sourceERP.name ?? 'source'}_sample.csv`, handleSourceFilePicked));
+      }
+      if (targetERP?.id) {
+        tasks.push(loadIntoSlot(targetERP.id, `${targetERP.name ?? 'target'}_sample.csv`, handleTargetFilePicked));
+      }
+      tasks.push(loadIntoSlot('type_mapping', 'type_mapping_sample.csv', handleMappingFilePicked));
+      await Promise.all(tasks);
+      showSuccess('Samples loaded', 'Sample files loaded into upload slots');
+    } catch {
+      showError('Load failed', 'Failed to load sample files');
+    } finally {
+      actions.setLoading(false);
+    }
+  }, [sourceERP, targetERP, actions, showSuccess, showError, handleSourceFilePicked, handleTargetFilePicked, handleMappingFilePicked]);
+
   const handleRemoveSourceFile = useCallback((): void => actions.clearSourceFile(), [actions]);
   const handleRemoveTargetFile = useCallback((): void => actions.clearTargetFile(), [actions]);
   const handleRemoveMappingFile = useCallback((): void => actions.clearMappingFile(), [actions]);
@@ -269,7 +312,7 @@ export function useMigrationViewModel(): UseMigrationViewModelReturn {
     goToStep, handleSourceSelect, handleTargetSelect, canProceedFromStep0,
     handleSourceFilePicked, handleTargetFilePicked, handleMappingFilePicked,
     handleRemoveSourceFile, handleRemoveTargetFile, handleRemoveMappingFile,
-    processFiles, canProceedFromStep1, handleDownloadSample,
+    processFiles, canProceedFromStep1, handleDownloadSample, handleLoadAllSamples,
     handlePreviewSample, previewData, previewTitle, isPreviewOpen, closePreview,
   };
 }

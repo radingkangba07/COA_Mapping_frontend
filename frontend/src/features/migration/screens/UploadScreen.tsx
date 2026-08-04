@@ -58,7 +58,7 @@ export function UploadScreen(): React.JSX.Element {
     sourceFile, targetFile, mappingFile, isLoading, canProceedFromStep1,
     goToStep, handleSourceFilePicked, handleTargetFilePicked, handleMappingFilePicked,
     handleRemoveSourceFile, handleRemoveTargetFile, handleRemoveMappingFile,
-    processFiles, handleDownloadSample,
+    processFiles, handleDownloadSample, handleLoadAllSamples,
     handlePreviewSample, previewData, previewTitle, isPreviewOpen, closePreview,
   } = useMigrationViewModel();
 
@@ -129,11 +129,9 @@ export function UploadScreen(): React.JSX.Element {
     navigation.navigate('Mapping', { projectId });
   }, [processFiles, navigation, projectId]);
 
-  const handleLoadAllSamples = useCallback((): void => {
-    if (sourceERP?.id) void handleDownloadSample(sourceERP.id, 'source');
-    if (targetERP?.id) void handleDownloadSample(targetERP.id, 'target');
-    void handleDownloadSample('type_mapping', 'mapping');
-  }, [sourceERP?.id, targetERP?.id, handleDownloadSample]);
+  const onLoadAllSamples = useCallback((): void => {
+    void handleLoadAllSamples();
+  }, [handleLoadAllSamples]);
 
   const onDownloadSample = useCallback(
     (erpId: string, type: 'source' | 'target' | 'mapping'): void => {
@@ -243,7 +241,7 @@ export function UploadScreen(): React.JSX.Element {
                   targetErpName={targetERP?.name}
                   onDownload={onDownloadSample}
                   onPreview={onPreviewSample}
-                  onLoadAll={handleLoadAllSamples}
+                  onLoadAll={onLoadAllSamples}
                   isLoading={isLoading}
                   testID="sample-files-table"
                 />
