@@ -31,6 +31,7 @@ function SidebarRow({ label, value }: { label: string; value: string }) {
 
 export function SidebarContent({
   projectId,
+  displayCode,
   orgId,
   projectName,
   createdAt,
@@ -151,7 +152,9 @@ export function SidebarContent({
 
     {/* Details */}
     <View className="border-t border-border pt-3 mb-4">
-      {projectId ? <SidebarRow label="Project ID" value={projectId.slice(0, 8)} /> : null}
+      {projectId ? (
+        <SidebarRow label="Project ID" value={projectId!.slice(0, 8)} />
+      ) : null}
       {createdAt ? (
         <View className="py-1.5">
           <Text className="font-body text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Created at</Text>

@@ -36,7 +36,7 @@ function stageToStep(currentStage: string | null): { step: number; screen: strin
 export function WorkstreamDetailScreen(): React.JSX.Element {
   const route = useRoute<RouteProp<ProjectsStackParamList, 'WorkstreamDetail'>>();
   const navigation = useNavigation();
-  const { projectId, workstreamId } = route.params;
+  const { projectId, workstreamId, kind } = route.params;
 
   useEffect(() => {
     let cancelled = false;
@@ -79,6 +79,7 @@ export function WorkstreamDetailScreen(): React.JSX.Element {
         }
         store.setStep(step);
         store.setWorkstreamId(workstreamId);
+        store.setWorkstreamCode(kind ?? null);
         targetScreen = screen;
       } catch {
         // Context fetch failed — UploadScreen will hydrate from the project API

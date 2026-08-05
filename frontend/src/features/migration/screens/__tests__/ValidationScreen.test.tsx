@@ -44,8 +44,9 @@ jest.mock('../../components/MigrationLayout', () => {
 
 // ─── Navigation mocks ──────────────────────────────────────────────────────
 const mockNavigate = jest.fn();
+const mockAddListener = jest.fn(() => jest.fn());
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: mockNavigate }),
+  useNavigation: () => ({ navigate: mockNavigate, addListener: mockAddListener }),
 }));
 
 jest.mock('@/navigation/types', () => ({

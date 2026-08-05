@@ -66,7 +66,9 @@ export const ProjectInfoPanel = ({ projectId, testID }: ProjectInfoPanelProps) =
       {/* Project ID */}
       <View className="gap-1">
         <Text className={LABEL}>Project ID</Text>
-        <Text className="font-mono text-xs text-foreground">{project.projectId}</Text>
+        <Text className="font-mono text-xs text-foreground">
+          {String(project.projectId).slice(0, 8)}
+        </Text>
       </View>
 
       {/* Created At */}

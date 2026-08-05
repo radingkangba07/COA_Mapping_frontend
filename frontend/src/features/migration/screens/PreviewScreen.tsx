@@ -15,6 +15,7 @@ import { ExportFormatPicker } from '@/features/export/components/ExportFormatPic
 import { useExportViewModel } from '@/features/export/hooks/useExportViewModel';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { usePreviewScreenViewModel } from '../hooks/usePreviewScreenViewModel';
+import { useSaveMappings } from '../hooks/useSaveMappings';
 import { useMigrationStore } from '../store/migration.store';
 import { MIGRATION_STEPS } from '@/shared/constants/migration-steps';
 import { useHydrateProject } from '../hooks/useHydrateProject';
@@ -69,6 +70,7 @@ export const PreviewScreen = (): React.JSX.Element => {
 
   const isReadOnly = useMigrationStore((s) => s.isReadOnly);
   const completeStep = useMigrationStore((s) => s.completeStep);
+  const { save: saveMappings } = useSaveMappings(projectId);
 
   // Strip locally-deleted accounts before handing off to export — the export
   // VM doesn't know about is_active and would otherwise write tombstoned rows
@@ -112,6 +114,7 @@ export const PreviewScreen = (): React.JSX.Element => {
   }, [performExport]);
 
   const handleComplete = useCallback(async (): Promise<void> => {
+    await saveMappings();
     const success = await markComplete();
     if (success) {
       completeStep(MIGRATION_STEPS.FINAL_PREVIEW);
@@ -122,7 +125,7 @@ export const PreviewScreen = (): React.JSX.Element => {
           .catch(() => {});
       }
     }
-  }, [markComplete, completeStep]);
+  }, [saveMappings, markComplete, completeStep]);
 
   if (isHydrating) {
     return (

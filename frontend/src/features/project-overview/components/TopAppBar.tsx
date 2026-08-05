@@ -14,12 +14,23 @@ function resolveErpName(raw: string | undefined | null): string {
   return raw.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function formatOrgId(displayCode: string | undefined, createdAt: Date | undefined): string | undefined {
+  if (!displayCode || !createdAt) return undefined;
+  const orgPrefix = displayCode.split('-')[0] ?? 'ORG';
+  const d = String(createdAt.getDate()).padStart(2, '0');
+  const m = String(createdAt.getMonth() + 1).padStart(2, '0');
+  const y = String(createdAt.getFullYear()).slice(-2);
+  return `${orgPrefix}-${d}${m}${y}`;
+}
+
 interface TopAppBarProps {
   readonly breadcrumb: readonly [string, string];
   readonly status: ProjectStatus;
   readonly sourceErp: string;
   readonly targetErp: string;
   readonly projectId: string;
+  readonly displayCode?: string;
+  readonly createdAt?: Date;
   readonly onBack?: () => void;
   readonly testID?: string;
 }
@@ -30,6 +41,8 @@ export const TopAppBar = ({
   sourceErp,
   targetErp,
   projectId,
+  displayCode,
+  createdAt,
   onBack,
   testID,
 }: TopAppBarProps): React.JSX.Element => {
@@ -68,8 +81,13 @@ export const TopAppBar = ({
           {resolveErpName(targetErp)}
         </Text>
         <Text className="font-mono text-sm text-muted-foreground ml-6">
-          Project ID: {projectId}
+          Organisation-Project-ID: {displayCode ?? projectId}
         </Text>
+        {formatOrgId(displayCode, createdAt) !== undefined && (
+          <Text className="font-mono text-sm text-muted-foreground ml-6">
+            Organisation ID: {formatOrgId(displayCode, createdAt)}
+          </Text>
+        )}
       </View>
     </View>
   );

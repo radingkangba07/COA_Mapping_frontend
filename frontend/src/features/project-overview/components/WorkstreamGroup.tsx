@@ -28,7 +28,7 @@ export const WorkstreamGroup = ({
 
   const TABLE_HEADERS: { label: string; flex: number; paddingLeft?: number }[] = [
     { label: 'Workstream',    flex: colFlex.name                            },
-    { label: 'Project ID',    flex: colFlex.projectId                       },
+    { label: 'Workstream ID',  flex: colFlex.projectId                       },
     { label: 'Status',        flex: colFlex.status,   paddingLeft: 8        },
     { label: 'Progress',      flex: colFlex.percent + colFlex.progress      },
     { label: 'Current Stage', flex: colFlex.currentStage, paddingLeft: 8    },

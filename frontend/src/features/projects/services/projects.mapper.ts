@@ -28,6 +28,7 @@ export const projectResponseSchema = z.object({
   updated_by_name: z.string().nullable().optional(),
   current_step: z.number().int().min(0).default(0),
   effective_permission: z.string().nullable().optional(),
+  display_code: z.string().nullable().optional(),
 });
 
 export type ProjectResponseDTO = z.infer<typeof projectResponseSchema>;
@@ -65,6 +66,7 @@ export function toProject(dto: ProjectResponseDTO): Project & {
     updatedByName: dto.updated_by_name ?? undefined,
     currentStep: dto.current_step,
     effectivePermission: dto.effective_permission ?? undefined,
+    displayCode: dto.display_code ?? undefined,
   };
 }
 

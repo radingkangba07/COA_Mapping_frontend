@@ -398,10 +398,6 @@ export function useValidationScreenViewModel(
     (deletedIndex: number): void => { actions.restoreAccount(deletedIndex); }, [actions]);
   const handleToggleDeleted = useCallback(
     (): void => { setIsDeletedOpen((prev) => !prev); }, []);
-  const handleBack = useCallback((): void => {
-    actions.setStep(2);
-    navigateBack(projectId);
-  }, [actions, navigateBack, projectId]);
   const handleSaveMappings = useCallback(async (): Promise<boolean> => {
     if (!projectId) return false;
     setIsSaving(true);
@@ -427,14 +423,22 @@ export function useValidationScreenViewModel(
     return false;
   }, [projectId, actions, showSuccess, showError, invalidateSuggestions]);
 
+  const handleBack = useCallback((): void => {
+    if (groupedMappings.length > 0 && hasUnsavedChanges) {
+      void handleSaveMappings();
+    }
+    actions.setStep(2);
+    navigateBack(projectId);
+  }, [actions, navigateBack, projectId, groupedMappings.length, hasUnsavedChanges, handleSaveMappings]);
+
   const handleReviewSave = useCallback(async (): Promise<void> => {
     await handleSaveMappings();
   }, [handleSaveMappings]);
 
   const handleContinue = useCallback(async (): Promise<void> => {
     if (groupedMappings.length > 0 && !hasMappingsSaved) {
-      showError('Save required', 'Please save your account mappings before continuing to export.');
-      return;
+      const saved = await handleSaveMappings();
+      if (!saved) return;
     }
 
     actions.completeStep(3);
@@ -451,7 +455,7 @@ export function useValidationScreenViewModel(
     }
 
     navigateForward(projectId);
-  }, [actions, syncStep, navigateForward, projectId, groupedMappings.length, hasMappingsSaved, showError]);
+  }, [actions, syncStep, navigateForward, projectId, groupedMappings.length, hasMappingsSaved, handleSaveMappings]);
 
   return {
     currentStep, completedSteps, sourceFile, sourceERP, targetERP, confidenceFilter,

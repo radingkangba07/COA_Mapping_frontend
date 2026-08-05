@@ -57,6 +57,8 @@ const openWorkstream = useOpenWorkstream(projectId);
             sourceErp={project.sourceErp}
             targetErp={project.targetErp}
             projectId={project.projectId as string}
+            displayCode={project.displayCode}
+            createdAt={project.createdAt}
             onBack={() => navigation.navigate('ProjectsList')}
             testID="project-overview-topbar"
           />

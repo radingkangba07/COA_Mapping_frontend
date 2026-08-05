@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { render, screen, fireEvent, act } from '@testing-library/react-native';
 
 // ─── Icon mock ──────────────────────────────────────────────────────────────
 jest.mock('lucide-react-native', () => {
@@ -192,6 +192,7 @@ import { MappingScreen } from '../MappingScreen';
 describe('MappingScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
     mockStoreState.isLoading = false;
     mockStoreState.typeMappingRows = [
       { id: '1', sourceType: 'Asset', targetTypes: ['Asset'], isCustom: false },
@@ -200,6 +201,10 @@ describe('MappingScreen', () => {
     mockAccountTypeMappings.rows = [];
     mockAccountTypeMappings.isDirty = false;
     mockAccountTypeMappings.isSaving = false;
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('renders with testID "mapping-screen"', () => {
@@ -247,7 +252,11 @@ describe('MappingScreen', () => {
     mockStoreState.jobId = null;
     render(<MappingScreen />);
     const button = screen.getByTestId('mapping-proceed-button');
-    await fireEvent.press(button);
+    await act(async () => {
+      fireEvent.press(button);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
     expect(mockGetHierarchicalMapping).toHaveBeenCalledWith(
       expect.anything(),
       'test-project-1',
@@ -280,7 +289,11 @@ describe('MappingScreen', () => {
 
     render(<MappingScreen />);
     const button = screen.getByTestId('mapping-proceed-button');
-    await fireEvent.press(button);
+    await act(async () => {
+      fireEvent.press(button);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
 
     expect(mockSaveMappings).toHaveBeenCalledTimes(1);
     expect(callOrder).toEqual(['save', 'getHierarchicalMapping']);
@@ -295,7 +308,11 @@ describe('MappingScreen', () => {
 
     render(<MappingScreen />);
     const button = screen.getByTestId('mapping-proceed-button');
-    await fireEvent.press(button);
+    await act(async () => {
+      fireEvent.press(button);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
 
     expect(mockSaveMappings).not.toHaveBeenCalled();
     expect(mockGetHierarchicalMapping).toHaveBeenCalledTimes(1);
@@ -311,7 +328,11 @@ describe('MappingScreen', () => {
 
     render(<MappingScreen />);
     const button = screen.getByTestId('mapping-proceed-button');
-    await fireEvent.press(button);
+    await act(async () => {
+      fireEvent.press(button);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
 
     expect(mockSaveMappings).toHaveBeenCalledTimes(1);
     expect(mockGetHierarchicalMapping).not.toHaveBeenCalled();

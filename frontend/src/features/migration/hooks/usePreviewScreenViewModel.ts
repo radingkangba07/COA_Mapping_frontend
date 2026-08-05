@@ -55,16 +55,15 @@ export function usePreviewScreenViewModel(
       }),
     }));
 
-    const apiConfirmedAllGroups: GroupedMapping[] = (apiMappings ?? []).map((group) => ({
+    // When reading from the DB (no in-memory store data), all saved accounts are
+    // considered confirmed regardless of status field — do not filter by status.
+    const apiAllGroups: GroupedMapping[] = (apiMappings ?? []).map((group) => ({
       ...group,
-      accounts: group.accounts.filter((a) => {
-        const s = (a as { status?: string }).status;
-        return s === 'confirmed' || s === 'approved';
-      }),
+      accounts: group.accounts.filter((a) => a.is_active !== false),
     }));
 
     const hasStoreData = storeConfirmed.some((g) => g.accounts.length > 0);
-    const source: GroupedMapping[] = hasStoreData ? storeConfirmed : apiConfirmedAllGroups;
+    const source: GroupedMapping[] = hasStoreData ? storeConfirmed : apiAllGroups;
     const selected = source
       .map((group) => ({
         ...group,

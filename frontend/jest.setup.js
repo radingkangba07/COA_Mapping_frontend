@@ -115,3 +115,11 @@ console.warn = (...args) => {
   if (message.includes('NativeWind')) return;
   originalWarn.apply(console, args);
 };
+
+const originalError = console.error;
+console.error = (...args) => {
+  const message = typeof args[0] === 'string' ? args[0] : '';
+  if (message.startsWith('[HTTP] error response:')) return;
+  originalError.apply(console, args);
+};
+

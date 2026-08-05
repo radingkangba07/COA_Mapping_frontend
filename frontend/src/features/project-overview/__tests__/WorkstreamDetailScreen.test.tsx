@@ -38,6 +38,7 @@ const mockStoreActions = {
   completeStep: jest.fn(),
   setStep: jest.fn(),
   setWorkstreamId: jest.fn(),
+  setWorkstreamCode: jest.fn(),
 };
 
 jest.mock('@/features/migration/store/migration.store', () => ({
