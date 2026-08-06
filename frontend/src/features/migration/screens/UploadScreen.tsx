@@ -58,7 +58,7 @@ export function UploadScreen(): React.JSX.Element {
     sourceFile, targetFile, mappingFile, isLoading, canProceedFromStep1,
     goToStep, handleSourceFilePicked, handleTargetFilePicked, handleMappingFilePicked,
     handleRemoveSourceFile, handleRemoveTargetFile, handleRemoveMappingFile,
-    processFiles, handleDownloadSample,
+    processFiles, handleDownloadSample, handleLoadAllSamples,
     handlePreviewSample, previewData, previewTitle, isPreviewOpen, closePreview,
   } = useMigrationViewModel();
 
@@ -129,21 +129,20 @@ export function UploadScreen(): React.JSX.Element {
     navigation.navigate('Mapping', { projectId });
   }, [processFiles, navigation, projectId]);
 
-  const handleLoadAllSamples = useCallback((): void => {
-    if (sourceERP?.id) void handleDownloadSample(sourceERP.id);
-    if (targetERP?.id) void handleDownloadSample(targetERP.id);
-  }, [sourceERP?.id, targetERP?.id, handleDownloadSample]);
+  const onLoadAllSamples = useCallback((): void => {
+    void handleLoadAllSamples();
+  }, [handleLoadAllSamples]);
 
   const onDownloadSample = useCallback(
-    (erpId: string, _type: 'source' | 'target'): void => {
-      void handleDownloadSample(erpId);
+    (erpId: string, type: 'source' | 'target' | 'mapping'): void => {
+      void handleDownloadSample(erpId, type);
     },
     [handleDownloadSample],
   );
 
   const onPreviewSample = useCallback(
-    (erpId: string, _type: 'source' | 'target'): void => {
-      void handlePreviewSample(erpId);
+    (erpId: string, type: 'source' | 'target' | 'mapping'): void => {
+      void handlePreviewSample(erpId, type);
     },
     [handlePreviewSample],
   );
@@ -242,7 +241,7 @@ export function UploadScreen(): React.JSX.Element {
                   targetErpName={targetERP?.name}
                   onDownload={onDownloadSample}
                   onPreview={onPreviewSample}
-                  onLoadAll={handleLoadAllSamples}
+                  onLoadAll={onLoadAllSamples}
                   isLoading={isLoading}
                   testID="sample-files-table"
                 />

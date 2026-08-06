@@ -9,8 +9,8 @@ interface SampleFilesTableProps {
   sourceErpName?: string;
   targetErpId?: string;
   targetErpName?: string;
-  onDownload: (erpId: string, type: 'source' | 'target') => void;
-  onPreview: (erpId: string, type: 'source' | 'target') => void;
+  onDownload: (erpId: string, type: 'source' | 'target' | 'mapping') => void;
+  onPreview: (erpId: string, type: 'source' | 'target' | 'mapping') => void;
   onLoadAll?: () => void;
   isLoading?: boolean;
   testID?: string;
@@ -20,7 +20,7 @@ interface SampleFileRow {
   name: string;
   description: string;
   erpId: string | undefined;
-  type: 'source' | 'target';
+  type: 'source' | 'target' | 'mapping';
 }
 
 export const SampleFilesTable = ({
@@ -50,8 +50,8 @@ export const SampleFilesTable = ({
     {
       name: 'Account Type Mapping Sample',
       description: 'Sample mapping between source and target types',
-      erpId: sourceErpId,
-      type: 'source',
+      erpId: 'type_mapping',
+      type: 'mapping',
     },
   ];
 
