@@ -58,6 +58,7 @@ export function WorkstreamDetailScreen(): React.JSX.Element {
         // only ever adds, so without a reset a prior session's steps persist and
         // the stepper shows future stages as already complete.
         store.reset();
+        store.setProjectId(projectId);
         store.setReadOnly(data.status === 'completed');
 
         // Restore file metadata and type mapping rows from cache so that

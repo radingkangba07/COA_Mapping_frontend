@@ -78,6 +78,7 @@ export const MappingScreen = (): React.JSX.Element => {
   const accountTypeMappings = useAccountTypeMappings(projectId);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState('Submitting mapping job...');
+  const [processingPct, setProcessingPct] = useState(0);
   const cancelledRef = useRef(false);
 
   // Poll for a job's completion. Extracted so it can be called from both
@@ -116,6 +117,7 @@ export const MappingScreen = (): React.JSX.Element => {
         if (has_error) {
           console.error('[MAPPING] Job error — aborting');
           showError('Mapping failed', 'The mapping job encountered an error.');
+          setProcessingPct(0);
           setIsProcessing(false);
           return false;
         }
@@ -127,6 +129,7 @@ export const MappingScreen = (): React.JSX.Element => {
         }
 
         const pct = Math.round(progress * 100);
+        setProcessingPct(pct);
         setProcessingMessage(
           status === 'processing'
             ? `Processing account mappings... ${pct > 0 ? `${pct}%` : ''}`
@@ -267,16 +270,8 @@ export const MappingScreen = (): React.JSX.Element => {
 
     cancelledRef.current = false;
     setIsProcessing(true);
+    setProcessingPct(0);
     setProcessingMessage('Submitting mapping job...');
-
-    // Advance the workstream stage immediately on button click — Type Mapping is
-    // done the moment the user commits to proceeding, regardless of job duration.
-    const wsId = useMigrationStore.getState().workstreamId;
-    if (wsId) {
-      httpClient
-        .patch(`/api/v1/projects/${projectId}/workstreams/${wsId}`, { current_stage: 'Account Mapping: 1' })
-        .catch(() => {});
-    }
 
     let jobId = store.jobId;
 
@@ -311,6 +306,12 @@ export const MappingScreen = (): React.JSX.Element => {
       useMigrationStore.getState().completeStep(2);
       useMigrationStore.getState().setStep(3);
       syncStep(3);
+      const wsId = useMigrationStore.getState().workstreamId;
+      if (wsId) {
+        httpClient
+          .patch(`/api/v1/projects/${projectId}/workstreams/${wsId}`, { current_stage: 'Account Mapping: 1' })
+          .catch(() => {});
+      }
       navigation.navigate('Validation', { projectId });
     }
   }, [navigation, projectId, showError, showSuccess, syncStep, pollJobStatus, accountTypeMappings]);
@@ -361,7 +362,6 @@ export const MappingScreen = (): React.JSX.Element => {
   const sourceERPName = sourceERP?.name ?? 'Source';
   const targetERPName = targetERP?.name ?? 'Target';
 
-  const processingBarStyle = useMemo(() => ({ width: '60%' as const }), []);
 
   if (isHydrating) {
     return (
@@ -444,7 +444,7 @@ export const MappingScreen = (): React.JSX.Element => {
                 {processingMessage}
               </Text>
               <View className="mt-6 h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                <View className="h-full rounded-full bg-primary animate-pulse" style={processingBarStyle} />
+                <View className="h-full rounded-full bg-primary animate-pulse" style={{ width: `${processingPct}%` }} />
               </View>
               <Text className="mt-4 font-body text-xs text-muted-foreground text-center">
                 This usually takes 10–30 seconds. Please don't close this page.
