@@ -8,6 +8,14 @@ export interface MasterDataItem {
 
 export const CHART_OF_ACCOUNTS_ID = 'chart-of-accounts';
 
+// The three scopes with an active migration flow.
+// Extend this set as new scope screens are delivered.
+export const ENABLED_SCOPE_IDS = new Set([
+  'chart-of-accounts',
+  'customers',
+  'items',
+]);
+
 export const MASTER_DATA_ITEMS: readonly MasterDataItem[] = [
   {
     id: CHART_OF_ACCOUNTS_ID,
