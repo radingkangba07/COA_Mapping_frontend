@@ -1,0 +1,736 @@
+<!-- ============================================================================
+     mapping.page.html  ·  Step 3 of 8 — Field Mapping
+     ----------------------------------------------------------------------------
+     Matches the approved "DP · Items · Field Mapping" design.
+
+     SHARED, via includes — do not inline these:
+       dp-readiness   the migration-readiness banner (byte-identical to the design)
+       dp-overlays    click-catchers
+       dp-approval    the approval modal — the single write-enforcement point
+
+     ENTITY DATA lives in the pack (entity.mapping): targetFields, proposals,
+     missingTargets, cards, autoAcceptAt, pageSize, readiness. Nothing about
+     Items is hardcoded here.
+
+     COLOUR — two different cases, deliberately handled differently:
+       Discrete tones (status, validation, handoff) use data-impact / data-find,
+       styled by dp-semantics.css.
+       The CONFIDENCE PILL is a continuous oklch ramp over 0-100, so it cannot be
+       six CSS classes. That one is computed in JS on purpose; see chip() below.
+
+     Build:
+       python3 build/assemble.py     --page mapping --entity items
+       python3 build/lint_bindings.py --page mapping --entity items
+       python3 build/assemble.py     --page mapping --entity customers
+     ========================================================================= -->
+
+<!-- @block pageHeader -->
+<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:28px;flex-wrap:wrap;margin-top:14px;margin-bottom:18px;">
+            <div style="min-width:0;">
+              <div style="display:flex;align-items:baseline;gap:10px;">
+                <div style="font-family:Chivo,sans-serif;font-size:18px;font-weight:700;letter-spacing:-.3px;">{{ pageTitle }}</div>
+                <div style="font-size:12.5px;color:var(--muted);">{{ stepCounter }}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:8px;color:var(--muted);">
+                <svg width="15" height="15" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v5h6"></path></svg>
+                <span style="font-size:12.5px;">{{ mappingSummaryLine }}</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <button style="display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);background:var(--card);color:var(--fg);border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:500;cursor:pointer;font-family:Inter,sans-serif;" style-hover="background:var(--surface);"><svg width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg>Back</button>
+              <button sc-camel-on-click="{{ onBulkApprove }}" style="display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);background:var(--card);color:var(--fg);border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;" style-hover="border-color:var(--accent);color:var(--accent);">{{ bulkApproveLabel }}</button>
+              <button sc-camel-on-click="{{ onContinue }}" data-primary="true" style="display:inline-flex;align-items:center;gap:8px;border:none;border-radius:8px;padding:8px 15px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;">{{ continueLabel }}<svg width="15" height="15" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></button>
+            </div>
+          </div>
+
+
+
+          
+
+          <!-- readiness banner: shared kit pattern, content from mapping.readiness -->
+
+<!-- @block pageBody -->
+
+          <!-- readiness banner: shared kit pattern, content from mapping.readiness -->
+          <!-- @include dp-readiness -->
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px;">
+            <sc-for list="{{ cards }}" as="c" hint-placeholder-count="5">
+              <button sc-camel-on-click="{{ c.onClick }}" data-active="{{ c.active }}" style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;text-align:left;border:1px solid var(--border);border-radius:9px;background:var(--card);padding:9px 12px;cursor:pointer;font-family:Inter,sans-serif;" style-hover="border-color:var(--accent);">
+                <span style="font-size:11px;color:var(--muted);line-height:1.3;">{{ c.label }}</span>
+                <span data-impact="{{ c.impact }}" style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:13px;flex-shrink:0;border-radius:6px;padding:1px 7px;">{{ c.value }}</span>
+              </button>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ hasCardFilter }}">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+              <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);">Filtered</span>
+              <button sc-camel-on-click="{{ clearCardFilter }}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;border:1px solid var(--border);border-radius:9999px;padding:4px 11px;background:var(--surface);color:var(--fg);cursor:pointer;font-family:Inter,sans-serif;" style-hover="border-color:var(--accent);color:var(--accent);">{{ cardFilterLabel }} ✕</button>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ hasSelection }}">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--border);background:var(--surface);border-radius:10px;padding:8px 12px;margin-top:14px;">
+              <span style="font-size:12.5px;font-weight:600;">{{ selectionLabel }}</span>
+              <div style="display:flex;gap:8px;">
+                <button sc-camel-on-click="{{ clearSelection }}" style="border:1px solid var(--border);background:var(--card);color:var(--fg);border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:500;cursor:pointer;font-family:Inter,sans-serif;" style-hover="background:var(--surface);">Clear</button>
+                <button sc-camel-on-click="{{ onAcceptSelected }}" style="border:none;background:var(--accent);color:#fff;border-radius:8px;padding:6px 13px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;">Accept selected</button>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ── filter source fields ─────────────────────────
+               Same control as step 2. Drives the same cardFilter state as the
+               summary cards above, so the two never disagree.
+               ---------------------------------------------------------- -->
+          <div style="display:flex;align-items:center;gap:9px;margin-top:16px;margin-bottom:10px;position:relative;">
+            <span style="font-family:Chivo,sans-serif;font-weight:600;font-size:16px;">Filter source fields</span>
+            <div style="position:relative;">
+              <button sc-camel-on-click="{{ toggleMapMenu }}" aria-haspopup="listbox" style="display:inline-flex;align-items:center;gap:9px;min-width:320px;height:33px;justify-content:space-between;border:1px solid var(--border);background:var(--card);color:var(--fg);border-radius:8px;padding:0 7px 0 12px;font-size:12.5px;font-weight:500;cursor:pointer;font-family:Inter,sans-serif;" style-hover="border-color:var(--accent);">
+                <span style="display:inline-flex;align-items:center;gap:8px;"><span>{{ mapFilterLabel }}</span><span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted);">{{ mapFilterCount }}</span></span>
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:21px;height:21px;flex-shrink:0;border-radius:6px;background:var(--surface);color:var(--muted);"><svg width="12" height="12" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="m6 9 6 6 6-6"></path></svg></span>
+              </button>
+              <sc-if value="{{ mapMenuOpen }}">
+                <div sc-camel-on-click="{{ closeMapMenu }}" style="position:fixed;inset:0;z-index:44;"></div>
+                <div role="listbox" style="position:absolute;top:40px;left:0;z-index:46;width:340px;max-height:320px;overflow-y:auto;background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:0 14px 38px rgba(0,0,0,.18);padding:6px;">
+                  <sc-for list="{{ mapFilters }}" as="mf" hint-placeholder-count="6">
+                    <div sc-camel-on-click="{{ mf.onPick }}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;font-size:12.5px;cursor:pointer;color:var(--fg);" style-hover="background:var(--surface);">
+                      <span>{{ mf.label }}</span>
+                      <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted);">{{ mf.count }}</span>
+                      <sc-if value="{{ mf.active }}"><svg width="13" height="13" sc-camel-view-box="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M20 6 9 17l-5-5"></path></svg></sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+
+          <!-- ── mapping table ───────────────────────────────────────────
+               Sticky leading columns come from dp-semantics.css. Every colour
+               is a data-attribute; the old page used inline hexes here.
+               ---------------------------------------------------------- -->
+          <div style="border:1px solid var(--border);border-radius:12px;background:var(--card);overflow:hidden;">
+            <div style="overflow:auto;max-height:900px;">
+              <sc-raw-table data-dp-table="true" style="width:100%;min-width:1292px;border-collapse:collapse;">
+                <sc-raw-thead>
+                  <sc-raw-tr style="background:var(--surface);">
+                    <sc-raw-th style="width:30px;padding:11px 4px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:9;background:var(--surface);text-align:center;"><input type="checkbox" checked="{{ allSelected }}" sc-camel-on-change="{{ toggleSelectAll }}" title="Select all on this page" style="width:15px;height:15px;cursor:pointer;accent-color:var(--primary);"></sc-raw-th>
+                    <sc-raw-th style="width:22px;padding:11px 4px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:9;background:var(--surface);text-align:center;font-size:10.5px;font-weight:600;letter-spacing:.4px;color:var(--muted);">#</sc-raw-th>
+                    <sc-for list="{{ sortCols }}" as="sc" hint-placeholder-count="8">
+                      <sc-raw-th style="position:sticky;top:0;z-index:9;background:var(--surface);padding:0;border-bottom:1px solid var(--border);">
+                        <button sc-camel-on-click="{{ sc.onSort }}" data-active="{{ sc.active }}" title="{{ sc.tip }}" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;width:100%;padding:11px 14px;border:none;background:transparent;color:var(--muted);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;cursor:pointer;font-family:Inter,sans-serif;" style-hover="color:var(--fg);">
+                          {{ sc.label }}
+                          <sc-if value="{{ sc.isAsc }}"><svg width="12" height="12" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg></sc-if>
+                          <sc-if value="{{ sc.isDesc }}"><svg width="12" height="12" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></sc-if>
+                          <sc-if value="{{ sc.isNone }}"><svg width="12" height="12" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.4;"><path d="m8 9 4-4 4 4"></path><path d="m16 15-4 4-4-4"></path></svg></sc-if>
+                        </button>
+                      </sc-raw-th>
+                    </sc-for>
+                    <sc-raw-th style="position:sticky;top:0;z-index:9;background:var(--surface);text-align:center;padding:11px 14px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);">Actions</sc-raw-th>
+                  </sc-raw-tr>
+                </sc-raw-thead>
+                <sc-raw-tbody>
+                  <sc-for list="{{ rows }}" as="row" hint-placeholder-count="12">
+                    <sc-raw-tr data-clickable="true" data-sel="{{ row.isSelected }}" sc-camel-on-click="{{ row.onOpen }}" style="border-bottom:1px solid var(--border);">
+
+                      <sc-raw-td sc-camel-on-click="{{ row.onCellStop }}" style="padding:10px 4px;vertical-align:top;text-align:center;"><input type="checkbox" checked="{{ row.selected }}" sc-camel-on-change="{{ row.onSelect }}" title="Select field" style="width:15px;height:15px;cursor:pointer;accent-color:var(--primary);"></sc-raw-td>
+                      <sc-raw-td style="padding:10px 4px;vertical-align:top;text-align:center;"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);">{{ row.rowNo }}</span></sc-raw-td>
+
+                      <sc-raw-td style="padding:10px 14px;vertical-align:top;text-align:center;">
+                        <div style="font-size:13px;font-weight:600;">{{ row.name }}</div>
+                        <div style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px;">{{ row.sdtype }}</div>
+                      </sc-raw-td>
+
+                      <sc-raw-td style="padding:10px 14px;vertical-align:top;text-align:center;min-width:190px;">
+                        <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);">{{ row.sampleLine }}</div>
+                      </sc-raw-td>
+
+                      <sc-raw-td style="padding:10px 14px;vertical-align:top;text-align:center;font-size:12.5px;">{{ row.role }}</sc-raw-td>
+
+                      <!-- ── proposed target · read view OR inline picker ──────────────
+                           The pencil in Actions flips this cell into a dropdown. Saving is a
+                           WRITE to migration config, so it routes through dp-approval like
+                           every other write — never a bare click. onCellStop keeps the click
+                           from also opening the row's detail panel.
+                           ------------------------------------------------------------- -->
+                      <sc-raw-td sc-camel-on-click="{{ row.onCellStop }}" style="padding:10px 14px;vertical-align:top;text-align:center;">
+                        <sc-if value="{{ row.notEditing }}" hint-placeholder-val="{{ true }}">
+                          <div style="font-size:12.5px;font-weight:600;">{{ row.targetLabel }}</div>
+                          <div style="font-size:10.5px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px;">{{ row.targetDtype }}</div>
+                          <sc-if value="{{ row.hasHandoff }}">
+                            <span data-find="{{ row.handoffFind }}" style="display:inline-flex;align-items:center;gap:5px;margin-top:6px;font-size:10.5px;font-weight:600;border-radius:6px;padding:2px 7px;">{{ row.handoffLabel }}</span>
+                          </sc-if>
+                          <!-- provenance flips fact/ai → action once a human has set it -->
+                          <sc-if value="{{ row.isRetargeted }}">
+                            <span data-prov="action" title="Target set manually and approved by you" style="display:block;margin-top:5px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">Set manually</span>
+                          </sc-if>
+                        </sc-if>
+                        <sc-if value="{{ row.isEditing }}">
+                          <div style="display:flex;flex-direction:column;gap:6px;min-width:216px;text-align:left;">
+                            <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);">Target field</span>
+                            <sc-raw-select value="{{ row.editTarget }}" sc-camel-on-change="{{ row.onEditPick }}" style="width:100%;height:31px;border:1px solid var(--accent);border-radius:7px;background:var(--card);color:var(--fg);font-size:12px;font-family:Inter,sans-serif;padding:0 6px;cursor:pointer;">
+                              <sc-for list="{{ row.targetOptions }}" as="o" hint-placeholder-count="4">
+                                <option value="{{ o.id }}">{{ o.label }}</option>
+                              </sc-for>
+                            </sc-raw-select>
+                            <div style="display:flex;gap:6px;">
+                              <button sc-camel-on-click="{{ row.onEditSave }}" style="flex:1;border:none;background:var(--primary);color:var(--primary-fg);border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;">Save</button>
+                              <button sc-camel-on-click="{{ row.onEditCancel }}" style="flex:1;border:1px solid var(--border);background:var(--card);color:var(--fg);border-radius:7px;padding:6px 10px;font-size:12px;font-weight:500;cursor:pointer;font-family:Inter,sans-serif;" style-hover="background:var(--surface);">Cancel</button>
+                            </div>
+                            <span style="font-size:10.5px;line-height:1.45;color:var(--muted);">Saving asks for your approval before the mapping changes.</span>
+                          </div>
+                        </sc-if>
+                      </sc-raw-td>
+
+                      <sc-raw-td style="padding:10px 14px;vertical-align:top;text-align:center;">
+                        <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;">
+                          <sc-for list="{{ row.evidence }}" as="e" hint-placeholder-count="2"><span title="{{ e.title }}" style="font-size:10px;font-weight:600;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:2px 6px;">{{ e.label }}</span></sc-for>
+                        </div>
+                      </sc-raw-td>
+
+                      <sc-raw-td style="padding:10px 14px;vertical-align:top;text-align:center;min-width:96px;">
+                        <span title="Confidence in the proposed mapping — not overall data quality." style="display:inline-flex;align-items:center;justify-content:center;min-width:54px;padding:4px 12px;border-radius:9999px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;background:{{ row.confChipBg }};color:{{ row.confChipFg }};">{{ row.confLabel }}</span>
+                      </sc-raw-td>
+
+                      <sc-raw-td style="padding:10px 14px;vertical-align:top;text-align:center;">
+                        <span data-impact="{{ row.validationImpact }}" style="display:inline-flex;font-size:10.5px;font-weight:600;border-radius:6px;padding:2px 8px;">{{ row.validationLabel }}</span>
+                      </sc-raw-td>
+
+                      <sc-raw-td style="padding:10px 14px;vertical-align:top;text-align:center;">
+                        <span data-impact="{{ row.statusImpact }}" style="display:inline-flex;font-size:10.5px;font-weight:700;border-radius:9999px;padding:3px 9px;">{{ row.statusLabel }}</span>
+                      </sc-raw-td>
+
+                      <sc-raw-td style="padding:10px 14px;vertical-align:top;text-align:center;">
+                        <div style="display:flex;gap:6px;justify-content:center;">
+                          <sc-if value="{{ row.canAccept }}"><button sc-camel-on-click="{{ row.onAccept }}" title="Accept mapping" data-metrictone="ok" style="width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:var(--card);display:flex;align-items:center;justify-content:center;cursor:pointer;" style-hover="background:var(--surface);"><svg width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></button></sc-if>
+                          <sc-if value="{{ row.isAccepted }}"><span title="Accepted" data-impact="clean" style="width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span></sc-if>
+                          <sc-if value="{{ row.canExclude }}"><button sc-camel-on-click="{{ row.onExclude }}" title="Exclude field" style="width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:var(--card);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;" style-hover="background:var(--surface);"><svg width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l20 20"></path><path d="M6.61 6.61A13 13 0 0 0 1 12s4 7 11 7a11 11 0 0 0 5.39-1.39"></path></svg></button></sc-if>
+                          <sc-if value="{{ row.canEdit }}"><button sc-camel-on-click="{{ row.onEdit }}" title="Edit proposed target" data-prov="action" style="width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:var(--card);display:flex;align-items:center;justify-content:center;cursor:pointer;" style-hover="background:var(--surface);border-color:var(--accent);"><svg width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button></sc-if>
+                        </div>
+                      </sc-raw-td>
+                    </sc-raw-tr>
+                  </sc-for>
+                </sc-raw-tbody>
+              </sc-raw-table>
+            </div>
+
+            <sc-if value="{{ hasPagination }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;border-top:1px solid var(--border);flex-wrap:wrap;">
+                <span style="font-size:12px;color:var(--muted);">Showing <span style="font-family:'JetBrains Mono',monospace;color:var(--fg);">{{ pageStart }}–{{ pageEnd }}</span> of <span style="font-family:'JetBrains Mono',monospace;color:var(--fg);">{{ shownCount }}</span> fields</span>
+                <div style="display:flex;align-items:center;gap:5px;">
+                  <sc-for list="{{ pages }}" as="pg" hint-placeholder-count="3">
+                    <button sc-camel-on-click="{{ pg.onClick }}" data-active="{{ pg.active }}" style="min-width:30px;height:30px;padding:0 8px;border:1px solid var(--border);background:var(--card);color:var(--fg);border-radius:7px;font-size:12.5px;font-weight:500;cursor:pointer;font-family:'JetBrains Mono',monospace;" style-hover="background:var(--surface);">{{ pg.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isEmpty }}">
+              <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:44px 20px;text-align:center;">
+                <div style="font-size:13.5px;font-weight:600;">No fields match this filter</div>
+                <button sc-camel-on-click="{{ clearCardFilter }}" style="border:1px solid var(--border);background:var(--card);color:var(--fg);border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;">Clear filter</button>
+              </div>
+            </sc-if>
+          </div>
+<!-- @block overlays -->
+
+  <!-- @include dp-overlays -->
+  <!-- @include dp-approval -->
+
+  <!-- mapping detail panel: unique to step 3 -->
+<sc-if value="{{ panelOpen }}">
+    <div sc-camel-on-click="{{ closePanel }}" style="position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:50;"></div>
+    <aside style="position:fixed;top:0;right:0;bottom:0;width:520px;max-width:94vw;background:var(--card);border-left:1px solid var(--border);z-index:55;display:flex;flex-direction:column;box-shadow:-16px 0 44px rgba(0,0,0,.18);">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;">
+            <span style="font-family:Chivo,sans-serif;font-weight:700;font-size:17px;">{{ panel.name }}</span>
+            <span data-impact="{{ panel.statusImpact }}" style="display:inline-flex;font-size:10.5px;font-weight:700;border-radius:9999px;padding:3px 9px;">{{ panel.statusLabel }}</span>
+          </div>
+          <div style="font-size:12.5px;color:var(--muted);margin-top:5px;">{{ panel.sdtype }} → <span style="color:var(--fg);font-weight:600;">{{ panel.targetLabel }}</span> · confidence {{ panel.confLabel }}</div>
+        </div>
+        <button sc-camel-on-click="{{ closePanel }}" title="Close" style="width:30px;height:30px;flex-shrink:0;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--fg);display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg width="15" height="15" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:18px;">
+
+        <sc-if value="{{ panel.hasWhy }}">
+          <div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+              <span data-prov="ai" style="display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;"><span style="width:5px;height:5px;border-radius:9999px;background:currentColor;"></span>AI interpretation</span>
+              <span style="font-size:11px;color:var(--muted);">— nothing is applied until you accept</span>
+            </div>
+            <div style="font-size:13px;line-height:1.6;color:var(--fg);text-wrap:pretty;">{{ panel.why }}</div>
+          </div>
+        </sc-if>
+
+        <div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:9px;">
+            <span data-prov="fact" style="display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;"><span style="width:5px;height:5px;border-radius:9999px;background:currentColor;"></span>Deterministic checks</span>
+          </div>
+          <div style="border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:12px 14px;display:flex;flex-direction:column;gap:8px;font-size:12.5px;">
+            <div style="display:flex;gap:10px;align-items:center;"><span style="color:var(--muted);width:120px;flex-shrink:0;">Validation</span><span data-impact="{{ panel.validationImpact }}" style="display:inline-flex;font-size:10.5px;font-weight:600;border-radius:6px;padding:2px 8px;">{{ panel.validationLabel }}</span></div>
+            <div style="display:flex;gap:10px;"><span style="color:var(--muted);width:120px;flex-shrink:0;">Source datatype</span><span style="font-family:'JetBrains Mono',monospace;">{{ panel.sdtype }}</span></div>
+            <div style="display:flex;gap:10px;"><span style="color:var(--muted);width:120px;flex-shrink:0;">Target datatype</span><span style="font-family:'JetBrains Mono',monospace;">{{ panel.targetDtype }}</span></div>
+            <sc-if value="{{ panel.hasHandoff }}">
+              <div style="display:flex;gap:10px;align-items:center;"><span style="color:var(--muted);width:120px;flex-shrink:0;">Still required</span><span data-find="{{ panel.handoffFind }}" style="display:inline-flex;font-size:10.5px;font-weight:600;border-radius:6px;padding:2px 8px;">{{ panel.handoffLabel }}</span></div>
+            </sc-if>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:9px;">Evidence</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            <sc-for list="{{ panel.evidence }}" as="e" hint-placeholder-count="3"><span style="font-size:11.5px;font-weight:500;color:var(--fg);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 9px;">{{ e.title }}</span></sc-for>
+          </div>
+        </div>
+
+        <sc-if value="{{ panel.hasSamples }}">
+          <div>
+            <div style="font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:9px;">Sample values</div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;">
+              <sc-for list="{{ panel.samples }}" as="s" hint-placeholder-count="3"><span style="font-family:'JetBrains Mono',monospace;font-size:11.5px;background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:3px 8px;">{{ s }}</span></sc-for>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+
+      <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:9px;justify-content:flex-end;">
+        <sc-if value="{{ panel.canExclude }}"><button sc-camel-on-click="{{ panel.onExclude }}" style="border:1px solid var(--border);background:var(--card);color:var(--fg);border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;" style-hover="background:var(--surface);">Exclude</button></sc-if>
+        <sc-if value="{{ panel.canAccept }}"><button sc-camel-on-click="{{ panel.onAccept }}" data-primary="true" style="border:none;border-radius:8px;padding:8px 15px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;">Accept mapping</button></sc-if>
+      </div>
+    </aside>
+  </sc-if>
+<!-- @script -->
+class Component extends DPBase {
+
+  entity = ENTITY;
+  stepId = 'mapping';
+
+  state = {
+    ...DPBase.shellState,
+    accepted: {},
+    excluded: {},
+    cardFilter: null,
+    selected: {},
+    mapMenuOpen: false,
+    sortKey: null,
+    sortDir: 'asc',
+    page: 0,
+    panelId: null,
+    approval: null,
+    assessOpen: false,
+    assessEvidenceOpen: false,
+
+    /* manual target override. editId = the row whose picker is open;
+       overrides = { fieldId: targetFieldId } for every human-set target.
+       overrides survives closing the picker; editTarget is scratch. */
+    editId: null,
+    editTarget: '',
+    overrides: {},
+  };
+
+  /* ---- readiness banner (shared pattern) ------------------------------ */
+  toggleAssess = () => this.setState((s) => ({ assessOpen: !s.assessOpen }));
+  toggleAssessEvidence = () => this.setState((s) => ({ assessEvidenceOpen: !s.assessEvidenceOpen }));
+
+  /* ---- table ---------------------------------------------------------- */
+  toggleMapMenu = () => this.setState((s) => ({ mapMenuOpen: !s.mapMenuOpen }));
+  closeMapMenu = () => this.setState({ mapMenuOpen: false });
+  toggleSort = (key) => this.setState((s) => (
+    s.sortKey === key
+      ? (s.sortDir === 'asc' ? { sortDir: 'desc' } : { sortKey: null, sortDir: 'asc' })
+      : { sortKey: key, sortDir: 'asc', page: 0 }
+  ));
+
+  pickMapFilter = (id) => this.setState({ cardFilter: id, page: 0, mapMenuOpen: false });
+
+  /* ---- row selection (checkbox column) -------------------------------- */
+  toggleRowSelect = (id) => this.setState((s) => {
+    const next = { ...s.selected };
+    if (next[id]) delete next[id]; else next[id] = true;
+    return { selected: next };
+  });
+  toggleSelectAllOn = (ids) => this.setState((s) => {
+    const allOn = ids.length > 0 && ids.every((id) => s.selected[id]);
+    const next = { ...s.selected };
+    ids.forEach((id) => { if (allOn) delete next[id]; else next[id] = true; });
+    return { selected: next };
+  });
+  clearSelection = () => this.setState({ selected: {} });
+  askAcceptSelected = () => {
+    const ids = Object.keys(this.state.selected);
+    if (!ids.length) return;
+    this.setState({
+      approval: {
+        kind: 'selected', previewOpen: false,
+        title: 'Accept ' + ids.length + ' selected mappings',
+        detail: 'Only the fields you ticked are included. Nothing else changes.',
+        preview: ids.length + ' mappings will be accepted.',
+      },
+    });
+  };
+
+  setCardFilter = (id) => this.setState((s) => ({ cardFilter: s.cardFilter === id ? null : id, page: 0 }));
+  clearCardFilter = () => this.setState({ cardFilter: null, page: 0 });
+  setPage = (p) => this.setState({ page: p });
+  openPanel = (id) => this.setState({ panelId: id });
+  closePanel = () => this.setState({ panelId: null });
+
+  /* ---- decisions ------------------------------------------------------
+     Both route through the approval modal. Accepting an AI-proposed mapping
+     writes data, so it must never happen on a bare click.
+     ------------------------------------------------------------------- */
+  askAccept = (id) => {
+    const r = this.mappingRows().find((x) => x.id === id);
+    if (!r) return;
+    const t = (ENTITY.mapping.targetFields || []).find((x) => x.id === r.targetId);
+    this.setState({
+      approval: {
+        kind: 'accept', id, previewOpen: false,
+        title: 'Accept proposed mapping',
+        detail: r.name + ' → ' + (t ? t.label : 'not mapped'),
+        preview: r.name + '  →  ' + (t ? (t.label + '  (' + (t.dtype || '') + ')') : '—')
+          + '   ·   confidence ' + (typeof r.conf === 'number' ? r.conf + '%' : 'n/a')
+          + '   ·   validation ' + (r.validation || '—'),
+      },
+    });
+  };
+
+  askExclude = (id) => {
+    const r = this.mappingRows().find((x) => x.id === id);
+    if (!r) return;
+    this.setState({
+      approval: {
+        kind: 'exclude', id, previewOpen: false,
+        title: 'Exclude field from migration',
+        detail: r.name + ' will not be imported.',
+        preview: r.name + '  →  (excluded)',
+      },
+    });
+  };
+
+  /* ---- edit the proposed target ---------------------------------------
+     The pencil in the Actions column turns the Proposed target cell into a
+     picker. Saving rewrites migration config, so it routes through the same
+     approval modal as accept / exclude — never a bare click.
+     ------------------------------------------------------------------- */
+  currentTargetId(id) {
+    const s = this.state;
+    if (s.overrides[id] !== undefined) return s.overrides[id];
+    const r = this.mappingRows().find((x) => x.id === id);
+    return (r && r.targetId) || '';
+  }
+
+  targetFieldLabel(id) {
+    const t = (ENTITY.mapping.targetFields || []).find((x) => x.id === id);
+    return t ? t.label + ' (' + (t.dtype || '') + ')' : 'not mapped';
+  }
+
+  startEditTarget = (id) => this.setState({
+    editId: id, editTarget: this.currentTargetId(id), panelId: null,
+  });
+
+  cancelEditTarget = () => this.setState({ editId: null, editTarget: '' });
+
+  askRetarget = (id) => {
+    const r = this.mappingRows().find((x) => x.id === id);
+    if (!r) return;
+    const cur = this.currentTargetId(id);
+    const next = this.state.editTarget || '';
+    if (next === cur) { this.cancelEditTarget(); return; }
+    this.setState({
+      approval: {
+        kind: 'retarget', id, targetId: next, previewOpen: false,
+        title: 'Change proposed target',
+        detail: r.name + ' → ' + this.targetFieldLabel(next)
+          + '. The proposal was ' + this.targetFieldLabel(cur) + '.',
+        preview: r.name + '  →  ' + this.targetFieldLabel(next)
+          + '   ·   set manually   ·   confidence n/a',
+      },
+    });
+  };
+
+  /** Ids at or above the pack's auto-accept confidence band. */
+  highConfidenceIds() {
+    const at = (ENTITY.mapping && ENTITY.mapping.autoAcceptAt) || 95;
+    return this.mappingRows()
+      .filter((r) => typeof r.conf === 'number' && r.conf >= at && !this.state.accepted[r.id])
+      .map((r) => r.id);
+  }
+
+  askBulkApprove = () => {
+    const ids = this.highConfidenceIds();
+    if (!ids.length) return;
+    const at = (ENTITY.mapping && ENTITY.mapping.autoAcceptAt) || 95;
+    this.setState({
+      approval: {
+        kind: 'bulk', previewOpen: false,
+        title: 'Accept ' + ids.length + ' high-confidence mappings',
+        detail: 'Only proposals at or above ' + at + '% confidence are included. '
+          + 'Everything else still needs individual review.',
+        preview: ids.length + ' mappings will be accepted.',
+      },
+    });
+  };
+
+  confirmApproval = () => this.setState((s) => {
+    const a = s.approval;
+    if (!a) return { approval: null };
+    if (a.kind === 'accept')  return { accepted: { ...s.accepted, [a.id]: true }, approval: null, panelId: null };
+    if (a.kind === 'exclude') return { excluded: { ...s.excluded, [a.id]: true }, approval: null, panelId: null };
+    if (a.kind === 'retarget') return { overrides: { ...s.overrides, [a.id]: a.targetId }, approval: null, editId: null, editTarget: '' };
+    if (a.kind === 'selected') {
+      const next = { ...s.accepted };
+      Object.keys(s.selected).forEach((id) => { next[id] = true; });
+      return { accepted: next, selected: {}, approval: null };
+    }
+    if (a.kind === 'bulk') {
+      const next = { ...s.accepted };
+      this.highConfidenceIds().forEach((id) => { next[id] = true; });
+      return { accepted: next, approval: null };
+    }
+    return { approval: null };
+  });
+
+  renderVals() {
+    const s = this.state;
+    const m = ENTITY.mapping || {};
+    const pageSize = m.pageSize || 15;
+    const all = this.mappingRows();
+
+    /* Apply the user's decisions on top of the pack, in this order:
+         1. a manual target override replaces the proposal, and lifts the row out
+            of Unmapped/Blocked into Review required — a human set it, but it has
+            not been accepted yet, so it must not read as done.
+         2. exclusion wins over everything, so it is applied last.
+       An excluded row keeps its place in the table but changes status. */
+    const applyState = (r) => {
+      let out = r;
+      if (s.overrides[r.id] !== undefined) {
+        out = {
+          ...out,
+          targetId: s.overrides[r.id],
+          status: (out.status === 'Unmapped' || out.status === 'Blocked') ? 'Review required' : out.status,
+        };
+      }
+      if (s.excluded[r.id]) out = { ...out, status: 'Excluded' };
+      return out;
+    };
+    const stated = all.map(applyState);
+
+    const card = (m.cards || []).find((c) => c.id === s.cardFilter);
+    const filtered = card
+      ? stated.filter((r) => (card.statuses || []).indexOf(r.status) >= 0)
+      : stated;
+
+    /* ---- sorting -------------------------------------------------------
+       Sort the whole filtered set, then paginate — never the page only.
+       Keys mirror the column order; rank status/validation by severity so
+       the worst rows come first rather than alphabetically.
+       ------------------------------------------------------------------ */
+    const targetById = {};
+    (m.targetFields || []).forEach((t) => { targetById[t.id] = t; });
+    const sortVal = (r, key) => {
+      if (key === 'name') return String(r.name || '').toLowerCase();
+      if (key === 'sample') return String((r.samples || [])[0] || '').toLowerCase();
+      if (key === 'role') return String(r.role || '').toLowerCase();
+      if (key === 'target') {
+        const t = r.targetId ? targetById[r.targetId] : null;
+        return String(t ? t.label : 'zzz').toLowerCase();
+      }
+      if (key === 'evidence') return (r.evidence || []).length;
+      if (key === 'conf') return typeof r.conf === 'number' ? r.conf : -1;
+      if (key === 'validation') return this.impactRank(this.mappingValidationImpact(r.validation));
+      if (key === 'status') return this.impactRank(this.mappingStatusImpact(r.status));
+      return '';
+    };
+    const sorted = s.sortKey
+      ? filtered.slice().sort((a, b) => {
+          const av = sortVal(a, s.sortKey), bv = sortVal(b, s.sortKey);
+          const c = av < bv ? -1 : (av > bv ? 1 : 0);
+          return s.sortDir === 'asc' ? c : -c;
+        })
+      : filtered;
+
+    const sortCols = [
+      { key: 'name', label: 'Source field', tip: 'Source field name' },
+      { key: 'sample', label: 'Sample values', tip: 'First sample value' },
+      { key: 'role', label: 'Inferred role', tip: 'Inferred semantic role' },
+      { key: 'target', label: 'Proposed target', tip: 'Proposed Odoo target field' },
+      { key: 'evidence', label: 'Evidence', tip: 'Number of evidence signals' },
+      { key: 'conf', label: 'Confidence', tip: 'Confidence in the proposed mapping' },
+      { key: 'validation', label: 'Validation', tip: 'Validation outcome, worst first' },
+      { key: 'status', label: 'Status', tip: 'Mapping status, worst first' },
+    ].map((c) => ({
+      label: c.label, tip: c.tip,
+      active: s.sortKey === c.key,
+      isAsc: s.sortKey === c.key && s.sortDir === 'asc',
+      isDesc: s.sortKey === c.key && s.sortDir === 'desc',
+      isNone: s.sortKey !== c.key,
+      onSort: () => this.toggleSort(c.key),
+    }));
+
+    const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+    const page = Math.min(s.page, pageCount - 1);
+    const slice = sorted.slice(page * pageSize, (page + 1) * pageSize);
+
+    const rows = this.buildMappingRows(slice, {
+      selectedId: s.panelId,
+      accepted: s.accepted,
+      onOpen: this.openPanel,
+      onAccept: this.askAccept,
+      onExclude: this.askExclude,
+    });
+
+    const cards = this.buildMappingCards(stated, s.cardFilter)
+      .map((c) => ({ ...c, onClick: () => this.setCardFilter(c.id) }));
+
+    /* checkbox + row-number column, and the filter dropdown's options */
+    /* confidence pill — same oklch ramp as step 2 (hue 255, value-scaled) */
+    const chip = (v, hue) => {
+      const t = Math.max(0, Math.min(100, v)) / 100;
+      const L = 0.93 - t * 0.52, L2 = L - 0.07, C = 0.018 + t * 0.135;
+      return {
+        bg: 'linear-gradient(135deg, oklch(' + L.toFixed(3) + ' ' + C.toFixed(3) + ' ' + hue + '), oklch(' + L2.toFixed(3) + ' ' + C.toFixed(3) + ' ' + hue + '))',
+        fg: L < 0.62 ? '#fff' : 'oklch(0.36 0.11 ' + hue + ')',
+      };
+    };
+
+    const pageIds = slice.map((r) => r.id);
+    const selIds = Object.keys(s.selected);
+
+    /* Target dropdown options come from the pack, never a literal list. "Not
+       mapped" is prepended so a user can also UNSET a bad proposal. read-only
+       target fields stay selectable but are labelled, so the reason a save
+       later fails is visible at the point of choosing. */
+    const stopEv = (e) => { if (e && e.stopPropagation) e.stopPropagation(); };
+    const targetOptions = [{ id: '', label: 'Not mapped' }].concat(
+      (m.targetFields || []).map((t) => ({
+        id: t.id,
+        label: t.label + (t.dtype ? ' · ' + t.dtype : '') + (t.writable === false ? ' · read-only' : ''),
+      }))
+    );
+
+    const rowsSel = rows.map((r, i) => ({
+      ...r,
+      rowNo: String(page * pageSize + i + 1),
+      sampleLine: (r.samples || []).slice(0, 3).join('  ·  ') || '—',
+      confChipBg: r.hasConf ? chip(parseFloat(r.confLabel), 255).bg : 'var(--surface)',
+      confChipFg: r.hasConf ? chip(parseFloat(r.confLabel), 255).fg : 'var(--muted)',
+      selected: !!s.selected[r.id],
+      onSelect: () => this.toggleRowSelect(r.id),
+      onCellStop: stopEv,
+      canEdit: true,
+      isEditing: s.editId === r.id,
+      notEditing: s.editId !== r.id,
+      isRetargeted: s.overrides[r.id] !== undefined,
+      editTarget: s.editTarget,
+      targetOptions,
+      onEdit: (e) => { stopEv(e); this.startEditTarget(r.id); },
+      onEditPick: (e) => this.setState({ editTarget: e.target.value }),
+      onEditSave: (e) => { stopEv(e); this.askRetarget(r.id); },
+      onEditCancel: (e) => { stopEv(e); this.cancelEditTarget(); },
+    }));
+    const mapFilters = [{
+      id: null, label: 'All fields', count: fmt(stated.length),
+      active: !s.cardFilter, onPick: () => this.pickMapFilter(null),
+    }].concat(cards.map((c) => ({
+      id: c.id, label: c.label, count: c.value,
+      active: s.cardFilter === c.id, onPick: () => this.pickMapFilter(c.id),
+    })));
+
+    const panelRow = s.panelId
+      ? this.buildMappingRows(stated.filter((r) => r.id === s.panelId), {
+          accepted: s.accepted, onAccept: this.askAccept, onExclude: this.askExclude,
+        })[0]
+      : null;
+
+    const readiness = m.readiness || {};
+    const acceptedCount = Object.keys(s.accepted).length;
+    const highCount = this.highConfidenceIds().length;
+
+    return {
+      /* 39 shell bindings */
+      ...this.shellVals(),
+
+      mappingSummaryLine: fmt(all.length) + ' source fields · ' + fmt(acceptedCount) + ' accepted',
+
+      /* step 3 has its OWN readiness (mapping coverage), distinct from the
+         top-level one (data quality) */
+      readinessHeadline: readiness.headline || '',
+      readinessTone: readiness.tone || 'warn',
+      readinessNarrative: readiness.narrative || '',
+      assessOpen: s.assessOpen,
+      toggleAssess: this.toggleAssess,
+      assessToggleLabel: s.assessOpen ? 'Show less' : 'Show more',
+      assessCaretStyle: 'font-size:11px;color:var(--accent);display:block;transition:transform .16s ease;transform:rotate('
+        + (s.assessOpen ? '180deg' : '0deg') + ');',
+      assessTextStyle: 'font-size:12.5px;line-height:19px;color:var(--fg);text-wrap:pretty;'
+        + (s.assessOpen ? '' : 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;'),
+      recActions: (readiness.recommendedOrder || []).map((r, i) => ({
+        n: String(i + 1), label: r.label, onClick: () => this.openPanel(r.target),
+      })),
+      assessEvidenceOpen: s.assessEvidenceOpen,
+      assessEvidenceLabel: s.assessEvidenceOpen ? 'Hide supporting evidence' : 'Show supporting evidence',
+      assessEvidence: readiness.evidence || [],
+      toggleAssessEvidence: this.toggleAssessEvidence,
+
+      /* cards + table */
+      cards,
+      hasCardFilter: !!card,
+      cardFilterLabel: card ? card.label : '',
+      clearCardFilter: this.clearCardFilter,
+      rows: rowsSel,
+      allSelected: pageIds.length > 0 && pageIds.every((id) => s.selected[id]),
+      toggleSelectAll: () => this.toggleSelectAllOn(pageIds),
+      hasSelection: selIds.length > 0,
+      selectionLabel: selIds.length + (selIds.length === 1 ? ' field selected' : ' fields selected'),
+      clearSelection: this.clearSelection,
+      onAcceptSelected: this.askAcceptSelected,
+      mapFilterLabel: card ? card.label : 'All fields',
+      mapFilterCount: card ? fmt(filtered.length) : fmt(stated.length),
+      mapMenuOpen: s.mapMenuOpen,
+      toggleMapMenu: this.toggleMapMenu,
+      closeMapMenu: this.closeMapMenu,
+      mapFilters,
+      sortCols,
+      isEmpty: filtered.length === 0,
+      shownCount: fmt(filtered.length),
+      pageStart: filtered.length ? page * pageSize + 1 : 0,
+      pageEnd: Math.min((page + 1) * pageSize, filtered.length),
+      hasPagination: pageCount > 1,
+      pages: Array.from({ length: pageCount }, (_, i) => ({
+        label: String(i + 1), active: i === page, onClick: () => this.setPage(i),
+      })),
+
+      /* detail panel */
+      panelOpen: !!panelRow,
+      panel: panelRow || {},
+      closePanel: this.closePanel,
+
+      /* header actions */
+      bulkApproveLabel: 'Accept ' + highCount + ' high-confidence',
+      onBulkApprove: this.askBulkApprove,
+      continueLabel: 'Continue to ' + DP_TAX.steps[3].label,
+      onContinue: () => {},
+
+      /* approval modal — the single write-enforcement point */
+      approval: s.approval,
+      onPreviewApproval: () => this.setState((st) => ({
+        approval: { ...st.approval, previewOpen: !st.approval.previewOpen },
+      })),
+      onCancelApproval: () => this.setState({ approval: null }),
+      onConfirmApproval: this.confirmApproval,
+      onReviewApproval: () => this.setState({ approval: null }),
+      onApplyApproval: this.confirmApproval,
+
+      /* overlays partial */
+      anyMenuOpen: false,
+      closeMenus: () => {},
+      coverageOpen: false,
+      toggleCoverage: () => {},
+    };
+  }
+}

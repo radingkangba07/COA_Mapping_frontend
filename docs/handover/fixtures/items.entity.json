@@ -1,0 +1,3160 @@
+{
+  "$schema": "../entity.schema.json",
+  "id": "items",
+  "label": {
+    "singular": "Item",
+    "plural": "Items",
+    "recordWord": "product"
+  },
+  "source": {
+    "system": "acs_accpac",
+    "object": "Item master extract",
+    "rowCount": 42580
+  },
+  "target": {
+    "record": "product.template",
+    "schemaVersion": "2026.1",
+    "recordsetVersion": "tgt-2026.07.19"
+  },
+  "identity": {
+    "candidates": [
+      "sku"
+    ],
+    "confirmed": null,
+    "compositeCandidates": [
+      [
+        "sku",
+        "subsidiary"
+      ]
+    ]
+  },
+  "spec": {
+    "expectedColumns": [
+      "SKU",
+      "Item Name",
+      "Item Type",
+      "UOM",
+      "Category",
+      "Unit Price"
+    ],
+    "sample": {
+      "name": "Source Items Sample",
+      "description": "Sample items master data for a source ERP",
+      "content": "SKU,Item Name,Item Type,UOM,Category,Unit Price\nITM-0001,Hex Bolt M8x40,Inventory Item,Each,Fasteners,0.18\nITM-0002,Hex Nut M8,Inventory Item,Each,Fasteners,0.07\nITM-0003,Steel Plate 2mm,Inventory Item,Sheet,Raw Material,14.50\nITM-0004,Bearing 6204-2RS,Inventory Item,Each,Components,3.85\nITM-0005,Hydraulic Oil 46,Inventory Item,Litre,Consumables,4.20\nITM-0006,Safety Gloves L,Inventory Item,Pair,PPE,2.60\nITM-0007,Assembly Service,Service,Hour,Services,45.00\nITM-0008,Drive Belt B-1600,Inventory Item,Each,Components,11.90\nITM-0009,Packing Carton M,Inventory Item,Each,Packaging,0.55\nITM-0010,Machine Rental,Service,Day,Services,320.00"
+    },
+    "targetNote": "product.template"
+  },
+  "rules": {
+    "requiredTargets": [
+      "sku",
+      "name",
+      "ptype",
+      "uom"
+    ],
+    "requiredReferenceFields": [
+      "uom",
+      "cat"
+    ],
+    "optionalReferenceFields": [
+      "vendor",
+      "warehouse",
+      "currency",
+      "taxcode",
+      "brand"
+    ],
+    "nullTokens": [
+      "n/a",
+      "na",
+      "none",
+      "null",
+      "-",
+      "--",
+      "tbd",
+      "unknown",
+      "not applicable"
+    ],
+    "confirmThreshold": 50,
+    "nearEmptyPct": 5,
+    "maxLength": {
+      "char": 60,
+      "text": 4000
+    }
+  },
+  "metrics": [
+    {
+      "id": "records",
+      "label": "Total records",
+      "kind": "rowCount",
+      "tone": "neutral",
+      "tip": "All source rows profiled"
+    },
+    {
+      "id": "dupes",
+      "label": "Duplicate identifiers",
+      "kind": "fieldStat",
+      "field": "sku",
+      "path": "duplicates.rows",
+      "tone": "blocker",
+      "highlight": [
+        "sku"
+      ],
+      "filter": "duplicates",
+      "tip": "Duplicate SKU rows \u2014 highlight in table"
+    },
+    {
+      "id": "uom",
+      "label": "Invalid UOM values",
+      "kind": "fieldStat",
+      "field": "uom",
+      "path": "enumeration.affectedRows",
+      "tone": "warn",
+      "highlight": [
+        "uom"
+      ],
+      "filter": "invalid",
+      "tip": "Rows with an unmapped unit \u2014 highlight in table"
+    },
+    {
+      "id": "ptype",
+      "label": "Missing product types",
+      "kind": "fieldStat",
+      "field": "ptype",
+      "path": "nullCount",
+      "tone": "warn",
+      "highlight": [
+        "ptype"
+      ],
+      "filter": "missing",
+      "tip": "Blank Product Type rows \u2014 highlight in table"
+    },
+    {
+      "id": "review",
+      "label": "Fields to review",
+      "kind": "reviewCount",
+      "tone": "warn",
+      "tip": "Fields still needing review"
+    }
+  ],
+  "readiness": {
+    "headline": "Migration readiness: Needs attention",
+    "tone": "warn",
+    "narrative": "Duplicate item codes are the primary blocker because they affect how products will be uniquely identified. Most duplicate groups occur across subsidiaries, suggesting that SKU may only be unique within a subsidiary. Most invalid UOM values are recognizable aliases and can likely be normalized automatically. Category provides evidence for inferring some missing Product Type values, while ambiguous records still require review.",
+    "recommendedOrder": [
+      {
+        "label": "Resolve duplicate SKUs",
+        "target": "sku"
+      },
+      {
+        "label": "Crosswalk invalid UOM values",
+        "target": "uom"
+      },
+      {
+        "label": "Review missing Product Type",
+        "target": "ptype"
+      }
+    ],
+    "evidence": [
+      {
+        "value": "918",
+        "label": "duplicate SKU rows"
+      },
+      {
+        "value": "436",
+        "label": "duplicate groups"
+      },
+      {
+        "value": "89.2%",
+        "label": "of duplicate groups cross subsidiaries"
+      },
+      {
+        "value": "99.98%",
+        "label": "SKU + Subsidiary composite uniqueness"
+      },
+      {
+        "value": "287 / 304",
+        "label": "invalid UOM rows match recognized aliases"
+      },
+      {
+        "value": "96 / 126",
+        "label": "missing Product Type rows have Category evidence"
+      }
+    ]
+  },
+  "fields": [
+    {
+      "id": "sku",
+      "name": "SKU",
+      "semantic": "Stock code",
+      "role": "Identifier candidate",
+      "roleTip": "A field the system infers may uniquely identify each record. Not a confirmed identifier until you approve it.",
+      "datatype": "Text",
+      "nullCount": 0,
+      "distinct": 41662,
+      "uniqueness": 97.84,
+      "cardinality": "High",
+      "confidence": 96,
+      "impact": "blocker",
+      "impactReason": "918 duplicate values would collide on the migration import key, so SKU cannot be used as-is as the record identifier.",
+      "categories": [
+        "blockers",
+        "identifiers",
+        "duplicates",
+        "patterns"
+      ],
+      "sample": [
+        "SS-BOLT-M10",
+        "WSH-8MM",
+        "NUT-M10"
+      ],
+      "findings": [
+        {
+          "t": "918 duplicate rows",
+          "tone": "dup"
+        },
+        {
+          "t": "436 groups",
+          "tone": "dup"
+        },
+        {
+          "t": "23 pattern anomalies",
+          "tone": "info"
+        }
+      ],
+      "duplicates": {
+        "rows": 918,
+        "groups": 436,
+        "crossSub": 389,
+        "crossPct": 89.2,
+        "composite": "99.98%"
+      },
+      "patterns": [
+        {
+          "label": "AAA-9999",
+          "pct": 91
+        },
+        {
+          "label": "Numeric only",
+          "pct": 7
+        },
+        {
+          "label": "Other patterns",
+          "pct": 2
+        }
+      ],
+      "patternAnomalies": 23,
+      "text": {
+        "minLen": 5,
+        "maxLen": 14,
+        "avgLen": 9
+      },
+      "interpretation": "SKU is a strong identifier candidate, but it is not globally unique. Evaluate SKU + Subsidiary as a composite identifier before confirming.",
+      "reasoning": "The only field that is both near-unique and consistently formatted; aligns with Odoo default_code. Ranked as the primary identifier candidate.",
+      "actions": [
+        {
+          "id": "reviewDup",
+          "label": "Review duplicate groups"
+        },
+        {
+          "id": "composite",
+          "label": "Test composite identifier"
+        },
+        {
+          "id": "confirmId",
+          "label": "Confirm identifier",
+          "primary": true
+        },
+        {
+          "id": "records",
+          "label": "Show affected records"
+        }
+      ],
+      "compare": {
+        "cardinality": "41,662",
+        "sem": "Stock-keeping identifier"
+      }
+    },
+    {
+      "id": "name",
+      "name": "Product Name",
+      "semantic": "Display label",
+      "role": "Display name",
+      "roleTip": "Human-readable label for the record.",
+      "datatype": "Text",
+      "nullCount": 0,
+      "distinct": 42102,
+      "uniqueness": 98.9,
+      "cardinality": "High",
+      "confidence": 99,
+      "impact": "clean",
+      "impactReason": "Fully populated, well-formed descriptive text. No migration issues detected.",
+      "categories": [],
+      "sample": [
+        "Hex Bolt M10",
+        "Flat Washer 8mm",
+        "Nut M10"
+      ],
+      "findings": [],
+      "text": {
+        "minLen": 4,
+        "maxLen": 64,
+        "avgLen": 22
+      },
+      "reasoning": "High cardinality free text used as the product display name. Maps directly to Odoo name.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show sample records"
+        }
+      ]
+    },
+    {
+      "id": "ptype",
+      "name": "Product Type",
+      "semantic": "Odoo product type",
+      "role": "Value list",
+      "roleTip": "A field with a small set of repeating values that map to a target list.",
+      "datatype": "Text",
+      "nullCount": 126,
+      "distinct": 4,
+      "uniqueness": 0.01,
+      "cardinality": "Low",
+      "confidence": 88,
+      "impact": "review",
+      "impactReason": "126 rows are blank. Category provides high-confidence evidence for 96 of them; the rest are ambiguous and need review before import.",
+      "categories": [
+        "missing",
+        "enums"
+      ],
+      "sample": [
+        "Storable",
+        "Consumable",
+        "(blank)"
+      ],
+      "findings": [
+        {
+          "t": "126 missing",
+          "tone": "warn"
+        },
+        {
+          "t": "Enumeration candidate",
+          "tone": "info"
+        }
+      ],
+      "enumeration": {
+        "candidate": "Yes",
+        "categoryAvailable": 112,
+        "highConf": 96,
+        "ambiguous": 16,
+        "insufficient": 14
+      },
+      "dist": [
+        {
+          "label": "Storable",
+          "pct": 68
+        },
+        {
+          "label": "Consumable",
+          "pct": 27
+        },
+        {
+          "label": "Service",
+          "pct": 4.7
+        },
+        {
+          "label": "(blank)",
+          "pct": 0.3
+        }
+      ],
+      "distTitle": "Value distribution",
+      "interpretation": "Category provides high-confidence evidence for 96 of 126 blank rows. The remaining 30 rows are ambiguous or lack Category evidence and need review \u2014 no values are inferred until you approve them on Value Mapping.",
+      "reasoning": "Maps to Odoo product type (storable / consumable / service). Blanks are inferred from Category where evidence is strong.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Review affected records"
+        },
+        {
+          "id": "previewInfer",
+          "label": "Preview inferred values"
+        },
+        {
+          "id": "valueMapping",
+          "label": "Open Value Mapping",
+          "primary": true
+        }
+      ],
+      "compare": {
+        "overlap": "71% with Category",
+        "cardinality": "3",
+        "sem": "Odoo product type"
+      }
+    },
+    {
+      "id": "uom",
+      "name": "UOM",
+      "semantic": "Unit of measure",
+      "role": "Value list",
+      "roleTip": "A field with a small set of repeating values that map to a target reference list.",
+      "datatype": "Text",
+      "nullCount": 0,
+      "distinct": 18,
+      "uniqueness": 0.04,
+      "cardinality": "Low",
+      "confidence": 90,
+      "impact": "blocker",
+      "impactReason": "6 source values have no matching Odoo unit (304 rows). Reference integrity fails until these are crosswalked \u2014 a blocker for unit-priced products.",
+      "categories": [
+        "blockers",
+        "invalid",
+        "enums",
+        "refFailures"
+      ],
+      "sample": [
+        "Units",
+        "EACH",
+        "pcs"
+      ],
+      "findings": [
+        {
+          "t": "6 invalid values",
+          "tone": "warn"
+        },
+        {
+          "t": "304 affected rows",
+          "tone": "warn"
+        },
+        {
+          "t": "287 aliases recognized",
+          "tone": "ok"
+        }
+      ],
+      "enumeration": {
+        "candidate": "Yes",
+        "validRef": 12,
+        "invalidSrc": 6,
+        "affectedRows": 304,
+        "aliasRows": 287,
+        "unresolved": 17,
+        "refIntegrity": "Failed"
+      },
+      "dist": [
+        {
+          "label": "Units",
+          "pct": 72
+        },
+        {
+          "label": "KG",
+          "pct": 9
+        },
+        {
+          "label": "M",
+          "pct": 6
+        },
+        {
+          "label": "L",
+          "pct": 5
+        },
+        {
+          "label": "BOX",
+          "pct": 4
+        }
+      ],
+      "distTitle": "Top values",
+      "invalidTable": [
+        {
+          "src": "PCS",
+          "occ": 142,
+          "canon": "EA",
+          "status": "Recognized alias",
+          "tone": "ok"
+        },
+        {
+          "src": "PC",
+          "occ": 86,
+          "canon": "EA",
+          "status": "Recognized alias",
+          "tone": "ok"
+        },
+        {
+          "src": "Pieces",
+          "occ": 59,
+          "canon": "EA",
+          "status": "Recognized alias",
+          "tone": "ok"
+        },
+        {
+          "src": "BX10",
+          "occ": 17,
+          "canon": "\u2014",
+          "status": "Review required",
+          "tone": "warn"
+        }
+      ],
+      "interpretation": "Most invalid UOM values are recognized aliases that can be normalized on Value Mapping; 17 rows (BX10) have no known equivalent and need review. Nothing is normalized on this page.",
+      "reasoning": "Unit-of-measure reference. \"PCS\", \"PC\" and \"Pieces\" all alias to EA; \"BX10\" is unresolved.",
+      "actions": [
+        {
+          "id": "previewNorm",
+          "label": "Preview normalization"
+        },
+        {
+          "id": "records",
+          "label": "Show affected records"
+        },
+        {
+          "id": "valueMapping",
+          "label": "Open Value Mapping",
+          "primary": true
+        }
+      ],
+      "compare": {
+        "cardinality": "18",
+        "sem": "Unit of measure"
+      }
+    },
+    {
+      "id": "price",
+      "name": "Unit Price",
+      "semantic": "Sales price",
+      "role": "Measure",
+      "roleTip": "A numeric quantity.",
+      "datatype": "Decimal",
+      "nullCount": 340,
+      "distinct": 5120,
+      "uniqueness": 12,
+      "cardinality": "Medium",
+      "confidence": 97,
+      "impact": "warning",
+      "impactReason": "18 values sit far outside the interquartile range \u2014 likely unit or currency-entry errors. Migration-safe but worth reviewing.",
+      "categories": [
+        "outliers"
+      ],
+      "sample": [
+        "12.50",
+        "0.85",
+        "3.20"
+      ],
+      "findings": [
+        {
+          "t": "18 outliers",
+          "tone": "warn"
+        },
+        {
+          "t": "Range anomaly",
+          "tone": "warn"
+        }
+      ],
+      "range": {
+        "min": "0.05",
+        "max": "1,240.00",
+        "median": "4.20",
+        "p95": "38.90",
+        "outliers": 18,
+        "method": "IQR \u00d7 1.5",
+        "examples": "1,240.00 \u00b7 0.00 \u00b7 999.99"
+      },
+      "interpretation": "18 values sit far outside the interquartile range \u2014 likely unit or currency errors. Review the affected records before import; no values are changed here.",
+      "reasoning": "Continuous currency measure. Outliers flagged with the IQR method (1.5\u00d7 interquartile range).",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show affected records",
+          "primary": true
+        }
+      ],
+      "compare": {
+        "cardinality": "5,120",
+        "sem": "Sales price"
+      }
+    },
+    {
+      "id": "date",
+      "name": "Created Date",
+      "semantic": "Record created",
+      "role": "Timestamp",
+      "roleTip": "A date or timestamp field.",
+      "datatype": "Integer",
+      "nullCount": 0,
+      "distinct": 9330,
+      "uniqueness": 22,
+      "cardinality": "Medium",
+      "confidence": 92,
+      "impact": "warning",
+      "impactReason": "Stored as 8-digit integers (YYYYMMDD). A deterministic transform to ISO 8601 is required before import; 12 rows are future-dated.",
+      "categories": [
+        "patterns"
+      ],
+      "sample": [
+        "20260710",
+        "20250114",
+        "20240902"
+      ],
+      "findings": [
+        {
+          "t": "Non-ISO format",
+          "tone": "warn"
+        },
+        {
+          "t": "100% format-consistent",
+          "tone": "ok"
+        }
+      ],
+      "dateProfile": {
+        "earliest": "2011-03-04",
+        "latest": "2026-07-10",
+        "invalid": 0,
+        "future": 12
+      },
+      "dist": [
+        {
+          "label": "YYYYMMDD (8-digit)",
+          "pct": 100
+        }
+      ],
+      "distTitle": "Format distribution",
+      "interpretation": "Stored as 8-digit integers (YYYYMMDD) and 100% format-consistent, so a deterministic transform to ISO 8601 is straightforward; 12 rows are future-dated and should be reviewed.",
+      "reasoning": "Integer values in YYYYMMDD form. Needs a transform on Field Mapping before import.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show future-dated rows"
+        },
+        {
+          "id": "fieldMapping",
+          "label": "Open Field Mapping",
+          "primary": true
+        }
+      ],
+      "compare": {
+        "cardinality": "9,330",
+        "sem": "Creation timestamp"
+      }
+    },
+    {
+      "id": "subsidiary",
+      "name": "Subsidiary",
+      "semantic": "Legal entity",
+      "role": "Value list",
+      "roleTip": "A small set of repeating values that map to a target reference list.",
+      "datatype": "Text",
+      "nullCount": 0,
+      "distinct": 6,
+      "uniqueness": 0.01,
+      "cardinality": "Low",
+      "confidence": 94,
+      "impact": "warning",
+      "impactReason": "Clean reference field. Its main role is as the second half of a proposed SKU + Subsidiary composite identifier.",
+      "categories": [
+        "enums",
+        "identifiers"
+      ],
+      "sample": [
+        "US-East",
+        "EU",
+        "APAC"
+      ],
+      "findings": [
+        {
+          "t": "6 values",
+          "tone": "info"
+        },
+        {
+          "t": "Composite-key candidate",
+          "tone": "info"
+        }
+      ],
+      "enumeration": {
+        "candidate": "Yes",
+        "validRef": 6,
+        "invalidSrc": 0,
+        "affectedRows": 0,
+        "refIntegrity": "Passed"
+      },
+      "dist": [
+        {
+          "label": "US-East",
+          "pct": 34
+        },
+        {
+          "label": "US-West",
+          "pct": 22
+        },
+        {
+          "label": "EU",
+          "pct": 19
+        },
+        {
+          "label": "APAC",
+          "pct": 14
+        },
+        {
+          "label": "LATAM",
+          "pct": 7
+        },
+        {
+          "label": "Other",
+          "pct": 4
+        }
+      ],
+      "distTitle": "Value distribution",
+      "interpretation": "A clean reference / enumeration field. Combined with SKU it yields 99.98% composite uniqueness \u2014 the strongest composite identifier candidate for this dataset.",
+      "reasoning": "Six legal entities. Passes reference integrity. Key input to the composite-identifier evaluation.",
+      "actions": [
+        {
+          "id": "composite",
+          "label": "Test composite identifier",
+          "primary": true
+        },
+        {
+          "id": "valueMapping",
+          "label": "Open Value Mapping"
+        }
+      ],
+      "compare": {
+        "cardinality": "6",
+        "sem": "Legal entity"
+      }
+    },
+    {
+      "id": "cat",
+      "name": "Category",
+      "semantic": "Catalog group",
+      "role": "Value list",
+      "roleTip": "A repeating grouping value that maps to a target category tree.",
+      "datatype": "Text",
+      "nullCount": 5110,
+      "distinct": 64,
+      "uniqueness": 0.17,
+      "cardinality": "Low",
+      "confidence": 91,
+      "impact": "warning",
+      "impactReason": "12% of rows have no Category. Overlaps 71% with Product Type and is a candidate for enumeration / reference mapping.",
+      "categories": [
+        "enums",
+        "missing"
+      ],
+      "sample": [
+        "Fasteners",
+        "Washers",
+        "Tools"
+      ],
+      "findings": [
+        {
+          "t": "5,110 missing",
+          "tone": "warn"
+        },
+        {
+          "t": "Enumeration candidate",
+          "tone": "info"
+        }
+      ],
+      "enumeration": {
+        "candidate": "Yes",
+        "validRef": 64,
+        "invalidSrc": 0,
+        "affectedRows": 5110,
+        "refIntegrity": "Partial"
+      },
+      "dist": [
+        {
+          "label": "Fasteners",
+          "pct": 28
+        },
+        {
+          "label": "Washers",
+          "pct": 16
+        },
+        {
+          "label": "Tools",
+          "pct": 12
+        },
+        {
+          "label": "Fittings",
+          "pct": 9
+        },
+        {
+          "label": "Other (60)",
+          "pct": 35
+        }
+      ],
+      "distTitle": "Top values",
+      "interpretation": "Free-text category with 64 distinct values that overlaps 71% with Product Type \u2014 likely a finer grouping. A candidate for enumeration / reference mapping.",
+      "reasoning": "Low cardinality, high repetition \u2014 a reference/grouping field. Maps to an Odoo product category.",
+      "actions": [
+        {
+          "id": "valueMapping",
+          "label": "Open Value Mapping",
+          "primary": true
+        },
+        {
+          "id": "records",
+          "label": "Show missing rows"
+        }
+      ],
+      "compare": {
+        "overlap": "71% with Product Type",
+        "cardinality": "64",
+        "sem": "Fine-grained catalog category"
+      }
+    },
+    {
+      "id": "barcode",
+      "name": "Barcode",
+      "semantic": "Scan code",
+      "role": "Identifier candidate",
+      "roleTip": "A field the system infers may uniquely identify each record. Not confirmed until you approve it.",
+      "datatype": "Text",
+      "nullCount": 10219,
+      "distinct": 32180,
+      "uniqueness": 99.4,
+      "cardinality": "High",
+      "confidence": 64,
+      "impact": "warning",
+      "impactReason": "A secondary identifier candidate, but 24% empty and moderately noisy \u2014 weaker than SKU. Usable as an alternate key at best.",
+      "categories": [
+        "identifiers",
+        "patterns"
+      ],
+      "sample": [
+        "8901234567890",
+        "(blank)",
+        "N/A"
+      ],
+      "findings": [
+        {
+          "t": "10,219 null",
+          "tone": "warn"
+        },
+        {
+          "t": "118 invalid",
+          "tone": "warn"
+        },
+        {
+          "t": "EAN-13 82%",
+          "tone": "info"
+        }
+      ],
+      "patterns": [
+        {
+          "label": "Valid EAN-13",
+          "pct": 76
+        },
+        {
+          "label": "Empty / \"N/A\"",
+          "pct": 24
+        }
+      ],
+      "patternAnomalies": 118,
+      "duplicates": {
+        "rows": 59,
+        "groups": 28,
+        "crossSub": 0,
+        "crossPct": 0,
+        "composite": "\u2014"
+      },
+      "interpretation": "A secondary identifier candidate, but 24% empty and moderately noisy \u2014 weaker than SKU. Consider it only as an alternate key.",
+      "reasoning": "82% of values match EAN-13; 118 are \"N/A\" and 59 duplicate. Lower confidence than SKU.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show invalid rows",
+          "primary": true
+        }
+      ],
+      "compare": {
+        "cardinality": "32,180",
+        "sem": "Barcode / scan code"
+      }
+    },
+    {
+      "id": "cost",
+      "name": "Cost",
+      "semantic": "Unit cost",
+      "role": "Measure",
+      "roleTip": "A numeric quantity.",
+      "datatype": "Decimal",
+      "nullCount": 3406,
+      "distinct": 6400,
+      "uniqueness": 15,
+      "cardinality": "Medium",
+      "confidence": 95,
+      "impact": "clean",
+      "impactReason": "Well-formed numeric measure with 8% blanks \u2014 within acceptable tolerance. No blocking issues.",
+      "categories": [],
+      "sample": [
+        "8.10",
+        "0.42",
+        "1.95"
+      ],
+      "findings": [],
+      "range": {
+        "min": "0.02",
+        "max": "612.00",
+        "median": "2.90",
+        "p95": "24.10",
+        "outliers": 0,
+        "method": "IQR \u00d7 1.5"
+      },
+      "reasoning": "Continuous currency measure. No outliers detected.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show sample records"
+        }
+      ],
+      "compare": {
+        "cardinality": "6,400",
+        "sem": "Unit cost"
+      }
+    },
+    {
+      "id": "vendor",
+      "name": "Vendor",
+      "semantic": "Supplier ref",
+      "role": "Value list",
+      "roleTip": "A repeating reference value.",
+      "datatype": "Text",
+      "nullCount": 2129,
+      "distinct": 380,
+      "uniqueness": 0.9,
+      "cardinality": "Low",
+      "confidence": 89,
+      "impact": "clean",
+      "impactReason": "Supplier reference with 5% blanks. Maps cleanly to an Odoo vendor reference.",
+      "categories": [],
+      "sample": [
+        "Tartan Supplies",
+        "Acme Metals",
+        "\u2014"
+      ],
+      "findings": [],
+      "reasoning": "Company reference field, 380 distinct suppliers. Maps to res.partner.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show sample records"
+        }
+      ],
+      "compare": {
+        "cardinality": "380",
+        "sem": "Supplier"
+      }
+    },
+    {
+      "id": "weight",
+      "name": "Weight (kg)",
+      "semantic": "Item weight",
+      "role": "Measure",
+      "roleTip": "A numeric quantity.",
+      "datatype": "Decimal",
+      "nullCount": 2555,
+      "distinct": 2560,
+      "uniqueness": 6,
+      "cardinality": "Medium",
+      "confidence": 93,
+      "impact": "clean",
+      "impactReason": "Numeric measure with 6% blanks. No anomalies detected.",
+      "categories": [],
+      "sample": [
+        "0.045",
+        "0.012",
+        "0.180"
+      ],
+      "findings": [],
+      "range": {
+        "min": "0.001",
+        "max": "85.400",
+        "median": "0.120",
+        "p95": "3.400",
+        "outliers": 0,
+        "method": "IQR \u00d7 1.5"
+      },
+      "reasoning": "Continuous numeric measure in kilograms.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show sample records"
+        }
+      ],
+      "compare": {
+        "cardinality": "2,560",
+        "sem": "Item weight"
+      }
+    },
+    {
+      "id": "legacy",
+      "name": "Legacy Drawing Code",
+      "semantic": "Old drawing ref",
+      "role": "Descriptive text",
+      "roleTip": "A free-text field with no strong inferred role.",
+      "datatype": "Text",
+      "nullCount": 41838,
+      "distinct": 742,
+      "uniqueness": 100,
+      "cardinality": "Low",
+      "confidence": 20,
+      "impact": "warning",
+      "impactReason": "Near-empty: only 1.74% populated and not required by the target system. Recommended for review before exclusion \u2014 not auto-excluded.",
+      "categories": [
+        "nearEmpty"
+      ],
+      "sample": [
+        "LEG-001",
+        "(blank)",
+        "(blank)"
+      ],
+      "findings": [
+        {
+          "t": "Near-empty \u00b7 1.74% populated",
+          "tone": "warn"
+        },
+        {
+          "t": "Review for exclusion",
+          "tone": "info"
+        }
+      ],
+      "nearEmpty": {
+        "populated": 742,
+        "populatedPct": 1.74,
+        "requiredByTarget": "No",
+        "recommendation": "Review for exclusion",
+        "safeToExclude": "Likely"
+      },
+      "interpretation": "Almost entirely empty (1.74% populated) and not required by Odoo. Recommended for review before exclusion \u2014 near-empty fields are never excluded automatically.",
+      "reasoning": "97.7% empty legacy reference. Unlikely to carry migration value.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show populated rows"
+        },
+        {
+          "id": "ignore",
+          "label": "Review for exclusion",
+          "primary": true
+        }
+      ],
+      "compare": {
+        "cardinality": "742",
+        "sem": "Legacy drawing reference"
+      }
+    },
+    {
+      "id": "desc",
+      "name": "Description",
+      "semantic": "Long description",
+      "role": "Descriptive text",
+      "roleTip": "A free-text field with no strong inferred role.",
+      "datatype": "Text",
+      "nullCount": 1870,
+      "distinct": 39880,
+      "uniqueness": 93.6,
+      "cardinality": "High",
+      "confidence": 96,
+      "impact": "clean",
+      "impactReason": "Free-text description with 4% blanks. Maps to Odoo description.",
+      "categories": [],
+      "sample": [
+        "Zinc-plated hex bolt, M10 \u00d7 40mm",
+        "\u2014",
+        "Stainless flat washer"
+      ],
+      "findings": [],
+      "text": {
+        "minLen": 0,
+        "maxLen": 240,
+        "avgLen": 58
+      },
+      "reasoning": "High-cardinality descriptive text.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show sample records"
+        }
+      ],
+      "compare": {
+        "cardinality": "39,880",
+        "sem": "Long description"
+      }
+    },
+    {
+      "id": "brand",
+      "name": "Brand",
+      "semantic": "Brand name",
+      "role": "Value list",
+      "roleTip": "A small set of repeating values that map to a target reference list.",
+      "datatype": "Text",
+      "nullCount": 1278,
+      "distinct": 52,
+      "uniqueness": 0.12,
+      "cardinality": "Low",
+      "confidence": 92,
+      "impact": "clean",
+      "impactReason": "Low-cardinality brand reference with 3% blanks.",
+      "categories": [
+        "enums"
+      ],
+      "sample": [
+        "Tartan",
+        "Acme",
+        "Generic"
+      ],
+      "findings": [
+        {
+          "t": "Value list detected",
+          "tone": "info"
+        }
+      ],
+      "enumeration": {
+        "candidate": "Yes",
+        "validRef": 52,
+        "invalidSrc": 0,
+        "affectedRows": 0,
+        "refIntegrity": "Passed"
+      },
+      "dist": [
+        {
+          "label": "Tartan",
+          "pct": 31
+        },
+        {
+          "label": "Acme",
+          "pct": 22
+        },
+        {
+          "label": "Generic",
+          "pct": 18
+        },
+        {
+          "label": "Other (49)",
+          "pct": 29
+        }
+      ],
+      "distTitle": "Top values",
+      "reasoning": "Repeating brand values. Maps to an Odoo attribute.",
+      "actions": [
+        {
+          "id": "valueMapping",
+          "label": "Open Value Mapping"
+        }
+      ],
+      "compare": {
+        "cardinality": "52",
+        "sem": "Brand"
+      }
+    },
+    {
+      "id": "mfr",
+      "name": "Manufacturer",
+      "semantic": "Maker",
+      "role": "Value list",
+      "roleTip": "A small set of repeating values that map to a target reference list.",
+      "datatype": "Text",
+      "nullCount": 3820,
+      "distinct": 214,
+      "uniqueness": 0.5,
+      "cardinality": "Low",
+      "confidence": 88,
+      "impact": "clean",
+      "impactReason": "Manufacturer reference with 9% blanks.",
+      "categories": [
+        "enums"
+      ],
+      "sample": [
+        "Bosch",
+        "Hilti",
+        "\u2014"
+      ],
+      "findings": [
+        {
+          "t": "Value list detected",
+          "tone": "info"
+        }
+      ],
+      "enumeration": {
+        "candidate": "Yes",
+        "validRef": 214,
+        "invalidSrc": 0,
+        "affectedRows": 0,
+        "refIntegrity": "Passed"
+      },
+      "reasoning": "Manufacturer reference field.",
+      "actions": [
+        {
+          "id": "valueMapping",
+          "label": "Open Value Mapping"
+        }
+      ],
+      "compare": {
+        "cardinality": "214",
+        "sem": "Manufacturer"
+      }
+    },
+    {
+      "id": "mpn",
+      "name": "Mfr Part No",
+      "semantic": "MPN",
+      "role": "Identifier candidate",
+      "roleTip": "A field the system infers may uniquely identify each record. Not confirmed until you approve it.",
+      "datatype": "Text",
+      "nullCount": 6390,
+      "distinct": 35120,
+      "uniqueness": 96.1,
+      "cardinality": "High",
+      "confidence": 61,
+      "impact": "warning",
+      "impactReason": "Alternate identifier, but 15% empty and inconsistently formatted.",
+      "categories": [
+        "identifiers",
+        "patterns"
+      ],
+      "sample": [
+        "BM-10X40",
+        "HX8823",
+        "\u2014"
+      ],
+      "findings": [
+        {
+          "t": "6,390 null",
+          "tone": "warn"
+        },
+        {
+          "t": "41 pattern anomalies",
+          "tone": "info"
+        }
+      ],
+      "patterns": [
+        {
+          "label": "AA-9999",
+          "pct": 63
+        },
+        {
+          "label": "Alphanumeric",
+          "pct": 31
+        },
+        {
+          "label": "Empty",
+          "pct": 15
+        }
+      ],
+      "patternAnomalies": 41,
+      "reasoning": "Manufacturer part number, a weaker alternate key than SKU.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show invalid rows"
+        }
+      ],
+      "compare": {
+        "cardinality": "35,120",
+        "sem": "Manufacturer part number"
+      }
+    },
+    {
+      "id": "status",
+      "name": "Status",
+      "semantic": "Lifecycle",
+      "role": "Value list",
+      "roleTip": "A small set of repeating values that map to a target reference list.",
+      "datatype": "Text",
+      "nullCount": 0,
+      "distinct": 4,
+      "uniqueness": 0.01,
+      "cardinality": "Low",
+      "confidence": 95,
+      "impact": "clean",
+      "impactReason": "Clean lifecycle enumeration.",
+      "categories": [
+        "enums"
+      ],
+      "sample": [
+        "Active",
+        "Inactive",
+        "Phase-out"
+      ],
+      "findings": [
+        {
+          "t": "Value list detected",
+          "tone": "info"
+        }
+      ],
+      "enumeration": {
+        "candidate": "Yes",
+        "validRef": 4,
+        "invalidSrc": 0,
+        "affectedRows": 0,
+        "refIntegrity": "Passed"
+      },
+      "dist": [
+        {
+          "label": "Active",
+          "pct": 82
+        },
+        {
+          "label": "Inactive",
+          "pct": 11
+        },
+        {
+          "label": "Phase-out",
+          "pct": 6
+        },
+        {
+          "label": "Draft",
+          "pct": 1
+        }
+      ],
+      "distTitle": "Value distribution",
+      "reasoning": "Lifecycle status enumeration.",
+      "actions": [
+        {
+          "id": "valueMapping",
+          "label": "Open Value Mapping"
+        }
+      ],
+      "compare": {
+        "cardinality": "4",
+        "sem": "Lifecycle status"
+      }
+    },
+    {
+      "id": "taxcode",
+      "name": "Tax Code",
+      "semantic": "Tax class",
+      "role": "Value list",
+      "roleTip": "A small set of repeating values that map to a target reference list.",
+      "datatype": "Text",
+      "nullCount": 512,
+      "distinct": 11,
+      "uniqueness": 0.03,
+      "cardinality": "Low",
+      "confidence": 87,
+      "impact": "warning",
+      "impactReason": "2 tax codes have no matching Odoo tax (absent rows). Needs a crosswalk.",
+      "categories": [
+        "enums",
+        "refFailures",
+        "invalid"
+      ],
+      "sample": [
+        "VAT20",
+        "VAT5",
+        "ZERO"
+      ],
+      "findings": [
+        {
+          "t": "2 invalid values",
+          "tone": "warn"
+        },
+        {
+          "t": "Value list detected",
+          "tone": "info"
+        }
+      ],
+      "enumeration": {
+        "candidate": "Yes",
+        "validRef": 9,
+        "invalidSrc": 2,
+        "affectedRows": 214,
+        "refIntegrity": "Failed"
+      },
+      "dist": [
+        {
+          "label": "VAT20",
+          "pct": 74
+        },
+        {
+          "label": "VAT5",
+          "pct": 14
+        },
+        {
+          "label": "ZERO",
+          "pct": 9
+        },
+        {
+          "label": "Other",
+          "pct": 3
+        }
+      ],
+      "distTitle": "Top values",
+      "reasoning": "Tax classification reference; two legacy codes are unmapped.",
+      "actions": [
+        {
+          "id": "valueMapping",
+          "label": "Open Value Mapping",
+          "primary": true
+        }
+      ],
+      "compare": {
+        "cardinality": "11",
+        "sem": "Tax class"
+      }
+    },
+    {
+      "id": "leadtime",
+      "name": "Lead Time (days)",
+      "semantic": "Supply lead",
+      "role": "Measure",
+      "roleTip": "A numeric quantity.",
+      "datatype": "Integer",
+      "nullCount": 4980,
+      "distinct": 88,
+      "uniqueness": 0.2,
+      "cardinality": "Medium",
+      "confidence": 93,
+      "impact": "clean",
+      "impactReason": "Numeric lead time with 12% blanks \u2014 within tolerance.",
+      "categories": [],
+      "sample": [
+        "7",
+        "14",
+        "30"
+      ],
+      "findings": [],
+      "range": {
+        "min": "0",
+        "max": "365",
+        "median": "14",
+        "p95": "90",
+        "outliers": 0,
+        "method": "IQR \u00d7 1.5"
+      },
+      "reasoning": "Replenishment lead time in days.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show sample records"
+        }
+      ],
+      "compare": {
+        "cardinality": "88",
+        "sem": "Lead time"
+      }
+    },
+    {
+      "id": "minqty",
+      "name": "Min Order Qty",
+      "semantic": "MOQ",
+      "role": "Measure",
+      "roleTip": "A numeric quantity.",
+      "datatype": "Integer",
+      "nullCount": 6120,
+      "distinct": 120,
+      "uniqueness": 0.3,
+      "cardinality": "Medium",
+      "confidence": 92,
+      "impact": "clean",
+      "impactReason": "Minimum order quantity with 14% blanks.",
+      "categories": [],
+      "sample": [
+        "1",
+        "10",
+        "100"
+      ],
+      "findings": [],
+      "range": {
+        "min": "1",
+        "max": "5,000",
+        "median": "10",
+        "p95": "500",
+        "outliers": 0,
+        "method": "IQR \u00d7 1.5"
+      },
+      "reasoning": "Minimum order quantity measure.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show sample records"
+        }
+      ],
+      "compare": {
+        "cardinality": "120",
+        "sem": "Minimum order qty"
+      }
+    },
+    {
+      "id": "reorder",
+      "name": "Reorder Point",
+      "semantic": "Reorder level",
+      "role": "Measure",
+      "roleTip": "A numeric quantity.",
+      "datatype": "Integer",
+      "nullCount": 7420,
+      "distinct": 340,
+      "uniqueness": 0.8,
+      "cardinality": "Medium",
+      "confidence": 90,
+      "impact": "clean",
+      "impactReason": "Reorder point with 17% blanks.",
+      "categories": [],
+      "sample": [
+        "20",
+        "50",
+        "200"
+      ],
+      "findings": [],
+      "range": {
+        "min": "0",
+        "max": "12,000",
+        "median": "40",
+        "p95": "900",
+        "outliers": 0,
+        "method": "IQR \u00d7 1.5"
+      },
+      "reasoning": "Inventory reorder threshold.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show sample records"
+        }
+      ],
+      "compare": {
+        "cardinality": "340",
+        "sem": "Reorder point"
+      }
+    },
+    {
+      "id": "qtyhand",
+      "name": "Qty On Hand",
+      "semantic": "Stock level",
+      "role": "Measure",
+      "roleTip": "A numeric quantity.",
+      "datatype": "Integer",
+      "nullCount": 0,
+      "distinct": 4210,
+      "uniqueness": 9.9,
+      "cardinality": "Medium",
+      "confidence": 96,
+      "impact": "warning",
+      "impactReason": "34 rows carry negative stock \u2014 likely data-entry or timing errors to review.",
+      "categories": [
+        "outliers"
+      ],
+      "sample": [
+        "0",
+        "128",
+        "-3"
+      ],
+      "findings": [
+        {
+          "t": "34 negative values",
+          "tone": "warn"
+        },
+        {
+          "t": "Range anomaly",
+          "tone": "warn"
+        }
+      ],
+      "range": {
+        "min": "-3",
+        "max": "48,200",
+        "median": "62",
+        "p95": "1,400",
+        "outliers": 34,
+        "method": "IQR \u00d7 1.5",
+        "examples": "-3 \u00b7 -1 \u00b7 48,200"
+      },
+      "interpretation": "34 negative on-hand values are physically impossible and likely reflect timing or entry errors \u2014 review before import.",
+      "reasoning": "On-hand stock measure with negative outliers.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show affected records",
+          "primary": true
+        }
+      ],
+      "compare": {
+        "cardinality": "4,210",
+        "sem": "Quantity on hand"
+      }
+    },
+    {
+      "id": "listprice",
+      "name": "List Price",
+      "semantic": "RRP",
+      "role": "Measure",
+      "roleTip": "A numeric quantity.",
+      "datatype": "Decimal",
+      "nullCount": 2210,
+      "distinct": 5900,
+      "uniqueness": 14,
+      "cardinality": "Medium",
+      "confidence": 96,
+      "impact": "warning",
+      "impactReason": "22 list-price outliers sit far outside the range \u2014 likely currency errors.",
+      "categories": [
+        "outliers"
+      ],
+      "sample": [
+        "18.00",
+        "1.20",
+        "4.75"
+      ],
+      "findings": [
+        {
+          "t": "22 outliers",
+          "tone": "warn"
+        },
+        {
+          "t": "Range anomaly",
+          "tone": "warn"
+        }
+      ],
+      "range": {
+        "min": "0.10",
+        "max": "2,400.00",
+        "median": "6.20",
+        "p95": "52.00",
+        "outliers": 22,
+        "method": "IQR \u00d7 1.5",
+        "examples": "2,400.00 \u00b7 0.00"
+      },
+      "reasoning": "Recommended retail price with outliers flagged by IQR.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show affected records",
+          "primary": true
+        }
+      ],
+      "compare": {
+        "cardinality": "5,900",
+        "sem": "List price"
+      }
+    },
+    {
+      "id": "currency",
+      "name": "Currency",
+      "semantic": "Price currency",
+      "role": "Value list",
+      "roleTip": "A small set of repeating values that map to a target reference list.",
+      "datatype": "Text",
+      "nullCount": 0,
+      "distinct": 5,
+      "uniqueness": 0.01,
+      "cardinality": "Low",
+      "confidence": 97,
+      "impact": "clean",
+      "impactReason": "Clean currency enumeration.",
+      "categories": [
+        "enums"
+      ],
+      "sample": [
+        "GBP",
+        "EUR",
+        "USD"
+      ],
+      "findings": [
+        {
+          "t": "Value list detected",
+          "tone": "info"
+        }
+      ],
+      "enumeration": {
+        "candidate": "Yes",
+        "validRef": 5,
+        "invalidSrc": 0,
+        "affectedRows": 0,
+        "refIntegrity": "Passed"
+      },
+      "dist": [
+        {
+          "label": "GBP",
+          "pct": 58
+        },
+        {
+          "label": "EUR",
+          "pct": 24
+        },
+        {
+          "label": "USD",
+          "pct": 15
+        },
+        {
+          "label": "Other",
+          "pct": 3
+        }
+      ],
+      "distTitle": "Value distribution",
+      "reasoning": "ISO currency reference.",
+      "actions": [
+        {
+          "id": "valueMapping",
+          "label": "Open Value Mapping"
+        }
+      ],
+      "compare": {
+        "cardinality": "5",
+        "sem": "Currency"
+      }
+    },
+    {
+      "id": "warehouse",
+      "name": "Warehouse",
+      "semantic": "Stock location",
+      "role": "Value list",
+      "roleTip": "A small set of repeating values that map to a target reference list.",
+      "datatype": "Text",
+      "nullCount": 340,
+      "distinct": 9,
+      "uniqueness": 0.02,
+      "cardinality": "Low",
+      "confidence": 94,
+      "impact": "clean",
+      "impactReason": "Warehouse reference with <1% blanks.",
+      "categories": [
+        "enums"
+      ],
+      "sample": [
+        "WH-Glasgow",
+        "WH-Leeds",
+        "WH-EU"
+      ],
+      "findings": [
+        {
+          "t": "Value list detected",
+          "tone": "info"
+        }
+      ],
+      "enumeration": {
+        "candidate": "Yes",
+        "validRef": 9,
+        "invalidSrc": 0,
+        "affectedRows": 0,
+        "refIntegrity": "Passed"
+      },
+      "reasoning": "Stock location reference.",
+      "actions": [
+        {
+          "id": "valueMapping",
+          "label": "Open Value Mapping"
+        }
+      ],
+      "compare": {
+        "cardinality": "9",
+        "sem": "Warehouse"
+      }
+    },
+    {
+      "id": "binloc",
+      "name": "Bin Location",
+      "semantic": "Shelf ref",
+      "role": "Descriptive text",
+      "roleTip": "A free-text field with no strong inferred role.",
+      "datatype": "Text",
+      "nullCount": 29850,
+      "distinct": 2100,
+      "uniqueness": 70,
+      "cardinality": "Medium",
+      "confidence": 40,
+      "impact": "warning",
+      "impactReason": "70% empty \u2014 a candidate for review before exclusion.",
+      "categories": [
+        "nearEmpty"
+      ],
+      "sample": [
+        "A-12-3",
+        "\u2014",
+        "B-04-1"
+      ],
+      "findings": [
+        {
+          "t": "70% empty",
+          "tone": "warn"
+        },
+        {
+          "t": "Review for exclusion",
+          "tone": "info"
+        }
+      ],
+      "nearEmpty": {
+        "populated": 12730,
+        "populatedPct": 29.9,
+        "requiredByTarget": "No",
+        "recommendation": "Review for exclusion",
+        "safeToExclude": "Maybe"
+      },
+      "interpretation": "Only 30% populated; not required by Odoo. Review before excluding.",
+      "reasoning": "Sparse warehouse bin reference.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show populated rows"
+        }
+      ],
+      "compare": {
+        "cardinality": "2,100",
+        "sem": "Bin location"
+      }
+    },
+    {
+      "id": "hscode",
+      "name": "HS Code",
+      "semantic": "Customs code",
+      "role": "Descriptive text",
+      "roleTip": "A free-text field with no strong inferred role.",
+      "datatype": "Text",
+      "nullCount": 15980,
+      "distinct": 820,
+      "uniqueness": 2,
+      "cardinality": "Medium",
+      "confidence": 66,
+      "impact": "warning",
+      "impactReason": "62% blank and 190 values break the 6\u201310 digit customs pattern.",
+      "categories": [
+        "patterns",
+        "missing"
+      ],
+      "sample": [
+        "7318159000",
+        "\u2014",
+        "8302"
+      ],
+      "findings": [
+        {
+          "t": "15,980 missing",
+          "tone": "warn"
+        },
+        {
+          "t": "190 pattern anomalies",
+          "tone": "warn"
+        }
+      ],
+      "patterns": [
+        {
+          "label": "10-digit",
+          "pct": 71
+        },
+        {
+          "label": "6\u20138 digit",
+          "pct": 22
+        },
+        {
+          "label": "Malformed",
+          "pct": 7
+        }
+      ],
+      "patternAnomalies": 190,
+      "interpretation": "HS customs codes are 62% blank and 190 rows are malformed \u2014 review before import.",
+      "reasoning": "Harmonized-system customs code.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show malformed rows"
+        }
+      ],
+      "compare": {
+        "cardinality": "820",
+        "sem": "HS customs code"
+      }
+    },
+    {
+      "id": "origin",
+      "name": "Country of Origin",
+      "semantic": "Origin",
+      "role": "Value list",
+      "roleTip": "A small set of repeating values that map to a target reference list.",
+      "datatype": "Text",
+      "nullCount": 8420,
+      "distinct": 47,
+      "uniqueness": 0.11,
+      "cardinality": "Low",
+      "confidence": 90,
+      "impact": "warning",
+      "impactReason": "20% blank; several values use non-ISO country names needing a crosswalk.",
+      "categories": [
+        "enums",
+        "missing"
+      ],
+      "sample": [
+        "GB",
+        "Germany",
+        "CN"
+      ],
+      "findings": [
+        {
+          "t": "8,420 missing",
+          "tone": "warn"
+        },
+        {
+          "t": "Value list detected",
+          "tone": "info"
+        }
+      ],
+      "enumeration": {
+        "candidate": "Yes",
+        "validRef": 41,
+        "invalidSrc": 6,
+        "affectedRows": 1120,
+        "refIntegrity": "Partial"
+      },
+      "dist": [
+        {
+          "label": "GB",
+          "pct": 44
+        },
+        {
+          "label": "CN",
+          "pct": 21
+        },
+        {
+          "label": "DE",
+          "pct": 12
+        },
+        {
+          "label": "Other",
+          "pct": 23
+        }
+      ],
+      "distTitle": "Top values",
+      "reasoning": "Country reference; mixed ISO codes and full names.",
+      "actions": [
+        {
+          "id": "valueMapping",
+          "label": "Open Value Mapping",
+          "primary": true
+        }
+      ],
+      "compare": {
+        "cardinality": "47",
+        "sem": "Country of origin"
+      }
+    },
+    {
+      "id": "modified",
+      "name": "Last Modified",
+      "semantic": "Updated at",
+      "role": "Timestamp",
+      "roleTip": "A date or timestamp field.",
+      "datatype": "Integer",
+      "nullCount": 0,
+      "distinct": 18240,
+      "uniqueness": 43,
+      "cardinality": "High",
+      "confidence": 92,
+      "impact": "warning",
+      "impactReason": "Stored as YYYYMMDD integers; needs an ISO 8601 transform before import.",
+      "categories": [
+        "patterns"
+      ],
+      "sample": [
+        "20260715",
+        "20260101",
+        "20251120"
+      ],
+      "findings": [
+        {
+          "t": "Non-ISO format",
+          "tone": "warn"
+        },
+        {
+          "t": "100% format-consistent",
+          "tone": "ok"
+        }
+      ],
+      "dateProfile": {
+        "earliest": "2011-05-02",
+        "latest": "2026-07-15",
+        "invalid": 0,
+        "future": 3
+      },
+      "dist": [
+        {
+          "label": "YYYYMMDD (8-digit)",
+          "pct": 100
+        }
+      ],
+      "distTitle": "Format distribution",
+      "reasoning": "Modification timestamp in integer form.",
+      "actions": [
+        {
+          "id": "fieldMapping",
+          "label": "Open Field Mapping",
+          "primary": true
+        }
+      ],
+      "compare": {
+        "cardinality": "18,240",
+        "sem": "Last modified"
+      }
+    },
+    {
+      "id": "taxable",
+      "name": "Taxable",
+      "semantic": "Tax flag",
+      "role": "Value list",
+      "roleTip": "A boolean flag.",
+      "datatype": "Boolean",
+      "nullCount": 0,
+      "distinct": 2,
+      "uniqueness": 0.005,
+      "cardinality": "Low",
+      "confidence": 98,
+      "impact": "clean",
+      "impactReason": "Clean boolean flag.",
+      "categories": [
+        "enums"
+      ],
+      "sample": [
+        "Yes",
+        "No",
+        "Yes"
+      ],
+      "findings": [
+        {
+          "t": "Value list detected",
+          "tone": "info"
+        }
+      ],
+      "dist": [
+        {
+          "label": "Yes",
+          "pct": 88
+        },
+        {
+          "label": "No",
+          "pct": 12
+        }
+      ],
+      "distTitle": "Value distribution",
+      "reasoning": "Boolean taxable flag.",
+      "actions": [
+        {
+          "id": "valueMapping",
+          "label": "Open Value Mapping"
+        }
+      ],
+      "compare": {
+        "cardinality": "2",
+        "sem": "Taxable flag"
+      }
+    },
+    {
+      "id": "discontinued",
+      "name": "Discontinued Flag",
+      "semantic": "End-of-life",
+      "role": "Value list",
+      "roleTip": "A boolean flag.",
+      "datatype": "Boolean",
+      "nullCount": 1240,
+      "distinct": 2,
+      "uniqueness": 0.005,
+      "cardinality": "Low",
+      "confidence": 97,
+      "impact": "clean",
+      "impactReason": "Boolean flag with 3% blanks treated as false.",
+      "categories": [
+        "enums"
+      ],
+      "sample": [
+        "No",
+        "Yes",
+        "No"
+      ],
+      "findings": [
+        {
+          "t": "Value list detected",
+          "tone": "info"
+        }
+      ],
+      "dist": [
+        {
+          "label": "No",
+          "pct": 93
+        },
+        {
+          "label": "Yes",
+          "pct": 7
+        }
+      ],
+      "distTitle": "Value distribution",
+      "reasoning": "Boolean discontinued flag.",
+      "actions": [
+        {
+          "id": "valueMapping",
+          "label": "Open Value Mapping"
+        }
+      ],
+      "compare": {
+        "cardinality": "2",
+        "sem": "Discontinued flag"
+      }
+    },
+    {
+      "id": "dimensions",
+      "name": "Dimensions",
+      "semantic": "L\u00d7W\u00d7H",
+      "role": "Descriptive text",
+      "roleTip": "A free-text field with no strong inferred role.",
+      "datatype": "Text",
+      "nullCount": 11200,
+      "distinct": 6900,
+      "uniqueness": 38,
+      "cardinality": "High",
+      "confidence": 58,
+      "impact": "warning",
+      "impactReason": "Free-text dimensions with mixed formats and units \u2014 needs parsing before import.",
+      "categories": [
+        "patterns",
+        "missing"
+      ],
+      "sample": [
+        "40x8x8 mm",
+        "\u2014",
+        "10 x 10 x 2cm"
+      ],
+      "findings": [
+        {
+          "t": "11,200 missing",
+          "tone": "warn"
+        },
+        {
+          "t": "Mixed units",
+          "tone": "warn"
+        }
+      ],
+      "text": {
+        "minLen": 0,
+        "maxLen": 28,
+        "avgLen": 11
+      },
+      "patternAnomalies": 640,
+      "interpretation": "Dimensions are stored as inconsistent free text (mixed units and separators). Parsing/normalization is needed before import.",
+      "reasoning": "Unstructured dimension text.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show sample records"
+        }
+      ],
+      "compare": {
+        "cardinality": "6,900",
+        "sem": "Dimensions"
+      }
+    }
+  ],
+  "copilotPrompts": [
+    {
+      "id": "idprob",
+      "text": "Show only identifier problems"
+    },
+    {
+      "id": "whysku",
+      "text": "Why do you think SKU is the identifier?"
+    },
+    {
+      "id": "ignore",
+      "text": "Ignore columns that are more than 95% empty"
+    },
+    {
+      "id": "compare",
+      "text": "Compare Category and Product Type"
+    },
+    {
+      "id": "autofix",
+      "text": "Which problems can be fixed automatically?"
+    }
+  ],
+  "sampleCsv": "item105(Sheet1).csv",
+  "copilotResponses": {
+    "idprob": {
+      "text": "Filtered the workspace to identifier-candidate fields with unresolved issues. SKU has 918 duplicate values \u2014 the top migration blocker \u2014 and Barcode is 24% empty. This is a temporary visual filter; nothing in your migration config changes until you approve a fix."
+    },
+    "whysku": {
+      "text": "SKU is 100% populated, 97.8% unique, and matches the naming pattern of a stock-keeping identifier. It is the strongest identifier candidate \u2014 but it is not globally unique, so I opened its field profile so you can inspect the duplicate groups and the SKU + Subsidiary composite before confirming."
+    },
+    "ignore": {
+      "text": "One field is more than 95% empty: Legacy Drawing Code (1.74% populated). Ignoring a field changes the migration configuration, so I have opened an approval dialog rather than applying it directly."
+    },
+    "compare": {
+      "text": "Opened a side-by-side comparison of Category and Product Type. They share 71% of values \u2014 Product Type looks like a coarser grouping of Category. 126 rows have a Category but no Product Type."
+    },
+    "autofix": {
+      "fixes": [
+        "uom",
+        "date",
+        "type",
+        "sku"
+      ],
+      "text": "Four issues have proposed fixes. Two can be applied automatically by the deterministic engine; two need your review. Applying any of them updates the migration configuration and always asks for your approval first."
+    }
+  },
+  "copilotFixes": {
+    "uom": {
+      "field": "uom",
+      "issue": "Invalid UOM values",
+      "affected": 304,
+      "action": "Apply unit crosswalk: PCS/PC/Pieces \u2192 EA",
+      "evidence": "287 of 304 rows match recognized aliases",
+      "impact": "Resolves 287 rows; 17 need review",
+      "auto": true
+    },
+    "date": {
+      "field": "date",
+      "issue": "Non-ISO date format",
+      "affected": 42580,
+      "action": "Apply YYYYMMDD \u2192 ISO 8601 transform",
+      "evidence": "Source format YYYYMMDD detected on 100% of values",
+      "impact": "Normalizes all date values",
+      "auto": true
+    },
+    "type": {
+      "field": "ptype",
+      "issue": "Missing product types",
+      "affected": 126,
+      "action": "Infer Product Type from Category",
+      "evidence": "Category present for 112 of 126 blank rows",
+      "impact": "Infers 96 rows; 30 need review",
+      "auto": false
+    },
+    "sku": {
+      "field": "sku",
+      "issue": "Duplicate identifiers",
+      "affected": 918,
+      "action": "Evaluate SKU + Subsidiary composite key",
+      "evidence": "436 duplicate groups, 89.2% cross subsidiaries",
+      "impact": "Composite uniqueness 99.98%",
+      "auto": false
+    }
+  },
+  "mapping": {
+    "targetFields": [
+      {
+        "id": "name",
+        "label": "Name",
+        "dtype": "Char",
+        "required": true,
+        "identifier": true,
+        "writable": true
+      },
+      {
+        "id": "default_code",
+        "label": "Internal Reference",
+        "dtype": "Char",
+        "identifier": true,
+        "writable": true
+      },
+      {
+        "id": "barcode",
+        "label": "Barcode",
+        "dtype": "Char",
+        "writable": true
+      },
+      {
+        "id": "list_price",
+        "label": "Sales Price",
+        "dtype": "Monetary",
+        "writable": true
+      },
+      {
+        "id": "standard_price",
+        "label": "Cost",
+        "dtype": "Monetary",
+        "writable": true
+      },
+      {
+        "id": "property_account_expense_id",
+        "label": "Expense Account",
+        "dtype": "Many2one \u00b7 account.account",
+        "writable": true
+      },
+      {
+        "id": "type",
+        "label": "Product Type",
+        "dtype": "Selection",
+        "required": true,
+        "writable": true
+      },
+      {
+        "id": "uom_id",
+        "label": "Unit of Measure",
+        "dtype": "Many2one \u00b7 uom.uom",
+        "required": true,
+        "writable": true
+      },
+      {
+        "id": "company_id",
+        "label": "Company",
+        "dtype": "Many2one \u00b7 res.company",
+        "writable": true
+      },
+      {
+        "id": "description_purchase",
+        "label": "Purchase Description",
+        "dtype": "Text",
+        "writable": true
+      },
+      {
+        "id": "weight",
+        "label": "Weight",
+        "dtype": "Float",
+        "writable": true
+      },
+      {
+        "id": "create_date",
+        "label": "Created On",
+        "dtype": "Datetime",
+        "writable": false
+      },
+      {
+        "id": "taxes_id",
+        "label": "Customer Taxes",
+        "dtype": "Many2many \u00b7 account.tax",
+        "writable": true
+      },
+      {
+        "id": "categ_id",
+        "label": "Product Category",
+        "dtype": "Many2one \u00b7 product.category",
+        "required": true,
+        "writable": true
+      },
+      {
+        "id": "invoice_policy",
+        "label": "Invoicing Policy",
+        "dtype": "Selection",
+        "required": true,
+        "writable": true
+      }
+    ],
+    "proposals": [
+      {
+        "id": "f1",
+        "name": "Item Name",
+        "sdtype": "Char",
+        "role": "Name",
+        "samples": [
+          "SS Bolt M10",
+          "M8 Hex Nut",
+          "Washer 12mm"
+        ],
+        "targetId": "name",
+        "conf": 99,
+        "status": "Suggested",
+        "validation": "Compatible",
+        "evidence": [
+          "name",
+          "samples",
+          "datatype",
+          "prior"
+        ],
+        "handoff": "Ready"
+      },
+      {
+        "id": "f2",
+        "name": "SKU",
+        "sdtype": "Char",
+        "role": "Identifier",
+        "samples": [
+          "FST-1001",
+          "FST-1002",
+          "WSH-012"
+        ],
+        "targetId": "default_code",
+        "conf": 97,
+        "status": "Suggested",
+        "validation": "Compatible",
+        "evidence": [
+          "name",
+          "datatype",
+          "prior"
+        ],
+        "handoff": "Ready"
+      },
+      {
+        "id": "f3",
+        "name": "UPC",
+        "sdtype": "Char",
+        "role": "Identifier",
+        "samples": [
+          "8901234567890",
+          "8901234567891"
+        ],
+        "targetId": "barcode",
+        "conf": 95,
+        "status": "Suggested",
+        "validation": "Compatible",
+        "evidence": [
+          "name",
+          "samples",
+          "datatype"
+        ],
+        "handoff": "Ready"
+      },
+      {
+        "id": "f4",
+        "name": "Base Price",
+        "sdtype": "Decimal",
+        "role": "Amount",
+        "samples": [
+          "12.50",
+          "4.20",
+          "89.00"
+        ],
+        "targetId": "list_price",
+        "conf": 88,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "name",
+          "samples",
+          "datatype"
+        ],
+        "handoff": "Format conversion required",
+        "why": "Numeric selling prices best match the Odoo Sales Price (list_price). Confidence is just below the auto-accept band because the column could also represent cost \u2014 confirm this is a sell price. Currency/decimal formatting is resolved on Page 4."
+      },
+      {
+        "id": "f5",
+        "name": "Unit Cost",
+        "sdtype": "Decimal",
+        "role": "Amount",
+        "samples": [
+          "8.10",
+          "2.90",
+          "61.00"
+        ],
+        "targetId": "standard_price",
+        "conf": 90,
+        "status": "Suggested",
+        "validation": "Compatible",
+        "evidence": [
+          "name",
+          "datatype",
+          "meaning"
+        ],
+        "handoff": "Ready"
+      },
+      {
+        "id": "f6",
+        "name": "Expense Account",
+        "sdtype": "Char",
+        "role": "Reference",
+        "samples": [
+          "Material Cost",
+          "Freight In",
+          "Duty"
+        ],
+        "targetId": "property_account_expense_id",
+        "conf": 84,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "samples",
+          "meaning",
+          "prior"
+        ],
+        "handoff": "Reference crosswalk required",
+        "why": "Expense Account contains general-ledger account references. Expense Account (property_account_expense_id) is the closest compatible Odoo target based on its business meaning, sample values and previously approved mappings. The GL account labels don\u2019t match Odoo account records yet, so a reference-value crosswalk is required on Page 4."
+      },
+      {
+        "id": "f7",
+        "name": "Item Type",
+        "sdtype": "Char",
+        "role": "Category",
+        "samples": [
+          "Goods",
+          "Service"
+        ],
+        "targetId": "type",
+        "conf": 93,
+        "status": "Suggested",
+        "validation": "Compatible",
+        "evidence": [
+          "name",
+          "samples",
+          "meaning"
+        ],
+        "handoff": "Value mapping required",
+        "why": "The Goods / Service enumeration determines whether a record is a stockable product or a service in Odoo, governed by Product Type. The source values are enumerations, so the Goods\u2192consu / Service\u2192service value crosswalk happens on Page 4."
+      },
+      {
+        "id": "f8",
+        "name": "UOM",
+        "sdtype": "Char",
+        "role": "Reference",
+        "samples": [
+          "EA",
+          "BOX",
+          "KG"
+        ],
+        "targetId": "uom_id",
+        "conf": 82,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "name",
+          "samples",
+          "datatype"
+        ],
+        "handoff": "Value mapping required",
+        "why": "Maps to Unit of Measure. Some source codes (EA, BOX) have no direct Odoo unit and will need a value crosswalk on Page 4."
+      },
+      {
+        "id": "f9",
+        "name": "Subsidiary",
+        "sdtype": "Char",
+        "role": "Reference",
+        "samples": [
+          "Tartan Aerial Sense Tech Pvt Ltd",
+          "Tartan UK Ltd"
+        ],
+        "targetId": "company_id",
+        "conf": 79,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "samples",
+          "meaning"
+        ],
+        "handoff": "Reference crosswalk required",
+        "why": "The source names legal entities and maps to the Odoo Company field, but the labels do not exactly match existing company records \u2014 reference-record value mapping will be required on Page 4."
+      },
+      {
+        "id": "f10",
+        "name": "Purchase Description",
+        "sdtype": "Text",
+        "role": "Description",
+        "samples": [
+          "High-tensile M10 fastener, zinc"
+        ],
+        "targetId": "description_purchase",
+        "conf": 100,
+        "status": "Suggested",
+        "validation": "Compatible",
+        "evidence": [
+          "name",
+          "datatype",
+          "prior"
+        ],
+        "handoff": "Ready"
+      },
+      {
+        "id": "f11",
+        "name": "Weight (kg)",
+        "sdtype": "Decimal",
+        "role": "Amount",
+        "samples": [
+          "0.045",
+          "1.20"
+        ],
+        "targetId": "weight",
+        "conf": 90,
+        "status": "Suggested",
+        "validation": "Compatible",
+        "evidence": [
+          "name",
+          "samples",
+          "datatype"
+        ],
+        "handoff": "Ready"
+      },
+      {
+        "id": "f12",
+        "name": "Created Date",
+        "sdtype": "Integer \u00b7 YYYYMMDD",
+        "role": "Date",
+        "samples": [
+          "20260710",
+          "20251203"
+        ],
+        "targetId": "create_date",
+        "conf": 72,
+        "status": "Blocked",
+        "validation": "Blocked",
+        "evidence": [
+          "name",
+          "samples"
+        ],
+        "handoff": null,
+        "why": "The integer YYYYMMDD parses to a creation timestamp, but create_date in Odoo is system-managed and not writable on import. The target is unavailable \u2014 route this to a custom writable field or drop it before continuing."
+      },
+      {
+        "id": "f13",
+        "name": "Tax Code",
+        "sdtype": "Char",
+        "role": "Category",
+        "samples": [
+          "GST18",
+          "GST12",
+          "EXEMPT"
+        ],
+        "targetId": "taxes_id",
+        "conf": 68,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "name",
+          "samples"
+        ],
+        "handoff": "Value mapping required",
+        "why": "Tax codes resemble Customer Taxes references, but confidence is low and the codes must be crosswalked to Odoo tax records on Page 4."
+      },
+      {
+        "id": "f14",
+        "name": "Legacy Code",
+        "sdtype": "Char",
+        "role": "Identifier",
+        "samples": [
+          "LGC-0091",
+          "LGC-1188"
+        ],
+        "targetId": "",
+        "altId": "default_code",
+        "altScore": 52,
+        "conf": null,
+        "status": "Unmapped",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ],
+        "handoff": null,
+        "why": "A legacy identifier with no strong target. It could map to Internal Reference (default_code) at low confidence, or be excluded if it is not needed in Odoo."
+      },
+      {
+        "id": "f15",
+        "name": "Unknown Flag",
+        "sdtype": "Integer",
+        "role": "Boolean",
+        "samples": [
+          "0",
+          "1"
+        ],
+        "targetId": "",
+        "altId": "",
+        "altScore": 44,
+        "conf": null,
+        "status": "Unmapped",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ],
+        "handoff": null,
+        "why": "No confident target. The boolean has no clear business meaning from the header alone \u2014 assign a target, add a default, or exclude it."
+      },
+      {
+        "id": "f16",
+        "name": "Internal Notes",
+        "sdtype": "Text",
+        "role": "Description",
+        "samples": [
+          "ck ok",
+          "recheck qty"
+        ],
+        "targetId": "",
+        "conf": null,
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "rule"
+        ],
+        "handoff": null,
+        "scope": "This file",
+        "why": "Excluded on this file by a user rule \u2014 internal free-text notes are not migrated to Odoo."
+      },
+      {
+        "id": "f17",
+        "name": "List Price INR",
+        "sdtype": "Decimal",
+        "role": "Amount",
+        "samples": [
+          "1050.00",
+          "349.00",
+          "7420.00"
+        ],
+        "targetId": "list_price",
+        "conf": 86,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "name",
+          "samples",
+          "datatype"
+        ],
+        "handoff": "Format conversion required",
+        "why": "Currency-denominated selling price; maps to Sales Price but needs currency/decimal normalization on Page 4."
+      },
+      {
+        "id": "f18",
+        "name": "Standard Cost",
+        "sdtype": "Decimal",
+        "role": "Amount",
+        "samples": [
+          "8.10",
+          "2.90",
+          "61.00"
+        ],
+        "targetId": "standard_price",
+        "conf": 92,
+        "status": "Suggested",
+        "validation": "Compatible",
+        "evidence": [
+          "name",
+          "datatype",
+          "prior"
+        ],
+        "handoff": "Ready",
+        "why": "Numeric unit cost aligns with the Odoo Cost field."
+      },
+      {
+        "id": "f19",
+        "name": "Product Family",
+        "sdtype": "Char",
+        "role": "Category",
+        "samples": [
+          "Fasteners",
+          "Seals",
+          "Tools"
+        ],
+        "targetId": "categ_id",
+        "conf": 90,
+        "status": "Suggested",
+        "validation": "Compatible",
+        "evidence": [
+          "name",
+          "meaning"
+        ],
+        "handoff": "Value mapping required",
+        "why": "Groups products into families that map to Odoo Product Category; family names need a value crosswalk on Page 4."
+      },
+      {
+        "id": "f20",
+        "name": "Brand",
+        "sdtype": "Char",
+        "role": "Category",
+        "samples": [
+          "Bosch",
+          "3M",
+          "Hilti"
+        ],
+        "targetId": "categ_id",
+        "conf": 76,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "samples",
+          "meaning"
+        ],
+        "handoff": "Value mapping required",
+        "why": "Brand can seed a product category but overlaps with Product Family \u2014 confirm the intended category source."
+      },
+      {
+        "id": "f21",
+        "name": "Long Description",
+        "sdtype": "Text",
+        "role": "Description",
+        "samples": [
+          "High-tensile zinc-plated fastener"
+        ],
+        "targetId": "description_purchase",
+        "conf": 84,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "name",
+          "datatype"
+        ],
+        "handoff": "Ready",
+        "why": "Free-text description close to Purchase Description; confirm sales vs. purchase description target."
+      },
+      {
+        "id": "f22",
+        "name": "Net Weight",
+        "sdtype": "Decimal",
+        "role": "Amount",
+        "samples": [
+          "0.044",
+          "1.18"
+        ],
+        "targetId": "weight",
+        "conf": 93,
+        "status": "Suggested",
+        "validation": "Compatible",
+        "evidence": [
+          "name",
+          "samples",
+          "datatype"
+        ],
+        "handoff": "Ready",
+        "why": "Numeric mass maps directly to the Odoo Weight field."
+      },
+      {
+        "id": "f23",
+        "name": "Gross Weight",
+        "sdtype": "Decimal",
+        "role": "Amount",
+        "samples": [
+          "0.052",
+          "1.34"
+        ],
+        "targetId": "weight",
+        "conf": 88,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "name",
+          "samples"
+        ],
+        "handoff": "Ready",
+        "why": "Also a mass value; conflicts with Net Weight for the single Weight target \u2014 pick one."
+      },
+      {
+        "id": "f24",
+        "name": "Sales UOM",
+        "sdtype": "Char",
+        "role": "Reference",
+        "samples": [
+          "EA",
+          "BOX"
+        ],
+        "targetId": "uom_id",
+        "conf": 81,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "name",
+          "samples"
+        ],
+        "handoff": "Value mapping required",
+        "why": "Sales unit of measure; codes need crosswalk to Odoo units on Page 4."
+      },
+      {
+        "id": "f25",
+        "name": "Purchase UOM",
+        "sdtype": "Char",
+        "role": "Reference",
+        "samples": [
+          "CTN",
+          "PLT"
+        ],
+        "targetId": "uom_id",
+        "conf": 80,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "name",
+          "samples"
+        ],
+        "handoff": "Value mapping required",
+        "why": "Purchase unit of measure; overlaps with Sales UOM on the single UoM target."
+      },
+      {
+        "id": "f26",
+        "name": "Vendor Name",
+        "sdtype": "Char",
+        "role": "Reference",
+        "samples": [
+          "Acme Traders",
+          "Delta Supply"
+        ],
+        "targetId": "company_id",
+        "conf": 72,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "samples",
+          "meaning"
+        ],
+        "handoff": "Reference crosswalk required",
+        "why": "Vendor references need matching to existing records on Page 4."
+      },
+      {
+        "id": "f27",
+        "name": "Product Status",
+        "sdtype": "Char",
+        "role": "Category",
+        "samples": [
+          "Active",
+          "Phased Out"
+        ],
+        "targetId": "type",
+        "conf": 69,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "samples"
+        ],
+        "handoff": "Value mapping required",
+        "why": "Low-confidence match to Product Type; likely a lifecycle flag needing its own target."
+      },
+      {
+        "id": "f28",
+        "name": "Is Active",
+        "sdtype": "Integer",
+        "role": "Boolean",
+        "samples": [
+          "0",
+          "1"
+        ],
+        "targetId": "",
+        "altId": "",
+        "altScore": 40,
+        "conf": null,
+        "status": "Unmapped",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ],
+        "handoff": null,
+        "why": "Boolean active flag with no confident target \u2014 add a default or exclude."
+      },
+      {
+        "id": "f29",
+        "name": "Modified Date",
+        "sdtype": "Integer \u00b7 YYYYMMDD",
+        "role": "Date",
+        "samples": [
+          "20260715",
+          "20251130"
+        ],
+        "targetId": "create_date",
+        "conf": 70,
+        "status": "Blocked",
+        "validation": "Blocked",
+        "evidence": [
+          "name",
+          "samples"
+        ],
+        "handoff": null,
+        "why": "write_date is system-managed and not writable on import \u2014 target unavailable."
+      },
+      {
+        "id": "f30",
+        "name": "EAN",
+        "sdtype": "Char",
+        "role": "Identifier",
+        "samples": [
+          "4006381333931"
+        ],
+        "targetId": "barcode",
+        "conf": 96,
+        "status": "Suggested",
+        "validation": "Compatible",
+        "evidence": [
+          "name",
+          "samples",
+          "datatype"
+        ],
+        "handoff": "Ready",
+        "why": "EAN barcodes map directly to the Odoo Barcode field."
+      },
+      {
+        "id": "f31",
+        "name": "MPN",
+        "sdtype": "Char",
+        "role": "Identifier",
+        "samples": [
+          "MPN-88213",
+          "MPN-90114"
+        ],
+        "targetId": "default_code",
+        "conf": 78,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "name",
+          "samples"
+        ],
+        "handoff": "Ready",
+        "why": "Manufacturer part number could serve as Internal Reference; conflicts with SKU on default_code."
+      },
+      {
+        "id": "f32",
+        "name": "Category Code",
+        "sdtype": "Char",
+        "role": "Category",
+        "samples": [
+          "CAT-01",
+          "CAT-07"
+        ],
+        "targetId": "categ_id",
+        "conf": 87,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "name",
+          "samples"
+        ],
+        "handoff": "Value mapping required",
+        "why": "Coded category values need crosswalk to Odoo category records on Page 4."
+      },
+      {
+        "id": "f33",
+        "name": "Tax Class",
+        "sdtype": "Char",
+        "role": "Category",
+        "samples": [
+          "STD",
+          "ZERO"
+        ],
+        "targetId": "taxes_id",
+        "conf": 71,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "name",
+          "samples"
+        ],
+        "handoff": "Value mapping required",
+        "why": "Tax classes map to Customer Taxes after crosswalking to Odoo tax records."
+      },
+      {
+        "id": "f34",
+        "name": "Comments",
+        "sdtype": "Text",
+        "role": "Description",
+        "samples": [
+          "legacy import",
+          "verify"
+        ],
+        "targetId": "",
+        "conf": null,
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "rule"
+        ],
+        "handoff": null,
+        "scope": "This file",
+        "why": "Excluded by user rule \u2014 free-text comments are not migrated."
+      },
+      {
+        "id": "f35",
+        "name": "Warehouse",
+        "sdtype": "Char",
+        "role": "Reference",
+        "samples": [
+          "WH-MUM",
+          "WH-LON"
+        ],
+        "targetId": "company_id",
+        "conf": 66,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "samples"
+        ],
+        "handoff": "Reference crosswalk required",
+        "why": "Warehouse codes loosely map to Company; confirm and crosswalk on Page 4."
+      },
+      {
+        "id": "f36",
+        "name": "Currency",
+        "sdtype": "Char",
+        "role": "Reference",
+        "samples": [
+          "INR",
+          "GBP",
+          "USD"
+        ],
+        "targetId": "",
+        "altId": "",
+        "altScore": 38,
+        "conf": null,
+        "status": "Unmapped",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ],
+        "handoff": null,
+        "why": "Currency has no direct product-master target \u2014 handled by pricelists, not a field mapping."
+      }
+    ],
+    "missingTargets": [
+      {
+        "id": "m1",
+        "name": "\u2014",
+        "sdtype": "\u2014",
+        "role": "Required target",
+        "samples": [],
+        "targetId": "categ_id",
+        "conf": null,
+        "status": "Missing target",
+        "validation": "\u2014",
+        "evidence": [
+          "required"
+        ],
+        "handoff": null,
+        "why": "Product Category (categ_id) is required by Odoo but no source field maps to it. Map a source field or set a project-wide default value on Page 4."
+      },
+      {
+        "id": "m2",
+        "name": "\u2014",
+        "sdtype": "\u2014",
+        "role": "Required target",
+        "samples": [],
+        "targetId": "invoice_policy",
+        "conf": null,
+        "status": "Missing target",
+        "validation": "\u2014",
+        "evidence": [
+          "required"
+        ],
+        "handoff": null,
+        "why": "Invoicing Policy (invoice_policy) is required for storable products. No source field supplies it \u2014 a default population method is required."
+      }
+    ],
+    "cards": [
+      {
+        "id": "high",
+        "label": "High confidence",
+        "impact": "clean",
+        "statuses": [
+          "Suggested"
+        ]
+      },
+      {
+        "id": "review",
+        "label": "Needs review",
+        "impact": "review",
+        "statuses": [
+          "Review required"
+        ]
+      },
+      {
+        "id": "none",
+        "label": "No safe target",
+        "impact": "blocker",
+        "statuses": [
+          "Blocked",
+          "Unmapped"
+        ]
+      },
+      {
+        "id": "missing",
+        "label": "Missing required targets",
+        "impact": "blocker",
+        "statuses": [
+          "Missing target"
+        ]
+      },
+      {
+        "id": "excluded",
+        "label": "Excluded",
+        "impact": "na",
+        "statuses": [
+          "Excluded"
+        ]
+      }
+    ],
+    "autoAcceptAt": 95,
+    "pageSize": 15,
+    "readiness": {
+      "headline": "Mapping readiness: Needs attention",
+      "tone": "warn",
+      "narrative": "Most source fields map cleanly to Odoo product fields on name, datatype and previously approved mappings. The exceptions cluster in two places: GL account references, whose labels do not match Odoo account records and need a crosswalk, and two required Odoo targets that no source field supplies at all. Nothing is written until each proposal is accepted.",
+      "recommendedOrder": [
+        {
+          "label": "Confirm the identifier mapping",
+          "target": "f2"
+        },
+        {
+          "label": "Crosswalk GL account references",
+          "target": "f6"
+        },
+        {
+          "label": "Supply the missing required targets",
+          "target": "m1"
+        }
+      ],
+      "evidence": []
+    }
+  }
+}

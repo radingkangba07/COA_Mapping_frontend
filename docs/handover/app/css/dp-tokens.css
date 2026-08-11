@@ -1,0 +1,67 @@
+/* ============================================================================
+   dp-tokens.css  ·  DataPortation design tokens
+   ----------------------------------------------------------------------------
+   Single source of truth for colour. Lifted verbatim from
+   "Source Data Profile (AI-heavy) - standalone.html" (the standard page).
+
+   IMPORTANT — why the light tokens are ALSO inlined on the .dp-wizard element
+   in dp-shell.partial.html:
+     The standard page carries its light tokens inline so the page renders
+     correctly even if this stylesheet fails to load ("standalone"). Keep both
+     in sync. build/assemble.py regenerates the inline copy from THIS file, so
+     edit here only — never edit the inline copy by hand.
+
+   Do not add a colour anywhere else in the kit. If you need a new colour,
+   add a token here first.
+   ========================================================================= */
+
+/* SCOPED, not global. These four rules used to be bare `*`, `body` and `a`,
+   which changed the PARENT app's box model, layout and link colour the moment
+   this stylesheet was imported. Everything now lives inside .dp-wizard. */
+.dp-wizard, .dp-wizard *{box-sizing:border-box;}
+.dp-wizard a{color:var(--accent);text-decoration:none;}
+.dp-wizard a:hover{color:var(--primary);}
+
+/* --- Light (default) ----------------------------------------------------- */
+.dp-wizard{
+  --bg:#FFFFFF;
+  --fg:#09090B;
+  --surface:#F4F4F5;
+  --surface-hi:#FAFAFA;
+  --border:#E4E4E7;
+  --muted:#71717A;
+  --card:#FFFFFF;
+  --primary:#003399;
+  --primary-fg:#FFFFFF;
+  --accent:#2563EB;
+  --chip:#DBEAFE;
+  --chip-fg:#1D4ED8;
+  --success:#15803D;
+  --warning:#B45309;
+  --error:#D72222;
+}
+
+/* --- Dark ---------------------------------------------------------------- */
+.dp-wizard[data-theme="dark"]{
+  --bg:#1E1E1E;
+  --fg:#D4D4D4;
+  --surface:#252526;
+  --surface-hi:#2D2D2D;
+  --border:#3E3E42;
+  --muted:#858585;
+  --card:#252526;
+  --primary:#4D7FCC;
+  --accent:#007ACC;
+  --chip:#1E3A5F;
+  --chip-fg:#93C5FD;
+  --success:#22C55E;
+  --warning:#CCA700;
+  --error:#F44747;
+}
+
+/* --- Density ------------------------------------------------------------- */
+.dp-wizard[data-density="compact"] td{padding-top:7px !important;padding-bottom:7px !important;}
+
+/* --- Scrollbars ---------------------------------------------------------- */
+.dp-wizard ::-webkit-scrollbar{width:10px;height:10px;}
+.dp-wizard ::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px;}

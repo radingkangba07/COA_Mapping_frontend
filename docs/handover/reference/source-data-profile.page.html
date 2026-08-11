@@ -1,0 +1,619 @@
+<!-- ============================================================================
+     source-data-profile.page.html  ·  Step 2 of 8
+     ----------------------------------------------------------------------------
+     THE PAGE-SPECIFIC PART ONLY. The shell, step rail, Copilot, tokens and
+     semantic CSS all arrive from the kit — this file must never contain them.
+
+     Build:
+       python3 build/assemble.py --page source-data-profile --entity items
+       python3 build/assemble.py --page source-data-profile --entity customers
+
+     Both commands produce a working page from this one file. That is the test
+     of whether the abstraction holds.
+     ========================================================================= -->
+
+<!-- @block pageHeader -->
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:28px;flex-wrap:wrap;margin-top:14px;margin-bottom:18px;">
+            <div style="min-width:0;">
+              <div style="display:flex;align-items:baseline;gap:10px;">
+                <div style="font-family:Chivo,sans-serif;font-size:18px;font-weight:700;letter-spacing:-.3px;">{{ pageTitle }}</div>
+                <div style="font-size:12.5px;color:var(--muted);">{{ stepCounter }}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:8px;color:var(--muted);">
+                <svg width="15" height="15" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v5h6"></path></svg>
+                <span style="font-size:12.5px;">{{ fileLine }}</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <button style="display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);background:var(--card);color:var(--fg);border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:500;cursor:pointer;font-family:Inter,sans-serif;" style-hover="background:var(--surface);"><svg width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg>Back</button>
+              <button sc-camel-on-click="{{ onConfirm }}" style="display:inline-flex;align-items:center;gap:8px;background:var(--primary);color:var(--primary-fg);border:none;border-radius:8px;padding:8px 15px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;box-shadow:0 1px 2px rgba(0,0,0,.12);" style-hover="filter:brightness(1.1);">Confirm profile &amp; generate mappings<svg width="15" height="15" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></button>
+            </div>
+          </div>
+<!-- @block pageBody -->
+
+          <!-- @include dp-readiness -->
+
+          <!-- @include dp-metricbar -->
+
+          <!-- @include dp-filterchips -->
+
+          <!-- @include dp-datatable -->
+
+<!-- @block overlays -->
+
+  <!-- @include dp-overlays -->
+  <!-- @include dp-approval -->
+  <!-- @include dp-drawer -->
+
+<!-- @script -->
+class Component extends DPBase {
+
+  entity = ENTITY;
+  stepId = 'profile';
+
+  state = {
+    theme: this.props.theme ?? 'light',
+    fields: ENTITY.fields.map((f) => ({ ...f, confirmed:false, ignored:false, transformed:null })),
+    metric: null,
+    filters: [],
+    filterIds: [],
+    highlightIds: [],
+    selectedIds: [],
+    openMenuId: null,
+    messages: [],
+    fixStatus: {},
+    feedback: {},
+    correctionFor: null,
+    evidenceId: null,
+    drawerTab: 'overview',
+    compareOpen: false,
+    decisions: [],
+    pendingApproval: null,
+    draft: '',
+    copilotOpen: true,
+    sidebarOpen: true,
+    categoryFilter: 'all',
+    page: 0,
+    coverageOpen: false,
+    assessEvidenceOpen: false,
+    assessOpen: false,
+    railExpanded: false,
+    sortKey: null,
+    sortDir: 'asc',
+    toast: null,
+    msgSeq: 0,
+    decSeq: 0,
+  };
+
+  componentDidMount() {
+    const f = this.state.fields;
+    if (!Array.isArray(f) || f.length !== ENTITY.fields.length || f[0].nullCount === undefined) {
+      this.setState({ fields: ENTITY.fields.map((x) => ({ ...x, confirmed:false, ignored:false, transformed:null })), decisions:[], fixStatus:{}, evidenceId:null });
+    }
+  }
+
+  flash = (msg) => { this.setState({ toast: msg }); clearTimeout(this._t); this._t = setTimeout(() => this.setState({ toast: null }), 2800); };
+
+  toggleCoverage = () => this.setState((s) => ({ coverageOpen: !s.coverageOpen }));
+  toggleAssessEvidence = () => this.setState((s) => ({ assessEvidenceOpen: !s.assessEvidenceOpen }));
+  toggleAssess = () => this.setState((s) => ({ assessOpen: !s.assessOpen }));
+  setSort = (key) => this.setState((s) => {
+    if (s.sortKey !== key) return { sortKey: key, sortDir: 'asc', page: 0 };
+    if (s.sortDir === 'asc') return { sortKey: key, sortDir: 'desc', page: 0 };
+    return { sortKey: null, sortDir: 'asc', page: 0 };
+  });
+  toggleMenu = (id) => this.setState((s) => ({ openMenuId: s.openMenuId === id ? null : id }));
+  closeMenus = () => this.setState({ openMenuId: null });
+
+  setCategory = (id) => this.setState((s) => ({ categoryFilter: (id === 'all' || s.categoryFilter === id) ? 'all' : id, page: 0 }));
+  clearCategory = () => this.setState({ categoryFilter: 'all', page: 0 });
+  setPage = (p) => this.setState({ page: p });
+
+  clickMetric = (id) => this.setState((s) => {
+    if (s.metric === id) return { metric:null, filterIds:[], highlightIds:[], filters:[] };
+    const spec = (ENTITY.metrics || []).find((m) => m.id === id) || {};
+    const map = { [id]: spec.kind === 'reviewCount'
+      ? s.fields.filter((f) => !f.ignored && !f.transformed && NEEDS_REVIEW.includes(f.impact)).map((f) => f.id)
+      : (spec.highlight || []) };
+    const labels = { [id]: spec.label };
+    const ids = map[id] || [];
+    return { metric:id, filterIds:ids, highlightIds:ids, filters: id==='records' ? [] : [{ id:'metric-'+id, label:labels[id] }] };
+  });
+
+  removeFilter = () => this.setState({ filters:[], filterIds:[], highlightIds:[], metric:null });
+  clearVisual = () => this.setState({ filters:[], filterIds:[], highlightIds:[], metric:null });
+  clearSelection = () => this.setState({ selectedIds:[] });
+
+  toggleSelect = (id) => this.setState((s) => {
+    if (s.selectedIds.includes(id)) return { selectedIds: s.selectedIds.filter((x)=>x!==id) };
+    if (s.selectedIds.length >= 2) return { selectedIds: [s.selectedIds[1], id] };
+    return { selectedIds: [...s.selectedIds, id] };
+  });
+  openCompareSelected = () => this.setState({ compareOpen:true });
+  closeCompare = () => this.setState({ compareOpen:false });
+
+  openDrawer = (id, tab) => this.setState((s) => ({ evidenceId:id, drawerTab: tab || s.drawerTab || 'overview', openMenuId:null }));
+  setDrawerTab = (t) => this.setState({ drawerTab:t });
+  drawerNav = (id) => this.setState({ evidenceId:id });
+  closeEvidence = () => this.setState({ evidenceId:null });
+
+  recAction = (n) => {
+    if (n === 1) { this.setState({ categoryFilter:'identifiers', page:0, selectedIds:['sku','subsidiary'], highlightIds:['sku','subsidiary'], evidenceId:'sku', drawerTab:'issues', coverageOpen:false }); }
+    else if (n === 2) { this.setState({ categoryFilter:'invalid', page:0, highlightIds:['uom'], evidenceId:'uom', drawerTab:'distribution', coverageOpen:false }); }
+    else if (n === 3) { this.setState({ categoryFilter:'missing', page:0, highlightIds:['ptype'], evidenceId:'ptype', drawerTab:'issues', coverageOpen:false }); }
+  };
+
+  onDrawerAction = (actId, fid) => {
+    const f = this.state.fields.find((x)=>x.id===fid) || {};
+    if (actId === 'confirmId') return this.openApproval({ kind:'confirm', fieldId:fid });
+    if (actId === 'ignore') return this.openApproval({ kind:'ignore', fieldId:fid });
+    if (actId === 'composite') return this.flash('Testing SKU + Subsidiary composite identifier…');
+    if (actId === 'reviewDup') return this.flash('Loading '+ (f.duplicates ? f.duplicates.groups : '') +' duplicate groups…');
+    if (actId === 'previewInfer') return this.flash('Previewing inferred values for '+f.name+'…');
+    if (actId === 'previewNorm') return this.flash('Previewing normalization for '+f.name+'…');
+    if (actId === 'valueMapping') return this.flash('Opening Value Mapping with '+f.name+' preselected…');
+    if (actId === 'fieldMapping') return this.flash('Opening Field Mapping with '+f.name+' preselected…');
+    return this.flash('Loading affected records for '+f.name+'…');
+  };
+
+  openApproval = (pa) => this.setState({ pendingApproval:{ ...pa, previewOpen:false }, openMenuId:null });
+  onPreviewApproval = () => this.setState((s) => ({ pendingApproval:{ ...s.pendingApproval, previewOpen: !s.pendingApproval.previewOpen } }));
+  onCancelApproval = () => this.setState({ pendingApproval:null });
+  onReviewApproval = () => { this.setState({ pendingApproval:null }); this.flash('Opening row-by-row review…'); };
+  onApplyApproval = () => {
+    this.setState((s) => {
+      const pa = s.pendingApproval; if (!pa) return {};
+      const idx = s.fields.findIndex((f)=>f.id===pa.fieldId);
+      const prev = { ...s.fields[idx] };
+      const did = 'd'+(s.decSeq+1);
+      let fields = s.fields, decisions = s.decisions, fixStatus = s.fixStatus;
+      if (pa.kind === 'fix') {
+        const fx = (ENTITY.copilotFixes || {})[pa.fixId];
+        fields = s.fields.map((f)=> f.id===fx.field ? { ...f, findings:[], transformed:true, impact:'resolved' } : f);
+        fixStatus = { ...fixStatus, [pa.fixId]:'applied' };
+        decisions = [...decisions, { id:did, label:fx.action, fieldId:fx.field, prev, fixId:pa.fixId }];
+      } else if (pa.kind === 'confirm') {
+        fields = s.fields.map((f)=> f.id===pa.fieldId ? { ...f, confirmed:true } : f);
+        decisions = [...decisions, { id:did, label:'Confirmed '+prev.name+' as identifier', fieldId:pa.fieldId, prev }];
+      } else if (pa.kind === 'ignore') {
+        fields = s.fields.map((f)=> f.id===pa.fieldId ? { ...f, ignored:true } : f);
+        decisions = [...decisions, { id:did, label:'Ignored '+prev.name, fieldId:pa.fieldId, prev }];
+      }
+      return { fields, decisions, fixStatus, decSeq:s.decSeq+1, pendingApproval:null };
+    });
+    this.flash('Change applied — logged as a migration decision');
+  };
+
+  undoDecision = (did) => {
+    this.setState((s) => {
+      const d = s.decisions.find((x)=>x.id===did); if (!d) return {};
+      const fields = s.fields.map((f)=> f.id===d.fieldId ? { ...d.prev } : f);
+      const fixStatus = { ...s.fixStatus }; if (d.fixId) delete fixStatus[d.fixId];
+      return { fields, fixStatus, decisions: s.decisions.filter((x)=>x.id!==did) };
+    });
+    this.flash('Change reverted');
+  };
+  undoByFix = (fixId) => { const d = this.state.decisions.find((x)=>x.fixId===fixId); if (d) this.undoDecision(d.id); };
+
+  setFeedback = (mid, k) => this.setState((s) => ({ feedback:{ ...s.feedback, [mid]: s.feedback[mid]===k ? '' : k } }));
+  startCorrect = (mid) => this.setState({ correctionFor:mid });
+  cancelCorrect = () => this.setState({ correctionFor:null });
+  saveCorrect = () => { this.setState({ correctionFor:null }); this.flash('Correction sent to the model as feedback'); };
+
+  onDraft = (e) => this.setState({ draft: e.target.value });
+  onDraftKey = (e) => { if (e.key === 'Enter') this.sendInput(); };
+  sendInput = () => {
+    const t = (this.state.draft || '').trim(); if (!t) return;
+    this.setState((s) => ({
+      draft:'',
+      msgSeq: s.msgSeq+2,
+      messages: [...s.messages,
+        { id:'m'+(s.msgSeq+1), role:'user', text:t },
+        { id:'m'+(s.msgSeq+2), role:'assistant', text:'I can filter the table, explain any inferred role, compare two fields, or propose fixes — try a suggested question. Every visual action is reversible, and anything that changes your migration config asks for approval first.' },
+      ],
+    }));
+  };
+
+  runPrompt = (qid) => {
+    const p = ENTITY.copilotPrompts.find((x)=>x.id===qid);
+    this.setState((s) => {
+      const uid = 'm'+(s.msgSeq+1), aid = 'm'+(s.msgSeq+2);
+      const patch = { msgSeq: s.msgSeq+2, page: 0, messages: [...s.messages, { id:uid, role:'user', text:p.text }, { id:aid, role:'assistant', qid }] };
+      if (qid === 'idprob') { patch.categoryFilter='identifiers'; patch.filters=[{ id:'q-idprob', label:'Identifier problems' }]; patch.filterIds=['sku','barcode']; patch.highlightIds=['sku','barcode']; patch.metric=null; }
+      else if (qid === 'whysku') { patch.evidenceId='sku'; patch.drawerTab='issues'; patch.highlightIds=['sku']; }
+      else if (qid === 'ignore') { patch.highlightIds=['legacy']; patch.categoryFilter='nearEmpty'; }
+      else if (qid === 'compare') { patch.selectedIds=['cat','ptype']; patch.compareOpen=true; patch.highlightIds=['cat','ptype']; }
+      else if (qid === 'autofix') { patch.highlightIds=['uom','date','ptype','sku']; }
+      return patch;
+    });
+    if (qid === 'ignore') this.openApproval({ kind:'ignore', fieldId:'legacy' });
+  };
+
+  confirmProfile = () => this.flash('Profile confirmed — generating candidate mappings…');
+  restoreField = (id) => this.setState((s)=>({ openMenuId:null, fields: s.fields.map((f)=> f.id===id ? { ...f, ignored:false } : f) }));
+
+  cmpView(f) {
+    if (!f) return { name:'', role:'', samples:'', nulls:'', cardinality:'', sem:'' };
+    return {
+      name:f.name, role:f.role,
+      samples:(f.sample||[]).join(', ') || '—',
+      nulls: pctStr(f.nullCount / ENTITY.source.rowCount * 100),
+      cardinality:(f.compare && f.compare.cardinality) || String(f.distinct),
+      sem:(f.compare && f.compare.sem) || f.role,
+    };
+  }
+
+  matchesCategory(f, cat) {
+    if (cat === 'all') return true;
+    if (cat === 'blockers') return f.impact === 'blocker';
+    return (f.categories || []).includes(cat);
+  }
+
+  buildDrawer(f, tab) {
+    const nullPct = f.nullCount / ENTITY.source.rowCount * 100;
+    const populated = ENTITY.source.rowCount - f.nullCount;
+    const status = f.confirmed ? 'Confirmed' : (f.ignored ? 'Ignored' : (f.role === 'Identifier candidate' ? 'Needs confirmation' : 'Inferred'));
+    const overview = [
+      { label:'Total rows', value:fmt(ENTITY.source.rowCount) },
+      { label:'Populated rows', value:fmt(populated) },
+      { label:'Null count', value:fmt(f.nullCount) },
+      { label:'Null percentage', value:pctStr(nullPct), tone: nullPct >= 5 ? 'warn' : '' },
+      { label:'Distinct values', value:fmt(f.distinct), tip:'Number of different values observed.' },
+      { label:'Uniqueness', value:pctStr(f.uniqueness), tip:'Share of rows whose value occurs only once.' },
+      { label:'Cardinality', value:f.cardinality, tip:'Relative number of distinct values: Low, Medium or High.' },
+      { label:'Inferred datatype', value:f.datatype },
+      { label:'Inferred role', value:f.role },
+      { label:'Confidence', value:f.confidence + '%' },
+      { label:'Migration severity', value:IMPACT_LABEL[f.impact] || f.impact, tone: f.impact==='blocker'?'blocker':(NEEDS_REVIEW.includes(f.impact)?'warn':'') },
+    ];
+
+    // Distribution
+    let bars = [], distTitle = f.distTitle || 'Distribution';
+    if (f.dist) bars = f.dist;
+    else if (f.patterns) { bars = f.patterns; distTitle = 'Pattern distribution'; }
+    bars = bars.map((b) => ({ label:b.label, pct:b.pct, pctLabel: b.pct + '%' }));
+
+    let distStats = [];
+    if (f.range) {
+      const isText = false;
+      distStats = [
+        { label:'Minimum', value:f.range.min }, { label:'Maximum', value:f.range.max },
+        { label:'Median', value:f.range.median }, { label:'95th percentile', value:f.range.p95 },
+        { label:'Outlier count', value:String(f.range.outliers), tone: f.range.outliers>0?'warn':'' },
+        { label:'Outlier method', value:f.range.method },
+      ];
+      if (f.range.examples) distStats.push({ label:'Example outliers', value:f.range.examples });
+    } else if (f.dateProfile) {
+      distStats = [
+        { label:'Earliest value', value:f.dateProfile.earliest }, { label:'Latest value', value:f.dateProfile.latest },
+        { label:'Invalid dates', value:String(f.dateProfile.invalid), tone: f.dateProfile.invalid>0?'warn':'' },
+        { label:'Future-dated rows', value:String(f.dateProfile.future), tone: f.dateProfile.future>0?'warn':'' },
+      ];
+    } else if (f.text) {
+      distStats = [
+        { label:'Minimum length', value:String(f.text.minLen) }, { label:'Maximum length', value:String(f.text.maxLen) },
+        { label:'Average length', value:String(f.text.avgLen) },
+      ];
+      if (f.patternAnomalies) distStats.push({ label:'Pattern anomalies', value:String(f.patternAnomalies), tone:'warn' });
+    } else if (f.nearEmpty) {
+      distStats = [
+        { label:'Populated rows', value:fmt(f.nearEmpty.populated) }, { label:'Populated %', value:pctStr(f.nearEmpty.populatedPct), tone:'warn' },
+        { label:'Null rows', value:fmt(ENTITY.source.rowCount - f.nearEmpty.populated) }, { label:'Required by target', value:f.nearEmpty.requiredByTarget },
+        { label:'Safe to exclude', value:f.nearEmpty.safeToExclude || '—' }, { label:'Recommendation', value:f.nearEmpty.recommendation },
+      ];
+    }
+    if (f.enumeration) {
+      const e = f.enumeration;
+      const enStats = [
+        { label:'Enumeration candidate', value:e.candidate },
+        { label:'Distinct values', value:fmt(f.distinct) },
+        { label:'Valid reference values', value:String(e.validRef) },
+        { label:'Invalid source values', value:String(e.invalidSrc), tone: e.invalidSrc>0?'warn':'' },
+      ];
+      if (e.affectedRows != null) enStats.push({ label:'Affected rows', value:fmt(e.affectedRows), tone: e.affectedRows>0?'warn':'' });
+      if (e.aliasRows != null) enStats.push({ label:'Recognized alias rows', value:fmt(e.aliasRows), tone:'' });
+      if (e.unresolved != null) enStats.push({ label:'Unresolved rows', value:fmt(e.unresolved), tone: e.unresolved>0?'warn':'' });
+      if (e.categoryAvailable != null) enStats.push({ label:'Category available (missing rows)', value:fmt(e.categoryAvailable) });
+      if (e.highConf != null) enStats.push({ label:'High-confidence inference', value:fmt(e.highConf) });
+      if (e.ambiguous != null) enStats.push({ label:'Ambiguous rows', value:fmt(e.ambiguous), tone:'warn' });
+      if (e.insufficient != null) enStats.push({ label:'Insufficient-evidence rows', value:fmt(e.insufficient), tone:'warn' });
+      if (e.refIntegrity) enStats.push({ label:'Reference integrity', value:e.refIntegrity, tone: e.refIntegrity==='Failed'?'blocker':(e.refIntegrity==='Partial'?'warn':'') });
+      distStats = distStats.concat(enStats);
+    }
+
+    // Issues & evidence signals
+    let issueSignals = [];
+    if (f.duplicates) {
+      issueSignals = issueSignals.concat([
+        { label:'Duplicate rows', value:fmt(f.duplicates.rows) },
+        { label:'Duplicate groups', value:fmt(f.duplicates.groups) },
+      ]);
+      if (f.duplicates.crossSub) issueSignals.push({ label:'Cross-subsidiary groups', value:fmt(f.duplicates.crossSub) });
+      if (f.duplicates.composite && f.duplicates.composite !== '—') issueSignals.push({ label:'Composite uniqueness (SKU + Subsidiary)', value:f.duplicates.composite });
+    }
+    if (f.patternAnomalies) issueSignals.push({ label:'Pattern anomalies', value:fmt(f.patternAnomalies) });
+    if (f.text) issueSignals.push({ label:'Length (min / max / avg)', value:f.text.minLen+' / '+f.text.maxLen+' / '+f.text.avgLen });
+
+    const migNote = f.compare && f.compare.overlap ? ('Semantic overlap: '+f.compare.overlap+'. Likely a hierarchy rather than independent attributes.') : '';
+
+    const actions = (f.actions || []).map((a) => ({
+      label:a.label, primary: !!a.primary,
+      isLink: ['valueMapping','fieldMapping'].includes(a.id),
+      onClick: () => this.onDrawerAction(a.id, f.id),
+    }));
+
+    const idx = this.state.fields.findIndex((x)=>x.id===f.id);
+    const fieldsArr = this.state.fields;
+    const prevId = fieldsArr[(idx - 1 + fieldsArr.length) % fieldsArr.length].id;
+    const nextId = fieldsArr[(idx + 1) % fieldsArr.length].id;
+
+    return {
+      name:f.name, semantic:f.semantic, role:f.role, roleTip:f.roleTip, confidence:f.confidence+'%',
+      impact:f.confirmed && f.role==='Identifier candidate' ? 'clean' : (f.transformed ? 'resolved' : f.impact),
+      impactLabel: f.transformed ? 'Resolved' : (IMPACT_LABEL[f.impact] || f.impact),
+      impactReason:f.impactReason, status,
+      tabs: DRAWER_TABS.map((t)=>({ label:t.label, active: tab===t.id, onClick: () => this.setDrawerTab(t.id) })),
+      isOverview: tab==='overview', isDistribution: tab==='distribution', isIssues: tab==='issues', isMigration: tab==='migration',
+      overview,
+      distTitle, bars, hasBars: bars.length>0,
+      distStats, hasDistStats: distStats.length>0,
+      invalidTable: f.invalidTable || [], hasInvalid: !!(f.invalidTable && f.invalidTable.length),
+      findings: f.findings || [], hasFindings: (f.findings||[]).length>0,
+      issueSignals, hasSignals: issueSignals.length>0,
+      interpretation:f.interpretation || '', hasInterpretation: !!f.interpretation,
+      reasoning:f.reasoning || '', hasReasoning: !!f.reasoning,
+      migNote, hasMigNote: !!migNote,
+      actions,
+      onPrev: () => this.drawerNav(prevId), onNext: () => this.drawerNav(nextId),
+    };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const chip = (v, hue) => {
+      const t = Math.max(0, Math.min(100, v)) / 100;
+      const L = 0.93 - t * 0.52, L2 = L - 0.07, C = 0.018 + t * 0.135;
+      return {
+        bg: `linear-gradient(135deg, oklch(${L.toFixed(3)} ${C.toFixed(3)} ${hue}), oklch(${L2.toFixed(3)} ${C.toFixed(3)} ${hue}))`,
+        fg: L < 0.62 ? '#fff' : `oklch(0.36 0.11 ${hue})`,
+      };
+    };
+    const { fields, metric, filterIds, highlightIds, selectedIds, openMenuId, messages, fixStatus, feedback, correctionFor, evidenceId, compareOpen, decisions, pendingApproval, draft, toast, categoryFilter } = s;
+
+    let viewFields = fields.map((f) => {
+      const impactShown = f.ignored ? 'na' : (f.transformed ? 'resolved' : f.impact);
+      const impactLabel = f.ignored ? 'Ignored' : (f.transformed ? 'Resolved' : (IMPACT_LABEL[impactShown] || impactShown));
+      const nullPct = f.nullCount / ENTITY.source.rowCount * 100;
+      const bt = Math.max(0, Math.min(100, nullPct)) / 100, bL = 0.58 - bt * 0.26, bC = 0.05 + bt * 0.05;
+      const nullChip = { bg: `linear-gradient(135deg, oklch(${bL.toFixed(3)} ${bC.toFixed(3)} 62), oklch(${(bL - 0.07).toFixed(3)} ${bC.toFixed(3)} 62))`, fg:'#ffffff' };
+      const confChip = chip(f.confidence, 255);
+      const findings = f.transformed ? [{ t:'Resolved', tone:'ok' }] : (f.findings || []);
+      return {
+        ...f,
+        nullChipBg: nullChip.bg, nullChipFg: nullChip.fg,
+        confChipBg: confChip.bg, confChipFg: confChip.fg,
+        highlighted: highlightIds.includes(f.id),
+        dim: filterIds.length > 0 && !filterIds.includes(f.id),
+        selected: selectedIds.includes(f.id),
+        menuOpen: openMenuId === f.id,
+        sampleLine: (f.sample || []).slice(0,3).join('  ·  ') || '—',
+        nullCountLabel: fmt(f.nullCount),
+        nullPctLabel: pctStr(nullPct),
+        populatedLabel: fmt(ENTITY.source.rowCount - f.nullCount),
+        populatedPctLabel: pctStr(100 - nullPct),
+        distinctLabel: fmt(f.distinct),
+        uniquenessLabel: pctStr(f.uniqueness),
+        findings, hasFindings: findings.length > 0, noFindings: findings.length === 0,
+        confidenceLabel: f.confidence + '%',
+        impactShown, impactLabel,
+        ignoreLabel: f.ignored ? 'Restore field' : 'Ignore field',
+        onOpen: () => this.openDrawer(f.id),
+        onCellStop: (e) => { if (e && e.stopPropagation) e.stopPropagation(); },
+        onSelect: () => this.toggleSelect(f.id),
+        onKebab: () => this.toggleMenu(f.id),
+        onConfirmId: () => this.openApproval({ kind:'confirm', fieldId:f.id }),
+        onIgnore: () => (f.ignored ? this.restoreField(f.id) : this.openApproval({ kind:'ignore', fieldId:f.id })),
+      };
+    });
+
+    const reviewCount = fields.filter((f)=> !f.ignored && !f.transformed && NEEDS_REVIEW.includes(f.impact)).length;
+
+    const SORT_DEFS = [
+      { key:'name', label:'Field', tip:'Source field name' }, { key:'sample', label:'Sample', tip:'Inferred meaning and example values' }, { key:'role', label:'Inferred role', tip:'System-inferred semantic role' }, { key:'datatype', label:'Type', tip:'Inferred datatype' }, { key:'nulls', label:'Count of\nNull Rows', tip:'Null count and percentage' },
+      { key:'completeness', label:'Count of\nPopulated Rows', tip:'Populated row count and percentage' }, { key:'distinct', label:'Count of\nDistinct Rows', tip:'Distinct-value count and uniqueness percentage' }, { key:'findings', label:'Profiling findings', tip:'Deterministic issues found for this field' },
+      { key:'confidence', label:'Confidence', tip:'Confidence in the inferred role/datatype' }, { key:'impact', label:'Migration impact', tip:'Severity of this field for the migration' },
+    ];
+    const sortVal = (f, key) => {
+      if (key === 'findings') return (f.findings || []).length;
+      if (key === 'impact') return IMPACT_RANK[f.impactShown] ?? 0;
+      if (key === 'completeness') return f.nullCount;
+      if (key === 'distinct') return f.distinct;
+      if (key === 'confidence') return f.confidence;
+      if (key === 'sample') return String(f.semantic || '').toLowerCase();
+      if (key === 'nulls') return f.nullCount;
+      return String(f[key] || '').toLowerCase();
+    };
+    if (s.sortKey) {
+      const dir = s.sortDir === 'desc' ? -1 : 1;
+      viewFields.sort((a, b) => { const av = sortVal(a, s.sortKey), bv = sortVal(b, s.sortKey); if (av < bv) return -1*dir; if (av > bv) return 1*dir; return 0; });
+    }
+    const displayFields = viewFields.filter((f) => this.matchesCategory(f, categoryFilter));
+    const totalShown = displayFields.length;
+    const pageCount = Math.max(1, Math.ceil(totalShown / PAGE_SIZE));
+    const page = Math.min(Math.max(0, s.page || 0), pageCount - 1);
+    const pagedFields = displayFields.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+      .map((f, i) => ({ ...f, rowNo: page * PAGE_SIZE + i + 1 }));
+    const hasPagination = totalShown > PAGE_SIZE;
+    const pageStart = totalShown === 0 ? 0 : page * PAGE_SIZE + 1;
+    const pageEnd = Math.min(totalShown, (page + 1) * PAGE_SIZE);
+    const pages = Array.from({ length: pageCount }, (_, i) => ({ n: String(i + 1), active: i === page, onClick: () => this.setPage(i) }));
+
+    const sortCols = SORT_DEFS.map((d) => ({ key:d.key, label:d.label, tip:d.tip, active: s.sortKey===d.key,
+      isAsc: s.sortKey===d.key && s.sortDir==='asc', isDesc: s.sortKey===d.key && s.sortDir==='desc', isNone: s.sortKey!==d.key,
+      onSort: () => this.setSort(d.key) }));
+
+    const catCount = (id) => fields.filter((f)=> this.matchesCategory(f, id)).length;
+    const profileFilters = PROFILE_FILTERS.map((pf) => {
+      const c = pf.id === 'all' ? fields.length : catCount(pf.id);
+      return { id:pf.id, label:pf.label, tip:pf.tip, active: categoryFilter === pf.id, count:String(c), hasCount: c > 0,
+        onClick: () => this.setCategory(pf.id),
+        onPick: () => { this.setCategory(pf.id); this.setState({ catMenuOpen:false }); } };
+    });
+
+    const cnt = (fn) => fields.filter(fn).length;
+    const coverageStats = [
+      { label:'Total fields', value:String(fields.length) },
+      { label:'Clean fields', value:String(cnt((f)=>f.impact==='clean')) },
+      { label:'Blocker fields', value:String(cnt((f)=>f.impact==='blocker')) },
+      { label:'Review fields', value:String(cnt((f)=>f.impact==='review'||f.impact==='warning')) },
+      { label:'Identifier candidates', value:String(cnt((f)=>(f.categories||[]).includes('identifiers'))) },
+      { label:'Enumeration candidates', value:String(cnt((f)=>(f.categories||[]).includes('enums'))) },
+      { label:'Fields with missing values', value:String(cnt((f)=>(f.categories||[]).includes('missing'))) },
+      { label:'Near-empty fields', value:String(cnt((f)=>(f.categories||[]).includes('nearEmpty'))) },
+      { label:'Fields with duplicates', value:String(cnt((f)=>(f.categories||[]).includes('duplicates'))) },
+      { label:'Fields with pattern anomalies', value:String(cnt((f)=>(f.categories||[]).includes('patterns'))) },
+      { label:'Fields with outliers', value:String(cnt((f)=>(f.categories||[]).includes('outliers'))) },
+      { label:'Reference failures', value:String(cnt((f)=>(f.categories||[]).includes('refFailures'))) },
+    ];
+
+    /* Metric bar comes from the entity pack via DPBase.buildMetrics().
+       Previously five literal values lived here, which made the Customers build
+       display Items totals. Never reintroduce literals in this block. */
+    const metrics = this.buildMetrics(fields, metric)
+      .map((m) => ({ ...m, onClick: () => this.clickMetric(m.id) }));
+
+    const chat = messages.map((m) => {
+      if (m.role === 'user') return { id:m.id, isUser:true, text:m.text };
+      const r = m.qid ? (ENTITY.copilotResponses || {})[m.qid] : null;
+      const text = m.text || (r && r.text) || '';
+      const fixIds = (r && r.fixes) || [];
+      const fixes = fixIds.map((fid) => {
+        const fx = (ENTITY.copilotFixes || {})[fid]; const applied = fixStatus[fid] === 'applied';
+        return { id:fid, issue:fx.issue, affected:fmt(fx.affected), action:fx.action, evidence:fx.evidence, impact:fx.impact,
+          isAuto:fx.auto, needsReview:!fx.auto, applied, pending:!applied,
+          onApply: () => this.openApproval({ kind:'fix', fieldId:fx.field, fixId:fid }),
+          onUndo: () => this.undoByFix(fid) };
+      });
+      const fb = feedback[m.id] || '';
+      return { id:m.id, isAssistant:true, text, hasFixes:fixes.length>0, fixes,
+        isHelpful:fb==='helpful', isIncorrect:fb==='incorrect', isMissing:fb==='missing',
+        onHelpful:()=>this.setFeedback(m.id,'helpful'), onIncorrect:()=>this.setFeedback(m.id,'incorrect'), onMissing:()=>this.setFeedback(m.id,'missing'),
+        correcting: correctionFor===m.id, onStartCorrect:()=>this.startCorrect(m.id), onCancelCorrect:this.cancelCorrect, onSaveCorrect:this.saveCorrect,
+        correctFields: fields.map((f)=>({ value:f.id, label:f.name })) };
+    });
+
+    let approval = null;
+    if (pendingApproval) {
+      const pa = pendingApproval; const f = fields.find((x)=>x.id===pa.fieldId) || {};
+      if (pa.kind === 'fix') {
+        const fx = (ENTITY.copilotFixes || {})[pa.fixId];
+        approval = { title:fx.action, detail:fx.issue+' · '+fmt(fx.affected)+' records',
+          preview:'Before — '+fmt(fx.affected)+' rows flagged.   After — '+fx.impact+'.', previewOpen:pa.previewOpen, previewLabel: pa.previewOpen ? 'Hide preview' : 'Preview changes' };
+      } else if (pa.kind === 'confirm') {
+        approval = { title:'Confirm '+f.name+' as identifier', detail:'Sets the migration key (Odoo default_code)',
+          preview:'Before — inferred identifier candidate ('+f.confidence+'% confidence).   After — user-confirmed identifier.', previewOpen:pa.previewOpen, previewLabel: pa.previewOpen ? 'Hide preview' : 'Preview changes' };
+      } else {
+        approval = { title:'Ignore '+f.name, detail: pctStr(100 - f.nullCount/ENTITY.source.rowCount*100)+' populated',
+          preview:'Before — included in the migration.   After — excluded from all mappings and validation.', previewOpen:pa.previewOpen, previewLabel: pa.previewOpen ? 'Hide preview' : 'Preview changes' };
+      }
+    }
+
+    let drawer = null;
+    if (evidenceId) { const ev = fields.find((f)=>f.id===evidenceId); if (ev) drawer = this.buildDrawer(ev, s.drawerTab); }
+
+    let compare = null;
+    if (compareOpen && selectedIds.length === 2) {
+      const a = fields.find((f)=>f.id===selectedIds[0]); const b = fields.find((f)=>f.id===selectedIds[1]);
+      const overlap = (a.compare && a.compare.overlap) || (b.compare && b.compare.overlap) || 'not computed';
+      compare = { a:this.cmpView(a), b:this.cmpView(b),
+        overlap: overlap.replace(/ with.*/,''),
+        note: (a.compare && a.compare.overlap) || (b.compare && b.compare.overlap) ? 'The two fields describe overlapping semantics — likely a hierarchy rather than independent attributes.' : 'These fields have distinct semantics and low value overlap.' };
+    }
+
+    return {
+      ...this.shellVals(),
+      readinessHeadline: ENTITY.readiness.headline,
+      readinessTone: ENTITY.readiness.tone || 'warn',
+      readinessNarrative: ENTITY.readiness.narrative,
+      isLight: s.theme !== 'dark',
+      /* steps come from shellVals() */
+      metrics,
+      fields: pagedFields,
+      isEmpty: displayFields.length === 0,
+      shownCount: String(displayFields.length),
+      totalCount: String(fields.length),
+      hasPagination, pages,
+      pageStart: String(pageStart), pageEnd: String(pageEnd),
+      prevDisabled: page <= 0, nextDisabled: page >= pageCount - 1,
+      onPrevPage: () => this.setPage(Math.max(0, page - 1)),
+      onNextPage: () => this.setPage(Math.min(pageCount - 1, page + 1)),
+      sortCols,
+      reviewCount,
+      recActions: (ENTITY.readiness.recommendedOrder || [])
+        .map((r, i) => ({ n: String(i + 1), label: r.label, onClick: () => this.recAction(i + 1) })),
+      assessOpen: s.assessOpen,
+      toggleAssess: this.toggleAssess,
+      assessToggleLabel: s.assessOpen ? 'Show less' : 'Show more',
+      assessCaretStyle: 'font-size:11px;color:var(--accent);display:block;transition:transform .16s ease;transform:rotate(' + (s.assessOpen ? '180deg' : '0deg') + ');',
+      assessTextStyle: 'font-size:12.5px;line-height:19px;color:var(--fg);text-wrap:pretty;' + (s.assessOpen ? '' : 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;'),
+      assessEvidenceOpen: s.assessEvidenceOpen,
+      assessEvidenceLabel: s.assessEvidenceOpen ? 'Hide supporting evidence' : 'Show supporting evidence',
+      assessEvidence: ENTITY.readiness.evidence,
+      toggleAssessEvidence: this.toggleAssessEvidence,
+      profileFilters,
+      railExpanded: !!s.railExpanded,
+      railStyle: 'width:' + (s.railExpanded ? 240 : 64) + 'px;flex-shrink:0;border-right:1px solid var(--border);background:var(--card);display:flex;flex-direction:column;padding:20px ' + (s.railExpanded ? 12 : 8) + 'px 16px;transition:width 200ms ease;' + (s.railExpanded ? '' : 'align-items:center;'),
+      railTopStyle: 'display:flex;align-items:center;gap:10px;margin-bottom:16px;' + (s.railExpanded ? 'width:100%;' : 'justify-content:center;'),
+      railItemsStyle: 'flex:1;display:flex;flex-direction:column;gap:2px;' + (s.railExpanded ? 'width:100%;' : 'align-items:center;'),
+      railItems: [
+        { id:'projects', label:'Projects' },
+        { id:'migration', label:'Migration' },
+        { id:'settings', label:'Settings' },
+      ].map((it) => {
+        const active = it.id === 'migration';
+        return {
+          label: it.label,
+          isProjects: it.id === 'projects',
+          isMigration: it.id === 'migration',
+          isSettings: it.id === 'settings',
+          style: 'display:flex;align-items:center;border-radius:8px;padding:10px ' + (s.railExpanded ? '12px' : '8px') + ';cursor:pointer;'
+            + (s.railExpanded ? 'width:100%;' : 'justify-content:center;')
+            + (active ? 'background:var(--primary);color:var(--primary-fg);' : 'background:transparent;color:var(--muted);'),
+          labelStyle: 'margin-left:12px;font-size:14px;font-weight:500;white-space:nowrap;color:' + (active ? 'var(--primary-fg)' : 'var(--muted)') + ';',
+        };
+      }),
+      catMenuOpen: !!s.catMenuOpen,
+      toggleCatMenu: () => this.setState((st) => ({ catMenuOpen: !st.catMenuOpen })),
+      closeCatMenu: () => this.setState({ catMenuOpen: false }),
+      activeFilterLabel: (profileFilters.find((p) => p.active) || profileFilters[0]).label,
+      activeFilterCount: (profileFilters.find((p) => p.active) || profileFilters[0]).count,
+      coverageOpen: s.coverageOpen, toggleCoverage: this.toggleCoverage,
+      coverageHeadline: COVERAGE_DIMS.length + ' of ' + COVERAGE_DIMS.length + ' profiling dimensions calculated',
+      coverageStats,
+      coverageDims: COVERAGE_DIMS.map((d)=>({ label:d })),
+      clearCategory: this.clearCategory,
+      filters: s.filters.map((fl)=>({ id:fl.id, label:fl.label, onRemove:this.removeFilter })),
+      hasFilters: s.filters.length > 0,
+      hasVisual: s.filters.length > 0 || highlightIds.length > 0 || metric !== null,
+      decisions: decisions.map((d)=>({ id:d.id, label:d.label, onUndo:()=>this.undoDecision(d.id) })),
+      hasDecisions: decisions.length > 0,
+      canCompare: selectedIds.length === 2,
+      chat, chatEmpty: chat.length === 0,
+      prompts: ENTITY.copilotPrompts.map((p)=>({ id:p.id, text:p.text, onRun:()=>this.runPrompt(p.id) })),
+      draft,
+      hasChat: chat.length > 0,
+      approval,
+      onPreviewApproval:this.onPreviewApproval, onApplyApproval:this.onApplyApproval, onCancelApproval:this.onCancelApproval, onReviewApproval:this.onReviewApproval,
+      drawer, closeEvidence:this.closeEvidence,
+      compare, closeCompare:this.closeCompare,
+      anyMenuOpen: openMenuId !== null,
+      toast,
+      closeMenus:this.closeMenus,
+      clearVisual:this.clearVisual,
+      clearSelection:this.clearSelection,
+      openCompareSelected:this.openCompareSelected,
+      onDraft:this.onDraft, onDraftKey:this.onDraftKey, sendInput:this.sendInput,
+      onConfirm:this.confirmProfile,
+    };
+  }
+}

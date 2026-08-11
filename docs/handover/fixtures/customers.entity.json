@@ -1,0 +1,1183 @@
+{
+  "$schema": "../entity.schema.json",
+  "_comment": "PROOF PACK. Demonstrates that the shared components are entity-agnostic: this file drives the identical page code as items.entity.json. Stats here are ILLUSTRATIVE placeholders pending a profiler run against a real customer extract \u2014 every numeric value below must be regenerated before this is shown to a client. The authored narrative fields are genuine and reusable.",
+  "id": "customers",
+  "label": {
+    "singular": "Customer",
+    "plural": "Customers",
+    "recordWord": "account"
+  },
+  "source": {
+    "system": "acs_accpac",
+    "object": "Customer master extract",
+    "rowCount": 8914
+  },
+  "target": {
+    "record": "res.partner",
+    "schemaVersion": "2026.1",
+    "recordsetVersion": "tgt-2026.07.19"
+  },
+  "identity": {
+    "candidates": [
+      "acctno",
+      "vatno",
+      "email"
+    ],
+    "confirmed": null,
+    "compositeCandidates": [
+      [
+        "name",
+        "city"
+      ],
+      [
+        "acctno",
+        "subsidiary"
+      ]
+    ]
+  },
+  "spec": {
+    "expectedColumns": [
+      "Account No",
+      "Customer Name",
+      "VAT No",
+      "Email",
+      "Payment Terms",
+      "Currency",
+      "Credit Limit"
+    ],
+    "sample": {
+      "name": "Source Customers Sample",
+      "description": "Sample customer master data for a source ERP",
+      "content": "Account No,Customer Name,VAT No,Email,Payment Terms,Currency,Credit Limit\nC-10045,Roboweeder Pty Ltd,4210192837,ap@roboweeder.co.za,Net 30,ZAR,250000.00\nC-10046,Acme Trading CC,4980112233,sales@acme.com,COD,ZAR,50000.00\nC-10047,Northwind Supplies,4771122334,info@northwind.co.za,30d,ZAR,75000.00\nC-10048,Baltic Imports BV,,accounts@baltic.eu,Net 60,EUR,120000.00\nC-10049,Summit Hardware,4661234567,,2/10 N30,ZAR,\nC-10050,Delta Logistics,4559876543,ar@deltalog.co.za,Immediate,USD,30000.00"
+    },
+    "targetNote": "res.partner"
+  },
+  "rules": {
+    "requiredTargets": [
+      "acctno",
+      "name",
+      "currency",
+      "terms"
+    ],
+    "requiredReferenceFields": [
+      "currency",
+      "terms",
+      "taxgroup"
+    ],
+    "optionalReferenceFields": [
+      "salesrep",
+      "pricelist",
+      "country",
+      "region"
+    ],
+    "nullTokens": [
+      "n/a",
+      "na",
+      "none",
+      "null",
+      "-",
+      "--",
+      "tbd",
+      "unknown",
+      "not applicable"
+    ],
+    "confirmThreshold": 50,
+    "nearEmptyPct": 5,
+    "maxLength": {
+      "char": 60,
+      "text": 4000
+    },
+    "allowedValues": {
+      "terms": [
+        {
+          "value": "30 Days",
+          "aliases": [
+            "net30",
+            "net 30",
+            "30d",
+            "30"
+          ]
+        },
+        {
+          "value": "60 Days",
+          "aliases": [
+            "net60",
+            "net 60",
+            "60d",
+            "60"
+          ]
+        },
+        {
+          "value": "COD",
+          "aliases": [
+            "cash on delivery",
+            "cash",
+            "prepaid"
+          ]
+        },
+        {
+          "value": "Immediate",
+          "aliases": [
+            "due on receipt",
+            "immediate payment",
+            "0 days"
+          ]
+        }
+      ]
+    }
+  },
+  "metrics": [
+    {
+      "id": "records",
+      "label": "Total records",
+      "kind": "rowCount",
+      "tone": "neutral",
+      "tip": "All source rows profiled"
+    },
+    {
+      "id": "dupes",
+      "label": "Duplicate accounts",
+      "kind": "fieldStat",
+      "field": "acctno",
+      "path": "duplicates.rows",
+      "tone": "blocker",
+      "highlight": [
+        "acctno"
+      ],
+      "filter": "duplicates",
+      "tip": "Duplicate Account No rows \u2014 highlight in table"
+    },
+    {
+      "id": "terms",
+      "label": "Invalid payment terms",
+      "kind": "fieldStat",
+      "field": "terms",
+      "path": "enumeration.affectedRows",
+      "tone": "warn",
+      "highlight": [
+        "terms"
+      ],
+      "filter": "invalid",
+      "tip": "Rows with an unmapped term \u2014 highlight in table"
+    },
+    {
+      "id": "currency",
+      "label": "Missing currency",
+      "kind": "fieldStat",
+      "field": "currency",
+      "path": "nullCount",
+      "tone": "warn",
+      "highlight": [
+        "currency"
+      ],
+      "filter": "missing",
+      "tip": "Blank Currency rows \u2014 highlight in table"
+    },
+    {
+      "id": "review",
+      "label": "Fields to review",
+      "kind": "reviewCount",
+      "tone": "warn",
+      "tip": "Fields still needing review"
+    }
+  ],
+  "readiness": {
+    "headline": "Migration readiness: Needs attention",
+    "tone": "warn",
+    "narrative": "Account number is not globally unique, so customer records cannot be keyed on it as-is. Duplicate names combined with matching VAT numbers suggest the same legal entity was created more than once across branches, which will merge or double-count receivables if imported unchanged. Payment terms are free text and must be crosswalked to the target reference list before invoicing behaviour is correct.",
+    "recommendedOrder": [
+      {
+        "label": "Resolve duplicate accounts",
+        "target": "acctno"
+      },
+      {
+        "label": "Crosswalk payment terms",
+        "target": "terms"
+      },
+      {
+        "label": "Review missing currency",
+        "target": "currency"
+      }
+    ],
+    "evidence": [
+      {
+        "value": "212",
+        "label": "duplicate account numbers"
+      },
+      {
+        "value": "96",
+        "label": "duplicate groups"
+      },
+      {
+        "value": "74.0%",
+        "label": "of duplicate groups share a VAT number"
+      },
+      {
+        "value": "99.91%",
+        "label": "Account No + Subsidiary composite uniqueness"
+      },
+      {
+        "value": "31 / 38",
+        "label": "free-text payment terms match a known alias"
+      },
+      {
+        "value": "0",
+        "label": "values inferred without approval"
+      }
+    ]
+  },
+  "fields": [
+    {
+      "id": "acctno",
+      "name": "Account No",
+      "semantic": "Customer account code",
+      "role": "Identifier candidate",
+      "roleTip": "A field the system infers may uniquely identify each record. Not a confirmed identifier until you approve it.",
+      "datatype": "Text",
+      "nullCount": 0,
+      "distinct": 8702,
+      "uniqueness": 97.62,
+      "cardinality": "High",
+      "confidence": 95,
+      "impact": "blocker",
+      "impactReason": "212 duplicate values would collide on the migration import key, so Account No cannot be used as-is as the record identifier.",
+      "categories": [
+        "blockers",
+        "identifiers",
+        "duplicates",
+        "patterns"
+      ],
+      "sample": [
+        "C-10045",
+        "C-10046",
+        "ACC0233"
+      ],
+      "findings": [
+        {
+          "t": "212 duplicate rows",
+          "tone": "dup"
+        },
+        {
+          "t": "96 groups",
+          "tone": "dup"
+        },
+        {
+          "t": "2 pattern families",
+          "tone": "info"
+        }
+      ],
+      "duplicates": {
+        "rows": 212,
+        "groups": 96,
+        "crossSub": 71,
+        "crossPct": 74,
+        "composite": "99.91%"
+      },
+      "patterns": [
+        {
+          "label": "C-99999",
+          "pct": 88
+        },
+        {
+          "label": "AAA9999",
+          "pct": 11
+        },
+        {
+          "label": "Other patterns",
+          "pct": 1
+        }
+      ],
+      "patternAnomalies": 9,
+      "text": {
+        "minLen": 6,
+        "maxLen": 12,
+        "avgLen": 7
+      },
+      "interpretation": "Account No is a strong identifier candidate but is not globally unique. Duplicate groups mostly share a VAT number, which indicates the same legal entity exists under several branch accounts. Evaluate Account No + Subsidiary as a composite identifier before confirming.",
+      "reasoning": "The only near-unique, consistently formatted field; aligns with Odoo res.partner ref. Ranked as the primary identifier candidate.",
+      "actions": [
+        {
+          "id": "reviewDup",
+          "label": "Review duplicate groups"
+        },
+        {
+          "id": "composite",
+          "label": "Test composite identifier"
+        },
+        {
+          "id": "confirmId",
+          "label": "Confirm identifier",
+          "primary": true
+        },
+        {
+          "id": "records",
+          "label": "Show affected records"
+        }
+      ],
+      "compare": {
+        "cardinality": "8,702",
+        "sem": "Customer account code"
+      }
+    },
+    {
+      "id": "name",
+      "name": "Customer Name",
+      "semantic": "Legal / trading name",
+      "role": "Display name",
+      "roleTip": "Human-readable label for the record.",
+      "datatype": "Text",
+      "nullCount": 0,
+      "distinct": 8611,
+      "uniqueness": 96.6,
+      "cardinality": "High",
+      "confidence": 98,
+      "impact": "review",
+      "impactReason": "303 records share a name with another record. Where the VAT number also matches, importing both will split one customer's receivables across two accounts.",
+      "categories": [
+        "duplicates",
+        "identifiers"
+      ],
+      "sample": [
+        "Roboweeder Pty Ltd",
+        "Acme Trading CC",
+        "Roboweeder (Pty) Ltd"
+      ],
+      "findings": [
+        {
+          "t": "303 duplicate names",
+          "tone": "dup"
+        },
+        {
+          "t": "128 also share VAT",
+          "tone": "warn"
+        }
+      ],
+      "duplicates": {
+        "rows": 303,
+        "groups": 141,
+        "crossSub": 104,
+        "crossPct": 73.8,
+        "composite": "99.4%"
+      },
+      "text": {
+        "minLen": 3,
+        "maxLen": 78,
+        "avgLen": 24
+      },
+      "interpretation": "Name similarity alone is weak evidence of duplication because branches legitimately share a trading name. Treat name + VAT as the duplicate signal; 128 records meet that test and need a merge decision.",
+      "reasoning": "High-cardinality free text used as the partner display name. Maps directly to Odoo name.",
+      "actions": [
+        {
+          "id": "reviewDup",
+          "label": "Review duplicate groups"
+        },
+        {
+          "id": "records",
+          "label": "Show affected records",
+          "primary": true
+        }
+      ],
+      "compare": {
+        "overlap": "42% with VAT No",
+        "cardinality": "8,611",
+        "sem": "Legal / trading name"
+      }
+    },
+    {
+      "id": "terms",
+      "name": "Payment Terms",
+      "semantic": "Settlement terms",
+      "role": "Value list",
+      "roleTip": "A field with a small set of repeating values that map to a target reference list.",
+      "datatype": "Text",
+      "nullCount": 47,
+      "distinct": 38,
+      "uniqueness": 0.43,
+      "cardinality": "Low",
+      "confidence": 91,
+      "impact": "blocker",
+      "impactReason": "7 source values have no matching target payment term (284 rows). Invoice due dates will be wrong for those accounts until the values are crosswalked.",
+      "categories": [
+        "blockers",
+        "invalid",
+        "enums",
+        "refFailures"
+      ],
+      "sample": [
+        "Net 30",
+        "30 days",
+        "COD"
+      ],
+      "findings": [
+        {
+          "t": "7 invalid values",
+          "tone": "warn"
+        },
+        {
+          "t": "284 affected rows",
+          "tone": "warn"
+        },
+        {
+          "t": "31 aliases recognised",
+          "tone": "ok"
+        }
+      ],
+      "enumeration": {
+        "candidate": "Yes",
+        "validRef": 4,
+        "invalidSrc": 7,
+        "affectedRows": 284,
+        "aliasRows": 253,
+        "unresolved": 31,
+        "refIntegrity": "Failed"
+      },
+      "dist": [
+        {
+          "label": "30 Days",
+          "pct": 61
+        },
+        {
+          "label": "COD",
+          "pct": 18
+        },
+        {
+          "label": "60 Days",
+          "pct": 12
+        },
+        {
+          "label": "Immediate",
+          "pct": 8
+        }
+      ],
+      "distTitle": "Top values",
+      "invalidTable": [
+        {
+          "src": "Net 30",
+          "occ": 148,
+          "canon": "30 Days",
+          "status": "Recognized alias",
+          "tone": "ok"
+        },
+        {
+          "src": "30d",
+          "occ": 71,
+          "canon": "30 Days",
+          "status": "Recognized alias",
+          "tone": "ok"
+        },
+        {
+          "src": "Net30",
+          "occ": 34,
+          "canon": "30 Days",
+          "status": "Recognized alias",
+          "tone": "ok"
+        },
+        {
+          "src": "2/10 N30",
+          "occ": 31,
+          "canon": "\u2014",
+          "status": "Review required",
+          "tone": "warn"
+        }
+      ],
+      "interpretation": "Most invalid payment terms are recognisable aliases that can be normalised on Value Mapping; 31 rows carry an early-settlement discount (2/10 N30) that the target has no single equivalent for and needs a decision. Nothing is normalised on this page.",
+      "reasoning": "Settlement-terms reference. \"Net 30\", \"30d\" and \"Net30\" all alias to 30 Days; discount terms are unresolved.",
+      "actions": [
+        {
+          "id": "previewNorm",
+          "label": "Preview normalization"
+        },
+        {
+          "id": "records",
+          "label": "Show affected records"
+        },
+        {
+          "id": "valueMapping",
+          "label": "Open Value Mapping",
+          "primary": true
+        }
+      ],
+      "compare": {
+        "cardinality": "38",
+        "sem": "Settlement terms"
+      }
+    },
+    {
+      "id": "currency",
+      "name": "Currency",
+      "semantic": "Billing currency",
+      "role": "Value list",
+      "roleTip": "A field with a small set of repeating values that map to a target reference list.",
+      "datatype": "Text",
+      "nullCount": 96,
+      "distinct": 5,
+      "uniqueness": 0.06,
+      "cardinality": "Low",
+      "confidence": 87,
+      "impact": "review",
+      "impactReason": "96 rows are blank. Country provides high-confidence evidence for 78 of them; the remainder are ambiguous and need review before import.",
+      "categories": [
+        "missing",
+        "enums"
+      ],
+      "sample": [
+        "ZAR",
+        "USD",
+        "(blank)"
+      ],
+      "findings": [
+        {
+          "t": "96 missing",
+          "tone": "warn"
+        },
+        {
+          "t": "Enumeration candidate",
+          "tone": "info"
+        }
+      ],
+      "enumeration": {
+        "candidate": "Yes",
+        "categoryAvailable": 84,
+        "highConf": 78,
+        "ambiguous": 12,
+        "insufficient": 6
+      },
+      "dist": [
+        {
+          "label": "ZAR",
+          "pct": 82
+        },
+        {
+          "label": "USD",
+          "pct": 11
+        },
+        {
+          "label": "EUR",
+          "pct": 5
+        },
+        {
+          "label": "GBP",
+          "pct": 1
+        },
+        {
+          "label": "(blank)",
+          "pct": 1.1
+        }
+      ],
+      "distTitle": "Value distribution",
+      "interpretation": "Country provides high-confidence evidence for 78 of 96 blank rows. The remaining 18 rows are ambiguous or lack Country evidence and need review \u2014 no values are inferred until you approve them on Value Mapping.",
+      "reasoning": "Maps to Odoo currency_id. Blanks are inferred from Country where evidence is strong.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Review affected records"
+        },
+        {
+          "id": "previewInfer",
+          "label": "Preview inferred values"
+        },
+        {
+          "id": "valueMapping",
+          "label": "Open Value Mapping",
+          "primary": true
+        }
+      ],
+      "compare": {
+        "overlap": "94% with Country",
+        "cardinality": "4",
+        "sem": "Billing currency"
+      }
+    },
+    {
+      "id": "vatno",
+      "name": "VAT No",
+      "semantic": "Tax registration number",
+      "role": "Identifier candidate",
+      "roleTip": "A field the system infers may uniquely identify each record. Not a confirmed identifier until you approve it.",
+      "datatype": "Text",
+      "nullCount": 1284,
+      "distinct": 7392,
+      "uniqueness": 96.9,
+      "cardinality": "High",
+      "confidence": 82,
+      "impact": "warning",
+      "impactReason": "Populated for 86% of records and near-unique where present, but too sparse to serve as the import key on its own.",
+      "categories": [
+        "identifiers",
+        "missing",
+        "patterns"
+      ],
+      "sample": [
+        "4210192837",
+        "4980112233",
+        "(blank)"
+      ],
+      "findings": [
+        {
+          "t": "1,284 missing",
+          "tone": "warn"
+        },
+        {
+          "t": "Near-unique where present",
+          "tone": "ok"
+        }
+      ],
+      "patterns": [
+        {
+          "label": "4999999999",
+          "pct": 96
+        },
+        {
+          "label": "Other patterns",
+          "pct": 4
+        }
+      ],
+      "patternAnomalies": 14,
+      "text": {
+        "minLen": 9,
+        "maxLen": 14,
+        "avgLen": 10
+      },
+      "interpretation": "VAT No is the strongest available evidence for detecting duplicate legal entities, and is more reliable than name matching. Use it to corroborate duplicates rather than as the identifier itself.",
+      "reasoning": "Sparse but highly distinctive. Maps to Odoo vat. Best used as a duplicate-detection signal.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show blank records"
+        },
+        {
+          "id": "reviewDup",
+          "label": "Corroborate duplicates",
+          "primary": true
+        }
+      ],
+      "compare": {
+        "cardinality": "7,392",
+        "sem": "Tax registration number"
+      }
+    },
+    {
+      "id": "email",
+      "name": "Email",
+      "semantic": "Primary contact email",
+      "role": "Free text",
+      "roleTip": "Unconstrained descriptive text.",
+      "datatype": "Text",
+      "nullCount": 2611,
+      "distinct": 6104,
+      "uniqueness": 98.2,
+      "cardinality": "High",
+      "confidence": 93,
+      "impact": "warning",
+      "impactReason": "41 values fail email format validation and will be rejected by the target field, silently dropping the contact address.",
+      "categories": [
+        "invalid",
+        "missing",
+        "patterns"
+      ],
+      "sample": [
+        "ap@roboweeder.co.za",
+        "sales@acme.com",
+        "(blank)"
+      ],
+      "findings": [
+        {
+          "t": "2,611 missing",
+          "tone": "warn"
+        },
+        {
+          "t": "41 invalid format",
+          "tone": "warn"
+        }
+      ],
+      "patterns": [
+        {
+          "label": "Valid address",
+          "pct": 99.3
+        },
+        {
+          "label": "Malformed",
+          "pct": 0.7
+        }
+      ],
+      "patternAnomalies": 41,
+      "text": {
+        "minLen": 7,
+        "maxLen": 62,
+        "avgLen": 24
+      },
+      "interpretation": "Malformed addresses are mostly multiple addresses concatenated into one cell. These can be split automatically, but which address becomes primary needs a decision.",
+      "reasoning": "Maps to Odoo email. Format-validated on import.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show invalid records",
+          "primary": true
+        }
+      ],
+      "compare": {
+        "cardinality": "6,104",
+        "sem": "Primary contact email"
+      }
+    },
+    {
+      "id": "creditlimit",
+      "name": "Credit Limit",
+      "semantic": "Approved credit exposure",
+      "role": "Measure",
+      "roleTip": "A numeric quantity.",
+      "datatype": "Decimal",
+      "nullCount": 402,
+      "distinct": 214,
+      "uniqueness": 2.4,
+      "cardinality": "Medium",
+      "confidence": 96,
+      "impact": "review",
+      "impactReason": "18 records carry a negative credit limit, which the target rejects. 402 blanks will import as zero credit, blocking those customers from ordering on account.",
+      "categories": [
+        "missing",
+        "outliers"
+      ],
+      "sample": [
+        "50000.00",
+        "0.00",
+        "250000.00"
+      ],
+      "findings": [
+        {
+          "t": "18 negative values",
+          "tone": "warn"
+        },
+        {
+          "t": "402 blank",
+          "tone": "warn"
+        }
+      ],
+      "range": {
+        "min": "-15,000.00",
+        "max": "2,500,000.00",
+        "median": "50,000.00",
+        "p95": "480,000.00",
+        "outliers": 23,
+        "method": "IQR \u00d7 1.5",
+        "examples": "2,500,000.00 \u00b7 -15,000.00 \u00b7 0.00"
+      },
+      "interpretation": "Blank is not the same as zero for credit limit. Confirm whether blanks mean no credit or unlimited credit before import, because the two produce opposite ordering behaviour.",
+      "reasoning": "Maps to Odoo credit_limit. Negative values are almost certainly data-entry errors.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show affected records"
+        },
+        {
+          "id": "previewNorm",
+          "label": "Preview normalization",
+          "primary": true
+        }
+      ],
+      "compare": {
+        "cardinality": "214",
+        "sem": "Approved credit exposure"
+      }
+    },
+    {
+      "id": "legacyref",
+      "name": "Legacy Ref",
+      "semantic": "Pre-Accpac system key",
+      "role": "Audit metadata",
+      "roleTip": "System-generated field, usually not migrated.",
+      "datatype": "Text",
+      "nullCount": 8703,
+      "distinct": 209,
+      "uniqueness": 99,
+      "cardinality": "High",
+      "confidence": 74,
+      "impact": "na",
+      "impactReason": "Populated on 2.4% of records and not required by the target. Out of scope unless needed for audit traceability.",
+      "categories": [
+        "nearEmpty"
+      ],
+      "sample": [
+        "OLD-4471",
+        "OLD-4472",
+        "(blank)"
+      ],
+      "findings": [
+        {
+          "t": "Near-empty (2.4%)",
+          "tone": "info"
+        }
+      ],
+      "nearEmpty": {
+        "populated": 211,
+        "populatedPct": 2.37,
+        "requiredByTarget": "No",
+        "recommendation": "Review for exclusion",
+        "safeToExclude": "Likely"
+      },
+      "text": {
+        "minLen": 8,
+        "maxLen": 8,
+        "avgLen": 8
+      },
+      "interpretation": "Safe to exclude for operational purposes, but confirm with Finance whether the legacy key is needed to trace historical balances before dropping it.",
+      "reasoning": "Residue from a pre-Accpac migration. No target equivalent.",
+      "actions": [
+        {
+          "id": "records",
+          "label": "Show populated records"
+        }
+      ],
+      "compare": {
+        "cardinality": "209",
+        "sem": "Pre-Accpac system key"
+      }
+    }
+  ],
+  "copilotPrompts": [
+    "Which fields block the customer import?",
+    "Are the duplicate accounts the same legal entity?",
+    "Show me payment terms with no target equivalent",
+    "Can currency be inferred from country?",
+    "What happens to customers with a blank credit limit?"
+  ],
+  "sampleCsv": null,
+  "mapping": {
+    "_comment": "ILLUSTRATIVE. Structure and narratives are genuine; confidence scores need a real matching run before a client sees them.",
+    "targetFields": [
+      {
+        "id": "name",
+        "label": "Name",
+        "dtype": "Char",
+        "required": true,
+        "identifier": true,
+        "writable": true
+      },
+      {
+        "id": "ref",
+        "label": "Internal Reference",
+        "dtype": "Char",
+        "identifier": true,
+        "writable": true
+      },
+      {
+        "id": "vat",
+        "label": "Tax ID",
+        "dtype": "Char",
+        "writable": true
+      },
+      {
+        "id": "email",
+        "label": "Email",
+        "dtype": "Char",
+        "writable": true
+      },
+      {
+        "id": "phone",
+        "label": "Phone",
+        "dtype": "Char",
+        "writable": true
+      },
+      {
+        "id": "property_payment_term_id",
+        "label": "Payment Terms",
+        "dtype": "Many2one \u00b7 account.payment.term",
+        "required": true,
+        "writable": true
+      },
+      {
+        "id": "currency_id",
+        "label": "Currency",
+        "dtype": "Many2one \u00b7 res.currency",
+        "required": true,
+        "writable": true
+      },
+      {
+        "id": "credit_limit",
+        "label": "Credit Limit",
+        "dtype": "Monetary",
+        "writable": true
+      },
+      {
+        "id": "country_id",
+        "label": "Country",
+        "dtype": "Many2one \u00b7 res.country",
+        "writable": true
+      },
+      {
+        "id": "customer_rank",
+        "label": "Customer Rank",
+        "dtype": "Integer",
+        "required": true,
+        "writable": true
+      }
+    ],
+    "proposals": [
+      {
+        "id": "c1",
+        "name": "Customer Name",
+        "sdtype": "Char",
+        "role": "Name",
+        "samples": [
+          "Roboweeder Pty Ltd",
+          "Acme Trading CC"
+        ],
+        "targetId": "name",
+        "conf": 99,
+        "status": "Suggested",
+        "validation": "Compatible",
+        "evidence": [
+          "name",
+          "samples",
+          "datatype",
+          "prior"
+        ],
+        "handoff": "Ready"
+      },
+      {
+        "id": "c2",
+        "name": "Account No",
+        "sdtype": "Char",
+        "role": "Identifier",
+        "samples": [
+          "C-10045",
+          "ACC0233"
+        ],
+        "targetId": "ref",
+        "conf": 96,
+        "status": "Suggested",
+        "validation": "Compatible",
+        "evidence": [
+          "name",
+          "datatype",
+          "prior"
+        ],
+        "handoff": "Ready"
+      },
+      {
+        "id": "c3",
+        "name": "VAT No",
+        "sdtype": "Char",
+        "role": "Identifier",
+        "samples": [
+          "4210192837",
+          "4980112233"
+        ],
+        "targetId": "vat",
+        "conf": 94,
+        "status": "Review required",
+        "validation": "Compatible",
+        "evidence": [
+          "name",
+          "samples",
+          "datatype"
+        ],
+        "handoff": "Ready",
+        "why": "VAT No maps to the Odoo Tax ID field. Confidence sits just below the auto-accept band because 1,284 rows are blank \u2014 confirm that importing partial tax registration is acceptable."
+      },
+      {
+        "id": "c4",
+        "name": "Email",
+        "sdtype": "Char",
+        "role": "Contact",
+        "samples": [
+          "ap@roboweeder.co.za",
+          "sales@acme.com"
+        ],
+        "targetId": "email",
+        "conf": 97,
+        "status": "Suggested",
+        "validation": "Compatible",
+        "evidence": [
+          "name",
+          "samples",
+          "datatype"
+        ],
+        "handoff": "Ready"
+      },
+      {
+        "id": "c5",
+        "name": "Payment Terms",
+        "sdtype": "Char",
+        "role": "Reference",
+        "samples": [
+          "Net 30",
+          "COD",
+          "30d"
+        ],
+        "targetId": "property_payment_term_id",
+        "conf": 82,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "samples",
+          "meaning",
+          "prior"
+        ],
+        "handoff": "Reference crosswalk required",
+        "why": "Payment Terms holds free text that must resolve to Odoo payment term records. 31 of 38 distinct values match a known alias; the rest, including discount terms such as 2/10 N30, have no single Odoo equivalent and need a crosswalk on Value Mapping."
+      },
+      {
+        "id": "c6",
+        "name": "Currency",
+        "sdtype": "Char",
+        "role": "Reference",
+        "samples": [
+          "ZAR",
+          "USD",
+          "EUR"
+        ],
+        "targetId": "currency_id",
+        "conf": 91,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "name",
+          "samples",
+          "meaning"
+        ],
+        "handoff": "Value mapping required",
+        "why": "Currency codes map to res.currency records. 96 rows are blank; Country provides high-confidence evidence for 78 of them, but nothing is inferred until approved."
+      },
+      {
+        "id": "c7",
+        "name": "Credit Limit",
+        "sdtype": "Decimal",
+        "role": "Amount",
+        "samples": [
+          "250000.00",
+          "50000.00"
+        ],
+        "targetId": "credit_limit",
+        "conf": 88,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "name",
+          "samples",
+          "datatype"
+        ],
+        "handoff": "Format conversion required",
+        "why": "Numeric credit exposure maps to credit_limit. 18 records carry a negative value, which the target rejects, and blanks are ambiguous between no credit and unlimited credit."
+      },
+      {
+        "id": "c8",
+        "name": "Legacy Ref",
+        "sdtype": "Char",
+        "role": "Audit metadata",
+        "samples": [
+          "OLD-4471"
+        ],
+        "targetId": null,
+        "conf": null,
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [],
+        "handoff": null,
+        "why": "Populated on 2.4% of records with no Odoo equivalent. Excluded unless Finance needs it for historical traceability."
+      },
+      {
+        "id": "c9",
+        "name": "Sales Rep Code",
+        "sdtype": "Char",
+        "role": "Reference",
+        "samples": [
+          "SR-04",
+          "SR-11"
+        ],
+        "targetId": null,
+        "conf": 41,
+        "status": "Unmapped",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ],
+        "handoff": null,
+        "why": "No confident target. Odoo user_id expects a res.users record; the source holds internal rep codes with no supplied lookup table."
+      }
+    ],
+    "missingTargets": [
+      {
+        "id": "cm1",
+        "name": "\u2014",
+        "sdtype": "\u2014",
+        "role": "Required target",
+        "samples": [],
+        "targetId": "customer_rank",
+        "conf": null,
+        "status": "Missing target",
+        "validation": "\u2014",
+        "evidence": [
+          "required"
+        ],
+        "handoff": null,
+        "why": "customer_rank is required for a partner to behave as a customer in Odoo. No source field supplies it; set a project-wide default of 1."
+      }
+    ],
+    "cards": [
+      {
+        "id": "high",
+        "label": "High confidence",
+        "impact": "clean",
+        "statuses": [
+          "Suggested"
+        ]
+      },
+      {
+        "id": "review",
+        "label": "Needs review",
+        "impact": "review",
+        "statuses": [
+          "Review required"
+        ]
+      },
+      {
+        "id": "none",
+        "label": "No safe target",
+        "impact": "blocker",
+        "statuses": [
+          "Blocked",
+          "Unmapped"
+        ]
+      },
+      {
+        "id": "missing",
+        "label": "Missing required targets",
+        "impact": "blocker",
+        "statuses": [
+          "Missing target"
+        ]
+      },
+      {
+        "id": "excluded",
+        "label": "Excluded",
+        "impact": "na",
+        "statuses": [
+          "Excluded"
+        ]
+      }
+    ],
+    "autoAcceptAt": 95,
+    "pageSize": 15,
+    "readiness": {
+      "headline": "Mapping readiness: Needs attention",
+      "tone": "warn",
+      "narrative": "Identity and contact fields map cleanly. The exceptions are all reference fields \u2014 payment terms and currency hold free text that must resolve to Odoo records \u2014 plus customer_rank, which Odoo requires for a partner to behave as a customer and which no source field supplies. Nothing is written until each proposal is accepted.",
+      "recommendedOrder": [
+        {
+          "label": "Confirm the identifier mapping",
+          "target": "c2"
+        },
+        {
+          "label": "Crosswalk payment terms",
+          "target": "c5"
+        },
+        {
+          "label": "Set a default for customer_rank",
+          "target": "cm1"
+        }
+      ],
+      "evidence": []
+    }
+  }
+}

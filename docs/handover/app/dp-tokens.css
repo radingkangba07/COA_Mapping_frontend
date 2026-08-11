@@ -1,0 +1,3 @@
+/* MOVED to app/css/dp-tokens.css. This forwarder exists only so older
+   references keep working; import the canonical path in new code. */
+@import './css/dp-tokens.css';

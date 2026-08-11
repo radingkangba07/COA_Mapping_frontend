@@ -1,0 +1,21 @@
+{
+  "//": [
+    "Type-checks the API contract (types/entity.d.ts) and the reference React",
+    "components against it. Requires react + @types/react in the consuming project:",
+    "    npm i -D typescript react @types/react",
+    "    npx tsc -p dp-kit/tsconfig.check.json",
+    "Verified exit 0 under --strict with react@18 / @types/react@18."
+  ],
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["react/**/*.ts", "react/**/*.tsx", "types/**/*.d.ts"]
+}
