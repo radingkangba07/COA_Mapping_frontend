@@ -5,8 +5,7 @@ import type { ProjectsStackParamList } from '@/navigation/types';
 import type { Workstream } from '../types/workstream.types';
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
-// Returns a stable callback that navigates to WorkstreamDetail for the given
-// workstream. Non-included workstreams are silently ignored (they have no route).
+
 
 export function useOpenWorkstream(
   projectId: string,
@@ -17,9 +16,14 @@ export function useOpenWorkstream(
   return useCallback(
     (workstream: Workstream): void => {
       if (!workstream.included) return;
-      // All scopes currently route to the COA file upload screen.
-      // Each scope will get its own dedicated screen once delivered.
-      navigation.navigate('Upload', { projectId });
+      // Non-COA workstreams belong to an OrgProject — pass its ID so the
+      // migration store and file upload use the correct entity.
+      const entityId = workstream.orgProjectId ?? projectId;
+      navigation.navigate('WorkstreamDetail', {
+        projectId: entityId,
+        workstreamId: workstream.id,
+        kind: workstream.projectId,
+      });
     },
     [navigation, projectId],
   );

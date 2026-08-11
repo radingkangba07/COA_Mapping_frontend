@@ -7,6 +7,7 @@ const ws = (overrides: Partial<Workstream>): Workstream => ({
   id: 'ws-1',
   name: 'Chart of Accounts',
   projectId: 'MD-001',
+  orgProjectId: null,
   status: 'in_progress',
   progress: 65,
   currentStage: 'Mapping',

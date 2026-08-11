@@ -31,6 +31,7 @@ function toNotIncludedRow(item: {
     id: `not-included-${item.id}`,
     name: item.label,
     projectId: '—',
+    orgProjectId: null,
     status: 'not_included',
     progress: 0,
     currentStage: '—',

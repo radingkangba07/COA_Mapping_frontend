@@ -51,6 +51,7 @@ function toWorkstream(dto: WorkstreamDTO): Workstream {
     id: dto.id,
     name: dto.name,
     projectId: dto.code,   // code displayed as project ID in the table column
+    orgProjectId: dto.org_project_id ?? null,
     status,
     progress: Math.min(100, Math.max(0, dto.progress)),
     currentStage: formatCurrentStage(dto.current_stage),
