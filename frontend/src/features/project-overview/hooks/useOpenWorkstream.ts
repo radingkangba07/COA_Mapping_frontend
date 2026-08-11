@@ -17,11 +17,9 @@ export function useOpenWorkstream(
   return useCallback(
     (workstream: Workstream): void => {
       if (!workstream.included) return;
-      navigation.navigate('WorkstreamDetail', {
-        projectId,
-        workstreamId: workstream.id,
-        kind: workstream.projectId,
-      });
+      // All scopes currently route to the COA file upload screen.
+      // Each scope will get its own dedicated screen once delivered.
+      navigation.navigate('Upload', { projectId });
     },
     [navigation, projectId],
   );
