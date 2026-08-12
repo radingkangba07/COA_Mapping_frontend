@@ -72,7 +72,7 @@ const StepCircle = React.memo(function StepCircle({
       className={cn(
         'items-center justify-center rounded-full',
         status === 'completed' && 'bg-primary',
-        status === 'active' && 'bg-accent',
+        status === 'active' && 'bg-primary',
         status === 'upcoming' && 'border-2 border-border bg-background',
       )}
       style={{ width: CIRCLE_SIZE, height: CIRCLE_SIZE }}
