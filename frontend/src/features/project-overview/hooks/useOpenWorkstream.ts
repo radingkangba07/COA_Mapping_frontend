@@ -4,8 +4,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ProjectsStackParamList } from '@/navigation/types';
 import type { Workstream } from '../types/workstream.types';
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-
+// Workstreams that launch the master-data wizard (Upload → Profile → …).
+// All other openable workstreams (Chart of Accounts) use the existing migration flow.
+const MASTER_DATA_NAMES = new Set(['Items']);
 
 export function useOpenWorkstream(
   projectId: string,
@@ -16,8 +17,17 @@ export function useOpenWorkstream(
   return useCallback(
     (workstream: Workstream): void => {
       if (!workstream.included) return;
-      // Non-COA workstreams belong to an OrgProject — pass its ID so the
-      // migration store and file upload use the correct entity.
+
+      if (MASTER_DATA_NAMES.has(workstream.name) && workstream.orgProjectId != null) {
+        navigation.navigate('MasterDataUpload', {
+          orgProjectId: workstream.orgProjectId,
+          entityId: workstream.name.toLowerCase(),
+          parentProjectId: projectId,
+        });
+        return;
+      }
+
+      // Chart of Accounts: existing migration flow
       const entityId = workstream.orgProjectId ?? projectId;
       navigation.navigate('WorkstreamDetail', {
         projectId: entityId,
