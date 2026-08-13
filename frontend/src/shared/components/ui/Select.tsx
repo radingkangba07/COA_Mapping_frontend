@@ -6,6 +6,7 @@ import {
   Pressable,
   Modal,
   FlatList,
+  Dimensions,
   type LayoutRectangle,
   type ListRenderItemInfo,
 } from 'react-native';
@@ -119,17 +120,27 @@ export const Select = React.forwardRef<View, SelectProps>(
         ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
         : options;
 
-    const dropdownStyle =
-      isWeb && triggerLayout !== null
-        ? {
-            top: triggerLayout.y + triggerLayout.height + 4,
-            left: triggerLayout.x,
-            width: triggerLayout.width,
-            maxHeight: 280,
-          }
-        : isWeb
-          ? { maxHeight: 280 }
-          : { maxHeight: '50%' as const };
+    let dropdownStyle;
+    if (isWeb && triggerLayout !== null) {
+      // Flip above the trigger when the viewport space below is too small,
+      // and clamp the height to the available space so the panel never
+      // renders (unscrollably) past the edge of the screen.
+      const windowHeight = Dimensions.get('window').height;
+      const spaceBelow = windowHeight - (triggerLayout.y + triggerLayout.height) - 12;
+      const spaceAbove = triggerLayout.y - 12;
+      const shouldFlipUp = spaceBelow < 160 && spaceAbove > spaceBelow;
+      const maxHeight = Math.max(Math.min(280, shouldFlipUp ? spaceAbove : spaceBelow), 100);
+      dropdownStyle = {
+        left: triggerLayout.x,
+        width: triggerLayout.width,
+        maxHeight,
+        ...(shouldFlipUp
+          ? { bottom: windowHeight - triggerLayout.y + 4 }
+          : { top: triggerLayout.y + triggerLayout.height + 4 }),
+      };
+    } else {
+      dropdownStyle = isWeb ? { maxHeight: 280 } : { maxHeight: '50%' as const };
+    }
 
     return (
       <View className={cn('gap-1.5', className)} testID={testID} ref={ref}>
