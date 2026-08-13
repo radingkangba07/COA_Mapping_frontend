@@ -58,7 +58,12 @@ export function WorkstreamDetailScreen(): React.JSX.Element {
         // only ever adds, so without a reset a prior session's steps persist and
         // the stepper shows future stages as already complete.
         store.reset();
-        store.setProjectId(projectId);
+        // Deliberately NOT calling store.setProjectId here: useHydrateProject on
+        // the destination screen skips hydration when the store's projectId
+        // already matches, which left sourceData/targetData empty (e.g. the
+        // target-account dropdown on Validation had no options). Leaving
+        // projectId unset makes the destination screen run full hydration,
+        // which fetches file rows and sets projectId itself.
         store.setReadOnly(data.status === 'completed');
 
         // Restore file metadata and type mapping rows from cache so that
