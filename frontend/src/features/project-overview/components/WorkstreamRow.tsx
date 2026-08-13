@@ -6,6 +6,10 @@ import { StatusBadge } from './StatusBadge';
 import { ProgressBar } from './ProgressBar';
 import type { Workstream } from '../types/workstream.types';
 
+// Workstream names that have an active migration flow and show an Open button.
+// Extend as new scope screens are delivered.
+const OPENABLE_NAMES = new Set(['Chart of Accounts', 'Customers', 'Items']);
+
 export type ColFlex = {
   readonly name: number;
   readonly projectId: number;
@@ -138,9 +142,7 @@ export const WorkstreamRow = ({
     </>
   );
 
-  // Only Chart of Accounts has a built flow — other included workstreams are
-  // visible but not yet openable.
-  if (w.name === 'Chart of Accounts') {
+  if (OPENABLE_NAMES.has(w.name)) {
     return (
       <View className="border-t border-border">
         <Pressable

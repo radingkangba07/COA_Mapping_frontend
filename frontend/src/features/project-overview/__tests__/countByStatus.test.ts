@@ -5,6 +5,7 @@ const ws = (overrides: Partial<Workstream>): Workstream => ({
   id: 'ws-1',
   name: 'Test',
   projectId: 'T-001',
+  orgProjectId: null,
   status: 'not_started',
   progress: 0,
   currentStage: 'Not Started',

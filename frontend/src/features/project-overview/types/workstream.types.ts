@@ -10,6 +10,7 @@ export interface Workstream {
   readonly id: string;
   readonly name: string;
   readonly projectId: string;
+  readonly orgProjectId: string | null;
   readonly status: WorkstreamStatus;
   readonly progress: number;      // 0–100
   readonly currentStage: string;

@@ -57,7 +57,7 @@ const coaRow: MasterDataRowVM = makeRow({
   description: 'General ledger structure.',
 });
 
-const enabledRow: MasterDataRowVM = makeRow({ id: 'customers' });
+const enabledRow: MasterDataRowVM = makeRow({ id: 'vendors', label: 'Vendors' });
 
 // ─── Tests ─────────────────────────────────────────────────────────────────
 
@@ -96,7 +96,7 @@ describe('MasterDataTable', () => {
     expect(onToggleColumn).not.toHaveBeenCalled();
   });
 
-  it('disables both checkboxes for non-COA rows', () => {
+  it('disables both checkboxes for scopes not in ENABLED_SCOPE_IDS', () => {
     const onToggleColumn = jest.fn();
     render(
       <MasterDataTable
@@ -106,14 +106,14 @@ describe('MasterDataTable', () => {
       />,
     );
 
-    expect(screen.queryByTestId('md-customers-gated-hint')).toBeNull();
+    expect(screen.queryByTestId('md-vendors-gated-hint')).toBeNull();
 
     expect(
-      screen.getByTestId('md-customers-dataConversion'),
+      screen.getByTestId('md-vendors-dataConversion'),
     ).toHaveProp('accessibilityState', { checked: false, disabled: true });
 
-    fireEvent.press(screen.getByTestId('md-customers-dataConversion'));
-    fireEvent.press(screen.getByTestId('md-customers-mdm'));
+    fireEvent.press(screen.getByTestId('md-vendors-dataConversion'));
+    fireEvent.press(screen.getByTestId('md-vendors-mdm'));
     expect(onToggleColumn).not.toHaveBeenCalled();
   });
 });

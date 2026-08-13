@@ -11,6 +11,7 @@ export interface WorkstreamDTO {
   readonly progress: number;
   readonly current_stage: string;
   readonly included: boolean;
+  readonly org_project_id?: string | null;
 }
 
 export interface WorkstreamGroupDTO {

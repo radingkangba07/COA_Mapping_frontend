@@ -31,6 +31,7 @@ jest.mock('@/shared/services/http/http.instance', () => ({
 // ─── Migration store mock ────────────────────────────────────────────────────
 const mockStoreActions = {
   reset: jest.fn(),
+  setProjectId: jest.fn(),
   setReadOnly: jest.fn(),
   hydrateFileState: jest.fn().mockResolvedValue(undefined),
   setSourceERP: jest.fn(),
