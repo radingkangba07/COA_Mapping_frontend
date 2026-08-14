@@ -53,7 +53,7 @@ interface AccountTypeGroupProps {
   confidence: number;
   accounts: readonly AccountMapping[];
   targetTypes: readonly string[];
-  targetAccounts: readonly { name: string; number: string }[];
+  targetAccounts: readonly { name: string; number: string; accountType?: string }[];
   onTypeChange: (sourceType: string, newTargetType: string) => void;
   onAccountNameChange: (sourceType: string, accountIndex: number, newName: string, sourceName?: string, suggestionId?: string, targetNumber?: string | null) => void;
   onDeleteAccount: (sourceType: string, accountIndex: number, account: AccountMapping) => void;
@@ -296,7 +296,10 @@ export const AccountTypeGroup = ({
   const targetAccountOptions = useMemo<SelectOption[]>(
     () => [
       { label: '-- Select Account --', value: 'unmatched' },
-      ...targetAccounts.map(({ name }) => ({ label: name, value: name })),
+      ...targetAccounts.map(({ name, accountType }) => ({
+        label: accountType ? `${name} (${accountType})` : name,
+        value: name,
+      })),
     ],
     [targetAccounts],
   );
