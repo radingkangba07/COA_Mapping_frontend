@@ -345,5 +345,41 @@ describe('AccountTypeGroup', () => {
 
       SelectMock.Select = original;
     });
+
+    it('appends accountType in parentheses to the option label when present', () => {
+      let capturedOptions: { label: string; value: string }[] | null = null;
+      const SelectMock = jest.requireMock('@/shared/components/ui/Select');
+      const original = SelectMock.Select;
+      SelectMock.Select = (props: {
+        options: { label: string; value: string }[];
+        onValueChange: (v: string) => void;
+      }) => {
+        capturedOptions = props.options;
+        capturedSelectOnValueChange = props.onValueChange;
+        const RN = require('react-native');
+        const R = require('react');
+        return R.createElement(RN.View, { testID: 'select' });
+      };
+
+      render(
+        <AccountTypeGroup
+          {...defaultProps}
+          testID="group"
+          targetAccounts={[
+            { name: 'Cash and Bank', number: '2000', accountType: 'Asset' },
+            { name: 'Revenue', number: '4000' },
+          ]}
+        />,
+      );
+      fireEvent.press(screen.getByLabelText('Edit target account'));
+
+      expect(capturedOptions).toEqual([
+        { label: '-- Select Account --', value: 'unmatched' },
+        { label: 'Cash and Bank (Asset)', value: 'Cash and Bank' },
+        { label: 'Revenue', value: 'Revenue' },
+      ]);
+
+      SelectMock.Select = original;
+    });
   });
 });

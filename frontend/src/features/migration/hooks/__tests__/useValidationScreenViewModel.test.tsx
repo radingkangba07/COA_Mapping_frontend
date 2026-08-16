@@ -715,6 +715,47 @@ describe('useValidationScreenViewModel.targetAccounts', () => {
     ]);
   });
 
+  it('extracts accountType from a detected type column', () => {
+    mockStoreState.targetData = [
+      { account_name: 'Cash', account_number: '1000', account_type: 'Asset' },
+      { account_name: 'Revenue', account_number: '4000', account_type: 'Income' },
+    ];
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
+      { wrapper: createWrapper() },
+    );
+    expect(result.current.targetAccounts).toEqual(
+      expect.arrayContaining([
+        { name: 'Cash', number: '1000', accountType: 'Asset' },
+        { name: 'Revenue', number: '4000', accountType: 'Income' },
+      ]),
+    );
+  });
+
+  it('omits accountType when no type column is found', () => {
+    mockStoreState.targetData = [
+      { account_name: 'Cash', account_number: '1000' },
+    ];
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
+      { wrapper: createWrapper() },
+    );
+    expect(result.current.targetAccounts).toEqual([{ name: 'Cash', number: '1000' }]);
+  });
+
+  it('ignores a "detail_type" column so it does not shadow the real type column', () => {
+    mockStoreState.targetData = [
+      { account_name: 'Cash', account_number: '1000', account_type: 'Asset', detail_type: 'Checking' },
+    ];
+    const { result } = renderHook(
+      () => useValidationScreenViewModel(projectId, navigateBack, navigateForward, jest.fn()),
+      { wrapper: createWrapper() },
+    );
+    expect(result.current.targetAccounts).toEqual([
+      { name: 'Cash', number: '1000', accountType: 'Asset' },
+    ]);
+  });
+
   it('filters out blank names from targetData', () => {
     mockStoreState.targetData = [
       { account_name: 'Cash', account_number: '1000' },

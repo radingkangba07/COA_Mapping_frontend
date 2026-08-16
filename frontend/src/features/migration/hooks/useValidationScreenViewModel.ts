@@ -48,7 +48,7 @@ interface ValidationScreenViewModel {
   readonly confirmedLow: boolean;
   readonly deletedAccounts: readonly { sourceType: string; sourceNumber: string; sourceName: string }[];
   readonly targetTypes: readonly string[];
-  readonly targetAccounts: readonly { name: string; number: string }[];
+  readonly targetAccounts: readonly { name: string; number: string; accountType?: string }[];
   readonly stats: MappingStats;
   readonly filteredMappings: GroupedMapping[];
   readonly allConfirmed: boolean;
@@ -248,7 +248,7 @@ export function useValidationScreenViewModel(
     });
   }, [queryClient, projectId]);
 
-  const targetAccounts = useMemo<{ name: string; number: string }[]>(() => {
+  const targetAccounts = useMemo<{ name: string; number: string; accountType?: string }[]>(() => {
     const firstRow = targetData[0];
     if (!firstRow) return [];
     const keys = Object.keys(firstRow);
@@ -258,13 +258,23 @@ export function useValidationScreenViewModel(
     const numberCol = keys.find(
       (k) => k.toLowerCase().includes('number') || k.toLowerCase().includes('code') || k.toLowerCase().includes('account_id'),
     );
+    // Same column-detection pattern as extractAccountTypes (file-processing.service.ts)
+    // so the type badges and this dropdown agree on which column is "the" type column.
+    const typeCol = keys.find((k) => {
+      const lower = k.toLowerCase();
+      return (lower.includes('type') && !lower.includes('detail')) || lower === 'type';
+    });
     if (!nameCol) return [];
     const seen = new Set<string>();
     return targetData
-      .map((r) => ({
-        name: String(r[nameCol] ?? '').trim(),
-        number: numberCol ? String(r[numberCol] ?? '').trim() : '',
-      }))
+      .map((r) => {
+        const type = typeCol ? String(r[typeCol] ?? '').trim() : '';
+        return {
+          name: String(r[nameCol] ?? '').trim(),
+          number: numberCol ? String(r[numberCol] ?? '').trim() : '',
+          ...(type ? { accountType: type } : {}),
+        };
+      })
       .filter(({ name }) => {
         if (!name || seen.has(name)) return false;
         seen.add(name);
