@@ -40,7 +40,7 @@ const mockGroupedMappings = [
     source_type: 'Asset',
     target_type: 'Assets',
     confidence: 95,
-    accounts: [{ source_name: 'Cash', target_name: 'Cash & Bank' }],
+    accounts: [{ source_number: '', source_name: 'Cash', target_name: 'Cash & Bank', score: 95, remark: '' }],
   },
 ];
 

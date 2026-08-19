@@ -9,6 +9,7 @@ import { colors } from '@/config/theme';
 import { cn } from '@/shared/utils/string.utils';
 import type { AccountMapping } from '@/features/migration/types/mapping.types';
 import { selectionKey, computeTriState } from '@/features/migration/utils/selection.utils';
+import { isUserChanged, getRemarkText } from '@/features/migration/utils/remark.utils';
 
 export type ScoreSortDirection = 'none' | 'asc' | 'desc';
 
@@ -19,24 +20,6 @@ function getScoreColor(score: number): string {
   if (score >= 70) return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30';
   if (score >= 50) return 'text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30';
   return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30';
-}
-
-function isUserChanged(account: AccountMapping): boolean {
-  // Local edits set user_changed:true optimistically. After Save + refetch,
-  // that flag is gone but the backend returns mapping_source:"user".
-  return account.user_changed === true || account.mapping_source === 'user';
-}
-
-function getRemarkText(account: AccountMapping): string {
-  if (isUserChanged(account)) {
-    return account.changed_by_name ? `Changed by ${account.changed_by_name}` : 'User Changed';
-  }
-  if (account.score >= 70) return 'AI suggestion';
-  // Show the backend's raw mapping_status DB column when available, so the
-  // Remark badge reflects the persisted status value rather than a static
-  // label. Falls back to the original label when the column is unset.
-  const status = account.mapping_status?.trim();
-  return status !== undefined && status.length > 0 ? status : 'Account Name Mapping';
 }
 
 function getRemarkColor(account: AccountMapping): string {

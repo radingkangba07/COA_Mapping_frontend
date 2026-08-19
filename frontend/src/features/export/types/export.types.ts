@@ -11,6 +11,8 @@ export interface MappingExportItem {
   readonly target_type: string;
   readonly confidence: number;
   readonly method: string;
+  readonly score: number;
+  readonly remark: string;
 }
 
 export interface ExportJob {

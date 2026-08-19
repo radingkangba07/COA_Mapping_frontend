@@ -10,6 +10,7 @@ import { createProjectId } from '@/shared/types/common.types';
 import { downloadBlob } from '@/shared/utils/download.utils';
 import { isOk } from '@/shared/types/result.types';
 import { MIGRATION_STEPS } from '@/shared/constants/migration-steps';
+import type { AccountMapping } from '@/features/migration/types/mapping.types';
 
 // ─── Input Contract ─────────────────────────────────────────────────────────
 
@@ -17,10 +18,7 @@ interface GroupedMappingInput {
   readonly source_type: string;
   readonly target_type: string;
   readonly confidence: number;
-  readonly accounts: readonly {
-    readonly source_name: string;
-    readonly target_name: string;
-  }[];
+  readonly accounts: readonly AccountMapping[];
 }
 
 interface UseExportViewModelParams {

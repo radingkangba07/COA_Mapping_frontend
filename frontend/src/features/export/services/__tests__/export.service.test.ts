@@ -4,6 +4,7 @@ import {
   exportMappingsAsCSV,
 } from '@/features/export/services/export.service';
 import type { HttpClient } from '@/shared/services/http/http.types';
+import type { AccountMapping } from '@/features/migration/types/mapping.types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -20,6 +21,15 @@ function createMockClient(overrides: Partial<HttpClient> = {}): HttpClient {
 
 // ─── flattenMappings ────────────────────────────────────────────────────────
 
+function makeAccount(overrides: Partial<AccountMapping> & { source_name: string; target_name: string }): AccountMapping {
+  return {
+    source_number: '',
+    score: 92,
+    remark: '',
+    ...overrides,
+  };
+}
+
 describe('flattenMappings', () => {
   it('builds correct MappingExportItem[] from multiple groups with multiple accounts', () => {
     const groups = [
@@ -28,8 +38,8 @@ describe('flattenMappings', () => {
         target_type: 'Fixed Asset',
         confidence: 92,
         accounts: [
-          { source_name: 'Cash', target_name: 'Cash & Equivalents' },
-          { source_name: 'AR', target_name: 'Accounts Receivable' },
+          makeAccount({ source_name: 'Cash', target_name: 'Cash & Equivalents', score: 92 }),
+          makeAccount({ source_name: 'AR', target_name: 'Accounts Receivable', score: 95 }),
         ],
       },
       {
@@ -37,10 +47,10 @@ describe('flattenMappings', () => {
         target_type: 'Current Liability',
         confidence: 78,
         accounts: [
-          { source_name: 'AP', target_name: 'Accounts Payable' },
+          makeAccount({ source_name: 'AP', target_name: 'Accounts Payable', score: 60 }),
         ],
       },
-    ] as const;
+    ];
 
     const result = flattenMappings(groups);
 
@@ -52,6 +62,8 @@ describe('flattenMappings', () => {
       target_type: 'Fixed Asset',
       confidence: 92,
       method: 'hierarchical',
+      score: 92,
+      remark: 'AI suggestion',
     });
     expect(result[1]).toEqual({
       source_field: 'AR',
@@ -60,6 +72,8 @@ describe('flattenMappings', () => {
       target_type: 'Fixed Asset',
       confidence: 92,
       method: 'hierarchical',
+      score: 95,
+      remark: 'AI suggestion',
     });
     expect(result[2]).toEqual({
       source_field: 'AP',
@@ -68,6 +82,8 @@ describe('flattenMappings', () => {
       target_type: 'Current Liability',
       confidence: 78,
       method: 'hierarchical',
+      score: 60,
+      remark: 'Account Name Mapping',
     });
   });
 
@@ -88,9 +104,9 @@ describe('flattenMappings', () => {
         source_type: 'Revenue',
         target_type: 'Income',
         confidence: 90,
-        accounts: [{ source_name: 'Sales', target_name: 'Sales Revenue' }],
+        accounts: [makeAccount({ source_name: 'Sales', target_name: 'Sales Revenue', score: 100 })],
       },
-    ] as const;
+    ];
 
     const result = flattenMappings(groups);
 
@@ -102,6 +118,8 @@ describe('flattenMappings', () => {
       target_type: 'Income',
       confidence: 90,
       method: 'hierarchical',
+      score: 100,
+      remark: 'AI suggestion',
     });
   });
 });
@@ -118,6 +136,8 @@ describe('exportMappings', () => {
       target_type: 'Fixed Asset',
       confidence: 92,
       method: 'hierarchical',
+      score: 92,
+      remark: 'AI suggestion',
     },
   ] as const;
 
@@ -183,6 +203,8 @@ describe('exportMappingsAsCSV', () => {
       target_type: 'Fixed Asset',
       confidence: 92,
       method: 'hierarchical',
+      score: 92,
+      remark: 'AI suggestion',
     },
     {
       source_field: 'AP',
@@ -191,6 +213,8 @@ describe('exportMappingsAsCSV', () => {
       target_type: 'Current Liability',
       confidence: 78,
       method: 'hierarchical',
+      score: 60,
+      remark: 'Account Name Mapping',
     },
   ] as const;
 

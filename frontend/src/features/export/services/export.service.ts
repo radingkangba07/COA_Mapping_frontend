@@ -3,6 +3,8 @@ import { toAppError } from '@/shared/services/http/http.client';
 import { ok, err } from '@/shared/types/result.types';
 import type { Result, AppError } from '@/shared/types/result.types';
 import type { MappingExportItem, ExportResult } from '@/features/export/types/export.types';
+import type { AccountMapping } from '@/features/migration/types/mapping.types';
+import { getRemarkText } from '@/features/migration/utils/remark.utils';
 import { generateCSV } from './csv-writer.service';
 
 // ─── Flatten Grouped Mappings ───────────────────────────────────────────────
@@ -11,10 +13,7 @@ interface GroupedMappingInput {
   readonly source_type: string;
   readonly target_type: string;
   readonly confidence: number;
-  readonly accounts: readonly {
-    readonly source_name: string;
-    readonly target_name: string;
-  }[];
+  readonly accounts: readonly AccountMapping[];
 }
 
 export function flattenMappings(groups: readonly GroupedMappingInput[]): MappingExportItem[] {
@@ -28,6 +27,8 @@ export function flattenMappings(groups: readonly GroupedMappingInput[]): Mapping
         target_type: group.target_type,
         confidence: group.confidence,
         method: 'hierarchical',
+        score: Math.round(account.score),
+        remark: getRemarkText(account),
       });
     }
   }
@@ -71,7 +72,7 @@ export function exportMappingsAsCSV(
   projectId: string,
 ): Result<ExportResult, AppError> {
   try {
-    const csvContent = generateCSV(items);
+    const csvContent = generateCSV(items, projectId);
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const filename = `mapped_coa_${projectId}.csv`;
     return ok({ blob, filename, format: 'csv' as const });
