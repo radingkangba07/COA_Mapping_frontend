@@ -327,25 +327,25 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
         <Card className="mt-4" testID="final-preview-table">
               {/* Table header */}
               <View className="flex-row bg-gray-100 dark:bg-[#2D2D2D] border-b border-border px-4 py-2 rounded-t-lg">
-                <View className="w-[8%]">
+                <View className="w-[8%] pr-2">
                   <Text className="text-xs font-semibold text-muted-foreground">Account #</Text>
                 </View>
-                <View className="w-[20%]">
+                <View className="w-[22%] pr-4">
                   <Text className="text-xs font-semibold text-muted-foreground">Source Account Name</Text>
                 </View>
-                <View className="w-[12%]">
+                <View className="w-[13%] pr-2">
                   <Text className="text-xs font-semibold text-muted-foreground">Source Type</Text>
                 </View>
-                <View className="w-[8%]">
+                <View className="w-[8%] pl-2 pr-1">
                   <Text className="text-xs font-semibold text-muted-foreground">Target #</Text>
                 </View>
-                <View className="w-[12%]">
+                <View className="w-[22%] pr-4">
                   <Text className="text-xs font-semibold text-muted-foreground">Target Account Name</Text>
                 </View>
-                <View className="w-[12%]">
+                <View className="w-[13%] pr-2">
                   <Text className="text-xs font-semibold text-muted-foreground">Target Type</Text>
                 </View>
-                <View className="w-[28%] items-center">
+                <View className="w-[14%] items-center">
                   <Text className="text-xs font-semibold text-muted-foreground">Score</Text>
                 </View>
               </View>
@@ -362,25 +362,25 @@ export const FinalPreviewScreen = (): React.JSX.Element => {
                         idx % 2 === 0 ? 'bg-card' : 'bg-surface-highlight',
                       )}
                     >
-                      <View className="w-[8%]">
+                      <View className="w-[8%] pr-2">
                         <Text className="font-mono text-xs text-muted-foreground">{row.sourceNumber}</Text>
                       </View>
-                      <View className="w-[20%]">
-                        <Text className="text-xs text-foreground" numberOfLines={1}>{row.sourceName}</Text>
+                      <View className="w-[22%] pr-4">
+                        <Text className="text-xs text-foreground">{row.sourceName}</Text>
                       </View>
-                      <View className="w-[12%]">
+                      <View className="w-[13%] pr-2">
                         <Text className="text-xs text-muted-foreground" numberOfLines={1}>{row.sourceType}</Text>
                       </View>
-                      <View className="w-[8%]">
+                      <View className="w-[8%] pl-2 pr-1">
                         <Text className="font-mono text-xs text-muted-foreground" numberOfLines={1}>{row.targetNumber ?? ''}</Text>
                       </View>
-                      <View className="w-[12%]">
-                        <Text className="text-xs text-foreground" numberOfLines={1}>{row.targetName}</Text>
+                      <View className="w-[22%] pr-4">
+                        <Text className="text-xs text-foreground">{row.targetName}</Text>
                       </View>
-                      <View className="w-[12%]">
+                      <View className="w-[13%] pr-2">
                         <Text className="text-xs text-muted-foreground" numberOfLines={1}>{row.targetType}</Text>
                       </View>
-                      <View className="w-[28%] items-center">
+                      <View className="w-[14%] items-center">
                         <Badge className={cn(scoreColor, 'px-1.5 py-0.5')}>
                           <Text className={cn('text-xs font-mono font-medium', scoreColor)}>
                             {row.score}%
