@@ -264,9 +264,18 @@ export function useProjectScopeViewModel(
     if (createDisabled) {
       return false;
     }
+    const draft = useProjectScopeStore.getState().draft;
+    if (
+      draft.scope.selectedMasterData.length === 0 &&
+      draft.scope.selectedOpeningBalances.length === 0
+    ) {
+      toast.showError(
+        'Select at least one item from Master Data or Opening Balances',
+      );
+      return false;
+    }
     setIsCreating(true);
     try {
-      const draft = useProjectScopeStore.getState().draft;
       const base = buildCreatePayload(draft, { sourceVendorId, targetVendorId });
       // Fall back to the user's employer org when no company was selected on entry
       const effectiveOrgId = draft.companyId ?? (parentOrgId as string | null) ?? undefined;

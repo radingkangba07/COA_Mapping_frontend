@@ -152,6 +152,7 @@ describe('useProjectScopeViewModel', () => {
       result.current.setSource('sap');
       result.current.setTarget('xero');
       useProjectScopeStore.getState().setConnectionReady(true);
+      useProjectScopeStore.getState().toggleOpeningBalances('open-ar');
     });
 
     let outcome = false;
@@ -161,6 +162,29 @@ describe('useProjectScopeViewModel', () => {
 
     expect(outcome).toBe(true);
     expect(mockCreateProject).toHaveBeenCalledTimes(1);
+  });
+
+  it('create() shows an error and does NOT call createProject when no migration scope is selected', async () => {
+    const { result } = renderHook(() => useProjectScopeViewModel(SEED), {
+      wrapper: createWrapper(),
+    });
+
+    act(() => {
+      result.current.setSource('sap');
+      result.current.setTarget('xero');
+      useProjectScopeStore.getState().setConnectionReady(true);
+    });
+
+    let outcome = true;
+    await act(async () => {
+      outcome = await result.current.create();
+    });
+
+    expect(outcome).toBe(false);
+    expect(mockCreateProject).not.toHaveBeenCalled();
+    expect(mockShowError).toHaveBeenCalledWith(
+      'Select at least one item from Master Data or Opening Balances',
+    );
   });
 
   // ── saveDraft() ───────────────────────────────────────────────────────

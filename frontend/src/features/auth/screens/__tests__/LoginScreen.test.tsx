@@ -140,7 +140,7 @@ describe('LoginScreen', () => {
 
   it('shows subtitle text', () => {
     render(<LoginScreen {...createMockProps()} />);
-    expect(screen.getByText('Chart of Accounts Migration Tool')).toBeTruthy();
+    expect(screen.getByText('Migration Assistant Tool')).toBeTruthy();
   });
 
   it('shows "Register" link instead of auto-registration notice', () => {
