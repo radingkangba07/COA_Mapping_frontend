@@ -3,13 +3,40 @@ import {
   View, Text, Pressable, useWindowDimensions, Modal,
   type LayoutRectangle,
 } from 'react-native';
-import { LogOut } from 'lucide-react-native';
+import { LogOut, Sun } from 'lucide-react-native';
 import { BREAKPOINTS } from '@/shared/utils/platform.utils';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { useAppStore } from '@/shared/store/app.store';
 import { colors } from '@/config/theme';
+import { MoonIcon } from '@/shared/components/icons/MoonIcon';
 import { AppTabs } from './tabs/AppTabs';
 import { AppDrawer } from './drawers/AppDrawer';
+
+// ─── Theme Toggle ─────────────────────────────────────────────────────────
+
+function ThemeToggleButton(): React.JSX.Element {
+  const theme = useAppStore((s) => s.theme);
+  const toggleTheme = useAppStore((s) => s.toggleTheme);
+  const isDark = theme === 'dark';
+
+  return (
+    <Pressable
+      onPress={toggleTheme}
+      className="h-[26px] w-[26px] items-center justify-center rounded-[7px] border"
+      style={{ borderColor: colors.border, backgroundColor: colors.card }}
+      accessibilityRole="button"
+      accessibilityLabel="Toggle theme"
+      hitSlop={4}
+      testID="topbar-theme-toggle"
+    >
+      {isDark ? (
+        <Sun size={15} color={colors.mutedForeground} />
+      ) : (
+        <MoonIcon size={15} color={colors.mutedForeground} />
+      )}
+    </Pressable>
+  );
+}
 
 // ─── Profile Dropdown ─────────────────────────────────────────────────────
 
@@ -155,11 +182,14 @@ const AppTopBar = (): React.JSX.Element => {
       <Text className="font-heading text-sm font-bold" style={{ color: colors.foreground }}>
         DataPortation
       </Text>
-      <ProfileDropdown
-        name={user?.name ?? 'User'}
-        email={user?.email ?? ''}
-        onLogout={handleLogout}
-      />
+      <View className="flex-row items-center gap-2.5">
+        <ThemeToggleButton />
+        <ProfileDropdown
+          name={user?.name ?? 'User'}
+          email={user?.email ?? ''}
+          onLogout={handleLogout}
+        />
+      </View>
     </View>
   );
 };

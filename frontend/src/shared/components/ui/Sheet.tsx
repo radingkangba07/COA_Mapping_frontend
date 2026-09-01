@@ -20,13 +20,17 @@ interface SheetRootProps {
   visible: boolean;
   onClose: () => void;
   side?: SheetSide;
+  /** Right-side only. Additive override for callers that need a wider
+   *  panel than the default 320px (e.g. FieldDetailDrawer's 480px) —
+   *  ignored for side="bottom". */
+  width?: number;
   className?: string;
   testID?: string;
   children?: React.ReactNode;
 }
 
 const SheetRoot = React.forwardRef<View, SheetRootProps>(
-  ({ visible, onClose, side = defaultSide, className, testID, children }, ref) => (
+  ({ visible, onClose, side = defaultSide, width, className, testID, children }, ref) => (
     <Modal
       visible={visible}
       transparent={true}
@@ -36,7 +40,7 @@ const SheetRoot = React.forwardRef<View, SheetRootProps>(
     >
       <Pressable
         className={cn(
-          'flex-1 bg-black/50',
+          'flex-1 bg-black/40',
           side === 'bottom' ? 'justify-end' : 'flex-row justify-end',
         )}
         onPress={onClose}
@@ -53,6 +57,14 @@ const SheetRoot = React.forwardRef<View, SheetRootProps>(
               : 'h-full w-80 border-l',
             className,
           )}
+          style={[
+            side === 'right' && width !== undefined
+              ? { width, ...(isWeb ? { maxWidth: '96vw' as unknown as number } : undefined) }
+              : undefined,
+            // Reference: `box-shadow:-8px 0 30px rgba(0,0,0,.2)` on the
+            // sliding right-side panel.
+            side === 'right' && isWeb ? { boxShadow: '-8px 0 30px rgba(0,0,0,.2)' } : undefined,
+          ]}
         >
           {children}
         </Pressable>
@@ -117,10 +129,12 @@ interface SheetCloseProps {
   className?: string;
   testID?: string;
   size?: number;
+  /** Additive — every existing consumer keeps the default muted icon colour. */
+  iconColor?: string;
 }
 
 const SheetClose = React.forwardRef<View, SheetCloseProps>(
-  ({ onPress, className, testID, size = 20 }, ref) => (
+  ({ onPress, className, testID, size = 20, iconColor = colors.mutedForeground }, ref) => (
     <Pressable
       ref={ref}
       onPress={onPress}
@@ -132,7 +146,7 @@ const SheetClose = React.forwardRef<View, SheetCloseProps>(
       accessibilityLabel="Close"
       testID={testID}
     >
-      <X size={size} color={colors.mutedForeground} />
+      <X size={size} color={iconColor} />
     </Pressable>
   ),
 );

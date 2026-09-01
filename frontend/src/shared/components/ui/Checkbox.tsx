@@ -11,11 +11,23 @@ interface CheckboxProps {
   onCheckedChange: (checked: boolean) => void;
   label?: string;
   isDisabled?: boolean;
+  /**
+   * `'default'` (20×20, 2px border) is this component's long-standing
+   * app-wide look. `'sm'` (15×15, 1px border) exists for the master-data
+   * wizard's table row-checkbox, whose reference is a plain native
+   * `<input type="checkbox">` at `width:15px;height:15px` — a thick 2px
+   * border reads disproportionately chunky at that size, so `'sm'` also
+   * thins it to 1px. Additive: every existing consumer keeps `'default'`.
+   */
+  size?: 'default' | 'sm';
+  /** Native-title-equivalent hover text / screen-reader label — additive, not set by any existing consumer. */
+  accessibilityLabel?: string;
   className?: string;
   testID?: string;
 }
 
 const ICON_SIZE = 14;
+const ICON_SIZE_SM = 11;
 
 export const Checkbox = React.forwardRef<View, CheckboxProps>(
   (
@@ -24,6 +36,8 @@ export const Checkbox = React.forwardRef<View, CheckboxProps>(
       onCheckedChange,
       label,
       isDisabled = false,
+      size = 'default',
+      accessibilityLabel,
       className,
       testID,
     },
@@ -32,6 +46,8 @@ export const Checkbox = React.forwardRef<View, CheckboxProps>(
     const isChecked = checked === true;
     const isIndeterminate = checked === 'indeterminate';
     const isFilled = isChecked || isIndeterminate;
+    const isSm = size === 'sm';
+    const iconSize = isSm ? ICON_SIZE_SM : ICON_SIZE;
 
     const handlePress = useCallback(() => {
       if (isDisabled) return;
@@ -50,6 +66,7 @@ export const Checkbox = React.forwardRef<View, CheckboxProps>(
         )}
         testID={testID}
         accessibilityRole="checkbox"
+        accessibilityLabel={accessibilityLabel}
         accessibilityState={{
           checked: isIndeterminate ? 'mixed' : isChecked,
           disabled: isDisabled,
@@ -57,7 +74,8 @@ export const Checkbox = React.forwardRef<View, CheckboxProps>(
       >
         <View
           className={cn(
-            'h-5 w-5 items-center justify-center rounded-sm border-2',
+            'items-center justify-center rounded-sm',
+            isSm ? 'h-[15px] w-[15px] border' : 'h-5 w-5 border-2',
             isFilled
               ? 'border-primary bg-primary'
               : 'bg-background',
@@ -66,14 +84,14 @@ export const Checkbox = React.forwardRef<View, CheckboxProps>(
         >
           {isChecked && (
             <Check
-              size={ICON_SIZE}
+              size={iconSize}
               color={colors.primaryForeground}
               strokeWidth={3}
             />
           )}
           {isIndeterminate && (
             <Minus
-              size={ICON_SIZE}
+              size={iconSize}
               color={colors.primaryForeground}
               strokeWidth={3}
             />

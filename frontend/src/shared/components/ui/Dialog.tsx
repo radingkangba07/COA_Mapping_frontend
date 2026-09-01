@@ -123,10 +123,12 @@ interface DialogCloseProps {
   className?: string;
   testID?: string;
   size?: number;
+  /** Additive — every existing consumer keeps the default muted icon colour. */
+  iconColor?: string;
 }
 
 const DialogClose = React.forwardRef<View, DialogCloseProps>(
-  ({ onPress, className, testID, size = 20 }, ref) => (
+  ({ onPress, className, testID, size = 20, iconColor = colors.mutedForeground }, ref) => (
     <Pressable
       ref={ref}
       onPress={onPress}
@@ -138,7 +140,7 @@ const DialogClose = React.forwardRef<View, DialogCloseProps>(
       accessibilityLabel="Close"
       testID={testID}
     >
-      <X size={size} color={colors.mutedForeground} />
+      <X size={size} color={iconColor} />
     </Pressable>
   ),
 );

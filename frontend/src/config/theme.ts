@@ -7,7 +7,14 @@ export const lightColors = {
   foreground: '#09090B',
   surface: '#F4F4F5',
   surfaceHighlight: '#FAFAFA',
-  border: '#A0A0A0',
+  // Was '#A0A0A0' — didn't match this app's own `--color-border` Tailwind
+  // token (`global.css`, light: `#E4E4E7`), which every `border-border`
+  // className-based consumer already correctly resolves to. Only inline
+  // `style={{ borderColor: colors.border }}` consumers (colors.* is a JS
+  // proxy, not a CSS var, so Tailwind's token doesn't reach them) were
+  // rendering the wrong, more-saturated gray — invisible in dark mode,
+  // where this token already correctly matched `#3E3E42` either way.
+  border: '#E4E4E7',
   input: '#A0A0A0',
   ring: '#2563EB',
   primary: '#003399',
@@ -17,7 +24,13 @@ export const lightColors = {
   accent: '#2563EB',
   accentForeground: '#FFFFFF',
   muted: '#F4F4F5',
-  mutedForeground: '#9E9E9E',
+  // Was '#9E9E9E' — same class of bug as `border` above: didn't match
+  // this app's own `--color-muted-foreground` Tailwind token
+  // (`global.css`, light: `#6B6B73`), so inline `style={{ color:
+  // colors.mutedForeground }}` consumers rendered visibly lighter/grayer
+  // text than a `text-muted-foreground` className consumer sitting right
+  // next to them. Dark mode already matched (`#858585` either way).
+  mutedForeground: '#6B6B73',
   destructive: '#D72222',
   destructiveForeground: '#FAFAFA',
   success: '#15803D',

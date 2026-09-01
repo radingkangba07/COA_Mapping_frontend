@@ -5,8 +5,8 @@
 /* ─── Themed Scrollbar (web) ─────────────────────────────────────────────── */
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -15,7 +15,7 @@
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
-  border-radius: 9999px;
+  border-radius: 8px;
 }
 
 ::-webkit-scrollbar-thumb:hover {

@@ -1,35 +1,35 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  type ViewStyle,
-  type LayoutChangeEvent,
-} from 'react-native';
+import { View, Text, Pressable, type ViewStyle } from 'react-native';
 import { cn } from '@/shared/utils/string.utils';
-import { isWeb } from '@/shared/utils/platform.utils';
+import {
+  AUTO_HIDE_DELAY_MS,
+  TOOLTIP_GAP,
+  TOOLTIP_BG,
+  TOOLTIP_FG,
+  TOOLTIP_Z_INDEX,
+  TOOLTIP_WIDTH,
+  type TooltipProps,
+} from './Tooltip.shared';
 
-const AUTO_HIDE_DELAY_MS = 2000;
-const TOOLTIP_GAP = 6;
-const ARROW_SIZE = 8;
-const ARROW_OFFSET = ARROW_SIZE / 2;
-
-interface TooltipProps {
-  content: string;
-  children: React.ReactNode;
-  position?: 'top' | 'bottom';
-  className?: string;
-  testID?: string;
-}
-
+/**
+ * Default (native — iOS/Android) implementation. Metro resolves
+ * `Tooltip.web.tsx` instead of this file for web bundles automatically
+ * via its platform-extension convention, so nothing here runs on web; see
+ * that file's own doc comment for why web needs a completely different
+ * rendering strategy (a `document.body` portal). React Native's real,
+ * per-surface layer compositing doesn't have the CSS quirk that forces
+ * that on web, so this file keeps the simple inline-absolute approach —
+ * a definite `width` (not `maxWidth`) is still needed here too: an
+ * absolutely positioned box with only `left` set sizes itself via
+ * "shrink-to-fit," bounded by its containing block's (the trigger's own)
+ * available width, not the screen.
+ */
 export const Tooltip = React.forwardRef<View, TooltipProps>(
   function TooltipInner(
-    { content, children, position = 'top', className, testID },
+    { content, children, position = 'top', className, testID, onPress },
     ref,
   ) {
     const [isVisible, setIsVisible] = useState(false);
-    const [triggerWidth, setTriggerWidth] = useState(0);
-    const [tooltipWidth, setTooltipWidth] = useState(0);
     const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const clearHideTimer = useCallback((): void => {
@@ -58,64 +58,37 @@ export const Tooltip = React.forwardRef<View, TooltipProps>(
       hideTimerRef.current = setTimeout(hide, AUTO_HIDE_DELAY_MS);
     }, [show, hide]);
 
-    const handleTriggerLayout = useCallback((event: LayoutChangeEvent): void => {
-      setTriggerWidth(event.nativeEvent.layout.width);
-    }, []);
-
-    const handleTooltipLayout = useCallback((event: LayoutChangeEvent): void => {
-      setTooltipWidth(event.nativeEvent.layout.width);
-    }, []);
-
     const isTop = position === 'top';
-    const offsetX = (triggerWidth - tooltipWidth) / 2;
 
     const tooltipContainerStyle: ViewStyle = {
       position: 'absolute',
-      left: offsetX,
+      alignSelf: 'flex-start',
+      left: 0,
+      width: TOOLTIP_WIDTH,
+      zIndex: TOOLTIP_Z_INDEX,
       ...(isTop
         ? { bottom: '100%', marginBottom: TOOLTIP_GAP }
         : { top: '100%', marginTop: TOOLTIP_GAP }),
     };
 
-    const arrowStyle: ViewStyle = {
-      width: ARROW_SIZE,
-      height: ARROW_SIZE,
-      transform: [{ rotate: '45deg' }],
-      position: 'absolute',
-      alignSelf: 'center',
-      ...(isTop ? { bottom: -ARROW_OFFSET } : { top: -ARROW_OFFSET }),
-    };
-
-    const webHoverProps = isWeb
-      ? { onHoverIn: show, onHoverOut: hide }
-      : {};
-
-    const nativePressProps = !isWeb
-      ? { onLongPress: handleLongPress }
-      : {};
-
     return (
-      <View ref={ref} className={cn('relative', className)} testID={testID}>
-        <Pressable
-          onLayout={handleTriggerLayout}
-          {...webHoverProps}
-          {...nativePressProps}
-        >
+      <View
+        ref={ref}
+        className={cn('relative', className)}
+        style={isVisible ? { zIndex: TOOLTIP_Z_INDEX } : undefined}
+        testID={testID}
+      >
+        <Pressable onPress={onPress} onLongPress={handleLongPress}>
           {children}
         </Pressable>
 
         {isVisible && (
-          <View
-            style={tooltipContainerStyle}
-            onLayout={handleTooltipLayout}
-            pointerEvents="none"
-          >
-            <View className="bg-foreground rounded-md px-3 py-1.5">
-              <Text className="text-xs text-background text-center" numberOfLines={2}>
+          <View style={tooltipContainerStyle} pointerEvents="none">
+            <View className="rounded-md px-3 py-2 shadow-lg" style={{ backgroundColor: TOOLTIP_BG }}>
+              <Text className="text-left font-body text-xs leading-4" style={{ color: TOOLTIP_FG }}>
                 {content}
               </Text>
             </View>
-            <View className="bg-foreground self-center" style={arrowStyle} />
           </View>
         )}
       </View>

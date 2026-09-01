@@ -56,7 +56,22 @@ export type MigrationStackParamList = {
   Preview: { projectId: string };
 };
 
-export type AppDrawerParamList = AppTabsParamList;
+export type SourceProfilePreviewStackParamList = {
+  SourceProfilePreview: undefined;
+};
+
+// TEMPORARY: extends (not replaces) the tabs param list with a desktop-only
+// drawer entry that previews the master-data wizard's Source Data Profile
+// step directly, ahead of the real wizard shell/step rail landing and real
+// project/entityId routing (no backend contract for either exists yet — see
+// docs/handover/INTEGRATION.md). See
+// navigation/stacks/MasterDataWizardStack.tsx. AppTabsParamList (mobile
+// bottom tabs) is left unchanged. Remove this intersection, the drawer entry
+// in AppDrawer.tsx, and MasterDataWizardStack.tsx once the real wizard shell
+// supersedes it.
+export type AppDrawerParamList = AppTabsParamList & {
+  SourceProfilePreviewTab: NavigatorScreenParams<SourceProfilePreviewStackParamList>;
+};
 
 // ---- Typed Navigation Hooks ----
 

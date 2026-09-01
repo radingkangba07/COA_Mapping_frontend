@@ -6,7 +6,7 @@ import {
 } from '@react-navigation/drawer';
 import { useNavigationState } from '@react-navigation/native';
 import {
-  FolderOpen, ArrowRightLeft, Settings, ChevronsLeft, ChevronsRight,
+  FolderOpen, ArrowRightLeft, Settings, FlaskConical, ChevronsLeft, ChevronsRight,
 } from 'lucide-react-native';
 import { useAppStore } from '@/shared/store/app.store';
 import { colors } from '@/config/theme';
@@ -14,6 +14,7 @@ import { Tooltip } from '@/shared/components/ui/Tooltip';
 import { ProjectsStack } from '../stacks/ProjectsStack';
 import { MigrationStack } from '../stacks/MigrationStack';
 import { SettingsStack } from '../stacks/SettingsStack';
+import { SourceProfilePreviewStack } from '../stacks/MasterDataWizardStack';
 import { OrgSwitcher } from '@/features/projects/components/OrgSwitcher';
 import type { AppDrawerParamList } from '../types';
 
@@ -39,6 +40,11 @@ const DRAWER_WIDTH_COLLAPSED = 64;
 const DRAWER_ITEMS = [
   { key: 'ProjectsTab' as const, label: 'Projects', Icon: FolderOpen },
   { key: 'MigrationTab' as const, label: 'Migration', Icon: ArrowRightLeft },
+  // TEMPORARY: standalone preview of the master-data wizard's Source Data
+  // Profile step, ahead of the real wizard shell/step rail landing. Remove
+  // this entry, MasterDataWizardStack.tsx, and the param-list extension in
+  // navigation/types.ts once the real wizard shell supersedes it.
+  { key: 'SourceProfilePreviewTab' as const, label: 'Profile Preview', Icon: FlaskConical },
   { key: 'SettingsTab' as const, label: 'Settings', Icon: Settings },
 ] as const;
 
@@ -180,6 +186,8 @@ export const AppDrawer = (): React.JSX.Element => {
     >
       <Drawer.Screen name="ProjectsTab" component={ProjectsStack} />
       <Drawer.Screen name="MigrationTab" component={MigrationStack} />
+      {/* TEMPORARY — see DRAWER_ITEMS comment above. */}
+      <Drawer.Screen name="SourceProfilePreviewTab" component={SourceProfilePreviewStack} />
       <Drawer.Screen name="SettingsTab" component={SettingsStack} />
     </Drawer.Navigator>
   );

@@ -17,7 +17,7 @@ const buttonVariants = cva(
       variant: {
         default: 'bg-primary',
         destructive: 'bg-destructive',
-        outline: 'border border-input bg-background',
+        outline: 'border border-input bg-background hover:bg-surface',
         secondary: 'bg-secondary',
         ghost: '',
         link: '',
