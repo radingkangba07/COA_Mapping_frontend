@@ -1,4 +1,7 @@
 import { useAppStore } from '@/shared/store/app.store';
+import type { Theme } from '@/shared/store/app.store';
+
+export type { Theme };
 
 // ─── Color Palettes ─────────────────────────────────────────────────────────
 
@@ -41,6 +44,8 @@ export const lightColors = {
   cardForeground: '#09090B',
   popover: '#FFFFFF',
   popoverForeground: '#09090B',
+  chip: '#DBEAFE',
+  chipForeground: '#1D4ED8',
 } as const;
 
 export const darkColors = {
@@ -69,6 +74,8 @@ export const darkColors = {
   cardForeground: '#D4D4D4',
   popover: '#252526',
   popoverForeground: '#D4D4D4',
+  chip: '#1E3A5F',
+  chipForeground: '#93C5FD',
 } as const;
 
 type ColorTokens = keyof typeof lightColors;
@@ -140,6 +147,59 @@ export const cardShadow = {
   shadowRadius: 4,
   elevation: 2,
 } as const;
+
+// ─── Master-Data-Wizard Semantic States ─────────────────────────────────────
+// State→{fg,bg} Tailwind className lookup for the wizard's four semantic
+// families (impact/find/metricTone/prov). fg classes reuse the base color
+// tokens above directly; bg classes use the tint tokens registered in
+// tailwind.config.js/global.css. These are plain class name strings, not
+// colors — the underlying CSS vars swap with the app's dark-mode class, so
+// no `mode` argument is needed here.
+
+export type SemanticFamily = 'impact' | 'find' | 'metricTone' | 'prov';
+
+interface SemanticClassNames {
+  fg: string;
+  bg: string;
+}
+
+const SEMANTIC_CLASSES: Record<SemanticFamily, Record<string, SemanticClassNames>> = {
+  impact: {
+    blocker: { fg: 'text-destructive', bg: 'bg-impact-blocker' },
+    review: { fg: 'text-warning', bg: 'bg-impact-review' },
+    warning: { fg: 'text-accent', bg: 'bg-impact-warning' },
+    clean: { fg: 'text-success', bg: 'bg-impact-clean' },
+    resolved: { fg: 'text-success', bg: 'bg-impact-resolved' },
+    na: { fg: 'text-muted-foreground', bg: 'bg-surface' },
+  },
+  find: {
+    dup: { fg: 'text-destructive', bg: 'bg-find-dup' },
+    warn: { fg: 'text-warning', bg: 'bg-find-warn' },
+    info: { fg: 'text-accent', bg: 'bg-find-info' },
+    ok: { fg: 'text-success', bg: 'bg-find-ok' },
+  },
+  metricTone: {
+    blocker: { fg: 'text-destructive', bg: '' },
+    warn: { fg: 'text-warning', bg: '' },
+    neutral: { fg: 'text-foreground', bg: '' },
+    ok: { fg: 'text-success', bg: '' },
+    info: { fg: 'text-accent', bg: '' },
+    muted: { fg: 'text-muted-foreground', bg: 'bg-surface' },
+  },
+  prov: {
+    fact: { fg: 'text-muted-foreground', bg: 'bg-surface' },
+    ai: { fg: 'text-accent', bg: '' },
+    action: { fg: 'text-primary', bg: '' },
+  },
+};
+
+/** Tailwind fg/bg classNames for a semantic state; throws on an unknown
+ *  state — an unstyled severity is a bug, not a default. */
+export function semanticClass(family: SemanticFamily, state: string): SemanticClassNames {
+  const hit = SEMANTIC_CLASSES[family][state];
+  if (!hit) throw new Error(`theme: unknown ${family} state "${state}"`);
+  return hit;
+}
 
 // ─── Theme Bundle ───────────────────────────────────────────────────────────
 
