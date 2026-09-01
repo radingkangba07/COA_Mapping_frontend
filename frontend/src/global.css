@@ -55,6 +55,21 @@
     --color-card-foreground: #09090B;
     --color-popover: #FFFFFF;
     --color-popover-foreground: #09090B;
+    --color-chip: #DBEAFE;
+    --color-chip-foreground: #1D4ED8;
+
+    /* Master-data-wizard semantic-state tint backgrounds (impact/find
+       families). Fg colors reuse destructive/warning/accent/success/
+       muted-foreground/foreground/primary directly — see semanticClass()
+       in config/theme.ts. */
+    --tint-impact-blocker: rgba(215, 34, 34, 0.13);
+    --tint-impact-review: rgba(180, 83, 9, 0.15);
+    --tint-impact-warning: rgba(37, 99, 235, 0.13);
+    --tint-impact-clean: rgba(21, 128, 61, 0.13);
+    --tint-find-dup: rgba(215, 34, 34, 0.12);
+    --tint-find-warn: rgba(180, 83, 9, 0.14);
+    --tint-find-info: rgba(37, 99, 235, 0.12);
+    --tint-find-ok: rgba(21, 128, 61, 0.12);
   }
 
   .dark {
@@ -83,5 +98,16 @@
     --color-card-foreground: #D4D4D4;
     --color-popover: #252526;
     --color-popover-foreground: #D4D4D4;
+    --color-chip: #1E3A5F;
+    --color-chip-foreground: #93C5FD;
+
+    --tint-impact-blocker: rgba(244, 71, 71, 0.13);
+    --tint-impact-review: rgba(204, 167, 0, 0.15);
+    --tint-impact-warning: rgba(0, 122, 204, 0.13);
+    --tint-impact-clean: rgba(34, 197, 94, 0.13);
+    --tint-find-dup: rgba(244, 71, 71, 0.12);
+    --tint-find-warn: rgba(204, 167, 0, 0.14);
+    --tint-find-info: rgba(0, 122, 204, 0.12);
+    --tint-find-ok: rgba(34, 197, 94, 0.12);
   }
 }

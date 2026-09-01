@@ -49,6 +49,22 @@ module.exports = {
           DEFAULT: 'var(--color-popover)',
           foreground: 'var(--color-popover-foreground)',
         },
+        chip: {
+          DEFAULT: 'var(--color-chip)',
+          foreground: 'var(--color-chip-foreground)',
+        },
+        // Master-data-wizard semantic-state tint backgrounds. Fg colors for
+        // these states reuse destructive/warning/accent/success/muted-foreground
+        // above directly (see semanticClass() in src/config/theme.ts).
+        'impact-blocker': 'var(--tint-impact-blocker)',
+        'impact-review': 'var(--tint-impact-review)',
+        'impact-warning': 'var(--tint-impact-warning)',
+        'impact-clean': 'var(--tint-impact-clean)',
+        'impact-resolved': 'var(--tint-impact-clean)',
+        'find-dup': 'var(--tint-find-dup)',
+        'find-warn': 'var(--tint-find-warn)',
+        'find-info': 'var(--tint-find-info)',
+        'find-ok': 'var(--tint-find-ok)',
       },
       fontFamily: {
         heading: ['Chivo'],
