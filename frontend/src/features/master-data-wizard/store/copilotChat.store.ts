@@ -3,6 +3,7 @@ import { immer } from 'zustand/middleware/immer';
 import { getCannedReply, GENERIC_REPLY } from '../services/copilotChat.service';
 import { applyCopilotPromptAction } from '../utils/copilotPromptActions';
 import type { EntityPack } from '../dp-kit/types/entity';
+import type { ThreadId } from '../services/copilotChat.service';
 
 export type MessageFeedback = 'helpful' | 'incorrect' | 'missing' | null;
 
@@ -23,6 +24,15 @@ interface CopilotChatState {
   // Which message (if any) currently shows the "Replace the AI's
   // selection" inline correction panel — unrelated to `feedback`.
   readonly correctionForId: string | null;
+  // Single active thread per project, matching the reference's own
+  // semantics (DA-232). `viewingThreadId` set (non-null) means the panel
+  // is showing a read-only archived thread instead of the live one —
+  // the discriminant for live-vs-archived, not a separate boolean that
+  // could disagree with it.
+  readonly threadId: ThreadId;
+  readonly viewingThreadId: ThreadId | null;
+  readonly viewingMessages: readonly ChatMessage[];
+  readonly historyOpen: boolean;
 }
 
 interface CopilotChatActions {
@@ -34,11 +44,28 @@ interface CopilotChatActions {
   cancelCorrect: () => void;
   saveCorrect: () => void;
   reset: () => void;
+  // Narrower than reset() — wipes only the visible conversation, leaving
+  // the active thread id in place (Clear replaces the thread's contents,
+  // it doesn't start a new thread).
+  clearMessages: () => void;
+  startNewThread: (newThreadId: ThreadId) => void;
+  toggleHistory: () => void;
+  closeHistory: () => void;
+  viewArchivedThread: (id: ThreadId, messages: readonly ChatMessage[]) => void;
+  returnToActiveThread: () => void;
 }
 
 let msgSeq = 0;
 
-const initialState: CopilotChatState = { messages: [], draft: '', correctionForId: null };
+const initialState: CopilotChatState = {
+  messages: [],
+  draft: '',
+  correctionForId: null,
+  threadId: 'thread-0',
+  viewingThreadId: null,
+  viewingMessages: [],
+  historyOpen: false,
+};
 
 /**
  * Client-side only, same as `sourceProfile.store.ts`'s decisions log — no
@@ -107,6 +134,50 @@ export const useCopilotChatStore = create<CopilotChatState & CopilotChatActions>
     saveCorrect: () => {
       set((state) => {
         state.correctionForId = null;
+      });
+    },
+
+    clearMessages: () => {
+      set((state) => {
+        state.messages = [];
+        state.draft = '';
+        state.correctionForId = null;
+      });
+    },
+
+    startNewThread: (newThreadId) => {
+      set((state) => {
+        state.threadId = newThreadId;
+        state.messages = [];
+        state.draft = '';
+        state.correctionForId = null;
+      });
+    },
+
+    toggleHistory: () => {
+      set((state) => {
+        state.historyOpen = !state.historyOpen;
+      });
+    },
+
+    closeHistory: () => {
+      set((state) => {
+        state.historyOpen = false;
+      });
+    },
+
+    viewArchivedThread: (id, messages) => {
+      set((state) => {
+        state.viewingThreadId = id;
+        state.viewingMessages = [...messages];
+        state.historyOpen = false;
+      });
+    },
+
+    returnToActiveThread: () => {
+      set((state) => {
+        state.viewingThreadId = null;
+        state.viewingMessages = [];
       });
     },
 

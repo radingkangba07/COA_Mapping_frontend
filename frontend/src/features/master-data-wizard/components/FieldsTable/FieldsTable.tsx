@@ -157,10 +157,11 @@ const COL = {
   impact: 140,
 } as const;
 
-// Trailing open/kebab-menu icon column — kept as its own named constant
-// since it feeds into the fixed-width sum used to size the flexible
-// "Profiling findings" column below.
-const ACTIONS_WIDTH = 70;
+// Trailing edit/open/kebab-menu icon column — kept as its own named
+// constant since it feeds into the fixed-width sum used to size the
+// flexible "Profiling findings" column below. Sized for 3 icon buttons:
+// 28px × 3 + 2px gap × 2 + 8px `px-2` padding × 2 = 104.
+const ACTIONS_WIDTH = 104;
 
 // The reference embeds a literal line break in these three labels only
 // (`white-space:pre` + `"Count of\nNull Rows"` etc. in SORT_DEFS) — every
@@ -525,6 +526,7 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, testID }: FieldsTableP
                     field={field}
                     isSelected={isSelected}
                     onOpen={() => openField(field.id)}
+                    onEdit={() => openField(field.id, 'issues')}
                     onToggleCompare={() => toggleSelected(field.id)}
                     testID={testID}
                   />

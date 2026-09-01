@@ -1,14 +1,23 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { Modal, Pressable, ScrollView, Text, TextInput, View, type LayoutRectangle } from 'react-native';
+import { ChevronLeft, ChevronRight, History, SquarePen, Trash2 } from 'lucide-react-native';
 import { colors } from '@/config/theme';
+import { cn } from '@/shared/utils/string.utils';
+import { isWeb } from '@/shared/utils/platform.utils';
+import { formatDateTime } from '@/shared/utils/date.utils';
 import { useAppStore } from '@/shared/store/app.store';
+import { useConfirm } from '@/shared/hooks/useConfirm';
+import { useToast } from '@/shared/hooks/useToast';
+import { Dialog } from '@/shared/components/ui/Dialog';
+import { Button } from '@/shared/components/ui/Button';
 import { badgeTint } from '../../dp-kit/native/dp-theme';
 import { BORDERED_CHIP_WIDTH } from '../../utils/style';
 import { SparkleIcon } from '../icons/SparkleIcon';
 import { SendIcon } from '../icons/SendIcon';
 import { useCopilotChatStore } from '../../store/copilotChat.store';
+import { clearThread, archiveThread, createThread, listArchivedThreads, getThreadMessages } from '../../services/copilotChat.service';
 import { ChatMessageBubble } from './ChatMessageBubble';
+import { CopilotHistoryDropdown, type HistoryEntryView } from './CopilotHistoryDropdown';
 import type { EntityPack } from '../../dp-kit/types/entity';
 
 interface CopilotPrompt {
@@ -32,11 +41,12 @@ const EXPANDED_WIDTH = 384;
 /**
  * Header, intro copy, and suggested-prompt chips read from
  * pack.copilotPrompts. Chat is a lightweight local loop (copilotChat.store +
- * copilotChat.service) — deliberately not the full DA-231/DA-232 port
- * (fix-suggestion cards, thread history, Clear/New Chat): those are real,
- * non-trivial features tied to `item-master`'s own store/type system, not a
- * quick add. `sendMessage`/`getCannedReply` are async specifically so
- * swapping in a real reply source later is a body change, not a rewrite.
+ * copilotChat.service). Clear/New Chat/thread-history (DA-343, ported from
+ * DA-232) are implemented; fix-suggestion cards are not — that's real,
+ * non-trivial functionality tied to a fix-application pipeline (autofix)
+ * that doesn't exist in this feature yet, not a quick add.
+ * `sendMessage`/`getCannedReply` are async specifically so swapping in a
+ * real reply source later is a body change, not a rewrite.
  *
  * Note: the two fixtures disagree on copilotPrompts' shape — confirmed this
  * session by rendering both. items.entity.json stores {id, text}[];
@@ -58,20 +68,94 @@ export const CopilotPanelShell = ({ pack, defaultOpen = true, testID }: CopilotP
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [expandHovered, setExpandHovered] = useState(false);
   const [collapseHovered, setCollapseHovered] = useState(false);
+  const [historyHovered, setHistoryHovered] = useState(false);
+  const [newChatHovered, setNewChatHovered] = useState(false);
+  const [clearHovered, setClearHovered] = useState(false);
   const [sendHovered, setSendHovered] = useState(false);
   const [hoveredPromptId, setHoveredPromptId] = useState<string | null>(null);
+  const [historyEntries, setHistoryEntries] = useState<readonly HistoryEntryView[]>([]);
+  const [historyAnchor, setHistoryAnchor] = useState<LayoutRectangle | null>(null);
+  const historyButtonRef = useRef<View>(null);
   const prompts = (pack.copilotPrompts ?? []).map(normalizePrompt);
   const messages = useCopilotChatStore((s) => s.messages);
   const draft = useCopilotChatStore((s) => s.draft);
+  const threadId = useCopilotChatStore((s) => s.threadId);
+  const viewingThreadId = useCopilotChatStore((s) => s.viewingThreadId);
+  const viewingMessages = useCopilotChatStore((s) => s.viewingMessages);
+  const historyOpen = useCopilotChatStore((s) => s.historyOpen);
   const setDraft = useCopilotChatStore((s) => s.setDraft);
   const sendMessage = useCopilotChatStore((s) => s.sendMessage);
   const runPrompt = useCopilotChatStore((s) => s.runPrompt);
+  const clearMessages = useCopilotChatStore((s) => s.clearMessages);
+  const startNewThread = useCopilotChatStore((s) => s.startNewThread);
+  const toggleHistory = useCopilotChatStore((s) => s.toggleHistory);
+  const closeHistory = useCopilotChatStore((s) => s.closeHistory);
+  const viewArchivedThread = useCopilotChatStore((s) => s.viewArchivedThread);
+  const returnToActiveThread = useCopilotChatStore((s) => s.returnToActiveThread);
   const scrollRef = useRef<ScrollView>(null);
+  const { confirm, isVisible: confirmVisible, confirmOptions, onConfirm: handleConfirmOk, onCancel: handleConfirmCancel } = useConfirm();
+  const { showSuccess } = useToast();
   const hasChat = messages.length > 0;
 
+  // Discriminant for live-vs-archived view — not a separate boolean that
+  // could disagree with `viewingThreadId`.
+  const isReadOnly = viewingThreadId !== null;
+  const displayedMessages = isReadOnly ? viewingMessages : messages;
+
   useEffect(() => {
-    if (messages.length > 0) scrollRef.current?.scrollToEnd({ animated: true });
-  }, [messages.length]);
+    if (displayedMessages.length > 0) scrollRef.current?.scrollToEnd({ animated: true });
+  }, [displayedMessages.length]);
+
+  const handleClearChat = (): void => {
+    void (async () => {
+      const confirmed = await confirm({
+        title: 'Clear this conversation?',
+        message: "This can't be undone. All messages in this conversation will be permanently deleted.",
+        confirmText: 'Clear',
+        cancelText: 'Cancel',
+      });
+      if (!confirmed) return;
+      await clearThread(threadId);
+      clearMessages();
+      showSuccess('Conversation cleared');
+    })();
+  };
+
+  const handleNewChat = (): void => {
+    void (async () => {
+      await archiveThread(threadId, messages);
+      const { threadId: newThreadId } = await createThread();
+      startNewThread(newThreadId);
+      showSuccess('Started a new chat');
+    })();
+  };
+
+  const handleToggleHistory = (): void => {
+    void (async () => {
+      if (!historyOpen) {
+        const summaries = await listArchivedThreads();
+        setHistoryEntries(
+          summaries.map((entry) => ({
+            id: entry.id,
+            endedAtLabel: formatDateTime(entry.endedAt),
+            preview: entry.lastMessagePreview || entry.firstMessagePreview,
+          })),
+        );
+        historyButtonRef.current?.measureInWindow((x, y, width, height) => {
+          setHistoryAnchor({ x, y, width, height });
+        });
+      }
+      toggleHistory();
+    })();
+  };
+
+  const handleSelectHistoryEntry = (id: string): void => {
+    void (async () => {
+      const entryMessages = await getThreadMessages(id);
+      if (!entryMessages) return;
+      viewArchivedThread(id, entryMessages);
+    })();
+  };
 
   if (!isOpen) {
     return (
@@ -145,6 +229,50 @@ export const CopilotPanelShell = ({ pack, defaultOpen = true, testID }: CopilotP
             </View>
             <Text className="font-mono text-[10.5px] text-muted-foreground">Migration Copilot</Text>
           </View>
+          <View ref={historyButtonRef}>
+            <Pressable
+              onPress={handleToggleHistory}
+              onHoverIn={() => setHistoryHovered(true)}
+              onHoverOut={() => setHistoryHovered(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Conversation history"
+              hitSlop={8}
+              className="h-[30px] w-[30px] items-center justify-center rounded-[7px] border border-border"
+              style={{ backgroundColor: historyHovered ? colors.surfaceHighlight : colors.surface, opacity: isReadOnly ? 0.4 : 1 }}
+              disabled={isReadOnly}
+              testID={testID ? `${testID}-history-button` : undefined}
+            >
+              <History size={15} color={historyHovered ? colors.foreground : colors.mutedForeground} />
+            </Pressable>
+          </View>
+          <Pressable
+            onPress={handleNewChat}
+            onHoverIn={() => setNewChatHovered(true)}
+            onHoverOut={() => setNewChatHovered(false)}
+            accessibilityRole="button"
+            accessibilityLabel="New chat"
+            hitSlop={8}
+            className="h-[30px] w-[30px] items-center justify-center rounded-[7px] border border-border"
+            style={{ backgroundColor: newChatHovered ? colors.surfaceHighlight : colors.surface, opacity: isReadOnly ? 0.4 : 1 }}
+            disabled={isReadOnly}
+            testID={testID ? `${testID}-new-chat-button` : undefined}
+          >
+            <SquarePen size={15} color={newChatHovered ? colors.foreground : colors.mutedForeground} />
+          </Pressable>
+          <Pressable
+            onPress={handleClearChat}
+            onHoverIn={() => setClearHovered(true)}
+            onHoverOut={() => setClearHovered(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Clear conversation"
+            hitSlop={8}
+            className="h-[30px] w-[30px] items-center justify-center rounded-[7px] border border-border"
+            style={{ backgroundColor: clearHovered ? colors.surfaceHighlight : colors.surface, opacity: isReadOnly ? 0.4 : 1 }}
+            disabled={isReadOnly}
+            testID={testID ? `${testID}-clear-button` : undefined}
+          >
+            <Trash2 size={15} color={clearHovered ? colors.foreground : colors.mutedForeground} />
+          </Pressable>
           <Pressable
             onPress={() => setIsOpen(false)}
             onHoverIn={() => setCollapseHovered(true)}
@@ -168,19 +296,67 @@ export const CopilotPanelShell = ({ pack, defaultOpen = true, testID }: CopilotP
         </View>
       </View>
 
+      {isReadOnly ? (
+        <View className="flex-row items-center justify-between border-b border-border bg-surface px-[18px] py-2">
+          <Text className="font-body text-[11.5px] text-muted-foreground">Viewing an earlier conversation</Text>
+          <Pressable onPress={returnToActiveThread} testID={testID ? `${testID}-back-to-active` : undefined}>
+            <Text className="font-body text-[11.5px] font-semibold text-accent">Back to current chat</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      <Modal visible={historyOpen} transparent animationType={isWeb ? 'none' : 'fade'} onRequestClose={closeHistory}>
+        <Pressable className={cn('flex-1', isWeb ? 'bg-transparent' : 'bg-black/20')} onPress={closeHistory}>
+          <View
+            className="absolute"
+            style={historyAnchor ? { top: historyAnchor.y + historyAnchor.height + 4, left: Math.max(8, historyAnchor.x + historyAnchor.width - 288) } : undefined}
+            onStartShouldSetResponder={() => true}
+          >
+            <CopilotHistoryDropdown
+              entries={historyEntries}
+              onSelectEntry={handleSelectHistoryEntry}
+              testID={testID ? `${testID}-history-dropdown` : undefined}
+            />
+          </View>
+        </Pressable>
+      </Modal>
+
+      {confirmVisible && confirmOptions !== null ? (
+        <Dialog visible={confirmVisible} onClose={handleConfirmCancel} testID={testID ? `${testID}-clear-confirm` : undefined}>
+          <Dialog.Header>
+            <Dialog.Title>{confirmOptions.title}</Dialog.Title>
+          </Dialog.Header>
+          <Dialog.Content>
+            <Text className="font-body text-sm text-foreground">{confirmOptions.message}</Text>
+          </Dialog.Content>
+          <Dialog.Footer>
+            <Button variant="outline" onPress={handleConfirmCancel} testID={testID ? `${testID}-clear-confirm-cancel` : undefined}>
+              <Text className="text-sm font-medium text-foreground">{confirmOptions.cancelText ?? 'Cancel'}</Text>
+            </Button>
+            <Button variant="destructive" onPress={handleConfirmOk} testID={testID ? `${testID}-clear-confirm-ok` : undefined}>
+              <Text className="text-sm font-semibold text-destructive-foreground">{confirmOptions.confirmText ?? 'Confirm'}</Text>
+            </Button>
+          </Dialog.Footer>
+        </Dialog>
+      ) : null}
+
       <ScrollView ref={scrollRef} className="flex-1" contentContainerStyle={{ padding: 16, gap: 14 }}>
-        {messages.length === 0 ? (
+        {displayedMessages.length === 0 ? (
           <View className="items-center rounded-xl border border-dashed border-border px-4 py-[18px]">
             <Text className="text-center font-body text-[12.5px] leading-5 text-muted-foreground">
-              Ask the Copilot about your data, or pick a suggested question below. Visual filters apply
-              instantly; changes to your migration config always ask for approval.
+              {isReadOnly
+                ? 'This archived conversation has no messages.'
+                : 'Ask the Copilot about your data, or pick a suggested question below. Visual filters apply ' +
+                  'instantly; changes to your migration config always ask for approval.'}
             </Text>
           </View>
         ) : (
-          messages.map((message) => <ChatMessageBubble key={message.id} message={message} pack={pack} />)
+          displayedMessages.map((message) => <ChatMessageBubble key={message.id} message={message} pack={pack} />)
         )}
       </ScrollView>
 
+      {!isReadOnly ? (
+        <>
       <View className="flex-row flex-wrap gap-[7px] border-t border-border px-3.5 py-2.5">
         {prompts.map((prompt) => {
           const isHovered = hoveredPromptId === prompt.id;
@@ -240,6 +416,8 @@ export const CopilotPanelShell = ({ pack, defaultOpen = true, testID }: CopilotP
           <SendIcon size={16} color={colors.primaryForeground} />
         </Pressable>
       </View>
+        </>
+      ) : null}
     </View>
   );
 };

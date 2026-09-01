@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Pressable, View, type LayoutRectangle } from 'react-native';
+import { Pencil } from 'lucide-react-native';
 import { colors } from '@/config/theme';
 import { OpenFieldProfileIcon } from '../icons/OpenFieldProfileIcon';
 import { KebabIcon } from '../icons/KebabIcon';
@@ -39,6 +40,7 @@ interface RowActionsCellProps {
   readonly field: EntityField;
   readonly isSelected: boolean;
   readonly onOpen: () => void;
+  readonly onEdit: () => void;
   readonly onToggleCompare: () => void;
   readonly testID?: string;
 }
@@ -47,6 +49,7 @@ export function RowActionsCell({
   field,
   isSelected,
   onOpen,
+  onEdit,
   onToggleCompare,
   testID,
 }: RowActionsCellProps): React.JSX.Element {
@@ -63,6 +66,12 @@ export function RowActionsCell({
 
   return (
     <View className="flex-row items-center justify-center gap-[2px]">
+      <HoverIconButton
+        onPress={onEdit}
+        icon={(color) => <Pencil size={16} color={color} />}
+        accessibilityLabel="Edit field"
+        testID={testID !== undefined ? `${testID}-edit-${field.id}` : undefined}
+      />
       <HoverIconButton
         onPress={onOpen}
         icon={(color) => <OpenFieldProfileIcon size={16} color={color} />}
