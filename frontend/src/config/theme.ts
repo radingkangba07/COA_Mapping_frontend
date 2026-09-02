@@ -201,6 +201,104 @@ export function semanticClass(family: SemanticFamily, state: string): SemanticCl
   return hit;
 }
 
+// ─── Master-Data-Wizard Semantic Colours (raw hex) ──────────────────────────
+// Ported 1:1 from the former dp-kit/native/dp-theme.ts (itself generated
+// from css/dp-tokens.css) — needed by components that pass a colour into
+// React Native's `style` prop directly (SVG fills, badgeTint/tint-derived
+// backgrounds) rather than a NativeWind className, where semanticClass()
+// above doesn't apply. If the taxonomy adds a state, add it to both this
+// and SEMANTIC_CLASSES.
+
+interface SemanticColorPair {
+  fg: string;
+  bg: string;
+}
+
+type SemanticColorTable = Record<SemanticFamily, Record<string, SemanticColorPair>>;
+
+const semanticColorsLight: SemanticColorTable = {
+  impact: {
+    blocker: { fg: '#D72222', bg: 'rgba(215, 34, 34, 0.13)' },
+    review: { fg: '#B45309', bg: 'rgba(180, 83, 9, 0.15)' },
+    warning: { fg: '#2563EB', bg: 'rgba(37, 99, 235, 0.13)' },
+    clean: { fg: '#15803D', bg: 'rgba(21, 128, 61, 0.13)' },
+    resolved: { fg: '#15803D', bg: 'rgba(21, 128, 61, 0.13)' },
+    na: { fg: '#71717A', bg: '#F4F4F5' },
+  },
+  find: {
+    dup: { fg: '#D72222', bg: 'rgba(215, 34, 34, 0.12)' },
+    warn: { fg: '#B45309', bg: 'rgba(180, 83, 9, 0.14)' },
+    info: { fg: '#2563EB', bg: 'rgba(37, 99, 235, 0.12)' },
+    ok: { fg: '#15803D', bg: 'rgba(21, 128, 61, 0.12)' },
+  },
+  metricTone: {
+    blocker: { fg: '#D72222', bg: 'transparent' },
+    warn: { fg: '#B45309', bg: 'transparent' },
+    neutral: { fg: '#09090B', bg: 'transparent' },
+    ok: { fg: '#15803D', bg: 'transparent' },
+    info: { fg: '#2563EB', bg: 'transparent' },
+    muted: { fg: '#71717A', bg: '#F4F4F5' },
+  },
+  prov: {
+    fact: { fg: '#71717A', bg: '#F4F4F5' },
+    ai: { fg: '#2563EB', bg: 'transparent' },
+    action: { fg: '#003399', bg: 'transparent' },
+  },
+} as const;
+
+const semanticColorsDark: SemanticColorTable = {
+  impact: {
+    blocker: { fg: '#F44747', bg: 'rgba(244, 71, 71, 0.13)' },
+    review: { fg: '#CCA700', bg: 'rgba(204, 167, 0, 0.15)' },
+    warning: { fg: '#007ACC', bg: 'rgba(0, 122, 204, 0.13)' },
+    clean: { fg: '#22C55E', bg: 'rgba(34, 197, 94, 0.13)' },
+    resolved: { fg: '#22C55E', bg: 'rgba(34, 197, 94, 0.13)' },
+    na: { fg: '#858585', bg: '#252526' },
+  },
+  find: {
+    dup: { fg: '#F44747', bg: 'rgba(244, 71, 71, 0.12)' },
+    warn: { fg: '#CCA700', bg: 'rgba(204, 167, 0, 0.14)' },
+    info: { fg: '#007ACC', bg: 'rgba(0, 122, 204, 0.12)' },
+    ok: { fg: '#22C55E', bg: 'rgba(34, 197, 94, 0.12)' },
+  },
+  metricTone: {
+    blocker: { fg: '#F44747', bg: 'transparent' },
+    warn: { fg: '#CCA700', bg: 'transparent' },
+    neutral: { fg: '#D4D4D4', bg: 'transparent' },
+    ok: { fg: '#22C55E', bg: 'transparent' },
+    info: { fg: '#007ACC', bg: 'transparent' },
+    muted: { fg: '#858585', bg: '#252526' },
+  },
+  prov: {
+    fact: { fg: '#858585', bg: '#252526' },
+    ai: { fg: '#007ACC', bg: 'transparent' },
+    action: { fg: '#4D7FCC', bg: 'transparent' },
+  },
+} as const;
+
+const SEMANTIC_COLORS: Record<Theme, SemanticColorTable> = {
+  light: semanticColorsLight,
+  dark: semanticColorsDark,
+};
+
+/** Foreground/background hex pair for a semantic state, for RN inline
+ *  `style` consumers where a Tailwind className (semanticClass() above)
+ *  doesn't apply. Throws on an unknown state — an unstyled severity is a
+ *  bug, not a default. */
+export function semantic(family: SemanticFamily, state: string, mode: Theme = 'light'): SemanticColorPair {
+  const hit = SEMANTIC_COLORS[mode][family][state];
+  if (!hit) throw new Error(`theme: unknown ${family} state "${state}"`);
+  return hit;
+}
+
+/** Tint used by count badges: the state's own ink at 13% opacity. */
+export function badgeTint(fg: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(fg.replace('#', ''));
+  if (!m || m[1] === undefined) return fg;
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, 0.13)`;
+}
+
 // ─── Theme Bundle ───────────────────────────────────────────────────────────
 
 export const theme = {

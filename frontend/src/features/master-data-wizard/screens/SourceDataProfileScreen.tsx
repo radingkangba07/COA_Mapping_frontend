@@ -249,7 +249,7 @@ export function SourceDataProfileScreen({
                 <Button variant="outline"  onPress={handleBack} testID="source-profile-back">
                   <View className="flex-row items-center justify-center gap-1.5">
                     <ArrowLeft size={14} color={colors.foreground} />
-                    <Text className="text-xs font-medium text-foreground">Back</Text>
+                    <Text className="text-sm font-medium text-foreground">Back</Text>
                   </View>
                 </Button>
               ) : null}

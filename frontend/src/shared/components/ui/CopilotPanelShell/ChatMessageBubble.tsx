@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { ThumbsUp, ThumbsDown } from 'lucide-react-native';
-import { colors } from '@/config/theme';
+import { colors, badgeTint } from '@/config/theme';
 import { cn } from '@/shared/utils/string.utils';
-import { badgeTint } from '@/features/master-data-wizard/dp-kit/native/dp-theme';
 import { useToast } from '@/shared/hooks/useToast';
 import { Select } from '@/shared/components/ui/Select';
 import { Button } from '@/shared/components/ui/Button';

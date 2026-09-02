@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { useAppStore } from '@/shared/store/app.store';
-import { semantic } from '@/features/master-data-wizard/dp-kit/native/dp-theme';
+import { semantic } from '@/config/theme';
 
 interface ProvenanceLabelProps {
   readonly state: 'fact' | 'ai' | 'action';

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, TextInput, View, type LayoutRectangle } from 'react-native';
 import { ChevronLeft, ChevronRight, History, SquarePen, Trash2 } from 'lucide-react-native';
-import { colors } from '@/config/theme';
+import { colors, badgeTint } from '@/config/theme';
 import { cn } from '@/shared/utils/string.utils';
 import { isWeb } from '@/shared/utils/platform.utils';
 import { formatDateTime } from '@/shared/utils/date.utils';
@@ -10,7 +10,6 @@ import { useConfirm } from '@/shared/hooks/useConfirm';
 import { useToast } from '@/shared/hooks/useToast';
 import { Dialog } from '@/shared/components/ui/Dialog';
 import { Button } from '@/shared/components/ui/Button';
-import { badgeTint } from '@/features/master-data-wizard/dp-kit/native/dp-theme';
 import { BORDERED_CHIP_WIDTH } from '@/features/master-data-wizard/utils/style';
 import { SparkleIcon } from '@/shared/components/icons/SparkleIcon';
 import { SendIcon } from '@/shared/components/icons/SendIcon';

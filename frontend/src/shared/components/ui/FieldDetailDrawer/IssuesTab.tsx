@@ -1,10 +1,9 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import { colors } from '@/config/theme';
+import { colors, badgeTint } from '@/config/theme';
 import { SemanticBadge } from '../SemanticBadge/SemanticBadge';
 import { ProvenanceLabel } from '../ProvenanceLabel/ProvenanceLabel';
 import { StatTable, type StatTableRow } from '@/shared/components/ui/StatTable';
-import { badgeTint } from '@/features/master-data-wizard/dp-kit/native/dp-theme';
 import { fmt } from '@/features/master-data-wizard/utils/fields';
 import type { EntityField } from '@/features/master-data-wizard/dp-kit/types/entity';
 

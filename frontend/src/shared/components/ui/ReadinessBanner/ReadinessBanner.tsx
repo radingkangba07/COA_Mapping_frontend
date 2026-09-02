@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { Pressable, Text, View, type TextStyle } from 'react-native';
-import { colors } from '@/config/theme';
+import { colors, semantic } from '@/config/theme';
 import { useAppStore } from '@/shared/store/app.store';
 import { isWeb } from '@/shared/utils/platform.utils';
 import { Card } from '@/shared/components/ui/Card';
 import { ProvenanceLabel } from '../ProvenanceLabel/ProvenanceLabel';
 import { SparklesIcon } from '@/shared/components/icons/SparklesIcon';
 import { EvidenceEyeIcon } from '@/shared/components/icons/EvidenceEyeIcon';
-import { semantic } from '@/features/master-data-wizard/dp-kit/native/dp-theme';
 import type { EntityReadiness } from '@/features/master-data-wizard/dp-kit/types/entity';
 
 interface ReadinessBannerProps {

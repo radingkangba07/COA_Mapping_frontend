@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import { semantic, badgeTint } from '@/features/master-data-wizard/dp-kit/native/dp-theme';
+import { semantic, badgeTint } from '@/config/theme';
 import { useAppStore } from '@/shared/store/app.store';
 import { cn } from '@/shared/utils/string.utils';
 
