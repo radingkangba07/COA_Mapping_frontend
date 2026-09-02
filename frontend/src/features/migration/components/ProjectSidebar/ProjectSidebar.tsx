@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, Pressable, SafeAreaView, Text, View } from 'react-native';
-import { PanelLeft, PanelLeftClose, X } from 'lucide-react-native';
+import { ChevronsRight, X } from 'lucide-react-native';
 import { colors } from '@/config/theme';
 import { usePlatform } from '@/shared/hooks/usePlatform';
 import { SidebarContent } from './SidebarContent';
@@ -17,18 +17,10 @@ const WebSidebar = ({
   <>
     {isOpen ? (
       <View
-        className="absolute bottom-0 left-0 top-16 z-30 w-64 border-r border-border bg-background shadow-md"
+        className="absolute bottom-0 left-0 top-16 z-30 shadow-md"
         testID={`${testID}-panel`}
       >
-        <View className="flex-row items-center justify-between border-b border-border px-3 py-2">
-          <Text className="font-heading text-sm font-semibold text-foreground">
-            Project Info
-          </Text>
-          <Pressable onPress={onToggle} hitSlop={8} testID={`${testID}-close`}>
-            <PanelLeftClose size={18} color={colors.mutedForeground} />
-          </Pressable>
-        </View>
-        <SidebarContent {...contentProps} testID={`${testID}-content`} />
+        <SidebarContent {...contentProps} onToggle={onToggle} testID={`${testID}-content`} />
       </View>
     ) : null}
 
@@ -37,9 +29,11 @@ const WebSidebar = ({
         onPress={onToggle}
         className="absolute left-0 top-24 z-20 rounded-r-md border border-l-0 border-border bg-background p-2 shadow-sm"
         hitSlop={4}
+        accessibilityRole="button"
+        accessibilityLabel="Show project details"
         testID={`${testID}-toggle`}
       >
-        <PanelLeft size={18} color={colors.mutedForeground} />
+        <ChevronsRight size={18} color={colors.mutedForeground} />
       </Pressable>
     ) : null}
   </>
@@ -73,7 +67,7 @@ const MobileSidebar = ({
           <X size={20} color={colors.mutedForeground} />
         </Pressable>
       </View>
-      <SidebarContent {...contentProps} testID={`${testID}-content`} />
+      <SidebarContent {...contentProps} onToggle={onToggle} testID={`${testID}-content`} />
     </SafeAreaView>
   </Modal>
 );

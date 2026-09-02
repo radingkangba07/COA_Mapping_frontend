@@ -83,7 +83,7 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
   return client;
 }
 
-export function toAppError(error: unknown): AppError {
+export function toAppError(error: unknown, options?: { silent?: boolean }): AppError {
   if (error instanceof AxiosError) {
     const status = error.response?.status ?? 0;
     const responseData: unknown = error.response?.data;
@@ -110,8 +110,10 @@ export function toAppError(error: unknown): AppError {
     };
     // Backend may return either { message } (custom) or { detail } (FastAPI default / array).
     const serverMessage = pickStringField('message') ?? pickStringField('detail');
-    // eslint-disable-next-line no-console
-    console.error('[HTTP] error response:', JSON.stringify(responseData));
+    if (!options?.silent) {
+      // eslint-disable-next-line no-console
+      console.error('[HTTP] error response:', JSON.stringify(responseData));
+    }
 
     return {
       code: `HTTP_${String(status)}`,

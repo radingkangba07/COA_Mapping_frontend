@@ -44,6 +44,7 @@ export type ProjectsStackParamList = {
   ProjectOverview: { projectId: string };
   WorkstreamDetail: { projectId: string; workstreamId: string; kind: string };
   MasterDataUpload: { orgProjectId: string; entityId: string; parentProjectId: string };
+  MasterDataProfile: { orgProjectId: string; entityId: string; parentProjectId: string };
 };
 
 export type MigrationStackParamList = {

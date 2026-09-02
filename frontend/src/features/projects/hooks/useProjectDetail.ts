@@ -12,6 +12,7 @@ import { getProject } from '../services/projects.service';
 interface ProjectDetailViewModel {
   readonly project: Project | null;
   readonly isLoading: boolean;
+  readonly isFetching: boolean;
   readonly error: AppError | null;
   readonly refetch: () => void;
 }
@@ -50,6 +51,7 @@ export function useProjectDetail(
   return {
     project: query.data ?? null,
     isLoading: query.isLoading,
+    isFetching: query.isFetching,
     error,
     refetch,
   };

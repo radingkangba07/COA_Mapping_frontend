@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/shared/components/feedback/ErrorBoundary';
-import { ProjectAsidePanel } from '@/features/master-data-wizard/components/ProjectAsidePanel/ProjectAsidePanel';
+import { ProjectAsidePanel } from '@/shared/components/ui/ProjectAsidePanel/ProjectAsidePanel';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import type { User } from '@/features/auth/types/auth.types';
 import { createProjectId, createUserId } from '@/shared/types/common.types';

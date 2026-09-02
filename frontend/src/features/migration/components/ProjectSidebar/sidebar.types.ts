@@ -23,6 +23,7 @@ export interface SidebarContentProps {
   readonly sourceRowCount?: number;
   readonly targetRowCount?: number;
   readonly currentUser: CurrentUserInfo | null;
+  readonly onToggle?: () => void;
   readonly testID?: string;
 }
 

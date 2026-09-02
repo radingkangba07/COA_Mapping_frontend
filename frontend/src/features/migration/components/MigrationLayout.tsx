@@ -24,6 +24,14 @@ export interface MigrationLayoutProps {
   readonly scroll?: boolean;
   readonly rightActions?: React.ReactNode;
   readonly testID?: string;
+  /**
+   * Overrides for the sidebar's source/target row counts. Callers outside
+   * features/migration (e.g. the master-data wizard) track their own upload
+   * state locally rather than in useMigrationStore — pass the live count
+   * here instead of writing into that store.
+   */
+  readonly sourceRowCount?: number;
+  readonly targetRowCount?: number;
 }
 
 const SCROLL_CONTENT_STYLE = { flexGrow: 1 } as const;
@@ -37,9 +45,16 @@ export const MigrationLayout = ({
   scroll = false,
   rightActions,
   testID,
+  sourceRowCount,
+  targetRowCount,
 }: MigrationLayoutProps): React.JSX.Element => {
   useMigrationFlowDetector();
-  const sidebarProps = useSidebarData(projectId);
+  const baseSidebarProps = useSidebarData(projectId);
+  const sidebarProps = {
+    ...baseSidebarProps,
+    ...(sourceRowCount !== undefined ? { sourceRowCount } : {}),
+    ...(targetRowCount !== undefined ? { targetRowCount } : {}),
+  };
   const { width } = useWindowDimensions();
   const isDesktop = width >= BREAKPOINTS.md;
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -60,11 +75,7 @@ export const MigrationLayout = ({
   return (
     <SafeAreaView className="flex-1 bg-background" testID={testID}>
       <View className="flex-1 flex-row">
-        {isDesktop ? (
-          <View className="w-64 border-r border-border bg-card">
-            <SidebarContent {...sidebarProps} />
-          </View>
-        ) : null}
+        {isDesktop ? <SidebarContent {...sidebarProps} /> : null}
 
         <View className="flex-1">{contentArea}</View>
       </View>
@@ -100,7 +111,7 @@ export const MigrationLayout = ({
                   <X size={20} color={colors.mutedForeground} />
                 </Pressable>
               </View>
-              <SidebarContent {...sidebarProps} />
+              <SidebarContent {...sidebarProps} onToggle={toggleSidebar} />
             </SafeAreaView>
           </Modal>
         </>

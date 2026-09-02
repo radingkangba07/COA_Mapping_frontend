@@ -1,7 +1,11 @@
 import React, { useCallback, useMemo } from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react-native';
 import { ScrollView, Text, View } from 'react-native';
+import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { ProjectsStackParamList } from '@/navigation/types';
 import { colors } from '@/config/theme';
+import { MigrationLayout } from '@/features/migration/components/MigrationLayout';
 import { useAppStore } from '@/shared/store/app.store';
 import { Button } from '@/shared/components/ui/Button';
 import { Skeleton } from '@/shared/components/ui/Skeleton';
@@ -9,28 +13,43 @@ import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { useEntityPackPreview } from '../hooks/useEntityPackPreview';
 import { useFieldNav } from '../hooks/useFieldNav';
 import { useSourceProfileStore } from '../store/sourceProfile.store';
-import { StepRail } from '../components/StepRail/StepRail';
-import { ReadinessBanner } from '../components/ReadinessBanner/ReadinessBanner';
-import { KpiStrip } from '../components/KpiStrip/KpiStrip';
-import { VisualFiltersRow } from '../components/VisualFiltersRow/VisualFiltersRow';
-import { AppliedDecisionsChips } from '../components/AppliedDecisionsChips/AppliedDecisionsChips';
-import { FieldFilterDropdown } from '../components/FieldFilterDropdown/FieldFilterDropdown';
-import { ProfileCoveragePopover } from '../components/ProfileCoverage/ProfileCoveragePopover';
-import { FieldsTable } from '../components/FieldsTable/FieldsTable';
-import { FieldDetailDrawer } from '../components/FieldDetailDrawer/FieldDetailDrawer';
-import { CompareSelectionBar } from '../components/CompareSelectionBar/CompareSelectionBar';
-import { FieldComparisonModal } from '../components/FieldComparisonModal/FieldComparisonModal';
-import { ApprovalModal } from '../components/ApprovalModal/ApprovalModal';
-import { CopilotPanelShell } from '../components/CopilotPanelShell/CopilotPanelShell';
-import { SourceFileIcon } from '../components/icons/SourceFileIcon';
+import { StepRail } from '@/shared/components/ui/StepRail';
+import { toStepRail } from '../mappers/toStepRail';
+import { ReadinessBanner } from '@/shared/components/ui/ReadinessBanner/ReadinessBanner';
+import { KpiStrip } from '@/shared/components/ui/KpiStrip/KpiStrip';
+import { VisualFiltersRow } from '@/shared/components/ui/VisualFiltersRow/VisualFiltersRow';
+import { AppliedDecisionsChips } from '@/shared/components/ui/AppliedDecisionsChips/AppliedDecisionsChips';
+import { FieldFilterDropdown } from '@/shared/components/ui/FieldFilterDropdown/FieldFilterDropdown';
+import { ProfileCoveragePopover } from '@/shared/components/ui/ProfileCoverage/ProfileCoveragePopover';
+import { FieldsTable } from '@/shared/components/ui/FieldsTable/FieldsTable';
+import { FieldDetailDrawer } from '@/shared/components/ui/FieldDetailDrawer/FieldDetailDrawer';
+import { CompareSelectionBar } from '@/shared/components/ui/CompareSelectionBar/CompareSelectionBar';
+import { FieldComparisonModal } from '@/shared/components/ui/FieldComparisonModal/FieldComparisonModal';
+import { ApprovalModal } from '@/shared/components/ui/ApprovalModal/ApprovalModal';
+import { CopilotPanelShell } from '@/shared/components/ui/CopilotPanelShell/CopilotPanelShell';
+import { SourceFileIcon } from '@/shared/components/icons/SourceFileIcon';
 import { getStep, STEPS } from '../utils/taxonomy';
 import { buildMetrics } from '../utils/fields';
 import type { EntityId } from '../dp-kit/types/entity';
+import type { StepId } from '../types/wizard.types';
 
 interface SourceDataProfileScreenProps {
   readonly entityId?: EntityId;
   readonly onBack?: () => void;
   readonly onContinue?: () => void;
+  /**
+   * Auto-injected by React Navigation when this screen is registered
+   * directly on a stack (ProjectsStack, 'MasterDataProfile') — plain props,
+   * not read via useRoute()/useNavigation(), so this component still renders
+   * standalone with no NavigationContainer ancestor: the wizard's
+   * SourceProfilePreviewStack passes entityId/onBack as props instead, and
+   * SourceDataProfileScreen.test.tsx renders it with neither. When `route`
+   * carries params, MigrationLayout (with the project sidebar) wraps the
+   * screen and `navigation` drives the Back button; otherwise it renders
+   * bare, as before.
+   */
+  readonly route?: RouteProp<ProjectsStackParamList, 'MasterDataProfile'>;
+  readonly navigation?: NativeStackNavigationProp<ProjectsStackParamList, 'MasterDataProfile'>;
 }
 
 function LoadingSkeleton(): React.JSX.Element {
@@ -47,10 +66,27 @@ function LoadingSkeleton(): React.JSX.Element {
 }
 
 export function SourceDataProfileScreen({
-  entityId = 'items',
-  onBack,
+  entityId: entityIdProp,
+  onBack: onBackProp,
   onContinue,
+  route,
+  navigation,
 }: SourceDataProfileScreenProps): React.JSX.Element {
+  const routeParams = route?.params;
+  const entityId = entityIdProp ?? (routeParams?.entityId as EntityId | undefined) ?? 'items';
+  const { orgProjectId, parentProjectId } = routeParams ?? {};
+
+  const canGoBack = Boolean(onBackProp) || Boolean(navigation && orgProjectId && parentProjectId);
+  const handleBack = useCallback((): void => {
+    if (onBackProp) {
+      onBackProp();
+      return;
+    }
+    if (navigation && orgProjectId && parentProjectId) {
+      navigation.navigate('MasterDataUpload', { orgProjectId, entityId, parentProjectId });
+    }
+  }, [onBackProp, navigation, orgProjectId, entityId, parentProjectId]);
+
   // Forces re-render on theme toggle so colors.* below reads fresh values —
   // colors is a plain proxy, not a hook, so nothing else here re-renders
   // this component when the theme changes.
@@ -80,6 +116,7 @@ export function SourceDataProfileScreen({
 
   const step = getStep('profile');
   const stepCount = STEPS.length;
+  const stepRail = toStepRail('profile' as StepId);
 
   const handleCloseDrawer = useCallback(() => closeField(), [closeField]);
   // Called unconditionally (before the loading/error/empty early returns
@@ -111,43 +148,72 @@ export function SourceDataProfileScreen({
   const hasVisual = visualFilterLabel !== null || activeMetric !== null || promptHighlightIds.length > 0;
 
   if (isLoading || (!pack && !error)) {
-    return (
-      <View className="flex-1" testID="source-profile-screen">
-        <ScrollView className="flex-1" contentContainerStyle={{ padding: 20, gap: 16 }}>
-          <StepRail activeStepId="profile" />
+    const content = (
+      <View className="flex-1 flex-col bg-background" testID="source-profile-screen">
+        <ScrollView className="flex-1 pr-5" keyboardShouldPersistTaps="handled">
+          {/* ── Wizard stepper (all 8 taxonomy steps) ───────────────────────── */}
+          <StepRail rail={stepRail} />
           <LoadingSkeleton />
         </ScrollView>
       </View>
     );
+    return parentProjectId ? (
+      <MigrationLayout title="DataPortation" projectId={parentProjectId} onBack={handleBack} testID="master-data-profile-screen">
+        {content}
+      </MigrationLayout>
+    ) : content;
   }
 
   if (error) {
-    return (
-      <View className="flex-1" testID="source-profile-screen">
-        <StepRail activeStepId="profile" />
-        <EmptyState
-          title="Couldn't load the profile"
-          description={error.message}
-          action={{ label: 'Retry', onPress: refetch }}
-          testID="source-profile-error"
-        />
+    const content = (
+      <View className="flex-1 flex-col bg-background" testID="source-profile-screen">
+        <ScrollView className="flex-1 pr-5" keyboardShouldPersistTaps="handled">
+          {/* ── Wizard stepper (all 8 taxonomy steps) ───────────────────────── */}
+          <StepRail rail={stepRail} />
+          <EmptyState
+            title="Couldn't load the profile"
+            description={error.message}
+            action={{ label: 'Retry', onPress: refetch }}
+            testID="source-profile-error"
+          />
+        </ScrollView>
       </View>
     );
+    return parentProjectId ? (
+      <MigrationLayout title="DataPortation" projectId={parentProjectId} onBack={handleBack} testID="master-data-profile-screen">
+        {content}
+      </MigrationLayout>
+    ) : content;
   }
 
-  if (!pack) return <View className="flex-1" testID="source-profile-screen" />;
+  if (!pack) {
+    const content = <View className="flex-1" testID="source-profile-screen" />;
+    return parentProjectId ? (
+      <MigrationLayout title="DataPortation" projectId={parentProjectId} onBack={handleBack} testID="master-data-profile-screen">
+        {content}
+      </MigrationLayout>
+    ) : content;
+  }
 
   if (pack.fields.length === 0) {
-    return (
-      <View className="flex-1" testID="source-profile-screen">
-        <StepRail activeStepId="profile" />
-        <EmptyState
-          title="No fields profiled for this pack yet"
-          description="The profiler hasn't produced any field-level results."
-          testID="source-profile-empty"
-        />
+    const content = (
+      <View className="flex-1 flex-col bg-background" testID="source-profile-screen">
+        <ScrollView className="flex-1 pr-5" keyboardShouldPersistTaps="handled">
+          {/* ── Wizard stepper (all 8 taxonomy steps) ───────────────────────── */}
+          <StepRail rail={stepRail} />
+          <EmptyState
+            title="No fields profiled for this pack yet"
+            description="The profiler hasn't produced any field-level results."
+            testID="source-profile-empty"
+          />
+        </ScrollView>
       </View>
     );
+    return parentProjectId ? (
+      <MigrationLayout title="DataPortation" projectId={parentProjectId} onBack={handleBack} testID="master-data-profile-screen">
+        {content}
+      </MigrationLayout>
+    ) : content;
   }
 
   const openedField = openFieldId !== null ? pack.fields.find((f) => f.id === openFieldId) ?? null : null;
@@ -156,13 +222,12 @@ export function SourceDataProfileScreen({
   const compareFieldB = fieldBId !== undefined ? pack.fields.find((f) => f.id === fieldBId) ?? null : null;
   const approvalField = pendingApproval ? pack.fields.find((f) => f.id === pendingApproval.fieldId) ?? null : null;
 
-  return (
-    <View className="flex-1" testID="source-profile-screen">
+  const content = (
+    <View className="flex-1 flex-col bg-background" testID="source-profile-screen">
       <View className="flex-1 flex-row">
-        <ScrollView className="flex-1" contentContainerStyle={{ padding: 20 }}>
-          <View className="mb-4">
-            <StepRail activeStepId="profile" />
-          </View>
+        <ScrollView className="flex-1 pr-5" keyboardShouldPersistTaps="handled">
+          {/* ── Wizard stepper (all 8 taxonomy steps) ───────────────────────── */}
+          <StepRail rail={stepRail} />
 
           <View className="mb-4 flex-row flex-wrap items-start justify-between gap-3">
             <View className="gap-1">
@@ -181,8 +246,8 @@ export function SourceDataProfileScreen({
             </View>
 
             <View className="flex-row items-center gap-2">
-              {onBack ? (
-                <Button variant="outline" size="sm" onPress={onBack} testID="source-profile-back">
+              {canGoBack ? (
+                <Button variant="outline" size="sm" onPress={handleBack} testID="source-profile-back">
                   <View className="flex-row items-center justify-center gap-1.5">
                     <ArrowLeft size={14} color={colors.foreground} />
                     <Text className="text-xs font-medium text-foreground">Back</Text>
@@ -281,4 +346,10 @@ export function SourceDataProfileScreen({
       />
     </View>
   );
+
+  return parentProjectId ? (
+    <MigrationLayout title="DataPortation" projectId={parentProjectId} onBack={handleBack} testID="master-data-profile-screen">
+      {content}
+    </MigrationLayout>
+  ) : content;
 }

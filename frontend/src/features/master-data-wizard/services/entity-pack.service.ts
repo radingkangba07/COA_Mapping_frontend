@@ -1,7 +1,11 @@
 import { z } from 'zod';
+import type { HttpClient } from '@/shared/services/http/http.types';
 import type { Result, AppError } from '@/shared/types/result.types';
 import { ok, err } from '@/shared/types/result.types';
+import { toAppError } from '@/shared/services/http/http.client';
+import type { UploadedFile } from '@/shared/components/ui/FileUploader';
 import type { EntityId, EntityPack } from '../dp-kit/types/entity';
+import type { UploadResult } from '../types/upload.types';
 import itemsFixture from '../dp-kit/fixtures/items.entity.json';
 import customersFixture from '../dp-kit/fixtures/customers.entity.json';
 
@@ -181,4 +185,120 @@ export async function getEntityPack(entityId: EntityId): Promise<Result<EntityPa
   }
 
   return ok(parsed.data as unknown as EntityPack);
+}
+
+/* ============================================================================
+   uploadSourceFile  ·  POST /api/v1/storage/upload -> Result<UploadResult>
+   ----------------------------------------------------------------------------
+   Multipart upload against the shared object-storage router (storage_service.py
+   / FileResponse) — the generic file store every master-data object uploads
+   into, distinct from the legacy COA-only /api/v1/files/upload used by
+   features/migration/services/excel.service.ts.
+
+   Confirmed live against a running api-service, authenticated as a real
+   user (2026-08-28):
+     - POST /api/v1/storage/upload requires a Bearer token (401 without one)
+       and rejects an empty body with 422, matching the request shape below.
+     - Body is multipart/form-data: file (required) + org_project_id /
+       project_id / file_type / job_id / workstream_id (all optional strings).
+     - 201 response is NOT a flat FileResponse (unlike GET
+       /storage/files/{id}) — the upload handler wraps it:
+       { success: true, file: { id, file_type, original_filename,
+       storage_path, content_type, size_bytes, status, columns, row_count,
+       created_at } }. Same wrapper convention as the legacy
+       /api/v1/files/upload's `{ file: { id } }` in excel.service.ts. An
+       earlier version of this schema assumed the flat GET shape and failed
+       every real (successful) upload with INVALID_RESPONSE — read
+       response.data.file, not response.data.
+   ========================================================================= */
+
+const uploadResponseSchema = z.object({
+  success: z.boolean().optional(),
+  file: z.object({
+    id: z.string(),
+    file_type: z.string(),
+    original_filename: z.string(),
+    storage_path: z.string(),
+    content_type: z.string(),
+    size_bytes: z.number(),
+    status: z.string(),
+    row_count: z.number(),
+    created_at: z.string(),
+  }),
+});
+
+function toUploadResult(dto: z.infer<typeof uploadResponseSchema>): UploadResult {
+  const { file } = dto;
+  return {
+    fileId: file.id,
+    fileName: file.original_filename,
+    fileType: file.file_type,
+    contentType: file.content_type,
+    sizeBytes: file.size_bytes,
+    status: file.status,
+    rowCount: file.row_count,
+    storagePath: file.storage_path,
+    createdAt: file.created_at,
+  };
+}
+
+export interface UploadSourceFileOptions {
+  orgProjectId?: string;
+  projectId?: string;
+  /** Defaults to 'source_erp' server-side if omitted. */
+  fileType?: string;
+  jobId?: string;
+  workstreamId?: string;
+}
+
+export async function uploadSourceFile(
+  client: HttpClient,
+  file: UploadedFile,
+  options?: UploadSourceFileOptions,
+): Promise<Result<UploadResult, AppError>> {
+  try {
+    const formData = new FormData();
+    if (file instanceof File) {
+      formData.append('file', file);
+    } else {
+      // React Native's FormData polyfill takes this shape in place of a Blob.
+      formData.append('file', {
+        uri: file.uri,
+        name: file.name,
+        type: file.mimeType,
+      } as unknown as Blob);
+    }
+    if (options?.orgProjectId) formData.append('org_project_id', options.orgProjectId);
+    if (options?.projectId) formData.append('project_id', options.projectId);
+    if (options?.fileType) formData.append('file_type', options.fileType);
+    if (options?.jobId) formData.append('job_id', options.jobId);
+    if (options?.workstreamId) formData.append('workstream_id', options.workstreamId);
+
+    console.log('[MasterDataUploadScreen] POST /api/v1/storage/upload', options);
+    // No explicit Content-Type here — the axios instance defaults to
+    // 'application/json', and overriding it to a literal 'multipart/form-data'
+    // (no boundary) makes the browser send that header as-is instead of
+    // generating its own boundary, which the backend's multipart parser then
+    // can't split. Content-Type: undefined removes the instance default so
+    // the browser/XHR sets the correct 'multipart/form-data; boundary=...'
+    // itself from the FormData body.
+    const response = await client.post<unknown>('/api/v1/storage/upload', formData, {
+      headers: { 'Content-Type': undefined },
+    });
+    console.log('[MasterDataUploadScreen] POST /api/v1/storage/upload -> response', response.data);
+
+    const parsed = uploadResponseSchema.safeParse(response.data);
+    if (!parsed.success) {
+      return err({
+        code: 'INVALID_RESPONSE',
+        message: 'Upload response failed validation',
+        details: { issues: parsed.error.issues },
+      });
+    }
+
+    return ok(toUploadResult(parsed.data));
+  } catch (error: unknown) {
+    console.log('[MasterDataUploadScreen] POST /api/v1/storage/upload -> error', error);
+    return err(toAppError(error));
+  }
 }

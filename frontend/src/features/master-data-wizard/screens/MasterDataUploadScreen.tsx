@@ -1,153 +1,38 @@
-import React, { useCallback, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  StyleSheet,
-  Platform,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useCallback, useEffect, useState } from 'react';
+import {View, Text, ScrollView,} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Upload, LayoutTemplate } from 'lucide-react-native';
-import * as DocumentPicker from 'expo-document-picker';
+import { LayoutTemplate, File as FileIcon, ArrowLeft, ArrowRight } from 'lucide-react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import type { ProjectsStackParamList } from '@/navigation/types';
 import { isWeb } from '@/shared/utils/platform.utils';
 import { getERPById } from '@/shared/constants/erp-systems';
+import { MigrationLayout } from '@/features/migration/components/MigrationLayout';
 import { useProjectDetail } from '@/features/projects/hooks/useProjectDetail';
-import { useAuthStore } from '@/features/auth/store/auth.store';
-import { useERPConfigStore } from '@/features/erp-config/store/erp-config.store';
 import { createProjectId } from '@/shared/types/common.types';
-import { colors } from '@/config/theme';
-import { SidebarContent } from '@/features/migration/components/ProjectSidebar/SidebarContent';
-import {
-  StepItem,
-  CIRCLE_SIZE,
-} from '@/features/migration/components/MigrationStepper/MigrationStepperParts';
-import type { StepStatus } from '@/features/migration/components/MigrationStepper/MigrationStepperParts';
-import type { ERPInfo } from '@/features/migration/components/ProjectSidebar/sidebar.types';
 import { useEntityPack } from '../hooks/useEntityPack';
-import { WIZARD_STEPS } from '../config/steps';
-import { dpTheme, semantic } from '../kit/dp-theme';
+import { useSourceFileUpload } from '../hooks/useSourceFileUpload';
+import { useWizardStore } from '../store/wizard.store';
+import { STEPS } from '../dp-kit/react/taxonomy';
+import { toStepRail } from '../mappers/toStepRail';
+import { StepRail } from '@/shared/components/ui/StepRail';
+import { parseCSV } from '../utils/csv';
+import { missingColumns } from '../utils/columnCheck';
+import { colors } from '@/config/theme';
+import type { StepId } from '../types/wizard.types';
+import type { EntityId } from '../types/entity-pack.types';
+import { Button } from '@/shared/components/ui/Button';
+import { Spinner } from '@/shared/components/ui/Spinner';
+import { FileUploadField, FileTargetCard, type UploadedFile } from '@/shared/components/ui/FileUploader';
+import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorFallback';
+import { SampleFileCard } from '@/shared/components/ui/SampleFileCard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type UploadRoute = RouteProp<ProjectsStackParamList, 'MasterDataUpload'>;
 type UploadNav = NativeStackNavigationProp<ProjectsStackParamList, 'MasterDataUpload'>;
-
-// ─── CSV helpers ──────────────────────────────────────────────────────────────
-
-function parseCSV(content: string): string[][] {
-  const rows: string[][] = [];
-  let cells: string[] = [];
-  let field = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < content.length; i++) {
-    const ch = content[i];
-    if (inQuotes) {
-      if (ch === '"') {
-        if (content[i + 1] === '"') { field += '"'; i++; }
-        else inQuotes = false;
-      } else {
-        field += ch;
-      }
-    } else {
-      if (ch === '"') { inQuotes = true; }
-      else if (ch === ',') { cells.push(field); field = ''; }
-      else if (ch === '\n') {
-        cells.push(field); rows.push(cells);
-        cells = []; field = '';
-      } else if (ch !== '\r') { field += ch; }
-    }
-  }
-  if (field || cells.length) { cells.push(field); rows.push(cells); }
-  return rows.filter(r => r.some(c => c.trim() !== ''));
-}
-
-function normalise(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-function missingColumns(uploaded: string[], expected: string[]): string[] {
-  const norm = uploaded.map(normalise);
-  return expected.filter(e => !norm.includes(normalise(e)));
-}
-
-// ─── Wizard stepper (reuses COA StepItem + ConnectorLine) ────────────────────
-
-function WizardStepper({ currentStepN }: { currentStepN: number }): React.JSX.Element {
-  return (
-    <View
-      className="items-start justify-center px-4 py-3 md:flex md:flex-row"
-      style={{ flexDirection: 'row' }}
-    >
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-        {WIZARD_STEPS.map((step, i) => {
-          const status: StepStatus =
-            step.n === currentStepN ? 'active' :
-            step.n < currentStepN  ? 'completed' : 'upcoming';
-          return (
-            <React.Fragment key={step.id}>
-              <StepItem
-                index={i}
-                label={step.label}
-                status={status}
-                isCompleted={step.n < currentStepN}
-                onPress={() => { /* navigation handled via Back/Continue */ }}
-              />
-              {i < WIZARD_STEPS.length - 1 && (
-                <View style={{
-                  width: 40,
-                  height: 2,
-                  backgroundColor: step.n < currentStepN ? colors.primary : colors.border,
-                  marginTop: CIRCLE_SIZE / 2 - 1,
-                  flexShrink: 0,
-                }} />
-              )}
-            </React.Fragment>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
-}
-
-// ─── Sidebar data hook ────────────────────────────────────────────────────────
-
-function useWizardSidebarProps(parentProjectId: string) {
-  const { project } = useProjectDetail(createProjectId(parentProjectId));
-  const user = useAuthStore(s => s.user);
-  const erpSystems = useERPConfigStore(s => s.erpSystems);
-
-  function resolveERP(erpId: string): ERPInfo {
-    const lower = erpId.toLowerCase();
-    const hit = erpSystems.find(e => e.id.toLowerCase() === lower)
-      ?? erpSystems.find(e => e.name.toLowerCase() === lower);
-    const name = hit?.name ?? getERPById(erpId)?.name ?? toTitleCase(erpId.replace(/_/g, ' '));
-    return { id: erpId, name, fieldCount: hit?.fields?.length ?? 0 };
-  }
-
-  return {
-    projectId: project?.projectId ?? null,
-    displayCode: project?.displayCode,
-    orgId: project?.orgId,
-    projectName: project?.name,
-    createdAt: project?.createdAt,
-    createdByName: project?.createdByName ?? user?.name,
-    updatedAt: project?.updatedAt,
-    lastEditedBy: project?.updatedByName ?? project?.createdByName ?? user?.name,
-    sourceERP: project?.sourceErp ? resolveERP(project.sourceErp) : null,
-    targetERP: project?.targetErp ? resolveERP(project.targetErp) : null,
-    sourceRowCount: 0,
-    targetRowCount: 0,
-    currentUser: user ? { name: user.name, userId: user.userId } : null,
-  };
-}
 
 // ─── Static entity sample fallbacks ─────────────────────────────────────────
 // Used when the backend entity profile endpoint has not yet returned sample data.
@@ -181,26 +66,6 @@ const ENTITY_SAMPLE: Record<string, { name: string; description: string; content
   },
 };
 
-// ─── ERP badge colours (hex) ──────────────────────────────────────────────────
-
-const ERP_BADGE_HEX: Record<string, { bg: string; fg: string }> = {
-  odoo:                  { bg: '#9333EA', fg: '#FFFFFF' },
-  sap:                   { bg: '#2563EB', fg: '#FFFFFF' },
-  accpac:                { bg: '#0891B2', fg: '#FFFFFF' },
-  dynamics365:           { bg: '#16A34A', fg: '#FFFFFF' },
-  oracle_netsuite:       { bg: '#F97316', fg: '#FFFFFF' },
-  netsuite:              { bg: '#F97316', fg: '#FFFFFF' },
-  xero:                  { bg: '#0EA5E9', fg: '#FFFFFF' },
-  syspro:                { bg: '#E11D48', fg: '#FFFFFF' },
-  quickbooks:            { bg: '#2CA01C', fg: '#FFFFFF' },
-  sage:                  { bg: '#00B050', fg: '#FFFFFF' },
-  acumatica:             { bg: '#B91C1C', fg: '#FFFFFF' },
-  acumatica_cloud_erp:   { bg: '#B91C1C', fg: '#FFFFFF' },
-  microsoft:             { bg: '#00A4EF', fg: '#FFFFFF' },
-  infor:                 { bg: '#FF6900', fg: '#FFFFFF' },
-  epicor:                { bg: '#004990', fg: '#FFFFFF' },
-};
-
 function toTitleCase(s: string): string {
   return s.replace(/\b\w/g, c => c.toUpperCase());
 }
@@ -211,23 +76,44 @@ export function MasterDataUploadScreen(): React.JSX.Element {
   const route = useRoute<UploadRoute>();
   const navigation = useNavigation<UploadNav>();
   const { orgProjectId, entityId, parentProjectId } = route.params;
-  const mode = 'light';
 
-  const { pack } = useEntityPack(orgProjectId, entityId);
-  const { project } = useProjectDetail(createProjectId(parentProjectId));
-  const sidebarProps = useWizardSidebarProps(parentProjectId);
+  const { pack, refetch: refetchPack } = useEntityPack(orgProjectId, entityId);
+  const {
+    upload: uploadSourceFileToServer,
+    result: uploadResult,
+    isUploading,
+    error: uploadError,
+    reset: resetUpload,
+  } = useSourceFileUpload({ orgProjectId, fileType: 'source_erp' });
+  const setUploadedFile = useWizardStore((s) => s.setUploadedFile);
+  const clearUploadedFile = useWizardStore((s) => s.clearUploadedFile);
+  const { project, isLoading: isProjectLoading, isFetching: isProjectFetching, error: projectError, refetch: refetchProject } = useProjectDetail(createProjectId(parentProjectId));
+  // The entity-pack profile fetch is deliberately excluded from this gate:
+  // the backend has no GET /projects/{id}/entities/{id}/profile route yet,
+  // so `pack` is treated as optional everywhere below (spec ?? {}, pack?.*,
+  // ENTITY_SAMPLE fallback) rather than blocking Step 1 on a 404.
+  const hydrationError = projectError;
+  // TanStack Query's `isLoading` is only true on the very first fetch (it's
+  // `isPending && isFetching`, and `isPending` goes false forever once a
+  // query first settles). Once an error has been hit, a retry only flips
+  // `isFetching` — so fold that in here, but only while an error is present,
+  // to avoid the spinner flashing on ordinary background refetches.
+  const isHydrating = isProjectLoading
+    || (hydrationError !== null && isProjectFetching);
+  const retryHydration = useCallback((): void => {
+    refetchPack();
+    refetchProject();
+  }, [refetchPack, refetchProject]);
 
   const [fileName, setFileName] = useState<string | null>(null);
   const [csvRows, setCsvRows] = useState<string[][]>([]);
   const [showPreview, setShowPreview] = useState(false);
-  const [isDragOver, setIsDragOver] = useState(false);
-  const dropZoneRef = useRef<View>(null);
 
-  const t = dpTheme[mode];
   const MAX_PREVIEW = 8;
 
-  const uploadStep = WIZARD_STEPS.find(s => s.id === 'upload')!;
-  const profileStep = WIZARD_STEPS.find(s => s.id === 'profile')!;
+  const uploadStep = STEPS.find(s => s.id === 'upload')!;
+  const profileStep = STEPS.find(s => s.id === 'profile')!;
+  const stepRail = toStepRail(uploadStep.id as StepId, STEPS);
 
   const header = csvRows[0] ?? [];
   const dataRows = Math.max(0, csvRows.length - 1);
@@ -241,9 +127,9 @@ export function MasterDataUploadScreen(): React.JSX.Element {
   const targetErpInfo = pack?.target.record
     ? { name: pack.target.record, record: spec.targetNote ?? pack.target.record }
     : {
-        name: (() => { const e = getERPById(project?.targetErp ?? ''); return e?.name ?? (toTitleCase((project?.targetErp ?? '').replace(/_/g, ' ')) || '—'); })(),
-        record: pack?.target.record ?? '',
-      };
+      name: (() => { const e = getERPById(project?.targetErp ?? ''); return e?.name ?? (toTitleCase((project?.targetErp ?? '').replace(/_/g, ' ')) || '—'); })(),
+      record: pack?.target.record ?? '',
+    };
 
   const entityLabel = pack?.label.plural ?? entityId.charAt(0).toUpperCase() + entityId.slice(1);
 
@@ -261,65 +147,37 @@ export function MasterDataUploadScreen(): React.JSX.Element {
     setShowPreview(true);
   }, []);
 
-  const handleWebFile = useCallback(async (file: File): Promise<void> => {
-    const content = await file.text();
-    loadContent(content, file.name);
-  }, [loadContent]);
-
-  const handleNativePick = useCallback(async (): Promise<void> => {
-    const result = await DocumentPicker.getDocumentAsync({
-      type: ['text/csv', 'text/comma-separated-values'],
-      copyToCacheDirectory: true,
-    });
-    if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
-    const content = await FileSystem.readAsStringAsync(asset.uri);
-    loadContent(content, asset.name);
-  }, [loadContent]);
-
-  const handlePress = useCallback((): void => {
-    if (hasFile) return;
-    if (isWeb) {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.csv,text/csv';
-      input.onchange = (e: Event): void => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (file) void handleWebFile(file);
-      };
-      input.click();
+  const handleFilePicked = useCallback((file: UploadedFile): void => {
+    if (file instanceof File) {
+      void file.text().then((content) => loadContent(content, file.name));
     } else {
-      void handleNativePick();
+      void FileSystem.readAsStringAsync(file.uri).then((content) =>
+        loadContent(content, file.name),
+      );
     }
-  }, [hasFile, handleWebFile, handleNativePick]);
+    // A previously confirmed fileId belongs to the file being replaced —
+    // drop it now so a stale id can never be read while this new upload is
+    // still in flight (or if it fails).
+    clearUploadedFile(entityId as EntityId);
+    uploadSourceFileToServer(file);
+  }, [loadContent, uploadSourceFileToServer, clearUploadedFile, entityId]);
+
+  // The single point where a backend-confirmed upload becomes part of wizard
+  // state — mirrors is the source of truth for later steps, never the local
+  // CSV preview parsed in loadContent (which the server never sees).
+  useEffect(() => {
+    if (uploadResult) {
+      setUploadedFile(entityId as EntityId, uploadResult);
+    }
+  }, [uploadResult, entityId, setUploadedFile]);
 
   const handleRemove = useCallback((): void => {
     setFileName(null);
     setCsvRows([]);
     setShowPreview(false);
-  }, []);
-
-  React.useEffect(() => {
-    if (!isWeb || hasFile) return;
-    const el = dropZoneRef.current as unknown as HTMLElement | null;
-    if (!el) return;
-    const onOver = (e: DragEvent): void => { e.preventDefault(); setIsDragOver(true); };
-    const onLeave = (e: DragEvent): void => { e.preventDefault(); setIsDragOver(false); };
-    const onDrop = (e: DragEvent): void => {
-      e.preventDefault();
-      setIsDragOver(false);
-      const file = e.dataTransfer?.files[0];
-      if (file) void handleWebFile(file);
-    };
-    el.addEventListener('dragover', onOver);
-    el.addEventListener('dragleave', onLeave);
-    el.addEventListener('drop', onDrop);
-    return () => {
-      el.removeEventListener('dragover', onOver);
-      el.removeEventListener('dragleave', onLeave);
-      el.removeEventListener('drop', onDrop);
-    };
-  }, [isWeb, hasFile, handleWebFile]);
+    resetUpload();
+    clearUploadedFile(entityId as EntityId);
+  }, [resetUpload, clearUploadedFile, entityId]);
 
   const handleLoadSample = useCallback((): void => {
     if (!sampleContent) return;
@@ -343,362 +201,195 @@ export function MasterDataUploadScreen(): React.JSX.Element {
   }, [sampleContent, entityId]);
 
   const handleBack = useCallback((): void => { navigation.goBack(); }, [navigation]);
-  const handleContinue = useCallback((): void => { navigation.goBack(); }, [navigation]);
+  // A real stack navigation (not a local content swap) — this is what keeps
+  // MigrationLayout's sidebar and the stack's own navigation state in sync
+  // with the step actually on screen. See SourceDataProfileScreen.tsx's
+  // route/navigation props, which is what wraps it in MigrationLayout.
+  const handleContinue = useCallback((): void => {
+    navigation.navigate('MasterDataProfile', { orgProjectId, entityId, parentProjectId });
+  }, [navigation, orgProjectId, entityId, parentProjectId]);
 
-  const stepCounter = `Step ${uploadStep.n} of ${WIZARD_STEPS.length}`;
+  const stepCounter = `Step ${uploadStep.n} of ${STEPS.length}`;
   const continueLabel = `Continue to ${profileStep.label}`;
   const fileLine = hasFile
     ? `${fileName ?? ''} · ${dataRows} rows`
-    : `No source file selected · step ${uploadStep.n} of ${WIZARD_STEPS.length}`;
-
-  const cleanChip = semantic('impact', 'clean', mode);
-  const warnFind = semantic('find', 'warn', mode);
-  const blockerTone = semantic('metricTone', 'blocker', mode);
+    : `No source ${entityId} file selected`;
 
   const targetErpKey = (project?.targetErp ?? '').toLowerCase();
-  const erpBadge = ERP_BADGE_HEX[targetErpKey] ?? { bg: cleanChip.bg, fg: cleanChip.fg };
+  const erpInfo = getERPById(targetErpKey);
+  const erpBadge = erpInfo
+    ? { bg: erpInfo.brandColor, fg: colors.primaryForeground }
+    : undefined;
   const erpInitial = targetErpInfo.name.slice(0, 2).toUpperCase();
 
+  if (isHydrating) {
+    return (
+      <MigrationLayout title="DataPortation" projectId={parentProjectId} onBack={handleBack} testID="master-data-upload-screen">
+        <View className="flex-1 items-center justify-center">
+          <Spinner size="lg" />
+          <Text className="mt-4 font-body text-sm text-muted-foreground">Loading project data...</Text>
+        </View>
+      </MigrationLayout>
+    );
+  }
+
+  if (hydrationError) {
+    return (
+      <MigrationLayout title="DataPortation" projectId={parentProjectId} onBack={handleBack} testID="master-data-upload-screen">
+        <NetworkErrorFallback error={new Error(hydrationError.message)} onRetry={retryHydration} testID="master-data-upload-error" />
+      </MigrationLayout>
+    );
+  }
   return (
-    <SafeAreaView style={[s.screen, { backgroundColor: t.palette.bg }]}>
+    <MigrationLayout
+      title="DataPortation"
+      projectId={parentProjectId}
+      onBack={handleBack}
+      testID="master-data-upload-screen"
+      sourceRowCount={hasFile ? dataRows : undefined}
+    >
+      <View className="flex-1 flex-col bg-background">
+        <ScrollView className="flex-1 pr-5" keyboardShouldPersistTaps="handled">
 
-      {/* ── Body: sidebar (full height) + main ───────────────────────────── */}
-      <View style={s.body}>
-
-        {/* Sidebar reaches the very top — stepper is only in the main column */}
-        {isWeb && (
-          <View className="w-64 border-r border-border bg-card" style={{ flexShrink: 0 }}>
-            <SidebarContent {...sidebarProps} />
-          </View>
-        )}
-
-        {/* Main content */}
-        <View style={s.main}>
-
-          {/* ── Wizard stepper (COA style, inside main column only) ──────── */}
-          <WizardStepper currentStepN={uploadStep.n} />
+          {/* ── Wizard stepper (all 8 taxonomy steps) ───────────────────────── */}
+          <StepRail rail={stepRail} />
 
           {/* ── Page header ────────────────────────────────────────────── */}
-          <View style={[s.header, { borderBottomColor: t.palette.border, backgroundColor: t.palette.card }]}>
-            <View style={s.headerLeft}>
-              <View style={s.titleRow}>
-                <Text style={[s.pageTitle, { color: t.palette.fg }]}>{uploadStep.label}</Text>
-                <Text style={[s.stepCounter, { color: t.palette.muted }]}>{stepCounter}</Text>
+          <View className="mt-8 mb-5 flex-row items-start gap-4 flex-wrap bg-card">
+            <View className="flex-1 gap-2">
+              <View className="flex-row items-baseline gap-2">
+                <Text className="text-lg font-bold tracking-tight font-heading text-foreground">{uploadStep.label}</Text>
+                <Text className="text-xs font-body text-muted-foreground">{stepCounter}</Text>
               </View>
-              <View style={s.fileLineRow}>
-                <Text style={[s.fileLine, { color: t.palette.muted }]} numberOfLines={1}>{fileLine}</Text>
+              <View className="flex-row items-center gap-2">
+                <FileIcon size={14} color={colors.mutedForeground} strokeWidth={2} />
+                <Text className="text-xs font-mono text-muted-foreground" numberOfLines={1}>{fileLine}</Text>
               </View>
             </View>
-            <View style={s.headerActions}>
-              <Pressable
-                onPress={handleBack}
-                style={[s.btnOutline, { borderColor: t.palette.border, backgroundColor: t.palette.card }]}
-              >
-                <Text style={[s.btnText, { color: t.palette.fg }]}>← Back</Text>
-              </Pressable>
-              <Pressable
-                onPress={handleContinue}
-                disabled={!hasFile}
-                style={[
-                  s.btnPrimary,
-                  hasFile ? { backgroundColor: t.palette.primary } : { backgroundColor: t.palette.surface },
-                ]}
-              >
-                <Text style={[s.btnPrimaryText, hasFile ? { color: t.palette.primaryFg } : { color: t.palette.muted }]}>
-                  {continueLabel} →
-                </Text>
-              </Pressable>
+            <View className="flex-row items-end gap-2">
+              <View className="flex-row items-center justify-center align-center gap-3">
+                <Button
+                  variant="outline"
+                  onPress={handleBack}
+                  testID="upload-back-button"
+                >
+                  <ArrowLeft size={16} color={colors.foreground} />
+                  <Text className="font-body text-sm font-medium text-foreground ml-1">
+                    Back
+                  </Text>
+                </Button>
+                <Button
+                  onPress={() => void handleContinue()}
+                  disabled={!hasFile || isUploading || !uploadResult || Boolean(uploadError)}
+                  testID="upload-continue-button"
+                >
+                  <Text className="font-body text-sm font-medium text-primary-foreground mr-1">
+                    {isUploading ? 'Uploading…' : uploadError ? 'Upload failed — retry' : continueLabel}
+                  </Text>
+                  <ArrowRight size={16} color={colors.primaryForeground} />
+
+                </Button>
+              </View>
             </View>
           </View>
 
-          {/* ── Scrollable content ─────────────────────────────────────── */}
-          <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} keyboardShouldPersistTaps="handled">
 
-            {/* ── Main panel ───────────────────────────────────────────── */}
-            <View style={[s.panel, { borderColor: t.palette.border, backgroundColor: t.palette.card }]}>
-              <View style={s.panelGrid}>
-
-                {/* 1. Source dropzone / file card */}
-                <View style={s.panelCol}>
-                  <Text style={[s.panelTitle, { color: t.palette.fg }]}>
+          {/* ── Main panel ───────────────────────────────────────────── */}
+          <View className="border border-border rounded-xl p-5 self-stretch">
+            <View className="flex-col gap-6 flex-wrap md:flex-row">
+              <FileUploadField
+                label={
+                  <>
                     {'1. Source '}
-                    <Text style={{ color: t.palette.fg }}>{entityLabel}</Text>
+                    <Text className="text-foreground">{entityLabel}</Text>
                     {': Master Data '}
-                    <Text style={{ color: blockerTone.fg }}>*</Text>
-                  </Text>
-                  <Text style={[s.panelSub, { color: t.palette.muted }]}>Upload a source CSV to continue</Text>
-
-                  {!hasFile ? (
-                    <Pressable onPress={handlePress} style={s.dropzoneWrap}>
-                      <View
-                        ref={dropZoneRef}
-                        style={[
-                          s.dropzone,
-                          {
-                            borderColor: isDragOver ? t.palette.accent : t.palette.border,
-                            backgroundColor: t.palette.surfaceHi,
-                          },
-                        ]}
-                      >
-                        <View style={[s.dropzoneIcon, { backgroundColor: `${t.palette.accent}1A` }]}>
-                          <Upload size={22} color={t.palette.accent} strokeWidth={2} />
-                        </View>
-                        <Text style={[s.dropzoneHeading, { color: t.palette.fg }]}>
-                          {'Drag & drop your CSV here, or '}
-                          <Text style={{ color: t.palette.accent, textDecorationLine: 'underline' }}>browse</Text>
-                        </Text>
-                        <Text style={[s.dropzoneHint, { color: t.palette.muted }]}>
-                          CSV with a header row · up to 10 MB
-                        </Text>
-                        {expectedCols.length > 0 && (
-                          <Text style={[s.dropzoneExpected, { color: t.palette.muted }]}>
-                            {'expects: '}{expectedCols.slice(0, 4).join(', ')}{expectedCols.length > 4 ? ' …' : ''}
-                          </Text>
-                        )}
-                      </View>
-                    </Pressable>
-                  ) : (
-                    <View style={[s.fileCard, { borderColor: t.palette.border }]}>
-                      <View style={s.fileCardRow}>
-                        <View style={[s.csvBadge, { backgroundColor: cleanChip.bg }]}>
-                          <Text style={[s.csvBadgeText, { color: cleanChip.fg }]}>CSV</Text>
-                        </View>
-                        <View style={s.fileCardMeta}>
-                          <Text style={[s.fileName, { color: t.palette.fg }]} numberOfLines={1}>{fileName}</Text>
-                          <Text style={[s.rowCount, { color: t.palette.muted }]}>{dataRows} rows loaded</Text>
-                        </View>
-                        <View style={[s.chip, { backgroundColor: t.palette.chip }]}>
-                          <Text style={[s.chipLabel, { color: t.palette.chipFg }]}>SOURCE</Text>
-                        </View>
-                      </View>
-                      {columnWarning.length > 0 && (
-                        <View style={[s.warnBox, { backgroundColor: warnFind.bg }]}>
-                          <Text style={[s.warnText, { color: warnFind.fg }]}>
-                            {columnWarning.length} expected {columnWarning.length === 1 ? 'column is' : 'columns are'} not present:{' '}
-                            {columnWarning.join(', ')}. Profiling will still run, but these fields cannot be mapped.
-                          </Text>
-                        </View>
-                      )}
-                      <View style={s.fileCardActions}>
-                        <Pressable
-                          onPress={() => setShowPreview(p => !p)}
-                          style={[s.btnOutline, { flex: 1, borderColor: t.palette.border, backgroundColor: t.palette.card }]}
-                        >
-                          <Text style={[s.btnText, { color: t.palette.fg }]}>{showPreview ? 'Hide preview' : 'Preview'}</Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={handleRemove}
-                          style={[s.btnSquare, { borderColor: t.palette.border, backgroundColor: t.palette.card }]}
-                        >
-                          <Text style={{ color: blockerTone.fg, fontSize: 16 }}>✕</Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  )}
-                </View>
-
-                {/* 2. Target panel */}
-                <View style={s.panelCol}>
-                  <Text style={[s.panelTitle, { color: t.palette.fg }]}>2. Target System Format</Text>
-                  <Text style={[s.panelSub, { color: t.palette.muted }]}>Set when the project was created</Text>
-
-                  <View style={[s.targetCard, { borderColor: t.palette.border, backgroundColor: t.palette.surfaceHi }]}>
-                    <View style={s.fileCardRow}>
-                      <View style={[s.targetBadge, { backgroundColor: erpBadge.bg }]}>
-                        <Text style={[s.csvBadgeText, { color: erpBadge.fg }]}>
-                          {erpInitial}
-                        </Text>
-                      </View>
-                      <View style={s.fileCardMeta}>
-                        <Text style={[s.fileName, { color: t.palette.fg }]} numberOfLines={1}>
-                          {targetErpInfo.name}
-                        </Text>
-                        {targetErpInfo.record.length > 0 && (
-                          <Text style={[s.rowCount, { color: t.palette.muted }]} numberOfLines={1}>
-                            {targetErpInfo.record}
-                          </Text>
-                        )}
-                      </View>
-                      <View style={[s.chip, { backgroundColor: cleanChip.bg }]}>
-                        <Text style={[s.chipLabel, { color: cleanChip.fg }]}>✓ TARGET</Text>
-                      </View>
-                    </View>
-                    <View style={[s.targetBlurb, { borderTopColor: t.palette.border }]}>
-                      <Text style={[s.targetBlurbText, { color: t.palette.muted }]}>
-                        {`The uploaded ${entityLabel.toLowerCase()} data will be converted into this system's format. To change the target, edit the project settings.`}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {/* Sample file row — always visible */}
-              <View style={[s.sampleRow, { borderTopColor: t.palette.border }]}>
-                <Text style={[s.panelTitle, { color: t.palette.fg }]}>Sample File</Text>
-                <Text style={[s.panelSub, { color: t.palette.muted }]}>
-                  Preview or download a sample source file for testing
-                </Text>
-                <View style={s.sampleContent}>
-                  <View style={[s.csvBadgeSm, { backgroundColor: t.palette.surface }]}>
-                    <Text style={[s.csvBadgeTextSm, { color: t.palette.muted }]}>CSV</Text>
-                  </View>
-                  <Text style={[s.sampleName, { color: t.palette.fg }]}>{sampleName}</Text>
-                  <Text style={[s.sampleDesc, { color: t.palette.muted }]} numberOfLines={2}>
-                    {sampleDesc}
-                  </Text>
-                  <View style={s.sampleButtons}>
-                    <Pressable
-                      onPress={handleLoadSample}
-                      style={[s.btnOutline, { borderColor: t.palette.border, backgroundColor: t.palette.card }]}
-                    >
-                      <Text style={[s.btnText, { color: t.palette.fg }]}>Load</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => void handleDownloadSample()}
-                      style={[s.btnOutline, { borderColor: t.palette.border, backgroundColor: t.palette.card }]}
-                    >
-                      <Text style={[s.btnText, { color: t.palette.fg }]}>Download</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              </View>
+                    <Text className="text-destructive">*</Text>
+                  </>
+                }
+                subLabel="Upload a source CSV to continue"
+                hasFile={hasFile}
+                fileName={fileName}
+                rowCount={dataRows}
+                tagClassName="bg-chip text-chip-foreground"
+                expectedColumns={expectedCols}
+                columnWarning={columnWarning}
+                showPreview={showPreview}
+                onFilePicked={handleFilePicked}
+                onTogglePreview={() => setShowPreview(p => !p)}
+                onRemove={handleRemove}
+                testID="master-data-upload-dropzone"
+              />
+              <FileTargetCard
+                label="2. Target System Format"
+                subLabel="Set when the project was created"
+                badgeText={erpInitial}
+                badgeTone={erpBadge}
+                title={targetErpInfo.name}
+                subtitle={targetErpInfo.record}
+                description={`The uploaded ${entityLabel.toLowerCase()} data will be converted into this system's format. To change the target, edit the project settings.`}
+              />
             </View>
 
-            {/* Source file preview */}
-            {hasFile && showPreview && (
-              <View style={[s.previewSection, { backgroundColor: t.palette.card, borderColor: t.palette.border }]}>
-                <View style={s.previewHeaderRow}>
-                  <LayoutTemplate size={17} color={t.palette.primary} strokeWidth={1.8} />
-                  <Text style={[s.previewTitle, { color: t.palette.fg }]}>Source File Preview</Text>
-                  <View style={[s.previewCountBadge, { borderColor: t.palette.border }]}>
-                    <Text style={[s.previewCountText, { color: t.palette.muted }]}>
-                      {`first ${Math.min(MAX_PREVIEW, dataRows)} of ${dataRows} rows`}
-                    </Text>
-                  </View>
+            {/* Sample file row — always visible */}
+            <SampleFileCard
+              sampleName={sampleName}
+              sampleDesc={sampleDesc}
+              onLoad={handleLoadSample}
+              onDownload={() => void handleDownloadSample()}
+            />
+          </View>
+
+          {/* Source file preview */}
+          {hasFile && showPreview && (
+            <View className="border rounded-xl overflow-hidden self-stretch mt-8 bg-card border-border">
+              <View className="flex-row items-center gap-3 flex-wrap p-4">
+                <LayoutTemplate size={17} color={colors.primary} strokeWidth={1.8} />
+                <Text className="text-base font-bold font-heading text-foreground">Source File Preview</Text>
+                <View className="border rounded-full px-3 py-1 border-border">
+                  <Text className="text-xs font-mono text-muted-foreground">
+                    {`first ${Math.min(MAX_PREVIEW, dataRows)} of ${dataRows} rows`}
+                  </Text>
                 </View>
-                <Text style={[s.previewSub, { color: t.palette.muted }]}>
-                  Check the header row and a few sample values before continuing. Column names are matched to target fields in the next step.
-                </Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={{ flexGrow: 1 }}>
-                  <View style={{ flex: 1 }}>
-                    <View style={[s.tableHeaderRow, { backgroundColor: t.palette.surface, borderBottomColor: t.palette.border }]}>
-                      <View style={s.tableRowNum}>
-                        <Text style={[s.tableHeaderCell, { color: t.palette.muted }]}>SRC #</Text>
-                      </View>
-                      {header.map((col, i) => (
-                        <View key={i} style={s.tableCell}>
-                          <Text style={[s.tableHeaderCell, { color: t.palette.muted }]} numberOfLines={1}>{col}</Text>
-                        </View>
-                      ))}
+              </View>
+              <Text className="text-xs px-4 mb-2 font-body text-muted-foreground">
+                Check the header row and a few sample values before continuing. Column names are matched to target fields in the next step.
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator contentContainerClassName="flex-grow">
+                <View className="flex-1">
+                  <View className="flex-row border-b bg-surface border-b-border">
+                    <View className="w-14 shrink-0 px-3 py-3">
+                      <Text className="text-xs font-bold uppercase tracking-wider font-body text-muted-foreground">SRC #</Text>
                     </View>
-                    {csvRows.slice(1, 1 + MAX_PREVIEW).map((row, ri) => (
-                      <View key={ri} style={[s.tableDataRow, { borderBottomColor: t.palette.border }]}>
-                        <View style={s.tableRowNum}>
-                          <Text style={[s.tableRowNumText, { color: t.palette.muted }]}>{ri + 1}</Text>
-                        </View>
-                        {row.map((cell, ci) => (
-                          <View key={ci} style={s.tableCell}>
-                            <Text style={[s.tableDataCell, { color: t.palette.fg }]} numberOfLines={1}>{cell}</Text>
-                          </View>
-                        ))}
+                    {header.map((col, i) => (
+                      <View key={i} className="flex-1 px-3 py-3">
+                        <Text className="text-xs font-bold uppercase tracking-wider font-body text-muted-foreground" numberOfLines={1}>{col}</Text>
                       </View>
                     ))}
                   </View>
-                </ScrollView>
-              </View>
-            )}
+                  {csvRows.slice(1, 1 + MAX_PREVIEW).map((row, ri) => (
+                    <View key={ri} className="flex-row border-b border-b-border">
+                      <View className="w-14 shrink-0 px-3 py-3">
+                        <Text className="text-xs font-mono text-muted-foreground">{ri + 1}</Text>
+                      </View>
+                      {row.map((cell, ci) => (
+                        <View key={ci} className="flex-1 px-3 py-3">
+                          <Text className="text-xs font-mono text-foreground" numberOfLines={1}>{cell}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+          )}
 
-            <Text style={[s.statusText, { color: t.palette.muted }]}>
-              {hasFile
-                ? `${fileName ?? ''} → ${targetErpInfo.name}`
-                : `Waiting for a source ${(pack?.label.singular ?? entityId).toLowerCase()} file…`}
-            </Text>
-          </ScrollView>
-        </View>
+          <Text className="text-xs py-1 font-mono text-muted-foreground">
+            {hasFile
+              ? `${fileName ?? ''} → ${targetErpInfo.name}`
+              : `Waiting for a source ${(pack?.label.singular ?? entityId).toLowerCase()} file…`}
+          </Text>
+        </ScrollView>
       </View>
-    </SafeAreaView>
+    </MigrationLayout>
   );
 }
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
-const s = StyleSheet.create({
-  screen:           { flex: 1 },
-  body:             { flex: 1, flexDirection: 'row' },
-  main:             { flex: 1, flexDirection: 'column' },
-
-  header:           { paddingHorizontal: 20, paddingVertical: 12, flexDirection: 'row', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' },
-  headerLeft:       { flex: 1, minWidth: 200 },
-  titleRow:         { flexDirection: 'row', alignItems: 'baseline', gap: 10 },
-  pageTitle:        { fontSize: 18, fontWeight: '700', letterSpacing: -0.3, fontFamily: 'Chivo' },
-  stepCounter:      { fontSize: 12, fontFamily: 'Inter' },
-  fileLineRow:      { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  fileLine:         { fontSize: 12, fontFamily: 'JetBrainsMono' },
-  headerActions:    { flexDirection: 'row', alignItems: 'center', gap: 10 },
-
-  btnOutline:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
-  btnText:          { fontSize: 12, fontWeight: '500', fontFamily: 'Inter' },
-  btnPrimary:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 8, paddingHorizontal: 15, paddingVertical: 8 },
-  btnPrimaryText:   { fontSize: 12, fontWeight: '600', fontFamily: 'Inter' },
-  btnSquare:        { width: 40, height: 40, borderWidth: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-
-  scroll:           { flex: 1 },
-  scrollContent:    { paddingHorizontal: 20, paddingVertical: 16, gap: 16, flexGrow: 1 },
-
-  panel:            { borderWidth: 1, borderRadius: 12, padding: 18, alignSelf: 'stretch' },
-  panelGrid:        { flexDirection: Platform.OS === 'web' ? 'row' : 'column', gap: 24, flexWrap: 'wrap' },
-  panelCol:         { flex: 1, minWidth: 280 },
-  panelTitle:       { fontSize: 15, fontWeight: '700', marginBottom: 2, fontFamily: 'Chivo' },
-  panelSub:         { fontSize: 12, marginBottom: 12, fontFamily: 'Inter' },
-
-  dropzoneWrap:     { flex: 1 },
-  dropzone:         { flex: 1, minHeight: 140, borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 10, padding: 22, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  dropzoneIcon:     { width: 42, height: 42, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  dropzoneHeading:  { fontSize: 13, fontWeight: '600', textAlign: 'center', fontFamily: 'Chivo' },
-  dropzoneHint:     { fontSize: 12, textAlign: 'center', fontFamily: 'Inter' },
-  dropzoneExpected: { fontSize: 11, fontFamily: 'JetBrainsMono', textAlign: 'center', marginTop: 2 },
-
-  fileCard:         { borderWidth: 1, borderRadius: 10, padding: 14 },
-  fileCardRow:      { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  csvBadge:         { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  csvBadgeText:     { fontSize: 10, fontWeight: '700', fontFamily: 'JetBrainsMono' },
-  fileCardMeta:     { flex: 1, minWidth: 0 },
-  fileName:         { fontSize: 13, fontWeight: '600', fontFamily: 'Inter' },
-  rowCount:         { fontSize: 12, marginTop: 2, fontFamily: 'JetBrainsMono' },
-  chip:             { borderRadius: 9999, paddingHorizontal: 10, paddingVertical: 4, flexShrink: 0 },
-  chipLabel:        { fontSize: 10, fontWeight: '700', letterSpacing: 0.4, fontFamily: 'Inter' },
-  fileCardActions:  { flexDirection: 'row', gap: 9, marginTop: 12 },
-
-  warnBox:          { marginTop: 11, borderRadius: 8, padding: 10 },
-  warnText:         { fontSize: 12, lineHeight: 18, fontFamily: 'Inter' },
-
-  targetCard:       { flex: 1, borderWidth: 1, borderRadius: 10, padding: 14 },
-  targetBadge:      { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  targetBlurb:      { borderTopWidth: 1, marginTop: 13, paddingTop: 11 },
-  targetBlurbText:  { fontSize: 12, lineHeight: 18, fontFamily: 'Inter' },
-
-  sampleRow:        { borderTopWidth: 1, marginTop: 20, paddingTop: 16 },
-  sampleContent:    { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 13, flexWrap: 'wrap' },
-  csvBadgeSm:       { width: 30, height: 30, borderRadius: 7, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  csvBadgeTextSm:   { fontSize: 9, fontWeight: '700', fontFamily: 'JetBrainsMono' },
-  sampleName:       { flex: 1, minWidth: 120, fontSize: 13, fontWeight: '600', fontFamily: 'Inter' },
-  sampleDesc:       { flex: 1.4, minWidth: 160, fontSize: 12, fontFamily: 'Inter' },
-  sampleButtons:    { flexDirection: 'row', gap: 9 },
-
-  previewSection:   { borderWidth: 1, borderRadius: 12, overflow: 'hidden', alignSelf: 'stretch' },
-  previewHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: 14 },
-  previewIcon:      { width: 26, height: 26, borderRadius: 6, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  previewTitle:     { fontSize: 16, fontWeight: '700', fontFamily: 'Chivo' },
-  previewCountBadge: { borderWidth: 1, borderRadius: 9999, paddingHorizontal: 10, paddingVertical: 3 },
-  previewCountText: { fontSize: 12, fontFamily: 'JetBrainsMono' },
-  previewSub:       { fontSize: 12, paddingHorizontal: 14, marginBottom: 8, fontFamily: 'Inter' },
-  tableHeaderRow:   { flexDirection: 'row', borderBottomWidth: 1 },
-  tableDataRow:     { flexDirection: 'row', borderBottomWidth: 1 },
-  tableRowNum:      { width: 56, flexShrink: 0, paddingHorizontal: 12, paddingVertical: 10 },
-  tableRowNumText:  { fontSize: 12, fontFamily: 'JetBrainsMono' },
-  tableCell:        { flex: 1, minWidth: 140, paddingHorizontal: 12, paddingVertical: 10 },
-  tableHeaderCell:  { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, fontFamily: 'Inter' },
-  tableDataCell:    { fontSize: 12, fontFamily: 'JetBrainsMono' },
-
-  statusText:       { fontSize: 12, fontFamily: 'JetBrainsMono', paddingVertical: 4 },
-});
