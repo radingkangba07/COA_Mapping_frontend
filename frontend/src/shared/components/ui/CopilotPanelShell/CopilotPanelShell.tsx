@@ -60,7 +60,7 @@ function normalizePrompt(raw: unknown, index: number): CopilotPrompt {
   return { id: obj.id ?? `prompt-${index}`, text: obj.text ?? '' };
 }
 
-export const CopilotPanelShell = ({ pack, defaultOpen = true, testID }: CopilotPanelShellProps): React.JSX.Element => {
+export const CopilotPanelShell = ({ pack, defaultOpen = false, testID }: CopilotPanelShellProps): React.JSX.Element => {
   // Forces re-render on theme toggle so colors.* below reads fresh values —
   // colors is a plain proxy, not a hook, so nothing else here re-renders
   // this component when the theme changes.

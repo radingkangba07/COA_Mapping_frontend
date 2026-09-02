@@ -273,7 +273,7 @@ export function MasterDataUploadScreen(): React.JSX.Element {
                   onPress={handleBack}
                   testID="upload-back-button"
                 >
-                  <ArrowLeft size={16} color={colors.foreground} />
+                  <ArrowLeft size={14} color={colors.foreground} />
                   <Text className="font-body text-sm font-medium text-foreground ml-1">
                     Back
                   </Text>
@@ -286,7 +286,7 @@ export function MasterDataUploadScreen(): React.JSX.Element {
                   <Text className="font-body text-sm font-medium text-primary-foreground mr-1">
                     {isUploading ? 'Uploading…' : uploadError ? 'Upload failed — retry' : continueLabel}
                   </Text>
-                  <ArrowRight size={16} color={colors.primaryForeground} />
+                  <ArrowRight size={14} color={colors.primaryForeground} />
 
                 </Button>
               </View>

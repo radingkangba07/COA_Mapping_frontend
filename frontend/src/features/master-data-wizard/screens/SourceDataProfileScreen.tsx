@@ -41,9 +41,8 @@ interface SourceDataProfileScreenProps {
    * Auto-injected by React Navigation when this screen is registered
    * directly on a stack (ProjectsStack, 'MasterDataProfile') — plain props,
    * not read via useRoute()/useNavigation(), so this component still renders
-   * standalone with no NavigationContainer ancestor: the wizard's
-   * SourceProfilePreviewStack passes entityId/onBack as props instead, and
-   * SourceDataProfileScreen.test.tsx renders it with neither. When `route`
+   * standalone with no NavigationContainer ancestor (SourceDataProfileScreen.
+   * test.tsx renders it with neither `route` nor `navigation`). When `route`
    * carries params, MigrationLayout (with the project sidebar) wraps the
    * screen and `navigation` drives the Back button; otherwise it renders
    * bare, as before.
@@ -229,7 +228,7 @@ export function SourceDataProfileScreen({
           {/* ── Wizard stepper (all 8 taxonomy steps) ───────────────────────── */}
           <StepRail rail={stepRail} />
 
-          <View className="mb-4 flex-row flex-wrap items-start justify-between gap-3">
+          <View className="mt-8 mb-5 flex-row flex-wrap items-start justify-between gap-3">
             <View className="gap-1">
               <View className="flex-row items-center gap-2">
                 <Text className="font-heading text-[18px] font-bold text-foreground">{step.label}</Text>
@@ -247,16 +246,16 @@ export function SourceDataProfileScreen({
 
             <View className="flex-row items-center gap-2">
               {canGoBack ? (
-                <Button variant="outline" size="sm" onPress={handleBack} testID="source-profile-back">
+                <Button variant="outline"  onPress={handleBack} testID="source-profile-back">
                   <View className="flex-row items-center justify-center gap-1.5">
                     <ArrowLeft size={14} color={colors.foreground} />
                     <Text className="text-xs font-medium text-foreground">Back</Text>
                   </View>
                 </Button>
               ) : null}
-              <Button variant="default" size="sm" onPress={onContinue} testID="source-profile-continue">
+              <Button variant="default"  onPress={onContinue} testID="source-profile-continue">
                 <View className="flex-row items-center justify-center gap-2">
-                  <Text className="text-xs font-semibold text-primary-foreground">
+                  <Text className="text-sm font-semibold text-primary-foreground">
                     Confirm profile &amp; generate mappings
                   </Text>
                   <ArrowRight size={15} color={colors.primaryForeground} />
