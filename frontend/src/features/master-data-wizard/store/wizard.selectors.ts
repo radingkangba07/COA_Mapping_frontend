@@ -14,7 +14,7 @@
    and any future caller all agree on the same lookup.
    ========================================================================= */
 
-import type { WizardStore } from './wizard.store';
+import { buildEntityKey, type WizardStore } from './wizard.store';
 import type { StepId, RunState } from '../types/wizard.types';
 import type { EntityId } from '../types/entity-pack.types';
 import type { FieldDecision, ApprovalContext, MappingOverrides } from '../types/decision.types';
@@ -30,11 +30,12 @@ export const selectRunState = (state: WizardStore): RunState => state.runState;
 
 export const selectEntityId = (state: WizardStore): EntityId | null => state.entityId;
 
-/** The Step 1 upload's backend-confirmed fileId/metadata for this entity, if any. */
+/** The Step 1 upload's backend-confirmed fileId/metadata for this project+entity, if any. */
 export const selectUploadedFileForEntity = (
   state: WizardStore,
   entityId: EntityId,
-): UploadResult | null => state.uploadedFileByEntity[entityId] ?? null;
+): UploadResult | null =>
+  state.uploadedFileByEntity[buildEntityKey(state.parentProjectId ?? '', entityId)] ?? null;
 
 export interface StepProgress {
   readonly n: number;
@@ -62,7 +63,7 @@ export const selectPendingApproval = (state: WizardStore): ApprovalContext | nul
 export const selectDecisionsForEntity = (
   state: WizardStore,
   entityId: EntityId,
-): FieldDecision[] => state.decisionsByEntity[entityId] ?? [];
+): FieldDecision[] => state.decisionsByEntity[buildEntityKey(state.parentProjectId ?? '', entityId)] ?? [];
 
 export const selectFieldDecision = (
   state: WizardStore,

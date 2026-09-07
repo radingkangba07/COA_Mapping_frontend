@@ -1,10 +1,12 @@
+import axios from 'axios';
 import { z } from 'zod';
+import { httpClient } from '@/shared/services/http/http.instance';
 import type { HttpClient } from '@/shared/services/http/http.types';
 import type { Result, AppError } from '@/shared/types/result.types';
 import { ok, err } from '@/shared/types/result.types';
 import { toAppError } from '@/shared/services/http/http.client';
 import type { UploadedFile } from '@/shared/components/ui/FileUploader';
-import type { EntityId, EntityPack } from '../dp-kit/types/entity';
+import type { EntityField, EntityId, EntityPack } from '../dp-kit/types/entity';
 import type { UploadResult } from '../types/upload.types';
 import itemsFixture from '../dp-kit/fixtures/items.entity.json';
 import customersFixture from '../dp-kit/fixtures/customers.entity.json';
@@ -274,7 +276,7 @@ export async function uploadSourceFile(
     if (options?.jobId) formData.append('job_id', options.jobId);
     if (options?.workstreamId) formData.append('workstream_id', options.workstreamId);
 
-    console.log('[MasterDataUploadScreen] POST /api/v1/storage/upload', options);
+    console.log('[entity-pack.service] POST /api/v1/storage/upload', options);
     // No explicit Content-Type here — the axios instance defaults to
     // 'application/json', and overriding it to a literal 'multipart/form-data'
     // (no boundary) makes the browser send that header as-is instead of
@@ -285,7 +287,7 @@ export async function uploadSourceFile(
     const response = await client.post<unknown>('/api/v1/storage/upload', formData, {
       headers: { 'Content-Type': undefined },
     });
-    console.log('[MasterDataUploadScreen] POST /api/v1/storage/upload -> response', response.data);
+    console.log('[entity-pack.service] POST /api/v1/storage/upload -> response', response.data);
 
     const parsed = uploadResponseSchema.safeParse(response.data);
     if (!parsed.success) {
@@ -298,7 +300,302 @@ export async function uploadSourceFile(
 
     return ok(toUploadResult(parsed.data));
   } catch (error: unknown) {
-    console.log('[MasterDataUploadScreen] POST /api/v1/storage/upload -> error', error);
+    console.log('[entity-pack.service] POST /api/v1/storage/upload -> error', error);
+    // No response ever came back (connection refused, DNS failure, request
+    // timeout) — the backend process itself isn't reachable, as opposed to
+    // the backend being up and returning an error. Surface that distinctly
+    // so the user isn't shown a raw "Network Error" for what is really
+    // "the server isn't running".
+    if (axios.isAxiosError(error) && !error.response) {
+      return err({
+        code: 'SERVER_UNREACHABLE',
+        message: 'Cannot reach the server. Make sure it is running, then try again.',
+      });
+    }
     return err(toAppError(error));
   }
+}
+
+/* ============================================================================
+   Profiler pipeline runs
+   ----------------------------------------------------------------------------
+   Wraps the pipeline endpoints in src/modules/pipeline/routes.py:
+     - POST  /api/v1/pipeline/runs
+     - GET   /api/v1/pipeline/runs/{runId}
+     - PATCH /api/v1/pipeline/runs/{runId}/fields/{fieldId}/type
+     - GET   /api/v1/projects/{orgProjectId}/entities/{scope}/profile
+   Same Result<T, AppError> pattern as the rest of this file.
+
+   EntityPackResponse (backend) carries `run_id` but not `source_row_count` —
+   getEntityPackFromApi chains through getPipelineRun(run_id) so
+   mapEntityPackResponse always has a full run to read source.rowCount from.
+   ========================================================================= */
+
+// ─── Shapes ──────────────────────────────────────────────────────────────────
+
+export interface PipelineRun {
+  id: string;
+  workstreamId: string;
+  scope: string;
+  status: string;
+  sourceRowCount: number | null;
+  fieldCount: number | null;
+  fieldsProcessed: number | null;
+  errorDetail: string | null;
+  createdAt: string;
+  completedAt: string | null;
+  runSummary: Record<string, unknown> | null;
+}
+
+/** Mirrors backend FieldProfileRead (src/modules/pipeline/schemas.py). */
+export interface FieldProfileRead {
+  id: string;
+  field_name: string;
+  detected_type: string | null;
+  total_count: number | null;
+  null_count: number | null;
+  distinct_count: number | null;
+  cardinality: string | null;
+  duplicate_row_count: number | null;
+  duplicate_group_count: number | null;
+  invalid_count: number | null;
+  reference_failures: number | null;
+  is_enumeration_candidate: boolean | null;
+  pattern_anomalies: number | null;
+  anomaly_count: number | null;
+  semantic_role: string | null;
+  role_description: string | null;
+  confidence_score: number | null;
+  evidence: string | null;
+  severity: string | null;
+  stats: Record<string, unknown> | null;
+  pattern_summary: unknown[] | null;
+  anomaly_examples: Record<string, unknown> | null;
+  enumeration_detail: Record<string, unknown> | null;
+  sample_values: Record<string, unknown> | null;
+  value_distribution: unknown[] | null;
+  format_detected: string | null;
+  user_override_type: string | null;
+  override_status: string | null;
+  overridden_by: string | null;
+  overridden_at: string | null;
+}
+
+/** Mirrors backend EntityPackResponse (src/modules/pipeline/schemas.py). */
+export interface EntityPackApiResponse {
+  run_id: string;
+  scope: string;
+  status: string;
+  run_summary: Record<string, unknown> | null;
+  fields: FieldProfileRead[];
+}
+
+function toPipelineRun(dto: Record<string, unknown>): PipelineRun {
+  return {
+    id: dto.id as string,
+    workstreamId: dto.workstream_id as string,
+    scope: dto.scope as string,
+    status: dto.status as string,
+    sourceRowCount: (dto.source_row_count as number | null) ?? null,
+    fieldCount: (dto.field_count as number | null) ?? null,
+    fieldsProcessed: (dto.fields_processed as number | null) ?? null,
+    errorDetail: (dto.error_detail as string | null) ?? null,
+    createdAt: dto.created_at as string,
+    completedAt: (dto.completed_at as string | null) ?? null,
+    runSummary: (dto.run_summary as Record<string, unknown> | null) ?? null,
+  };
+}
+
+// ─── createPipelineRun · POST /api/v1/pipeline/runs ─────────────────────────
+
+export async function createPipelineRun(
+  workstreamId: string,
+  scope: string,
+  sourceFileRef: string,
+): Promise<Result<PipelineRun, AppError>> {
+  try {
+    console.log('[entity-pack.service] POST /api/v1/pipeline/runs', { workstreamId, scope, sourceFileRef });
+    const response = await httpClient.post<Record<string, unknown>>('/api/v1/pipeline/runs', {
+      workstream_id: workstreamId,
+      scope,
+      source_file_ref: sourceFileRef,
+    });
+    console.log('[entity-pack.service] POST /api/v1/pipeline/runs -> response', response.data);
+    return ok(toPipelineRun(response.data));
+  } catch (error: unknown) {
+    console.log('[entity-pack.service] POST /api/v1/pipeline/runs -> error', error);
+    return err(toAppError(error));
+  }
+}
+
+// ─── getPipelineRun · GET /api/v1/pipeline/runs/{runId} ─────────────────────
+
+export async function getPipelineRun(runId: string): Promise<Result<PipelineRun, AppError>> {
+  try {
+    // console.log(`[entity-pack.service] GET /api/v1/pipeline/runs/${runId}`);
+    const response = await httpClient.get<Record<string, unknown>>(`/api/v1/pipeline/runs/${runId}`);
+    // console.log(`[entity-pack.service] GET /api/v1/pipeline/runs/${runId} -> response`, response.data);
+    return ok(toPipelineRun(response.data));
+  } catch (error: unknown) {
+    console.log(`[entity-pack.service] GET /api/v1/pipeline/runs/${runId} -> error`, error);
+    return err(toAppError(error));
+  }
+}
+
+// ─── overrideFieldType · PATCH /api/v1/pipeline/runs/{runId}/fields/{fieldId}/type
+
+export async function overrideFieldType(
+  runId: string,
+  fieldId: string,
+  overrideType: string,
+  dateFormat?: string,
+): Promise<Result<FieldProfileRead, AppError>> {
+  try {
+    console.log(`[entity-pack.service] PATCH /api/v1/pipeline/runs/${runId}/fields/${fieldId}/type`, { overrideType, dateFormat });
+    const response = await httpClient.patch<FieldProfileRead>(
+      `/api/v1/pipeline/runs/${runId}/fields/${fieldId}/type`,
+      { override_type: overrideType, date_format: dateFormat },
+    );
+    console.log(`[entity-pack.service] PATCH /api/v1/pipeline/runs/${runId}/fields/${fieldId}/type -> response`, response.data);
+    return ok(response.data);
+  } catch (error: unknown) {
+    console.log(`[entity-pack.service] PATCH /api/v1/pipeline/runs/${runId}/fields/${fieldId}/type -> error`, error);
+    return err(toAppError(error));
+  }
+}
+
+// ─── mapEntityPackResponse ───────────────────────────────────────────────────
+
+function capitalise(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
+
+function toDatatype(rawType: string | null | undefined): EntityField['datatype'] {
+  switch (rawType) {
+    case 'text':
+      return 'Text';
+    case 'integer':
+      return 'Integer';
+    case 'decimal':
+      return 'Decimal';
+    case 'date':
+      return 'Date';
+    case 'boolean':
+      return 'Boolean';
+    default:
+      return 'Text';
+  }
+}
+
+function toImpact(severity: string | null | undefined): EntityField['impact'] {
+  switch (severity) {
+    case 'ok':
+      return 'clean';
+    case 'warn':
+      return 'warning';
+    case 'error':
+      return 'blocker';
+    case 'info':
+      return 'review';
+    default:
+      return 'na';
+  }
+}
+
+function toEntityField(field: FieldProfileRead): EntityField {
+  const uniqueness =
+    field.distinct_count != null && field.total_count != null && field.total_count > 0
+      ? field.distinct_count / field.total_count
+      : undefined;
+
+  return {
+    id: field.field_name,
+    name: field.field_name,
+    datatype: toDatatype(field.user_override_type ?? field.detected_type),
+    nullCount: field.null_count ?? undefined,
+    distinct: field.distinct_count ?? undefined,
+    uniqueness,
+    cardinality: field.cardinality ?? undefined,
+    confidence: field.confidence_score ?? undefined,
+    role: field.semantic_role ?? undefined,
+    roleTip: field.role_description ?? undefined,
+    impact: toImpact(field.severity),
+    impactReason: field.evidence ?? undefined,
+    sample: field.sample_values as unknown as EntityField['sample'],
+    patterns: field.pattern_summary as unknown as EntityField['patterns'],
+    enumeration: field.enumeration_detail as unknown as EntityField['enumeration'],
+    duplicates: {
+      rows: field.duplicate_row_count ?? undefined,
+      groups: field.duplicate_group_count ?? undefined,
+    },
+    patternAnomalies: field.pattern_anomalies ?? undefined,
+  };
+}
+
+export function mapEntityPackResponse(response: EntityPackApiResponse, run: PipelineRun): EntityPack {
+  const label = capitalise(response.scope);
+  return {
+    id: response.scope as EntityPack['id'],
+    label: { singular: label, plural: `${label}s` },
+    source: { object: response.scope, rowCount: run.sourceRowCount ?? undefined },
+    target: { record: '' },
+    // dp-kit's generated EntityIdentity.confirmed is `string | undefined`
+    // (no `null` in the type) — undefined is the same "not yet approved"
+    // default the type actually supports.
+    identity: { candidates: [], confirmed: undefined },
+    fields: response.fields.map(toEntityField),
+    readiness: undefined,
+    metrics: undefined,
+  };
+}
+
+// ─── getEntityPackFromApi · GET /api/v1/projects/{orgProjectId}/entities/{scope}/profile
+
+export async function getEntityPackFromApi(
+  orgProjectId: string,
+  scope: string,
+): Promise<Result<EntityPack, AppError>> {
+  try {
+    console.log(`[entity-pack.service] GET /api/v1/projects/${orgProjectId}/entities/${scope}/profile`);
+    const response = await httpClient.get<EntityPackApiResponse>(
+      `/api/v1/projects/${orgProjectId}/entities/${scope}/profile`,
+    );
+    console.log(`[entity-pack.service] GET /api/v1/projects/${orgProjectId}/entities/${scope}/profile -> response`, response.data);
+    const runResult = await getPipelineRun(response.data.run_id);
+    if (!runResult.ok) return err(runResult.error);
+    return ok(mapEntityPackResponse(response.data, runResult.data));
+  } catch (error: unknown) {
+    console.log(`[entity-pack.service] GET /api/v1/projects/${orgProjectId}/entities/${scope}/profile -> error`, error);
+    return err(toAppError(error));
+  }
+}
+
+// ─── getActivePipelineRun · recovers the run already in progress for a scope
+// ─────────────────────────────────────────────────────────────────────────
+// createPipelineRun 409s when a run for this workstream+scope is already
+// in progress (backend enforces one active run per scope). Rather than
+// surface that as a hard failure, callers can fall back to this to fetch
+// the run already backing the scope's profile and carry on as if creation
+// had succeeded.
+
+export async function getActivePipelineRun(
+  orgProjectId: string,
+  scope: string,
+): Promise<Result<PipelineRun, AppError>> {
+  try {
+    console.log(`[entity-pack.service] GET /api/v1/projects/${orgProjectId}/entities/${scope}/profile (active-run lookup)`);
+    const response = await httpClient.get<EntityPackApiResponse>(
+      `/api/v1/projects/${orgProjectId}/entities/${scope}/profile`,
+    );
+    console.log(`[entity-pack.service] GET /api/v1/projects/${orgProjectId}/entities/${scope}/profile (active-run lookup) -> response`, response.data);
+    return getPipelineRun(response.data.run_id);
+  } catch (error: unknown) {
+    console.log(`[entity-pack.service] GET /api/v1/projects/${orgProjectId}/entities/${scope}/profile (active-run lookup) -> error`, error);
+    return err(toAppError(error));
+  }
+}
+
+/** True when the given error is the "run already in progress" conflict createPipelineRun returns. */
+export function isPipelineRunConflict(error: AppError): boolean {
+  return error.code === 'HTTP_409';
 }

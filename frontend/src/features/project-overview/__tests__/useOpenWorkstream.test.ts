@@ -23,6 +23,17 @@ const includedWs: Workstream = {
   included: true,
 };
 
+const itemsWs: Workstream = {
+  id: 'ws-3',
+  name: 'Items',
+  projectId: 'MD-002',
+  orgProjectId: 'org-proj-1',
+  status: 'in_progress',
+  progress: 20,
+  currentStage: 'Upload',
+  included: true,
+};
+
 const notIncludedWs: Workstream = {
   id: 'ws-2',
   name: 'Vehicles',
@@ -49,6 +60,18 @@ describe('useOpenWorkstream', () => {
       projectId: 'prj-123',
       workstreamId: 'ws-1',
       kind: 'MD-001',
+    });
+  });
+
+  it('navigates to the single MasterDataWizard route for a master-data workstream (Items)', () => {
+    const { result } = renderHook(() => useOpenWorkstream('prj-123'));
+    result.current(itemsWs);
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith('MasterDataWizard', {
+      orgProjectId: 'org-proj-1',
+      entityId: 'items',
+      parentProjectId: 'prj-123',
+      workstream_id: 'ws-3',
     });
   });
 

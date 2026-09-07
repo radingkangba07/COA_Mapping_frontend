@@ -1,18 +1,18 @@
 import React, { useCallback, useMemo } from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react-native';
 import { ScrollView, Text, View } from 'react-native';
-import type { RouteProp } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { ProjectsStackParamList } from '@/navigation/types';
 import { colors } from '@/config/theme';
-import { MigrationLayout } from '@/features/migration/components/MigrationLayout';
 import { useAppStore } from '@/shared/store/app.store';
 import { Button } from '@/shared/components/ui/Button';
 import { Skeleton } from '@/shared/components/ui/Skeleton';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
+import { useQuery } from '@tanstack/react-query';
 import { useEntityPackPreview } from '../hooks/useEntityPackPreview';
+import { usePipelineRunPoller } from '../hooks/usePipelineRunPoller';
+import { getEntityPackFromApi } from '../services/entity-pack.service';
 import { useFieldNav } from '../hooks/useFieldNav';
 import { useSourceProfileStore } from '../store/sourceProfile.store';
+import { buildEntityKey, useWizardStore } from '../store/wizard.store';
 import { StepRail } from '@/shared/components/ui/StepRail';
 import { toStepRail } from '../mappers/toStepRail';
 import { ReadinessBanner } from '@/shared/components/ui/ReadinessBanner/ReadinessBanner';
@@ -32,23 +32,21 @@ import { getStep, STEPS } from '../utils/taxonomy';
 import { buildMetrics } from '../utils/fields';
 import type { EntityId } from '../dp-kit/types/entity';
 import type { StepId } from '../types/wizard.types';
+import type { AppError } from '@/shared/types/result.types';
+import { isAppError } from '@/shared/types/result.types';
 
 interface SourceDataProfileScreenProps {
+  /** Defaults to wizard.store's entityId (set by MasterDataWizardScreen); overridable for tests/preview. */
   readonly entityId?: EntityId;
+  /**
+   * Supplied by MasterDataWizardStack's Profile step wrapper — that's what
+   * actually calls navigation.navigate('Upload'), keeping this component
+   * free of any useNavigation()/useRoute() call so it still renders
+   * standalone with no NavigationContainer ancestor (SourceDataProfileScreen.
+   * test.tsx renders it with neither). No Back button when omitted.
+   */
   readonly onBack?: () => void;
   readonly onContinue?: () => void;
-  /**
-   * Auto-injected by React Navigation when this screen is registered
-   * directly on a stack (ProjectsStack, 'MasterDataProfile') — plain props,
-   * not read via useRoute()/useNavigation(), so this component still renders
-   * standalone with no NavigationContainer ancestor (SourceDataProfileScreen.
-   * test.tsx renders it with neither `route` nor `navigation`). When `route`
-   * carries params, MigrationLayout (with the project sidebar) wraps the
-   * screen and `navigation` drives the Back button; otherwise it renders
-   * bare, as before.
-   */
-  readonly route?: RouteProp<ProjectsStackParamList, 'MasterDataProfile'>;
-  readonly navigation?: NativeStackNavigationProp<ProjectsStackParamList, 'MasterDataProfile'>;
 }
 
 function LoadingSkeleton(): React.JSX.Element {
@@ -68,29 +66,55 @@ export function SourceDataProfileScreen({
   entityId: entityIdProp,
   onBack: onBackProp,
   onContinue,
-  route,
-  navigation,
 }: SourceDataProfileScreenProps): React.JSX.Element {
-  const routeParams = route?.params;
-  const entityId = entityIdProp ?? (routeParams?.entityId as EntityId | undefined) ?? 'items';
-  const { orgProjectId, parentProjectId } = routeParams ?? {};
+  const storeEntityId = useWizardStore((s) => s.entityId);
+  const entityId = entityIdProp ?? storeEntityId ?? 'items';
+  const orgProjectId = useWizardStore((s) => s.orgProjectId);
+  const parentProjectId = useWizardStore((s) => s.parentProjectId);
+  // Keyed by project+entity (see wizard.store.ts's buildEntityKey) so this
+  // project's Profile step never picks up another project's run id for the
+  // same object.
+  const runId = useWizardStore((s) => s.pipelineRunIdByEntity[buildEntityKey(parentProjectId ?? '', entityId)]);
 
-  const canGoBack = Boolean(onBackProp) || Boolean(navigation && orgProjectId && parentProjectId);
+  const canGoBack = Boolean(onBackProp);
   const handleBack = useCallback((): void => {
-    if (onBackProp) {
-      onBackProp();
-      return;
-    }
-    if (navigation && orgProjectId && parentProjectId) {
-      navigation.navigate('MasterDataUpload', { orgProjectId, entityId, parentProjectId });
-    }
-  }, [onBackProp, navigation, orgProjectId, entityId, parentProjectId]);
+    onBackProp?.();
+  }, [onBackProp]);
 
   // Forces re-render on theme toggle so colors.* below reads fresh values —
   // colors is a plain proxy, not a hook, so nothing else here re-renders
   // this component when the theme changes.
   useAppStore((s) => s.theme);
-  const { pack, isLoading, error, refetch } = useEntityPackPreview(entityId);
+  const previewResult = useEntityPackPreview(entityId);
+  const { run } = usePipelineRunPoller(runId ?? null);
+  const livePackQuery = useQuery({
+    queryKey: ['entity-pack-live', orgProjectId, entityId] as const,
+    enabled: run?.status === 'complete',
+    queryFn: async () => {
+      const result = await getEntityPackFromApi(orgProjectId as string, entityId);
+      if (!result.ok) throw result.error;
+      return result.data;
+    },
+    staleTime: Infinity,
+  });
+
+  const hasLiveRun = runId !== undefined;
+  const liveError: AppError | null =
+    livePackQuery.error != null
+      ? isAppError(livePackQuery.error)
+        ? livePackQuery.error
+        : { code: 'entity_pack_live_unknown_error', message: String(livePackQuery.error) }
+      : null;
+  // While the profiler run is still pending/running (or its result hasn't
+  // been fetched yet), render the screen's main content straight away using
+  // the preview/fixture pack as a placeholder rather than a "processing"
+  // loading state — once livePackQuery resolves, `pack` swaps to the real
+  // profiled data with no further gate.
+  const pack = hasLiveRun ? (livePackQuery.data ?? previewResult.pack) : previewResult.pack;
+  const isLoading = hasLiveRun ? (pack === null && livePackQuery.isLoading) : previewResult.isLoading;
+  const error = hasLiveRun ? (pack === null ? liveError : null) : previewResult.error;
+  const refetch = hasLiveRun ? () => { void livePackQuery.refetch(); } : previewResult.refetch;
+
   const categoryFilter = useSourceProfileStore((s) => s.categoryFilter);
   const setCategoryFilter = useSourceProfileStore((s) => s.setCategoryFilter);
   const metricFilterId = useSourceProfileStore((s) => s.metricFilterId);
@@ -156,11 +180,7 @@ export function SourceDataProfileScreen({
         </ScrollView>
       </View>
     );
-    return parentProjectId ? (
-      <MigrationLayout title="DataPortation" projectId={parentProjectId} onBack={handleBack} testID="master-data-profile-screen">
-        {content}
-      </MigrationLayout>
-    ) : content;
+    return content;
   }
 
   if (error) {
@@ -178,20 +198,12 @@ export function SourceDataProfileScreen({
         </ScrollView>
       </View>
     );
-    return parentProjectId ? (
-      <MigrationLayout title="DataPortation" projectId={parentProjectId} onBack={handleBack} testID="master-data-profile-screen">
-        {content}
-      </MigrationLayout>
-    ) : content;
+    return content;
   }
 
   if (!pack) {
     const content = <View className="flex-1" testID="source-profile-screen" />;
-    return parentProjectId ? (
-      <MigrationLayout title="DataPortation" projectId={parentProjectId} onBack={handleBack} testID="master-data-profile-screen">
-        {content}
-      </MigrationLayout>
-    ) : content;
+    return content;
   }
 
   if (pack.fields.length === 0) {
@@ -208,11 +220,7 @@ export function SourceDataProfileScreen({
         </ScrollView>
       </View>
     );
-    return parentProjectId ? (
-      <MigrationLayout title="DataPortation" projectId={parentProjectId} onBack={handleBack} testID="master-data-profile-screen">
-        {content}
-      </MigrationLayout>
-    ) : content;
+    return content;
   }
 
   const openedField = openFieldId !== null ? pack.fields.find((f) => f.id === openFieldId) ?? null : null;
@@ -346,9 +354,5 @@ export function SourceDataProfileScreen({
     </View>
   );
 
-  return parentProjectId ? (
-    <MigrationLayout title="DataPortation" projectId={parentProjectId} onBack={handleBack} testID="master-data-profile-screen">
-      {content}
-    </MigrationLayout>
-  ) : content;
+  return content;
 }

@@ -11,9 +11,12 @@
    here mutates local state only, via the pure helpers in
    ../services/decision.service.ts (recordDecision / clearDecision).
 
-   Decisions are keyed by EntityId because entityId is a route parameter and
-   a user can navigate between the 8 objects in one session; keeping a flat
-   FieldDecision[] would let two objects' field ids collide.
+   Decisions are keyed by buildEntityKey(parentProjectId, entityId) because
+   entityId is a route parameter and a user can navigate between the 8
+   objects in one session (a flat FieldDecision[] would let two objects'
+   field ids collide) — and because a workstream, and thus an entityId, is
+   re-created per project, so entityId alone would also let two different
+   projects' decisions for the "same" object collide.
 
    Accepting an AI proposal or retargeting it (override) are both writes of
    an ai-sourced value, so both go through raiseApproval -> confirmApproval
@@ -33,6 +36,24 @@ import type {
 } from '../types/decision.types';
 import type { UploadResult } from '../types/upload.types';
 import { recordDecision, clearDecision } from '../services/decision.service';
+import { storageService } from '@/shared/services/storage/storage.service';
+import { STORAGE_KEYS } from '@/shared/services/storage/storage.types';
+
+/**
+ * A workstream (and thus an entityId, e.g. "items") is re-created per
+ * project, so entityId alone is not a unique wizard session — two different
+ * projects both running the Items object would otherwise collide on every
+ * *ByEntity map below (stepByEntity, uploadedFileByEntity, sourceCsvByEntity,
+ * pipelineRunIdByEntity, decisionsByEntity) and each would see the other's
+ * data: a resumed step, a "file already uploaded" state, a stale run id,
+ * decisions that were never made in this project. Keyed by parentProjectId
+ * (the project route param — see MasterDataWizardScreen) + entityId instead.
+ * Exported so every read site (screens, selectors) builds the exact same key
+ * shape the store's own actions write.
+ */
+export function buildEntityKey(projectId: string, entityId: EntityId): string {
+  return `${projectId}:${entityId}`;
+}
 
 // ─── State ──────────────────────────────────────────────────────────────────
 
@@ -40,16 +61,61 @@ interface WizardState {
   currentStepId: StepId;
   runState: RunState;
   entityId: EntityId | null;
-  decisionsByEntity: Partial<Record<EntityId, FieldDecision[]>>;
+  /**
+   * The org-project / parent-project / workstream identifiers the whole
+   * wizard session runs against. Set once by MasterDataWizardScreen — the
+   * single ProjectsStack route all 8 step screens share (see
+   * MasterDataWizardStack) — so individual step routes stay param-free and
+   * every step reads them from here instead of route params.
+   */
+  orgProjectId: string | null;
+  parentProjectId: string | null;
+  workstreamId: string | null;
+  /**
+   * The furthest/last-viewed step per project+entity (see buildEntityKey),
+   * persisted to storageService (see hydrateStepByEntity/recordStep) so it
+   * survives a browser refresh — unlike the rest of this store, which is
+   * wiped along with everything else in memory on reload.
+   * MasterDataWizardScreen reads this to resume the wizard at the same step
+   * the user left it on for a given project+entity, instead of always
+   * restarting at Upload or bleeding another project's progress into this
+   * one.
+   */
+  stepByEntity: Partial<Record<string, StepId>>;
+  /** Keyed by buildEntityKey(parentProjectId, entityId) — see its doc comment. */
+  decisionsByEntity: Partial<Record<string, FieldDecision[]>>;
   /**
    * The confirmed POST /api/v1/storage/upload result for Step 1's source
-   * file, keyed by entity — the seam later steps (Mapping, Validation, ...)
-   * read the uploaded fileId from. Set only once the backend has actually
-   * persisted the file (see MasterDataUploadScreen's useEffect on the
-   * useSourceFileUpload mutation result); never inferred from local CSV
-   * parsing, which is preview-only and never reaches the server.
+   * file, keyed by buildEntityKey(parentProjectId, entityId) — the seam
+   * later steps (Mapping, Validation, ...) read the uploaded fileId from.
+   * Set only once the backend has actually persisted the file (see
+   * MasterDataUploadScreen's useEffect on the useSourceFileUpload mutation
+   * result); never inferred from local CSV parsing, which is preview-only
+   * and never reaches the server.
    */
-  uploadedFileByEntity: Partial<Record<EntityId, UploadResult>>;
+  uploadedFileByEntity: Partial<Record<string, UploadResult>>;
+  /**
+   * The locally-parsed CSV (header row + data rows) backing Step 1's file
+   * preview table, keyed by buildEntityKey(parentProjectId, entityId).
+   * MasterDataUploadScreen's own fileName/csvRows are plain useState — they
+   * don't survive the screen losing its mounted instance (e.g. React
+   * Navigation re-creating it on Back). This is what lets the screen
+   * rehydrate the exact preview for an already-confirmed upload instead of
+   * showing an empty dropzone for a file that is, per uploadedFileByEntity,
+   * still there. Cleared alongside uploadedFileByEntity.
+   */
+  sourceCsvByEntity: Partial<Record<string, string[][]>>;
+  /**
+   * The profiler run id created by POST /api/v1/pipeline/runs for this
+   * project+entity's current uploaded file, keyed by
+   * buildEntityKey(parentProjectId, entityId). Kept so
+   * MasterDataUploadScreen's Continue only ever creates one run per upload —
+   * a second Continue press (e.g. after Back) reuses this instead of hitting
+   * the endpoint again. Cleared alongside uploadedFileByEntity whenever the
+   * source file is replaced or removed, since a stale run belongs to the old
+   * file.
+   */
+  pipelineRunIdByEntity: Partial<Record<string, string>>;
   /** Set by raiseApproval; the approval component reads this to render itself. */
   pendingApproval: ApprovalContext | null;
 }
@@ -59,12 +125,42 @@ interface WizardState {
 interface WizardActions {
   setCurrentStepId: (stepId: StepId) => void;
   setRunState: (runState: RunState) => void;
-  setEntityId: (entityId: EntityId) => void;
+
+  /**
+   * Called by a step screen once it's the one on display, to mark itself as
+   * this entity's resume point — persisted immediately so a refresh doesn't
+   * lose it. Also updates currentStepId (the live "step on screen" value
+   * useWizardSteps/StepRail read).
+   */
+  recordStep: (entityId: EntityId, stepId: StepId) => void;
+  /** Loads the persisted per-entity step map — call once, before reading stepByEntity. */
+  hydrateStepByEntity: () => Promise<void>;
+
+  /**
+   * Seeds entityId/orgProjectId/parentProjectId/workstreamId for the whole
+   * wizard session. Called once, by MasterDataWizardScreen on mount.
+   */
+  setWizardContext: (context: {
+    entityId: EntityId;
+    orgProjectId: string;
+    parentProjectId: string;
+    workstreamId: string;
+  }) => void;
 
   /** Record the fileId a Step 1 upload was persisted under, once the backend confirms it. */
   setUploadedFile: (entityId: EntityId, result: UploadResult) => void;
   /** Called when the user removes the selected file, so a stale fileId can't be reused. */
   clearUploadedFile: (entityId: EntityId) => void;
+
+  /** Record the parsed CSV (header + rows) backing Step 1's preview table for this entity. */
+  setSourceCsv: (entityId: EntityId, rows: string[][]) => void;
+  /** Called alongside clearUploadedFile so a stale preview can't be reused. */
+  clearSourceCsv: (entityId: EntityId) => void;
+
+  /** Record the profiler run id created for this entity's current upload. */
+  setPipelineRunId: (entityId: EntityId, runId: string) => void;
+  /** Called alongside clearUploadedFile so a stale run id can't be reused. */
+  clearPipelineRunId: (entityId: EntityId) => void;
 
   /** Save raises this; it does not write. Confirming it is what produces a FieldDecision. */
   raiseApproval: (context: ApprovalContext) => void;
@@ -88,15 +184,21 @@ const initialState: WizardState = {
   currentStepId: 'upload',
   runState: 'DRY_RUN',
   entityId: null,
+  orgProjectId: null,
+  parentProjectId: null,
+  workstreamId: null,
+  stepByEntity: {},
   decisionsByEntity: {},
   uploadedFileByEntity: {},
+  sourceCsvByEntity: {},
+  pipelineRunIdByEntity: {},
   pendingApproval: null,
 };
 
 // ─── Store ──────────────────────────────────────────────────────────────────
 
 export const useWizardStore = create<WizardStore>()(
-  immer((set) => ({
+  immer((set, get) => ({
     ...initialState,
 
     setCurrentStepId: (stepId: StepId): void => {
@@ -111,21 +213,76 @@ export const useWizardStore = create<WizardStore>()(
       });
     },
 
-    setEntityId: (entityId: EntityId): void => {
+    setWizardContext: (context): void => {
       set((state) => {
-        state.entityId = entityId;
+        state.entityId = context.entityId;
+        state.orgProjectId = context.orgProjectId;
+        state.parentProjectId = context.parentProjectId;
+        state.workstreamId = context.workstreamId;
       });
+    },
+
+    recordStep: (entityId: EntityId, stepId: StepId): void => {
+      set((state) => {
+        state.currentStepId = stepId;
+        // parentProjectId is always seeded by setWizardContext before any
+        // step screen (and thus recordStep) can mount — see
+        // MasterDataWizardScreen.
+        state.stepByEntity[buildEntityKey(state.parentProjectId ?? '', entityId)] = stepId;
+      });
+      // Best-effort — a failed write just means a future refresh falls back
+      // to Upload for this entity instead of resuming, not a broken wizard.
+      storageService
+        .set(STORAGE_KEYS.WIZARD_STEP_BY_ENTITY, JSON.stringify(get().stepByEntity))
+        .catch(() => {});
+    },
+
+    hydrateStepByEntity: async (): Promise<void> => {
+      try {
+        const raw = await storageService.get(STORAGE_KEYS.WIZARD_STEP_BY_ENTITY);
+        if (raw === null) return;
+        const parsed = JSON.parse(raw) as Partial<Record<string, StepId>>;
+        set((state) => {
+          state.stepByEntity = parsed;
+        });
+      } catch {
+        // Corrupt or missing storage — keep stepByEntity at its initial {}.
+      }
     },
 
     setUploadedFile: (entityId: EntityId, result: UploadResult): void => {
       set((state) => {
-        state.uploadedFileByEntity[entityId] = result;
+        state.uploadedFileByEntity[buildEntityKey(state.parentProjectId ?? '', entityId)] = result;
       });
     },
 
     clearUploadedFile: (entityId: EntityId): void => {
       set((state) => {
-        delete state.uploadedFileByEntity[entityId];
+        delete state.uploadedFileByEntity[buildEntityKey(state.parentProjectId ?? '', entityId)];
+      });
+    },
+
+    setSourceCsv: (entityId: EntityId, rows: string[][]): void => {
+      set((state) => {
+        state.sourceCsvByEntity[buildEntityKey(state.parentProjectId ?? '', entityId)] = rows;
+      });
+    },
+
+    clearSourceCsv: (entityId: EntityId): void => {
+      set((state) => {
+        delete state.sourceCsvByEntity[buildEntityKey(state.parentProjectId ?? '', entityId)];
+      });
+    },
+
+    setPipelineRunId: (entityId: EntityId, runId: string): void => {
+      set((state) => {
+        state.pipelineRunIdByEntity[buildEntityKey(state.parentProjectId ?? '', entityId)] = runId;
+      });
+    },
+
+    clearPipelineRunId: (entityId: EntityId): void => {
+      set((state) => {
+        delete state.pipelineRunIdByEntity[buildEntityKey(state.parentProjectId ?? '', entityId)];
       });
     },
 
@@ -157,8 +314,9 @@ export const useWizardStore = create<WizardStore>()(
           decidedBy,
         };
 
-        const existing = state.decisionsByEntity[context.entityId] ?? [];
-        state.decisionsByEntity[context.entityId] = recordDecision(existing, decision);
+        const key = buildEntityKey(state.parentProjectId ?? '', context.entityId);
+        const existing = state.decisionsByEntity[key] ?? [];
+        state.decisionsByEntity[key] = recordDecision(existing, decision);
         state.pendingApproval = null;
       });
     },
@@ -171,15 +329,17 @@ export const useWizardStore = create<WizardStore>()(
           decidedAt: new Date().toISOString(),
           decidedBy,
         };
-        const existing = state.decisionsByEntity[entityId] ?? [];
-        state.decisionsByEntity[entityId] = recordDecision(existing, decision);
+        const key = buildEntityKey(state.parentProjectId ?? '', entityId);
+        const existing = state.decisionsByEntity[key] ?? [];
+        state.decisionsByEntity[key] = recordDecision(existing, decision);
       });
     },
 
     clearFieldDecision: (entityId: EntityId, fieldId: string): void => {
       set((state) => {
-        const existing = state.decisionsByEntity[entityId] ?? [];
-        state.decisionsByEntity[entityId] = clearDecision(existing, fieldId);
+        const key = buildEntityKey(state.parentProjectId ?? '', entityId);
+        const existing = state.decisionsByEntity[key] ?? [];
+        state.decisionsByEntity[key] = clearDecision(existing, fieldId);
       });
     },
 

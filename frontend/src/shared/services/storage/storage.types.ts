@@ -13,6 +13,7 @@ export const STORAGE_KEYS = {
   ACTIVE_ORG_ID: 'coa_active_org_id',
   SECTION_STATE: 'coa_section_state',
   VENDOR_PREFS: 'coa_vendor_prefs',
+  WIZARD_STEP_BY_ENTITY: 'coa_wizard_step_by_entity',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

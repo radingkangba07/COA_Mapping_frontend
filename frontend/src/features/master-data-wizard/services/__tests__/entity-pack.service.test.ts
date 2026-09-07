@@ -1,4 +1,128 @@
-import { getEntityPack } from '../entity-pack.service';
+import { AxiosError, AxiosHeaders } from 'axios';
+import {
+  getEntityPack,
+  uploadSourceFile,
+  createPipelineRun,
+  getPipelineRun,
+  overrideFieldType,
+  mapEntityPackResponse,
+  getEntityPackFromApi,
+  getActivePipelineRun,
+  isPipelineRunConflict,
+  type PipelineRun,
+  type FieldProfileRead,
+  type EntityPackApiResponse,
+} from '../entity-pack.service';
+import type { HttpClient } from '@/shared/services/http/http.types';
+
+jest.mock('@/shared/services/http/http.instance', () => ({
+  httpClient: {
+    get: jest.fn(),
+    post: jest.fn(),
+    patch: jest.fn(),
+  },
+}));
+
+import { httpClient } from '@/shared/services/http/http.instance';
+
+const mockGet = httpClient.get as jest.Mock;
+const mockPost = httpClient.post as jest.Mock;
+const mockPatch = httpClient.patch as jest.Mock;
+
+function makeAxiosError(options: {
+  status?: number;
+  data?: Record<string, unknown>;
+  message?: string;
+  url?: string;
+}): AxiosError {
+  const headers = new AxiosHeaders();
+  const config = { url: options.url ?? '/test', headers };
+
+  return new AxiosError(
+    options.message ?? 'Request failed',
+    AxiosError.ERR_BAD_RESPONSE,
+    config,
+    undefined,
+    options.status !== undefined
+      ? {
+          status: options.status,
+          statusText: 'Error',
+          headers: {},
+          config,
+          data: options.data ?? {},
+        }
+      : undefined,
+  );
+}
+
+/** A network error with no `response` at all — connection refused / DNS failure / timeout. */
+function makeNetworkError(url = '/test'): AxiosError {
+  return new AxiosError('Network Error', AxiosError.ERR_NETWORK, { url, headers: new AxiosHeaders() });
+}
+
+const PIPELINE_RUN_DTO = {
+  id: 'run-1',
+  workstream_id: 'ws-1',
+  scope: 'items',
+  status: 'pending',
+  source_row_count: 10,
+  field_count: null,
+  fields_processed: null,
+  error_detail: null,
+  created_at: '2026-01-01T00:00:00Z',
+  completed_at: null,
+  run_summary: null,
+};
+
+const PIPELINE_RUN: PipelineRun = {
+  id: 'run-1',
+  workstreamId: 'ws-1',
+  scope: 'items',
+  status: 'pending',
+  sourceRowCount: 10,
+  fieldCount: null,
+  fieldsProcessed: null,
+  errorDetail: null,
+  createdAt: '2026-01-01T00:00:00Z',
+  completedAt: null,
+  runSummary: null,
+};
+
+function makeFieldProfile(overrides: Partial<FieldProfileRead> = {}): FieldProfileRead {
+  return {
+    id: 'field-1',
+    field_name: 'account_no',
+    detected_type: 'text',
+    total_count: 100,
+    null_count: 0,
+    distinct_count: 100,
+    cardinality: 'high',
+    duplicate_row_count: 0,
+    duplicate_group_count: 0,
+    invalid_count: 0,
+    reference_failures: 0,
+    is_enumeration_candidate: false,
+    pattern_anomalies: 0,
+    anomaly_count: 0,
+    semantic_role: null,
+    role_description: null,
+    confidence_score: null,
+    evidence: null,
+    severity: 'ok',
+    stats: null,
+    pattern_summary: null,
+    anomaly_examples: null,
+    enumeration_detail: null,
+    sample_values: null,
+    value_distribution: null,
+    format_detected: null,
+    user_override_type: null,
+    override_status: null,
+    overridden_by: null,
+    overridden_at: null,
+    ...overrides,
+  };
+}
 
 describe('entity-pack.service', () => {
   describe('getEntityPack', () => {
@@ -63,6 +187,434 @@ describe('entity-pack.service', () => {
 
       jest.dontMock('../../dp-kit/fixtures/items.entity.json');
       jest.resetModules();
+    });
+  });
+
+  describe('uploadSourceFile', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('parses a successful upload response into an UploadResult', async () => {
+      const post = jest.fn().mockResolvedValue({
+        data: {
+          success: true,
+          file: {
+            id: 'file-1',
+            file_type: 'source_erp',
+            original_filename: 'a.csv',
+            storage_path: '/storage/a.csv',
+            content_type: 'text/csv',
+            size_bytes: 128,
+            status: 'uploaded',
+            row_count: 2,
+            created_at: '2026-01-01T00:00:00Z',
+          },
+        },
+      });
+      const client = { post } as unknown as HttpClient;
+      const file = new File(['a,b\n1,2'], 'a.csv', { type: 'text/csv' });
+
+      const result = await uploadSourceFile(client, file, { orgProjectId: 'org-1', fileType: 'source_erp' });
+
+      expect(post).toHaveBeenCalledWith(
+        '/api/v1/storage/upload',
+        expect.any(FormData),
+        { headers: { 'Content-Type': undefined } },
+      );
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data).toEqual({
+          fileId: 'file-1',
+          fileName: 'a.csv',
+          fileType: 'source_erp',
+          contentType: 'text/csv',
+          sizeBytes: 128,
+          status: 'uploaded',
+          rowCount: 2,
+          storagePath: '/storage/a.csv',
+          createdAt: '2026-01-01T00:00:00Z',
+        });
+      }
+    });
+
+    it('appends the native-picker file shape (uri/name/mimeType) for a non-web UploadedFile', async () => {
+      const post = jest.fn().mockResolvedValue({
+        data: {
+          file: {
+            id: 'file-2',
+            file_type: 'source_erp',
+            original_filename: 'native.csv',
+            storage_path: '/storage/native.csv',
+            content_type: 'text/csv',
+            size_bytes: 64,
+            status: 'uploaded',
+            row_count: 1,
+            created_at: '2026-01-01T00:00:00Z',
+          },
+        },
+      });
+      const client = { post } as unknown as HttpClient;
+
+      const result = await uploadSourceFile(client, { uri: 'file:///native.csv', name: 'native.csv', mimeType: 'text/csv' });
+
+      expect(result.ok).toBe(true);
+      const formData = post.mock.calls[0][1] as FormData;
+      expect(formData.get('file')).not.toBeNull();
+    });
+
+    it('returns INVALID_RESPONSE when the server response fails schema validation', async () => {
+      const post = jest.fn().mockResolvedValue({ data: { success: true } }); // missing `file`
+      const client = { post } as unknown as HttpClient;
+      const file = new File(['x'], 'a.csv', { type: 'text/csv' });
+
+      const result = await uploadSourceFile(client, file);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('INVALID_RESPONSE');
+        expect(result.error.details).toHaveProperty('issues');
+      }
+    });
+
+    it('returns SERVER_UNREACHABLE when the request never gets a response (backend down)', async () => {
+      const post = jest.fn().mockRejectedValue(makeNetworkError('/api/v1/storage/upload'));
+      const client = { post } as unknown as HttpClient;
+      const file = new File(['x'], 'a.csv', { type: 'text/csv' });
+
+      const result = await uploadSourceFile(client, file);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toEqual({
+          code: 'SERVER_UNREACHABLE',
+          message: 'Cannot reach the server. Make sure it is running, then try again.',
+        });
+      }
+    });
+
+    it('falls back to toAppError for a real server error response (e.g. 500)', async () => {
+      const post = jest.fn().mockRejectedValue(
+        makeAxiosError({ status: 500, data: { message: 'boom' }, url: '/api/v1/storage/upload' }),
+      );
+      const client = { post } as unknown as HttpClient;
+      const file = new File(['x'], 'a.csv', { type: 'text/csv' });
+
+      const result = await uploadSourceFile(client, file);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('HTTP_500');
+        expect(result.error.message).toBe('boom');
+      }
+    });
+  });
+
+  describe('createPipelineRun', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('POSTs the workstream/scope/source ref and maps the response to a PipelineRun', async () => {
+      mockPost.mockResolvedValueOnce({ data: PIPELINE_RUN_DTO });
+
+      const result = await createPipelineRun('ws-1', 'items', '/storage/a.csv');
+
+      expect(mockPost).toHaveBeenCalledWith('/api/v1/pipeline/runs', {
+        workstream_id: 'ws-1',
+        scope: 'items',
+        source_file_ref: '/storage/a.csv',
+      });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data).toEqual(PIPELINE_RUN);
+      }
+    });
+
+    it('surfaces a 409 conflict as an AppError with code HTTP_409', async () => {
+      mockPost.mockRejectedValueOnce(
+        makeAxiosError({ status: 409, data: { detail: 'run already in progress' }, url: '/api/v1/pipeline/runs' }),
+      );
+
+      const result = await createPipelineRun('ws-1', 'items', '/storage/a.csv');
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('HTTP_409');
+        expect(isPipelineRunConflict(result.error)).toBe(true);
+      }
+    });
+  });
+
+  describe('getPipelineRun', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('GETs the run by id and maps the response to a PipelineRun', async () => {
+      mockGet.mockResolvedValueOnce({ data: PIPELINE_RUN_DTO });
+
+      const result = await getPipelineRun('run-1');
+
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/pipeline/runs/run-1');
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data).toEqual(PIPELINE_RUN);
+      }
+    });
+
+    it('returns a toAppError-shaped error on failure', async () => {
+      mockGet.mockRejectedValueOnce(makeAxiosError({ status: 404, data: { detail: 'not found' } }));
+
+      const result = await getPipelineRun('missing-run');
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('HTTP_404');
+        expect(result.error.message).toBe('not found');
+      }
+    });
+  });
+
+  describe('overrideFieldType', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('PATCHes the override and returns the raw FieldProfileRead (unmapped)', async () => {
+      const updatedField = makeFieldProfile({ user_override_type: 'integer' });
+      mockPatch.mockResolvedValueOnce({ data: updatedField });
+
+      const result = await overrideFieldType('run-1', 'account_no', 'integer', 'YYYY-MM-DD');
+
+      expect(mockPatch).toHaveBeenCalledWith(
+        '/api/v1/pipeline/runs/run-1/fields/account_no/type',
+        { override_type: 'integer', date_format: 'YYYY-MM-DD' },
+      );
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data).toEqual(updatedField);
+      }
+    });
+
+    it('returns a toAppError-shaped error on failure', async () => {
+      mockPatch.mockRejectedValueOnce(makeAxiosError({ status: 422, data: { detail: 'invalid override' } }));
+
+      const result = await overrideFieldType('run-1', 'account_no', 'integer');
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('HTTP_422');
+        expect(result.error.message).toBe('invalid override');
+      }
+    });
+  });
+
+  describe('mapEntityPackResponse', () => {
+    it('capitalises/pluralises the scope for the label and reads rowCount from the run', () => {
+      const response: EntityPackApiResponse = {
+        run_id: 'run-1',
+        scope: 'items',
+        status: 'complete',
+        run_summary: null,
+        fields: [],
+      };
+
+      const pack = mapEntityPackResponse(response, PIPELINE_RUN);
+
+      expect(pack.id).toBe('items');
+      expect(pack.label).toEqual({ singular: 'Items', plural: 'Itemss' });
+      expect(pack.source).toEqual({ object: 'items', rowCount: 10 });
+      expect(pack.target).toEqual({ record: '' });
+      expect(pack.identity).toEqual({ candidates: [], confirmed: undefined });
+      expect(pack.readiness).toBeUndefined();
+      expect(pack.metrics).toBeUndefined();
+    });
+
+    it('falls back to an undefined rowCount when the run has none', () => {
+      const response: EntityPackApiResponse = { run_id: 'run-1', scope: 'items', status: 'complete', run_summary: null, fields: [] };
+      const runWithNoRowCount: PipelineRun = { ...PIPELINE_RUN, sourceRowCount: null };
+
+      const pack = mapEntityPackResponse(response, runWithNoRowCount);
+
+      expect(pack.source.rowCount).toBeUndefined();
+    });
+
+    it.each([
+      ['ok', 'clean'],
+      ['warn', 'warning'],
+      ['error', 'blocker'],
+      ['info', 'review'],
+      [null, 'na'],
+    ] as const)('maps severity %s to impact %s', (severity, impact) => {
+      const response: EntityPackApiResponse = {
+        run_id: 'run-1',
+        scope: 'items',
+        status: 'complete',
+        run_summary: null,
+        fields: [makeFieldProfile({ severity })],
+      };
+
+      const pack = mapEntityPackResponse(response, PIPELINE_RUN);
+
+      expect(pack.fields[0]!.impact).toBe(impact);
+    });
+
+    it('prefers user_override_type over detected_type when mapping datatype', () => {
+      const response: EntityPackApiResponse = {
+        run_id: 'run-1',
+        scope: 'items',
+        status: 'complete',
+        run_summary: null,
+        fields: [makeFieldProfile({ detected_type: 'text', user_override_type: 'decimal' })],
+      };
+
+      const pack = mapEntityPackResponse(response, PIPELINE_RUN);
+
+      expect(pack.fields[0]!.datatype).toBe('Decimal');
+    });
+
+    it('computes uniqueness from distinct_count/total_count, and leaves it undefined when total_count is 0 or missing', () => {
+      const response: EntityPackApiResponse = {
+        run_id: 'run-1',
+        scope: 'items',
+        status: 'complete',
+        run_summary: null,
+        fields: [
+          makeFieldProfile({ field_name: 'a', distinct_count: 50, total_count: 100 }),
+          makeFieldProfile({ field_name: 'b', distinct_count: 50, total_count: 0 }),
+          makeFieldProfile({ field_name: 'c', distinct_count: null, total_count: 100 }),
+        ],
+      };
+
+      const pack = mapEntityPackResponse(response, PIPELINE_RUN);
+
+      expect(pack.fields[0]!.uniqueness).toBe(0.5);
+      expect(pack.fields[1]!.uniqueness).toBeUndefined();
+      expect(pack.fields[2]!.uniqueness).toBeUndefined();
+    });
+
+    it('maps duplicates and patternAnomalies through from the field profile', () => {
+      const response: EntityPackApiResponse = {
+        run_id: 'run-1',
+        scope: 'items',
+        status: 'complete',
+        run_summary: null,
+        fields: [makeFieldProfile({ duplicate_row_count: 3, duplicate_group_count: 1, pattern_anomalies: 2 })],
+      };
+
+      const pack = mapEntityPackResponse(response, PIPELINE_RUN);
+
+      expect(pack.fields[0]!.duplicates).toEqual({ rows: 3, groups: 1 });
+      expect(pack.fields[0]!.patternAnomalies).toBe(2);
+    });
+  });
+
+  describe('getEntityPackFromApi', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('fetches the profile, chains through getPipelineRun for sourceRowCount, and returns a mapped EntityPack', async () => {
+      const apiResponse: EntityPackApiResponse = {
+        run_id: 'run-1',
+        scope: 'items',
+        status: 'complete',
+        run_summary: null,
+        fields: [makeFieldProfile()],
+      };
+      mockGet
+        .mockResolvedValueOnce({ data: apiResponse })
+        .mockResolvedValueOnce({ data: PIPELINE_RUN_DTO });
+
+      const result = await getEntityPackFromApi('org-1', 'items');
+
+      expect(mockGet).toHaveBeenNthCalledWith(1, '/api/v1/projects/org-1/entities/items/profile');
+      expect(mockGet).toHaveBeenNthCalledWith(2, '/api/v1/pipeline/runs/run-1');
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data.source.rowCount).toBe(10);
+        expect(result.data.fields).toHaveLength(1);
+      }
+    });
+
+    it('returns a toAppError-shaped error when the profile fetch itself fails', async () => {
+      mockGet.mockRejectedValueOnce(makeAxiosError({ status: 404, data: { detail: 'no profile yet' } }));
+
+      const result = await getEntityPackFromApi('org-1', 'items');
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('HTTP_404');
+      }
+    });
+
+    it('propagates the pipeline-run error unchanged when the profile succeeds but the run fetch fails', async () => {
+      const apiResponse: EntityPackApiResponse = {
+        run_id: 'run-missing',
+        scope: 'items',
+        status: 'complete',
+        run_summary: null,
+        fields: [],
+      };
+      mockGet
+        .mockResolvedValueOnce({ data: apiResponse })
+        .mockRejectedValueOnce(makeAxiosError({ status: 404, data: { detail: 'run not found' } }));
+
+      const result = await getEntityPackFromApi('org-1', 'items');
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('HTTP_404');
+        expect(result.error.message).toBe('run not found');
+      }
+    });
+  });
+
+  describe('getActivePipelineRun', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('fetches the profile for run_id then delegates to getPipelineRun for the full run', async () => {
+      const apiResponse: EntityPackApiResponse = {
+        run_id: 'run-1',
+        scope: 'items',
+        status: 'running',
+        run_summary: null,
+        fields: [],
+      };
+      mockGet
+        .mockResolvedValueOnce({ data: apiResponse })
+        .mockResolvedValueOnce({ data: PIPELINE_RUN_DTO });
+
+      const result = await getActivePipelineRun('org-1', 'items');
+
+      expect(mockGet).toHaveBeenNthCalledWith(1, '/api/v1/projects/org-1/entities/items/profile');
+      expect(mockGet).toHaveBeenNthCalledWith(2, '/api/v1/pipeline/runs/run-1');
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data).toEqual(PIPELINE_RUN);
+      }
+    });
+
+    it('returns a toAppError-shaped error when the lookup itself fails', async () => {
+      mockGet.mockRejectedValueOnce(makeAxiosError({ status: 404, data: { detail: 'no active run' } }));
+
+      const result = await getActivePipelineRun('org-1', 'items');
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('HTTP_404');
+      }
+    });
+  });
+
+  describe('isPipelineRunConflict', () => {
+    it('is true only for HTTP_409', () => {
+      expect(isPipelineRunConflict({ code: 'HTTP_409', message: 'x' })).toBe(true);
+      expect(isPipelineRunConflict({ code: 'HTTP_500', message: 'x' })).toBe(false);
+      expect(isPipelineRunConflict({ code: 'UNKNOWN_ERROR', message: 'x' })).toBe(false);
     });
   });
 });

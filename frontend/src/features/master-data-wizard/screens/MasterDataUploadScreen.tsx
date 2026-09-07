@@ -1,20 +1,21 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {View, Text, ScrollView,} from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import type { RouteProp } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LayoutTemplate, File as FileIcon, ArrowLeft, ArrowRight } from 'lucide-react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import type { ProjectsStackParamList } from '@/navigation/types';
+import type { MasterDataWizardStackParamList } from '../navigation/masterDataWizardStack.types';
 import { isWeb } from '@/shared/utils/platform.utils';
 import { getERPById } from '@/shared/constants/erp-systems';
-import { MigrationLayout } from '@/features/migration/components/MigrationLayout';
 import { useProjectDetail } from '@/features/projects/hooks/useProjectDetail';
 import { createProjectId } from '@/shared/types/common.types';
 import { useEntityPack } from '../hooks/useEntityPack';
 import { useSourceFileUpload } from '../hooks/useSourceFileUpload';
-import { useWizardStore } from '../store/wizard.store';
+import { createPipelineRun, getActivePipelineRun, isPipelineRunConflict } from '../services/entity-pack.service';
+import { useToast } from '@/shared/hooks/useToast';
+import { buildEntityKey, useWizardStore } from '../store/wizard.store';
 import { STEPS } from '../dp-kit/react/taxonomy';
 import { toStepRail } from '../mappers/toStepRail';
 import { StepRail } from '@/shared/components/ui/StepRail';
@@ -31,8 +32,7 @@ import { SampleFileCard } from '@/shared/components/ui/SampleFileCard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type UploadRoute = RouteProp<ProjectsStackParamList, 'MasterDataUpload'>;
-type UploadNav = NativeStackNavigationProp<ProjectsStackParamList, 'MasterDataUpload'>;
+type UploadNav = NativeStackNavigationProp<MasterDataWizardStackParamList, 'Upload'>;
 
 // ─── Static entity sample fallbacks ─────────────────────────────────────────
 // Used when the backend entity profile endpoint has not yet returned sample data.
@@ -73,9 +73,14 @@ function toTitleCase(s: string): string {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export function MasterDataUploadScreen(): React.JSX.Element {
-  const route = useRoute<UploadRoute>();
   const navigation = useNavigation<UploadNav>();
-  const { orgProjectId, entityId, parentProjectId } = route.params;
+  // Seeded once by MasterDataWizardScreen (the single ProjectsStack route
+  // this nested stack lives inside — see masterDataWizardStack.types.ts)
+  // before this step is ever allowed to mount, so these are never null here.
+  const entityId = useWizardStore((s) => s.entityId) as EntityId;
+  const orgProjectId = useWizardStore((s) => s.orgProjectId) as string;
+  const parentProjectId = useWizardStore((s) => s.parentProjectId) as string;
+  const workstream_id = useWizardStore((s) => s.workstreamId) as string;
 
   const { pack, refetch: refetchPack } = useEntityPack(orgProjectId, entityId);
   const {
@@ -87,6 +92,18 @@ export function MasterDataUploadScreen(): React.JSX.Element {
   } = useSourceFileUpload({ orgProjectId, fileType: 'source_erp' });
   const setUploadedFile = useWizardStore((s) => s.setUploadedFile);
   const clearUploadedFile = useWizardStore((s) => s.clearUploadedFile);
+  // Keyed by project+entity (see wizard.store.ts's buildEntityKey) so this
+  // project's Step 1 never resumes with another project's uploaded file for
+  // the same object (e.g. both running Items).
+  const entityKey = buildEntityKey(parentProjectId, entityId as EntityId);
+  const storedUpload = useWizardStore((s) => s.uploadedFileByEntity[entityKey]);
+  const storedCsv = useWizardStore((s) => s.sourceCsvByEntity[entityKey]);
+  const setSourceCsv = useWizardStore((s) => s.setSourceCsv);
+  const clearSourceCsv = useWizardStore((s) => s.clearSourceCsv);
+  const pipelineRunIdByEntity = useWizardStore((s) => s.pipelineRunIdByEntity);
+  const setPipelineRunId = useWizardStore((s) => s.setPipelineRunId);
+  const clearPipelineRunId = useWizardStore((s) => s.clearPipelineRunId);
+  const recordStep = useWizardStore((s) => s.recordStep);
   const { project, isLoading: isProjectLoading, isFetching: isProjectFetching, error: projectError, refetch: refetchProject } = useProjectDetail(createProjectId(parentProjectId));
   // The entity-pack profile fetch is deliberately excluded from this gate:
   // the backend has no GET /projects/{id}/entities/{id}/profile route yet,
@@ -108,6 +125,30 @@ export function MasterDataUploadScreen(): React.JSX.Element {
   const [fileName, setFileName] = useState<string | null>(null);
   const [csvRows, setCsvRows] = useState<string[][]>([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [isCreatingRun, setIsCreatingRun] = useState(false);
+  const toast = useToast();
+
+  // The confirmed upload the rest of Step 1 (and Continue) treats as "the
+  // file for this entity": the just-completed mutation result when one
+  // exists, falling back to whatever the wizard store already has for this
+  // entity. The mutation's own result resets whenever this screen instance
+  // is recreated (e.g. React Navigation re-creating it after Back) even
+  // though the upload was already confirmed by the server — the store is
+  // what survives that, so Continue must read through it too, not just
+  // `uploadResult`.
+  const effectiveUploadResult = uploadResult ?? storedUpload ?? null;
+
+  // Rehydrate the dropzone + preview from the wizard store when this screen
+  // instance starts out with no local state but the entity already has a
+  // confirmed upload (Back from Profile, or switching entityId mid-session).
+  // Local useState never survives that; uploadedFileByEntity/sourceCsvByEntity
+  // do, by design (see wizard.store.ts).
+  useEffect(() => {
+    if (storedUpload) {
+      setFileName(storedUpload.fileName);
+      setCsvRows(storedCsv ?? []);
+    }
+  }, [entityId, storedUpload, storedCsv]);
 
   const MAX_PREVIEW = 8;
 
@@ -140,27 +181,44 @@ export function MasterDataUploadScreen(): React.JSX.Element {
 
   // ── CSV loading ─────────────────────────────────────────────────────────────
 
-  const loadContent = useCallback((content: string, name: string): void => {
+  // Identifies the "current" file pick. handleFilePicked/handleLoadSample bump
+  // this before starting a (possibly async, on native) content read;
+  // loadContent only applies its result if the pick it captured is still
+  // current. Without this, a slow file read that's still in flight when the
+  // server upload fails fast (see the uploadError effect below) — or when the
+  // user hits Remove before the read finishes — would resolve afterwards and
+  // silently re-show the preview as if the file had been accepted.
+  const activePickRef = useRef(0);
+
+  const loadContent = useCallback((content: string, name: string, pick: number): void => {
+    if (activePickRef.current !== pick) return;
     const rows = parseCSV(content);
     setFileName(name);
     setCsvRows(rows);
     setShowPreview(true);
-  }, []);
+    // Persisted so the preview survives this screen losing its local state
+    // (see the rehydrate effect above) — kept in step with uploadedFileByEntity,
+    // which is what actually confirms this parse matches the server's file.
+    setSourceCsv(entityId as EntityId, rows);
+  }, [entityId, setSourceCsv]);
 
   const handleFilePicked = useCallback((file: UploadedFile): void => {
+    const pick = ++activePickRef.current;
     if (file instanceof File) {
-      void file.text().then((content) => loadContent(content, file.name));
+      void file.text().then((content) => loadContent(content, file.name, pick));
     } else {
       void FileSystem.readAsStringAsync(file.uri).then((content) =>
-        loadContent(content, file.name),
+        loadContent(content, file.name, pick),
       );
     }
-    // A previously confirmed fileId belongs to the file being replaced —
-    // drop it now so a stale id can never be read while this new upload is
-    // still in flight (or if it fails).
+    // A previously confirmed fileId (and any profiler run it started)
+    // belongs to the file being replaced — drop both now so neither can be
+    // read while this new upload is still in flight (or if it fails).
     clearUploadedFile(entityId as EntityId);
+    clearSourceCsv(entityId as EntityId);
+    clearPipelineRunId(entityId as EntityId);
     uploadSourceFileToServer(file);
-  }, [loadContent, uploadSourceFileToServer, clearUploadedFile, entityId]);
+  }, [loadContent, uploadSourceFileToServer, clearUploadedFile, clearSourceCsv, clearPipelineRunId, entityId]);
 
   // The single point where a backend-confirmed upload becomes part of wizard
   // state — mirrors is the source of truth for later steps, never the local
@@ -171,17 +229,37 @@ export function MasterDataUploadScreen(): React.JSX.Element {
     }
   }, [uploadResult, entityId, setUploadedFile]);
 
+  // A failed server upload (e.g. the backend is unreachable) must not leave
+  // the local CSV preview looking like an accepted file — drop it so the
+  // dropzone reverts to "no file selected" instead of showing
+  // "<name> · N rows loaded" for a file the server never actually received.
+  useEffect(() => {
+    if (uploadError) {
+      // Invalidate any read still in flight for the pick that just failed —
+      // see activePickRef's comment above.
+      activePickRef.current += 1;
+      setFileName(null);
+      setCsvRows([]);
+      setShowPreview(false);
+      clearSourceCsv(entityId as EntityId);
+    }
+  }, [uploadError, clearSourceCsv, entityId]);
+
   const handleRemove = useCallback((): void => {
+    activePickRef.current += 1;
     setFileName(null);
     setCsvRows([]);
     setShowPreview(false);
     resetUpload();
     clearUploadedFile(entityId as EntityId);
-  }, [resetUpload, clearUploadedFile, entityId]);
+    clearSourceCsv(entityId as EntityId);
+    clearPipelineRunId(entityId as EntityId);
+  }, [resetUpload, clearUploadedFile, clearSourceCsv, clearPipelineRunId, entityId]);
 
   const handleLoadSample = useCallback((): void => {
     if (!sampleContent) return;
-    loadContent(sampleContent, `${entityId}-sample.csv`);
+    const pick = ++activePickRef.current;
+    loadContent(sampleContent, `${entityId}-sample.csv`, pick);
   }, [sampleContent, entityId, loadContent]);
 
   const handleDownloadSample = useCallback(async (): Promise<void> => {
@@ -200,14 +278,59 @@ export function MasterDataUploadScreen(): React.JSX.Element {
     }
   }, [sampleContent, entityId]);
 
-  const handleBack = useCallback((): void => { navigation.goBack(); }, [navigation]);
-  // A real stack navigation (not a local content swap) — this is what keeps
-  // MigrationLayout's sidebar and the stack's own navigation state in sync
-  // with the step actually on screen. See SourceDataProfileScreen.tsx's
-  // route/navigation props, which is what wraps it in MigrationLayout.
-  const handleContinue = useCallback((): void => {
-    navigation.navigate('MasterDataProfile', { orgProjectId, entityId, parentProjectId });
-  }, [navigation, orgProjectId, entityId, parentProjectId]);
+  // Step 1 is only ever entered from ProjectOverview (see useOpenWorkstream),
+  // so Back always means "return to that project's overview". `navigation`
+  // here is scoped to the nested wizard stack (Upload/Profile/...), which
+  // has no 'ProjectOverview' route of its own — reach the outer ProjectsStack
+  // via getParent() rather than navigation.goBack(), which would instead
+  // replay whatever the nested stack happens to have under Upload.
+  const handleBack = useCallback((): void => {
+    const parent = navigation.getParent<NativeStackNavigationProp<ProjectsStackParamList>>();
+    if (parent) {
+      parent.navigate('ProjectOverview', { projectId: parentProjectId });
+    } else {
+      // Should never happen given the nesting this screen assumes (see
+      // comment above) — fall back to goBack() rather than silently doing
+      // nothing if that assumption is ever violated.
+      navigation.goBack();
+    }
+  }, [navigation, parentProjectId]);
+  // A real stack navigation within the nested wizard stack (not a local
+  // content swap) — this is what keeps the step actually on screen in sync
+  // with the stack's own navigation state. Profile reads its own session
+  // data (entityId, runId, ...) straight from wizard.store, so this step
+  // transition carries no params of its own — see
+  // navigation/masterDataWizardStack.types.ts.
+  const handleContinue = useCallback(async (): Promise<void> => {
+    if (!effectiveUploadResult) return;
+
+    // This upload already has a run (an earlier Continue press created one) —
+    // reuse it instead of hitting POST /api/v1/pipeline/runs again.
+    const existingRunId = pipelineRunIdByEntity[entityKey];
+    if (existingRunId) {
+      recordStep(entityId, 'profile');
+      navigation.navigate('Profile');
+      return;
+    }
+
+    setIsCreatingRun(true);
+    let result = await createPipelineRun(workstream_id, entityId, effectiveUploadResult.storagePath);
+    // A run for this workstream+scope may already be in progress (e.g. the
+    // user went Back and hit Continue again before the earlier run
+    // finished) — the backend 409s in that case. Recover the existing run
+    // instead of blocking the user with an error.
+    if (!result.ok && isPipelineRunConflict(result.error)) {
+      result = await getActivePipelineRun(orgProjectId, entityId);
+    }
+    setIsCreatingRun(false);
+    if (!result.ok) {
+      toast.showError('Could not start profiler', result.error.message);
+      return;
+    }
+    setPipelineRunId(entityId as EntityId, result.data.id);
+    recordStep(entityId, 'profile');
+    navigation.navigate('Profile');
+  }, [navigation, orgProjectId, entityId, entityKey, workstream_id, effectiveUploadResult, toast, pipelineRunIdByEntity, setPipelineRunId, recordStep]);
 
   const stepCounter = `Step ${uploadStep.n} of ${STEPS.length}`;
   const continueLabel = `Continue to ${profileStep.label}`;
@@ -224,31 +347,22 @@ export function MasterDataUploadScreen(): React.JSX.Element {
 
   if (isHydrating) {
     return (
-      <MigrationLayout title="DataPortation" projectId={parentProjectId} onBack={handleBack} testID="master-data-upload-screen">
-        <View className="flex-1 items-center justify-center">
-          <Spinner size="lg" />
-          <Text className="mt-4 font-body text-sm text-muted-foreground">Loading project data...</Text>
-        </View>
-      </MigrationLayout>
+      <View className="flex-1 items-center justify-center" testID="master-data-upload-screen">
+        <Spinner size="lg" />
+        <Text className="mt-4 font-body text-sm text-muted-foreground">Loading project data...</Text>
+      </View>
     );
   }
 
   if (hydrationError) {
     return (
-      <MigrationLayout title="DataPortation" projectId={parentProjectId} onBack={handleBack} testID="master-data-upload-screen">
+      <View className="flex-1" testID="master-data-upload-screen">
         <NetworkErrorFallback error={new Error(hydrationError.message)} onRetry={retryHydration} testID="master-data-upload-error" />
-      </MigrationLayout>
+      </View>
     );
   }
   return (
-    <MigrationLayout
-      title="DataPortation"
-      projectId={parentProjectId}
-      onBack={handleBack}
-      testID="master-data-upload-screen"
-      sourceRowCount={hasFile ? dataRows : undefined}
-    >
-      <View className="flex-1 flex-col bg-background">
+      <View className="flex-1 flex-col bg-background" testID="master-data-upload-screen">
         <ScrollView className="flex-1 pr-5" keyboardShouldPersistTaps="handled">
 
           {/* ── Wizard stepper (all 8 taxonomy steps) ───────────────────────── */}
@@ -280,11 +394,11 @@ export function MasterDataUploadScreen(): React.JSX.Element {
                 </Button>
                 <Button
                   onPress={() => void handleContinue()}
-                  disabled={!hasFile || isUploading || !uploadResult || Boolean(uploadError)}
+                  disabled={!hasFile || isUploading || !effectiveUploadResult || Boolean(uploadError) || isCreatingRun}
                   testID="upload-continue-button"
                 >
                   <Text className="font-body text-sm font-medium text-primary-foreground mr-1">
-                    {isUploading ? 'Uploading…' : uploadError ? 'Upload failed — retry' : continueLabel}
+                    {isUploading ? 'Uploading…' : uploadError ? 'Upload failed — retry' : isCreatingRun ? 'Starting profiler…' : continueLabel}
                   </Text>
                   <ArrowRight size={14} color={colors.primaryForeground} />
 
@@ -390,6 +504,5 @@ export function MasterDataUploadScreen(): React.JSX.Element {
           </Text>
         </ScrollView>
       </View>
-    </MigrationLayout>
   );
 }

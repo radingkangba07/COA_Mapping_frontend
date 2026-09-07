@@ -19,10 +19,11 @@ export function useOpenWorkstream(
       if (!workstream.included) return;
 
       if (MASTER_DATA_NAMES.has(workstream.name) && workstream.orgProjectId != null) {
-        navigation.navigate('MasterDataUpload', {
+        navigation.navigate('MasterDataWizard', {
           orgProjectId: workstream.orgProjectId,
           entityId: workstream.name.toLowerCase(),
           parentProjectId: projectId,
+          workstream_id: workstream.id,
         });
         return;
       }

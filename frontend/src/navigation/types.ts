@@ -43,8 +43,14 @@ export type ProjectsStackParamList = {
   ClientOrgDetail: { clientOrgId: string };
   ProjectOverview: { projectId: string };
   WorkstreamDetail: { projectId: string; workstreamId: string; kind: string };
-  MasterDataUpload: { orgProjectId: string; entityId: string; parentProjectId: string };
-  MasterDataProfile: { orgProjectId: string; entityId: string; parentProjectId: string };
+  /**
+   * Single entry point for the whole 8-step master-data wizard (Upload,
+   * Profile, and the 6 still to be built) — see MasterDataWizardScreen and
+   * MasterDataWizardStack. The individual steps are nested one level below
+   * this route (MasterDataWizardStackParamList), not here, so they never
+   * carry their own params.
+   */
+  MasterDataWizard: { orgProjectId: string; entityId: string; parentProjectId: string; workstream_id: string };
 };
 
 export type MigrationStackParamList = {
