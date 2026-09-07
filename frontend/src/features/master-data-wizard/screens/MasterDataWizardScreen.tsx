@@ -48,6 +48,7 @@ export function MasterDataWizardScreen(): React.JSX.Element {
 
   const setWizardContext = useWizardStore((s) => s.setWizardContext);
   const hydrateStepByEntity = useWizardStore((s) => s.hydrateStepByEntity);
+  const hydrateUploadedFileByEntity = useWizardStore((s) => s.hydrateUploadedFileByEntity);
   // Zustand state updates don't take effect synchronously mid-render, so the
   // very first render would otherwise mount MasterDataWizardStack (and thus
   // Upload) before the store has this session's identifiers and its
@@ -68,7 +69,12 @@ export function MasterDataWizardScreen(): React.JSX.Element {
     // patched in place.
     setInitialRouteName(null);
     void (async (): Promise<void> => {
-      await hydrateStepByEntity();
+      // Restores stepByEntity (resume point) and uploadedFileByEntity/
+      // sourceCsvByEntity/pipelineRunIdByEntity (Step 1's confirmed file)
+      // from storage — both survive a browser refresh or the app being
+      // closed and reopened; without the latter, Step 1 would resume on
+      // Profile but show an empty dropzone if the user ever navigated Back.
+      await Promise.all([hydrateStepByEntity(), hydrateUploadedFileByEntity()]);
       if (cancelled) return;
       setWizardContext({
         entityId: entityId as EntityId,
@@ -82,7 +88,7 @@ export function MasterDataWizardScreen(): React.JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [entityId, orgProjectId, parentProjectId, workstream_id, setWizardContext, hydrateStepByEntity]);
+  }, [entityId, orgProjectId, parentProjectId, workstream_id, setWizardContext, hydrateStepByEntity, hydrateUploadedFileByEntity]);
 
   // The sidebar must show the same "N source rows" on every step — read
   // from the same wizard-store fields Step 1's own dropzone count comes

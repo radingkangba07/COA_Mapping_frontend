@@ -186,30 +186,54 @@ describe('wizard.store', () => {
       });
     });
 
-    it('setUploadedFile/clearUploadedFile key by project+entity', () => {
+    it('setUploadedFile/clearUploadedFile key by project+entity and persist the map', () => {
       const upload = makeUploadResult();
       useWizardStore.getState().setUploadedFile('items', upload);
       expect(useWizardStore.getState().uploadedFileByEntity).toEqual({ 'proj-1:items': upload });
+      expect(mockStorageSet).toHaveBeenCalledWith(
+        STORAGE_KEYS.WIZARD_UPLOADED_FILE_BY_ENTITY,
+        JSON.stringify({ 'proj-1:items': upload }),
+      );
 
       useWizardStore.getState().clearUploadedFile('items');
       expect(useWizardStore.getState().uploadedFileByEntity).toEqual({});
+      expect(mockStorageSet).toHaveBeenLastCalledWith(
+        STORAGE_KEYS.WIZARD_UPLOADED_FILE_BY_ENTITY,
+        JSON.stringify({}),
+      );
     });
 
-    it('setSourceCsv/clearSourceCsv key by project+entity', () => {
+    it('setSourceCsv/clearSourceCsv key by project+entity and persist the map', () => {
       const rows = [['a', 'b'], ['1', '2']];
       useWizardStore.getState().setSourceCsv('items', rows);
       expect(useWizardStore.getState().sourceCsvByEntity).toEqual({ 'proj-1:items': rows });
+      expect(mockStorageSet).toHaveBeenCalledWith(
+        STORAGE_KEYS.WIZARD_SOURCE_CSV_BY_ENTITY,
+        JSON.stringify({ 'proj-1:items': rows }),
+      );
 
       useWizardStore.getState().clearSourceCsv('items');
       expect(useWizardStore.getState().sourceCsvByEntity).toEqual({});
+      expect(mockStorageSet).toHaveBeenLastCalledWith(
+        STORAGE_KEYS.WIZARD_SOURCE_CSV_BY_ENTITY,
+        JSON.stringify({}),
+      );
     });
 
-    it('setPipelineRunId/clearPipelineRunId key by project+entity', () => {
+    it('setPipelineRunId/clearPipelineRunId key by project+entity and persist the map', () => {
       useWizardStore.getState().setPipelineRunId('items', 'run-1');
       expect(useWizardStore.getState().pipelineRunIdByEntity).toEqual({ 'proj-1:items': 'run-1' });
+      expect(mockStorageSet).toHaveBeenCalledWith(
+        STORAGE_KEYS.WIZARD_PIPELINE_RUN_ID_BY_ENTITY,
+        JSON.stringify({ 'proj-1:items': 'run-1' }),
+      );
 
       useWizardStore.getState().clearPipelineRunId('items');
       expect(useWizardStore.getState().pipelineRunIdByEntity).toEqual({});
+      expect(mockStorageSet).toHaveBeenLastCalledWith(
+        STORAGE_KEYS.WIZARD_PIPELINE_RUN_ID_BY_ENTITY,
+        JSON.stringify({}),
+      );
     });
 
     it('a different project does not see this project\'s uploaded file for the same entity', () => {
@@ -221,6 +245,74 @@ describe('wizard.store', () => {
 
       expect(useWizardStore.getState().uploadedFileByEntity['proj-2:items']).toBeUndefined();
       expect(useWizardStore.getState().uploadedFileByEntity['proj-1:items']).toBeDefined();
+    });
+
+    it('a failed persistence write does not throw out of setUploadedFile/setSourceCsv/setPipelineRunId', () => {
+      mockStorageSet.mockRejectedValue(new Error('write failed'));
+
+      expect(() => useWizardStore.getState().setUploadedFile('items', makeUploadResult())).not.toThrow();
+      expect(() => useWizardStore.getState().setSourceCsv('items', [['a']])).not.toThrow();
+      expect(() => useWizardStore.getState().setPipelineRunId('items', 'run-1')).not.toThrow();
+    });
+  });
+
+  describe('hydrateUploadedFileByEntity', () => {
+    it('loads and parses all three persisted maps', async () => {
+      const upload = makeUploadResult();
+      const rows = [['a', 'b'], ['1', '2']];
+      mockStorageGet.mockImplementation((key: string) => {
+        if (key === STORAGE_KEYS.WIZARD_UPLOADED_FILE_BY_ENTITY) {
+          return Promise.resolve(JSON.stringify({ 'proj-1:items': upload }));
+        }
+        if (key === STORAGE_KEYS.WIZARD_SOURCE_CSV_BY_ENTITY) {
+          return Promise.resolve(JSON.stringify({ 'proj-1:items': rows }));
+        }
+        if (key === STORAGE_KEYS.WIZARD_PIPELINE_RUN_ID_BY_ENTITY) {
+          return Promise.resolve(JSON.stringify({ 'proj-1:items': 'run-1' }));
+        }
+        return Promise.resolve(null);
+      });
+
+      await useWizardStore.getState().hydrateUploadedFileByEntity();
+
+      const state = useWizardStore.getState();
+      expect(state.uploadedFileByEntity).toEqual({ 'proj-1:items': upload });
+      expect(state.sourceCsvByEntity).toEqual({ 'proj-1:items': rows });
+      expect(state.pipelineRunIdByEntity).toEqual({ 'proj-1:items': 'run-1' });
+    });
+
+    it('leaves the maps at their initial {} when nothing is persisted', async () => {
+      mockStorageGet.mockResolvedValue(null);
+
+      await useWizardStore.getState().hydrateUploadedFileByEntity();
+
+      const state = useWizardStore.getState();
+      expect(state.uploadedFileByEntity).toEqual({});
+      expect(state.sourceCsvByEntity).toEqual({});
+      expect(state.pipelineRunIdByEntity).toEqual({});
+    });
+
+    it('swallows corrupt JSON or a storage read failure for one map without affecting the others', async () => {
+      const upload = makeUploadResult();
+      mockStorageGet.mockImplementation((key: string) => {
+        if (key === STORAGE_KEYS.WIZARD_UPLOADED_FILE_BY_ENTITY) {
+          return Promise.resolve(JSON.stringify({ 'proj-1:items': upload }));
+        }
+        if (key === STORAGE_KEYS.WIZARD_SOURCE_CSV_BY_ENTITY) {
+          return Promise.resolve('not valid json{{{');
+        }
+        if (key === STORAGE_KEYS.WIZARD_PIPELINE_RUN_ID_BY_ENTITY) {
+          return Promise.reject(new Error('read failed'));
+        }
+        return Promise.resolve(null);
+      });
+
+      await expect(useWizardStore.getState().hydrateUploadedFileByEntity()).resolves.toBeUndefined();
+
+      const state = useWizardStore.getState();
+      expect(state.uploadedFileByEntity).toEqual({ 'proj-1:items': upload });
+      expect(state.sourceCsvByEntity).toEqual({});
+      expect(state.pipelineRunIdByEntity).toEqual({});
     });
   });
 

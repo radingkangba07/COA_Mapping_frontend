@@ -74,8 +74,9 @@ interface WizardState {
   /**
    * The furthest/last-viewed step per project+entity (see buildEntityKey),
    * persisted to storageService (see hydrateStepByEntity/recordStep) so it
-   * survives a browser refresh — unlike the rest of this store, which is
-   * wiped along with everything else in memory on reload.
+   * survives a browser refresh or the app being closed and reopened —
+   * unlike pendingApproval and the rest of this store's transient state,
+   * which is wiped on reload.
    * MasterDataWizardScreen reads this to resume the wizard at the same step
    * the user left it on for a given project+entity, instead of always
    * restarting at Upload or bleeding another project's progress into this
@@ -91,7 +92,10 @@ interface WizardState {
    * Set only once the backend has actually persisted the file (see
    * MasterDataUploadScreen's useEffect on the useSourceFileUpload mutation
    * result); never inferred from local CSV parsing, which is preview-only
-   * and never reaches the server.
+   * and never reaches the server. Persisted to storageService (see
+   * hydrateUploadedFileByEntity) alongside sourceCsvByEntity/
+   * pipelineRunIdByEntity below, so a confirmed upload survives a browser
+   * refresh or the app being closed and reopened, not just a screen remount.
    */
   uploadedFileByEntity: Partial<Record<string, UploadResult>>;
   /**
@@ -99,10 +103,10 @@ interface WizardState {
    * preview table, keyed by buildEntityKey(parentProjectId, entityId).
    * MasterDataUploadScreen's own fileName/csvRows are plain useState — they
    * don't survive the screen losing its mounted instance (e.g. React
-   * Navigation re-creating it on Back). This is what lets the screen
-   * rehydrate the exact preview for an already-confirmed upload instead of
-   * showing an empty dropzone for a file that is, per uploadedFileByEntity,
-   * still there. Cleared alongside uploadedFileByEntity.
+   * Navigation re-creating it on Back), nor a full page reload. This is what
+   * lets the screen rehydrate the exact preview for an already-confirmed
+   * upload instead of showing an empty dropzone for a file that is, per
+   * uploadedFileByEntity, still there. Cleared alongside uploadedFileByEntity.
    */
   sourceCsvByEntity: Partial<Record<string, string[][]>>;
   /**
@@ -110,10 +114,10 @@ interface WizardState {
    * project+entity's current uploaded file, keyed by
    * buildEntityKey(parentProjectId, entityId). Kept so
    * MasterDataUploadScreen's Continue only ever creates one run per upload —
-   * a second Continue press (e.g. after Back) reuses this instead of hitting
-   * the endpoint again. Cleared alongside uploadedFileByEntity whenever the
-   * source file is replaced or removed, since a stale run belongs to the old
-   * file.
+   * a second Continue press (e.g. after Back, or after a page refresh)
+   * reuses this instead of hitting the endpoint again. Cleared alongside
+   * uploadedFileByEntity whenever the source file is replaced or removed,
+   * since a stale run belongs to the old file.
    */
   pipelineRunIdByEntity: Partial<Record<string, string>>;
   /** Set by raiseApproval; the approval component reads this to render itself. */
@@ -161,6 +165,16 @@ interface WizardActions {
   setPipelineRunId: (entityId: EntityId, runId: string) => void;
   /** Called alongside clearUploadedFile so a stale run id can't be reused. */
   clearPipelineRunId: (entityId: EntityId) => void;
+
+  /**
+   * Loads the persisted uploadedFileByEntity/sourceCsvByEntity/
+   * pipelineRunIdByEntity maps — call once, alongside hydrateStepByEntity,
+   * before reading them. Without this a browser refresh (or the app being
+   * closed and reopened) would show Step 1 as empty even though the backend
+   * already has the file, because those three maps otherwise only live in
+   * memory.
+   */
+  hydrateUploadedFileByEntity: () => Promise<void>;
 
   /** Save raises this; it does not write. Confirming it is what produces a FieldDecision. */
   raiseApproval: (context: ApprovalContext) => void;
@@ -254,36 +268,93 @@ export const useWizardStore = create<WizardStore>()(
       set((state) => {
         state.uploadedFileByEntity[buildEntityKey(state.parentProjectId ?? '', entityId)] = result;
       });
+      // Best-effort — a failed write just means a future refresh falls back
+      // to an empty dropzone for this entity instead of resuming it, not a
+      // broken wizard (the backend already has the file either way).
+      storageService
+        .set(STORAGE_KEYS.WIZARD_UPLOADED_FILE_BY_ENTITY, JSON.stringify(get().uploadedFileByEntity))
+        .catch(() => {});
     },
 
     clearUploadedFile: (entityId: EntityId): void => {
       set((state) => {
         delete state.uploadedFileByEntity[buildEntityKey(state.parentProjectId ?? '', entityId)];
       });
+      storageService
+        .set(STORAGE_KEYS.WIZARD_UPLOADED_FILE_BY_ENTITY, JSON.stringify(get().uploadedFileByEntity))
+        .catch(() => {});
     },
 
     setSourceCsv: (entityId: EntityId, rows: string[][]): void => {
       set((state) => {
         state.sourceCsvByEntity[buildEntityKey(state.parentProjectId ?? '', entityId)] = rows;
       });
+      storageService
+        .set(STORAGE_KEYS.WIZARD_SOURCE_CSV_BY_ENTITY, JSON.stringify(get().sourceCsvByEntity))
+        .catch(() => {});
     },
 
     clearSourceCsv: (entityId: EntityId): void => {
       set((state) => {
         delete state.sourceCsvByEntity[buildEntityKey(state.parentProjectId ?? '', entityId)];
       });
+      storageService
+        .set(STORAGE_KEYS.WIZARD_SOURCE_CSV_BY_ENTITY, JSON.stringify(get().sourceCsvByEntity))
+        .catch(() => {});
     },
 
     setPipelineRunId: (entityId: EntityId, runId: string): void => {
       set((state) => {
         state.pipelineRunIdByEntity[buildEntityKey(state.parentProjectId ?? '', entityId)] = runId;
       });
+      storageService
+        .set(STORAGE_KEYS.WIZARD_PIPELINE_RUN_ID_BY_ENTITY, JSON.stringify(get().pipelineRunIdByEntity))
+        .catch(() => {});
     },
 
     clearPipelineRunId: (entityId: EntityId): void => {
       set((state) => {
         delete state.pipelineRunIdByEntity[buildEntityKey(state.parentProjectId ?? '', entityId)];
       });
+      storageService
+        .set(STORAGE_KEYS.WIZARD_PIPELINE_RUN_ID_BY_ENTITY, JSON.stringify(get().pipelineRunIdByEntity))
+        .catch(() => {});
+    },
+
+    hydrateUploadedFileByEntity: async (): Promise<void> => {
+      try {
+        const raw = await storageService.get(STORAGE_KEYS.WIZARD_UPLOADED_FILE_BY_ENTITY);
+        if (raw !== null) {
+          const parsed = JSON.parse(raw) as Partial<Record<string, UploadResult>>;
+          set((state) => {
+            state.uploadedFileByEntity = parsed;
+          });
+        }
+      } catch {
+        // Corrupt or missing storage — keep uploadedFileByEntity at its initial {}.
+      }
+      try {
+        const raw = await storageService.get(STORAGE_KEYS.WIZARD_SOURCE_CSV_BY_ENTITY);
+        if (raw !== null) {
+          const parsed = JSON.parse(raw) as Partial<Record<string, string[][]>>;
+          set((state) => {
+            state.sourceCsvByEntity = parsed;
+          });
+        }
+      } catch {
+        // Corrupt or missing storage — keep sourceCsvByEntity at its initial {}.
+      }
+      try {
+        const raw = await storageService.get(STORAGE_KEYS.WIZARD_PIPELINE_RUN_ID_BY_ENTITY);
+        if (raw !== null) {
+          const parsed = JSON.parse(raw) as Partial<Record<string, string>>;
+          set((state) => {
+            state.pipelineRunIdByEntity = parsed;
+          });
+        }
+      } catch {
+        // Corrupt or missing storage — keep pipelineRunIdByEntity at its initial {}.
+      }
     },
 
     raiseApproval: (context: ApprovalContext): void => {
