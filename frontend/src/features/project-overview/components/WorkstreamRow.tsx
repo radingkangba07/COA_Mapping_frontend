@@ -6,9 +6,21 @@ import { StatusBadge } from './StatusBadge';
 import { ProgressBar } from './ProgressBar';
 import type { Workstream } from '../types/workstream.types';
 
-// Workstream names that have an active migration flow and show an Open button.
-// Extend as new scope screens are delivered.
-const OPENABLE_NAMES = new Set(['Chart of Accounts', 'Customers', 'Items']);
+// Every master-data workstream now has an active migration flow: Chart of
+// Accounts through the existing migration feature, and every other entity
+// through the generic master-data wizard (see useOpenWorkstream.ts's
+// MASTER_DATA_ENTITY_BY_NAME) — so all of them show an Open button.
+const OPENABLE_NAMES = new Set([
+  'Chart of Accounts',
+  'Customers',
+  'Vendors',
+  'Items',
+  'Locations',
+  'Contacts',
+  'Vehicles',
+  'Equipment',
+  'Fixed Assets',
+]);
 
 export type ColFlex = {
   readonly name: number;

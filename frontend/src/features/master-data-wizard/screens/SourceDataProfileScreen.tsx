@@ -4,7 +4,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { colors } from '@/config/theme';
 import { useAppStore } from '@/shared/store/app.store';
 import { Button } from '@/shared/components/ui/Button';
-import { Skeleton } from '@/shared/components/ui/Skeleton';
+import { Spinner } from '@/shared/components/ui/Spinner';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { useQuery } from '@tanstack/react-query';
 import { useEntityPackPreview } from '../hooks/useEntityPackPreview';
@@ -49,19 +49,6 @@ interface SourceDataProfileScreenProps {
   readonly onContinue?: () => void;
 }
 
-function LoadingSkeleton(): React.JSX.Element {
-  return (
-    <View className="gap-3" testID="source-profile-loading">
-      <Skeleton height={70} borderRadius={12} />
-      <View className="flex-row gap-2.5">
-        {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} height={54} borderRadius={10} />)}
-      </View>
-      <Skeleton height={36} width="40%" borderRadius={8} />
-      {[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} height={44} borderRadius={8} />)}
-    </View>
-  );
-}
-
 export function SourceDataProfileScreen({
   entityId: entityIdProp,
   onBack: onBackProp,
@@ -88,7 +75,12 @@ export function SourceDataProfileScreen({
   const previewResult = useEntityPackPreview(entityId);
   const { run } = usePipelineRunPoller(runId ?? null);
   const livePackQuery = useQuery({
-    queryKey: ['entity-pack-live', orgProjectId, entityId] as const,
+    // runId is part of the key (not just orgProjectId/entityId) so a fresh
+    // upload's new pipeline run always gets its own cache entry — otherwise,
+    // with staleTime: Infinity, going Back and re-uploading a different file
+    // for the same project+entity reused the previous run's cached pack
+    // forever instead of fetching the new run's data.
+    queryKey: ['entity-pack-live', orgProjectId, entityId, runId] as const,
     enabled: run?.status === 'complete',
     queryFn: async () => {
       const result = await getEntityPackFromApi(orgProjectId as string, entityId);
@@ -105,15 +97,20 @@ export function SourceDataProfileScreen({
         ? livePackQuery.error
         : { code: 'entity_pack_live_unknown_error', message: String(livePackQuery.error) }
       : null;
-  // While the profiler run is still pending/running (or its result hasn't
-  // been fetched yet), render the screen's main content straight away using
-  // the preview/fixture pack as a placeholder rather than a "processing"
-  // loading state — once livePackQuery resolves, `pack` swaps to the real
-  // profiled data with no further gate.
-  const pack = hasLiveRun ? (livePackQuery.data ?? previewResult.pack) : previewResult.pack;
-  const isLoading = hasLiveRun ? (pack === null && livePackQuery.isLoading) : previewResult.isLoading;
+  // Real uploads never fall back to the fixture/preview pack — that placeholder
+  // is fixture JSON, not this project's data, and showing it while the real
+  // profile is still pending/running reads as live numbers when it's actually
+  // sample content. `pack` stays null (whole-page spinner below) for the
+  // entire wait: run polling pending/running, then the live GET itself, with
+  // no intermediate fixture-backed render in between.
+  const pack = hasLiveRun ? (livePackQuery.data ?? null) : previewResult.pack;
+  const isLoading = hasLiveRun ? (pack === null && liveError === null) : previewResult.isLoading;
   const error = hasLiveRun ? (pack === null ? liveError : null) : previewResult.error;
   const refetch = hasLiveRun ? () => { void livePackQuery.refetch(); } : previewResult.refetch;
+  // Rare once `pack` never renders until real data lands (see above) — this
+  // only fires for a background refetch of an already-loaded live pack (e.g.
+  // a manual refetch() call while `pack` is already set).
+  const isFetchingLive = hasLiveRun && pack !== null && livePackQuery.isFetching;
 
   const categoryFilter = useSourceProfileStore((s) => s.categoryFilter);
   const setCategoryFilter = useSourceProfileStore((s) => s.setCategoryFilter);
@@ -172,12 +169,9 @@ export function SourceDataProfileScreen({
 
   if (isLoading || (!pack && !error)) {
     const content = (
-      <View className="flex-1 flex-col bg-background" testID="source-profile-screen">
-        <ScrollView className="flex-1 pr-5" keyboardShouldPersistTaps="handled">
-          {/* ── Wizard stepper (all 8 taxonomy steps) ───────────────────────── */}
-          <StepRail rail={stepRail} />
-          <LoadingSkeleton />
-        </ScrollView>
+      <View className="flex-1 items-center justify-center bg-background" testID="source-profile-screen">
+        <Spinner size="lg" testID="source-profile-loading" />
+        <Text className="mt-4 font-body text-sm text-muted-foreground">Loading profile data…</Text>
       </View>
     );
     return content;
@@ -243,6 +237,7 @@ export function SourceDataProfileScreen({
                 <Text className="font-body text-xs text-muted-foreground">
                   {`Step ${step.n} of ${stepCount}`}
                 </Text>
+                {isFetchingLive ? <Spinner size="sm" testID="source-profile-fetching-spinner" /> : null}
               </View>
               <View className="mt-2 flex-row items-center gap-2">
                 <SourceFileIcon size={15} color={colors.mutedForeground} />

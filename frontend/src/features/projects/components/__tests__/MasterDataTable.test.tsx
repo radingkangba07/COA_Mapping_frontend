@@ -57,24 +57,20 @@ const coaRow: MasterDataRowVM = makeRow({
   description: 'General ledger structure.',
 });
 
-const enabledRow: MasterDataRowVM = makeRow({ id: 'vendors', label: 'Vendors' });
+const otherRow: MasterDataRowVM = makeRow({ id: 'vendors', label: 'Vendors' });
 
 // ─── Tests ─────────────────────────────────────────────────────────────────
 
 describe('MasterDataTable', () => {
-  it('keeps only the Chart of Accounts data-conversion checkbox clickable', () => {
+  it('keeps the Data Conversion checkbox clickable for every scope, not just Chart of Accounts', () => {
     const onToggleColumn = jest.fn();
     render(
       <MasterDataTable
         testID="md"
-        rows={[coaRow, enabledRow]}
+        rows={[coaRow, otherRow]}
         onToggleColumn={onToggleColumn}
       />,
     );
-
-    expect(
-      screen.queryByTestId('md-chart-of-accounts-gated-hint'),
-    ).toBeNull();
 
     const coaDataConversion = screen.getByTestId(
       'md-chart-of-accounts-dataConversion',
@@ -83,36 +79,42 @@ describe('MasterDataTable', () => {
       checked: false,
       disabled: false,
     });
-
     fireEvent.press(coaDataConversion);
     expect(onToggleColumn).toHaveBeenCalledWith(
       CHART_OF_ACCOUNTS_ID,
       'dataConversion',
     );
 
-    // The COA MDM checkbox is disabled — pressing it does nothing.
     onToggleColumn.mockClear();
-    fireEvent.press(screen.getByTestId('md-chart-of-accounts-mdm'));
-    expect(onToggleColumn).not.toHaveBeenCalled();
+    const vendorsDataConversion = screen.getByTestId('md-vendors-dataConversion');
+    expect(vendorsDataConversion).toHaveProp('accessibilityState', {
+      checked: false,
+      disabled: false,
+    });
+    fireEvent.press(vendorsDataConversion);
+    expect(onToggleColumn).toHaveBeenCalledWith('vendors', 'dataConversion');
   });
 
-  it('disables both checkboxes for scopes not in ENABLED_SCOPE_IDS', () => {
+  it('keeps the Master Data Management checkbox disabled for every scope', () => {
     const onToggleColumn = jest.fn();
     render(
       <MasterDataTable
         testID="md"
-        rows={[coaRow, enabledRow]}
+        rows={[coaRow, otherRow]}
         onToggleColumn={onToggleColumn}
       />,
     );
 
-    expect(screen.queryByTestId('md-vendors-gated-hint')).toBeNull();
+    expect(screen.getByTestId('md-chart-of-accounts-mdm')).toHaveProp(
+      'accessibilityState',
+      { checked: false, disabled: true },
+    );
+    expect(screen.getByTestId('md-vendors-mdm')).toHaveProp(
+      'accessibilityState',
+      { checked: false, disabled: true },
+    );
 
-    expect(
-      screen.getByTestId('md-vendors-dataConversion'),
-    ).toHaveProp('accessibilityState', { checked: false, disabled: true });
-
-    fireEvent.press(screen.getByTestId('md-vendors-dataConversion'));
+    fireEvent.press(screen.getByTestId('md-chart-of-accounts-mdm'));
     fireEvent.press(screen.getByTestId('md-vendors-mdm'));
     expect(onToggleColumn).not.toHaveBeenCalled();
   });

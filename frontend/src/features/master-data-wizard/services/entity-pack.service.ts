@@ -6,7 +6,7 @@ import type { Result, AppError } from '@/shared/types/result.types';
 import { ok, err } from '@/shared/types/result.types';
 import { toAppError } from '@/shared/services/http/http.client';
 import type { UploadedFile } from '@/shared/components/ui/FileUploader';
-import type { EntityField, EntityId, EntityPack } from '../dp-kit/types/entity';
+import type { EntityField, EntityId, EntityMetric, EntityPack, EntityReadiness } from '../dp-kit/types/entity';
 import type { UploadResult } from '../types/upload.types';
 import itemsFixture from '../dp-kit/fixtures/items.entity.json';
 import customersFixture from '../dp-kit/fixtures/customers.entity.json';
@@ -487,19 +487,33 @@ function toDatatype(rawType: string | null | undefined): EntityField['datatype']
   }
 }
 
+// Backend severity values (coa_db_models/pipeline/models.py's
+// ck_field_profiles_severity constraint: 'blocker','warning','review','clean')
+// already match EntityField['impact'] 1:1 — anything else (including null,
+// e.g. a field the profiler hasn't scored) falls back to 'na'.
 function toImpact(severity: string | null | undefined): EntityField['impact'] {
   switch (severity) {
-    case 'ok':
-      return 'clean';
-    case 'warn':
-      return 'warning';
-    case 'error':
+    case 'blocker':
       return 'blocker';
-    case 'info':
+    case 'warning':
+      return 'warning';
+    case 'review':
       return 'review';
+    case 'clean':
+      return 'clean';
     default:
       return 'na';
   }
+}
+
+// Backend shape is `{ values: string[] }` (see FieldProfileRead.sample_values),
+// not a bare array — casting the wrapper object straight to EntityField['sample']
+// (string[]) previously fed the FieldsTable "Sample" column an object instead
+// of the values it actually holds.
+function toSample(sampleValues: Record<string, unknown> | null | undefined): EntityField['sample'] {
+  const values = sampleValues?.values;
+  if (!Array.isArray(values)) return undefined;
+  return values.map((v) => String(v));
 }
 
 function toEntityField(field: FieldProfileRead): EntityField {
@@ -521,7 +535,7 @@ function toEntityField(field: FieldProfileRead): EntityField {
     roleTip: field.role_description ?? undefined,
     impact: toImpact(field.severity),
     impactReason: field.evidence ?? undefined,
-    sample: field.sample_values as unknown as EntityField['sample'],
+    sample: toSample(field.sample_values),
     patterns: field.pattern_summary as unknown as EntityField['patterns'],
     enumeration: field.enumeration_detail as unknown as EntityField['enumeration'],
     duplicates: {
@@ -532,20 +546,88 @@ function toEntityField(field: FieldProfileRead): EntityField {
   };
 }
 
+// KpiStrip's tiles (see buildMetrics in utils/fields.ts) — every value is
+// computed live off pack.fields/pack.source.rowCount, never a literal, so
+// this same generic definition set drives the strip for every scope. The
+// backend has no per-entity metric config yet (unlike the fixture-based
+// dp-kit stand-in, which hand-authors a scope-specific list); this is the
+// live-API equivalent, kept scope-agnostic on purpose.
+const LIVE_ENTITY_METRICS: EntityMetric[] = [
+  { id: 'records', label: 'Total records', kind: 'rowCount', tone: 'neutral', tip: 'All source rows profiled' },
+  { id: 'fields', label: 'Fields profiled', kind: 'fieldCount', tone: 'neutral', tip: 'Columns detected in the source file' },
+  { id: 'blockers', label: 'Blocking issues', kind: 'impactCount', impact: 'blocker', tone: 'blocker', tip: 'Fields that must be resolved before mapping' },
+  { id: 'review', label: 'Needs review', kind: 'reviewCount', tone: 'warn', tip: 'Fields flagged for review' },
+  { id: 'nulls', label: 'Null values', kind: 'sumNulls', tone: 'neutral', tip: 'Total blank values across all fields' },
+];
+
+/**
+ * Builds ReadinessBanner's content entirely from real profiled fields — no
+ * model call exists anywhere in this app (see root CLAUDE.md: "No AI —
+ * custom fuzzy matching"), so unlike EntityReadiness's own type doc
+ * ("narrative + recommendedOrder are ai"), nothing here is model-authored.
+ * `narrative` is a plain, deterministic sentence reporting only counts the
+ * profiler actually produced — never an invented causal explanation (e.g.
+ * "SKU may only be unique within a subsidiary" — that requires real
+ * analysis this pipeline doesn't do). `recommendedOrder` lists real blocker
+ * field names ordered by severity, matching how ReadinessBanner already
+ * renders it (ProvenanceLabel state="action", not "ai"). `evidence` is
+ * exactly the fact-provenance counts the profiler computed.
+ */
+function buildReadiness(fields: EntityField[], rowCount: number | undefined): EntityReadiness | undefined {
+  if (fields.length === 0) return undefined;
+
+  const blockers = fields.filter((f) => f.impact === 'blocker');
+  const reviews = fields.filter((f) => f.impact === 'review' || f.impact === 'warning');
+  const clean = fields.filter((f) => f.impact === 'clean').length;
+
+  const tone: NonNullable<EntityReadiness['tone']> =
+    blockers.length > 0 ? 'blocker' : reviews.length > 0 ? 'warn' : 'neutral';
+  const headline =
+    tone === 'blocker'
+      ? 'Migration readiness: Needs attention'
+      : tone === 'warn'
+        ? 'Migration readiness: Review recommended'
+        : 'Migration readiness: Ready';
+
+  const narrativeParts: string[] = [`${fields.length} field${fields.length === 1 ? '' : 's'} profiled`];
+  if (rowCount !== undefined) narrativeParts.push(`from ${rowCount.toLocaleString('en-US')} source rows`);
+  const issueParts: string[] = [];
+  if (blockers.length > 0) issueParts.push(`${blockers.length} blocking issue${blockers.length === 1 ? '' : 's'}`);
+  if (reviews.length > 0) issueParts.push(`${reviews.length} field${reviews.length === 1 ? '' : 's'} flagged for review`);
+  const narrative = issueParts.length > 0
+    ? `${narrativeParts.join(' ')}. ${issueParts.join(' and ')} — resolve before generating mappings.`
+    : `${narrativeParts.join(' ')}. ${clean} field${clean === 1 ? '' : 's'} clean; ready to generate mappings.`;
+
+  const recommendedOrder = blockers
+    .slice(0, 5)
+    .map((f) => ({ label: `Resolve ${f.name}`, target: f.id }));
+
+  const evidence = [
+    { value: String(fields.length), label: 'fields profiled' },
+    { value: String(blockers.length), label: 'blocking issues' },
+    { value: String(reviews.length), label: 'need review' },
+    { value: String(clean), label: 'clean' },
+  ];
+
+  return { headline, tone, narrative, recommendedOrder, evidence };
+}
+
 export function mapEntityPackResponse(response: EntityPackApiResponse, run: PipelineRun): EntityPack {
   const label = capitalise(response.scope);
+  const fields = response.fields.map(toEntityField);
+  const rowCount = run.sourceRowCount ?? undefined;
   return {
     id: response.scope as EntityPack['id'],
     label: { singular: label, plural: `${label}s` },
-    source: { object: response.scope, rowCount: run.sourceRowCount ?? undefined },
+    source: { object: response.scope, rowCount },
     target: { record: '' },
     // dp-kit's generated EntityIdentity.confirmed is `string | undefined`
     // (no `null` in the type) — undefined is the same "not yet approved"
     // default the type actually supports.
     identity: { candidates: [], confirmed: undefined },
-    fields: response.fields.map(toEntityField),
-    readiness: undefined,
-    metrics: undefined,
+    fields,
+    readiness: buildReadiness(fields, rowCount),
+    metrics: LIVE_ENTITY_METRICS,
   };
 }
 

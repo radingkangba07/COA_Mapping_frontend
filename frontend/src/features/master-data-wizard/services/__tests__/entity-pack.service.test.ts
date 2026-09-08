@@ -108,7 +108,7 @@ function makeFieldProfile(overrides: Partial<FieldProfileRead> = {}): FieldProfi
     role_description: null,
     confidence_score: null,
     evidence: null,
-    severity: 'ok',
+    severity: 'clean',
     stats: null,
     pattern_summary: null,
     anomaly_examples: null,
@@ -427,8 +427,13 @@ describe('entity-pack.service', () => {
       expect(pack.source).toEqual({ object: 'items', rowCount: 10 });
       expect(pack.target).toEqual({ record: '' });
       expect(pack.identity).toEqual({ candidates: [], confirmed: undefined });
+      // No fields — nothing for ReadinessBanner to summarize.
       expect(pack.readiness).toBeUndefined();
-      expect(pack.metrics).toBeUndefined();
+      // KpiStrip's tile definitions are always populated (scope-agnostic,
+      // computed live off pack.fields by buildMetrics) — never left
+      // undefined the way readiness legitimately can be.
+      expect(pack.metrics?.length).toBeGreaterThan(0);
+      expect(pack.metrics?.map((m) => m.id)).toEqual(['records', 'fields', 'blockers', 'review', 'nulls']);
     });
 
     it('falls back to an undefined rowCount when the run has none', () => {
@@ -441,10 +446,10 @@ describe('entity-pack.service', () => {
     });
 
     it.each([
-      ['ok', 'clean'],
-      ['warn', 'warning'],
-      ['error', 'blocker'],
-      ['info', 'review'],
+      ['clean', 'clean'],
+      ['warning', 'warning'],
+      ['blocker', 'blocker'],
+      ['review', 'review'],
       [null, 'na'],
     ] as const)('maps severity %s to impact %s', (severity, impact) => {
       const response: EntityPackApiResponse = {
@@ -458,6 +463,51 @@ describe('entity-pack.service', () => {
       const pack = mapEntityPackResponse(response, PIPELINE_RUN);
 
       expect(pack.fields[0]!.impact).toBe(impact);
+    });
+
+    describe('readiness', () => {
+      it('builds a blocker-tone readiness summary — real field names in recommendedOrder, real counts as evidence', () => {
+        const response: EntityPackApiResponse = {
+          run_id: 'run-1',
+          scope: 'items',
+          status: 'complete',
+          run_summary: null,
+          fields: [
+            makeFieldProfile({ field_name: 'sku', severity: 'blocker' }),
+            makeFieldProfile({ field_name: 'uom', severity: 'review' }),
+            makeFieldProfile({ field_name: 'display_name', severity: 'clean' }),
+          ],
+        };
+
+        const pack = mapEntityPackResponse(response, PIPELINE_RUN);
+
+        expect(pack.readiness?.tone).toBe('blocker');
+        expect(pack.readiness?.headline).toBe('Migration readiness: Needs attention');
+        expect(pack.readiness?.recommendedOrder).toEqual([{ label: 'Resolve sku', target: 'sku' }]);
+        expect(pack.readiness?.evidence).toEqual([
+          { value: '3', label: 'fields profiled' },
+          { value: '1', label: 'blocking issues' },
+          { value: '1', label: 'need review' },
+          { value: '1', label: 'clean' },
+        ]);
+      });
+
+      it('builds a neutral-tone "ready" summary when every field is clean', () => {
+        const response: EntityPackApiResponse = {
+          run_id: 'run-1',
+          scope: 'items',
+          status: 'complete',
+          run_summary: null,
+          fields: [makeFieldProfile({ field_name: 'sku', severity: 'clean' })],
+        };
+
+        const pack = mapEntityPackResponse(response, PIPELINE_RUN);
+
+        expect(pack.readiness?.tone).toBe('neutral');
+        expect(pack.readiness?.headline).toBe('Migration readiness: Ready');
+        expect(pack.readiness?.recommendedOrder).toEqual([]);
+        expect(pack.readiness?.narrative).toContain('ready to generate mappings');
+      });
     });
 
     it('prefers user_override_type over detected_type when mapping datatype', () => {
@@ -507,6 +557,43 @@ describe('entity-pack.service', () => {
 
       expect(pack.fields[0]!.duplicates).toEqual({ rows: 3, groups: 1 });
       expect(pack.fields[0]!.patternAnomalies).toBe(2);
+    });
+
+    it('unwraps sample_values.values into the Sample column\'s plain string array', () => {
+      const response: EntityPackApiResponse = {
+        run_id: 'run-1',
+        scope: 'items',
+        status: 'complete',
+        run_summary: null,
+        fields: [
+          makeFieldProfile({
+            field_name: 'cost_center',
+            sample_values: { values: ['IC COGS', 'FTE (LZA)', 'FTE (Non-Billable)', 'Re Devices', 'FTE (LIN)'] },
+          }),
+        ],
+      };
+
+      const pack = mapEntityPackResponse(response, PIPELINE_RUN);
+
+      expect(pack.fields[0]!.sample).toEqual(['IC COGS', 'FTE (LZA)', 'FTE (Non-Billable)', 'Re Devices', 'FTE (LIN)']);
+    });
+
+    it('leaves sample undefined when sample_values is null or has no values array', () => {
+      const response: EntityPackApiResponse = {
+        run_id: 'run-1',
+        scope: 'items',
+        status: 'complete',
+        run_summary: null,
+        fields: [
+          makeFieldProfile({ field_name: 'a', sample_values: null }),
+          makeFieldProfile({ field_name: 'b', sample_values: {} }),
+        ],
+      };
+
+      const pack = mapEntityPackResponse(response, PIPELINE_RUN);
+
+      expect(pack.fields[0]!.sample).toBeUndefined();
+      expect(pack.fields[1]!.sample).toBeUndefined();
     });
   });
 

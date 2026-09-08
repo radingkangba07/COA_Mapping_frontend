@@ -34,6 +34,17 @@ const itemsWs: Workstream = {
   included: true,
 };
 
+const fixedAssetsWs: Workstream = {
+  id: 'ws-9',
+  name: 'Fixed Assets',
+  projectId: 'MD-009',
+  orgProjectId: 'org-proj-9',
+  status: 'in_progress',
+  progress: 0,
+  currentStage: 'Upload',
+  included: true,
+};
+
 const notIncludedWs: Workstream = {
   id: 'ws-2',
   name: 'Vehicles',
@@ -72,6 +83,17 @@ describe('useOpenWorkstream', () => {
       entityId: 'items',
       parentProjectId: 'prj-123',
       workstream_id: 'ws-3',
+    });
+  });
+
+  it('maps the "Fixed Assets" label to the wizard\'s "fixedAssets" EntityId (not a lowercased "fixed assets")', () => {
+    const { result } = renderHook(() => useOpenWorkstream('prj-123'));
+    result.current(fixedAssetsWs);
+    expect(mockNavigate).toHaveBeenCalledWith('MasterDataWizard', {
+      orgProjectId: 'org-proj-9',
+      entityId: 'fixedAssets',
+      parentProjectId: 'prj-123',
+      workstream_id: 'ws-9',
     });
   });
 

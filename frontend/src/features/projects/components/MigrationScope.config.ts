@@ -8,12 +8,21 @@ export interface MasterDataItem {
 
 export const CHART_OF_ACCOUNTS_ID = 'chart-of-accounts';
 
-// The three scopes with an active migration flow.
-// Extend this set as new scope screens are delivered.
+// Every master-data scope now has an active migration flow: Chart of
+// Accounts through the existing migration feature, and every other entity
+// through the generic master-data wizard (see useOpenWorkstream.ts's
+// MASTER_DATA_NAMES) — none of it branches per entity (see root CLAUDE.md),
+// so there's no reason left to gate the Data Conversion checkbox per row.
 export const ENABLED_SCOPE_IDS = new Set([
-  'chart-of-accounts',
+  CHART_OF_ACCOUNTS_ID,
   'customers',
+  'vendors',
   'items',
+  'locations',
+  'contacts',
+  'vehicles',
+  'equipment',
+  'fixed-assets',
 ]);
 
 export const MASTER_DATA_ITEMS: readonly MasterDataItem[] = [
