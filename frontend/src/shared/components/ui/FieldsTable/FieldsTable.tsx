@@ -22,7 +22,7 @@ import { RowActionsCell } from './RowActionsCell';
 import { useSourceProfileStore, type SortKey } from '@/features/master-data-wizard/store/sourceProfile.store';
 import { decisionStateFor } from '@/features/master-data-wizard/utils/decisions';
 import { tint } from '@/features/master-data-wizard/utils/colorMix';
-import { matchesCategory, fmt, pctOf, sortValueFor } from '@/features/master-data-wizard/utils/fields';
+import { matchesCategory, fmt, pctOf, uniquenessPct, confidencePct, humanizeLabel, sortValueFor } from '@/features/master-data-wizard/utils/fields';
 import { UnsortedIcon } from '@/shared/components/icons/UnsortedIcon';
 import { confidenceRamp, nullRowsRamp } from '@/features/master-data-wizard/utils/metricRamp';
 import { PAGE_SIZE, impactLabel } from '@/features/master-data-wizard/utils/taxonomy';
@@ -40,6 +40,12 @@ interface FieldsTableProps {
   // Copilot prompt; every other prompt highlights rows without dimming the
   // rest. Empty means nothing dims.
   readonly dimIds: readonly string[];
+  // The KPI strip's active metric's own `highlight` field-id list, narrowing
+  // which rows render at all — unlike `highlightIds`/`dimIds`, which only
+  // change row styling. `null`/omitted (no metric active, or the active
+  // metric's tile has no `highlight`, e.g. "Total records") means every row
+  // (post category-filter) renders, same as before this prop existed.
+  readonly filterIds?: readonly string[] | null;
   readonly testID?: string;
 }
 
@@ -142,7 +148,7 @@ function stopRowPress(e: GestureResponderEvent): void {
 // was already wider than the reference (240 vs 180), so left as-is rather
 // than shrinking it.
 const COL = {
-  field: 150,
+  field: 80,
   sample: 190,
   role: 130,
   type: 70,
@@ -180,7 +186,7 @@ const HEADERS: readonly HeaderDef[] = [
   { label: 'Migration impact', sortKey: 'impact', col: 'impact', tip: 'Severity of this field for the migration' },
 ];
 
-export const FieldsTable = ({ pack, highlightIds, dimIds, testID }: FieldsTableProps): React.JSX.Element => {
+export const FieldsTable = ({ pack, highlightIds, dimIds, filterIds = null, testID }: FieldsTableProps): React.JSX.Element => {
   // Forces re-render on theme toggle so colors.* below reads fresh values —
   // colors is a plain proxy, not a hook, so nothing else here re-renders
   // this component when the theme changes.
@@ -202,7 +208,9 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, testID }: FieldsTableP
   const rowCount = pack.source.rowCount ?? 0;
 
   const { paged, pageCount, total } = useMemo(() => {
-    const filtered = pack.fields.filter((f) => matchesCategory(f, categoryFilter));
+    const filtered = pack.fields.filter(
+      (f) => matchesCategory(f, categoryFilter) && (filterIds === null || filterIds.includes(f.id)),
+    );
     const sorted = sortKey
       ? [...filtered].sort((a, b) => {
           const av = sortValueFor(a, sortKey, rowCount);
@@ -219,7 +227,7 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, testID }: FieldsTableP
       .map((f, i) => ({ field: f, rowNo: clampedPage * PAGE_SIZE + i + 1 }));
 
     return { paged: rows, pageCount: count, total: sorted.length };
-  }, [pack.fields, categoryFilter, sortKey, sortDirection, page, rowCount]);
+  }, [pack.fields, categoryFilter, filterIds, sortKey, sortDirection, page, rowCount]);
 
   const startRow = paged.length > 0 ? (page * PAGE_SIZE) + 1 : 0;
   const endRow = paged.length > 0 ? (page * PAGE_SIZE) + paged.length : 0;
@@ -373,10 +381,10 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, testID }: FieldsTableP
             >
               <Table.Cell
                 width={CHECKBOX_WIDTH}
-                className="px-1 py-2.5"
+                className="px-2 py-3"
                 style={[stickyLeft(frozenLeft.checkbox), { backgroundColor: colors.card }]}
               >
-                <Pressable onPress={stopRowPress} className="flex-row items-center">
+                <Pressable onPress={stopRowPress} className="flex-row items-center ">
                   <Checkbox
                     checked={isSelected}
                     onCheckedChange={() => toggleSelected(field.id)}
@@ -397,24 +405,24 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, testID }: FieldsTableP
               </Table.Cell>
               <Table.Cell
                 width={rowNoWidth}
-                className="items-center px-1 py-2.5"
+                className="items-center px-1 py-2"
                 style={[stickyLeft(frozenLeft.rowNo), { backgroundColor: colors.card }]}
               >
-                <Text className="text-center font-mono text-xs text-muted-foreground">{rowNo}</Text>
+                <Text className="text-center text-sm text-muted-foreground">{rowNo}</Text>
               </Table.Cell>
               <Table.Cell
                 width={COL.field}
-                className="items-center px-3 py-2.5"
+                className="items-center px-3 py-3"
                 style={[stickyLeft(frozenLeft.field), { backgroundColor: colors.card }]}
               >
-                <View className="flex-row flex-wrap items-center justify-center gap-[7px]">
-                  <Text className="text-center text-sm font-bold text-foreground">{field.name}</Text>
+                <View className="flex-row items-center justify-center">
+                  <Text className="text-center text-md font-bold text-foreground">{humanizeLabel(field.name)}</Text>
                   {decisionState.confirmed ? (
                     <SemanticBadge family="impact" state="clean" size="tag">CONFIRMED</SemanticBadge>
                   ) : null}
                   {decisionState.ignored ? (
                     <View className="rounded-[4px] border px-[5px] py-px" style={{ borderColor: colors.border }}>
-                      <Text className="text-[10px] font-semibold" style={{ color: colors.mutedForeground }}>
+                      <Text className="text-md font-semibold" style={{ color: colors.mutedForeground }}>
                         IGNORED
                       </Text>
                     </View>
@@ -432,14 +440,14 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, testID }: FieldsTableP
               <Table.Cell width={COL.role} className="items-center px-3 py-2.5">
                 {field.roleTip !== undefined && field.roleTip.length > 0 ? (
                   <Tooltip content={field.roleTip} position="bottom" onPress={() => openField(field.id)}>
-                    <Text className="text-center text-xs text-foreground">{field.role ?? '—'}</Text>
+                    <Text className="text-center text-xs text-foreground">{humanizeLabel(field.role)}</Text>
                   </Tooltip>
                 ) : (
-                  <Text className="text-center text-xs text-foreground">{field.role ?? '—'}</Text>
+                  <Text className="text-center text-xs text-foreground">{humanizeLabel(field.role)}</Text>
                 )}
               </Table.Cell>
               <Table.Cell width={COL.type} className="items-center px-3 py-2.5">
-                <Text className="text-center font-mono text-xs text-muted-foreground">{field.datatype}</Text>
+                <Text className="text-center font-mono text-sm text-muted-foreground">{field.datatype}</Text>
               </Table.Cell>
               <Table.Cell width={COL.nullCount} className="items-center px-2 py-2.5">
                 <GradientChip {...nullRowsRamp(field.nullCount ?? 0, rowCount)} className="self-center">
@@ -460,7 +468,7 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, testID }: FieldsTableP
               <Table.Cell width={COL.distinct} className="items-center px-3 py-2.5">
                 <Text className="text-center font-mono text-xs text-foreground">{fmt(field.distinct ?? 0)}</Text>
                 <Text className="mt-[3px] text-center text-xs text-muted-foreground">
-                  {field.uniqueness !== undefined ? `${field.uniqueness}%` : '—'}
+                  {uniquenessPct(field.uniqueness)}
                 </Text>
               </Table.Cell>
               <Table.Cell width={colWidths.findings} className="items-center px-3 py-2.5">
@@ -499,7 +507,7 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, testID }: FieldsTableP
               <Table.Cell width={COL.confidence} className="items-center px-3 py-2.5">
                 <Tooltip content={CONFIDENCE_TOOLTIP} position="bottom" onPress={() => openField(field.id)}>
                   <GradientChip {...confidenceRamp(field.confidence)} size="confidence" className="self-center">
-                    {field.confidence !== undefined ? `${field.confidence}%` : '—'}
+                    {confidencePct(field.confidence)}
                   </GradientChip>
                 </Tooltip>
               </Table.Cell>

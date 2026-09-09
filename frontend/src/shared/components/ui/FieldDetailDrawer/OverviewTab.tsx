@@ -2,7 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { StatRow } from '@/shared/components/ui/StatRow';
 import { impactLabel } from '@/features/master-data-wizard/utils/taxonomy';
-import { fmt, pctOf, impactToRowTone } from '@/features/master-data-wizard/utils/fields';
+import { fmt, pctOf, uniquenessPct, confidencePct, impactToRowTone } from '@/features/master-data-wizard/utils/fields';
 import type { EntityField } from '@/features/master-data-wizard/dp-kit/types/entity';
 
 interface OverviewTabProps {
@@ -30,7 +30,7 @@ export function OverviewTab({ field, rowCount }: OverviewTabProps): React.JSX.El
       />
       <StatRow
         label="Uniqueness"
-        value={field.uniqueness !== undefined ? `${field.uniqueness}%` : '—'}
+        value={uniquenessPct(field.uniqueness)}
         tip="Share of rows whose value occurs only once."
       />
       <StatRow
@@ -40,7 +40,7 @@ export function OverviewTab({ field, rowCount }: OverviewTabProps): React.JSX.El
       />
       <StatRow label="Inferred datatype" value={field.datatype} />
       <StatRow label="Inferred role" value={field.role ?? '—'} />
-      <StatRow label="Confidence" value={field.confidence !== undefined ? `${field.confidence}%` : '—'} />
+      <StatRow label="Confidence" value={confidencePct(field.confidence)} />
       <StatRow label="Migration severity" value={impactLabel(field.impact)} tone={impactToRowTone(field.impact)} />
     </View>
   );

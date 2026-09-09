@@ -524,7 +524,7 @@ describe('entity-pack.service', () => {
       expect(pack.fields[0]!.datatype).toBe('Decimal');
     });
 
-    it('computes uniqueness from distinct_count/total_count, and leaves it undefined when total_count is 0 or missing', () => {
+    it('computes uniqueness from distinct_count/total_count as a 0-100 percentage, and leaves it undefined when total_count is 0 or missing', () => {
       const response: EntityPackApiResponse = {
         run_id: 'run-1',
         scope: 'items',
@@ -539,9 +539,29 @@ describe('entity-pack.service', () => {
 
       const pack = mapEntityPackResponse(response, PIPELINE_RUN);
 
-      expect(pack.fields[0]!.uniqueness).toBe(0.5);
+      expect(pack.fields[0]!.uniqueness).toBe(50);
       expect(pack.fields[1]!.uniqueness).toBeUndefined();
       expect(pack.fields[2]!.uniqueness).toBeUndefined();
+    });
+
+    it('scales confidence_score from a 0-1 fraction to a 0-100 percentage, and leaves it undefined when null', () => {
+      const response: EntityPackApiResponse = {
+        run_id: 'run-1',
+        scope: 'items',
+        status: 'complete',
+        run_summary: null,
+        fields: [
+          makeFieldProfile({ field_name: 'a', confidence_score: 0.88 }),
+          makeFieldProfile({ field_name: 'b', confidence_score: 1 }),
+          makeFieldProfile({ field_name: 'c', confidence_score: null }),
+        ],
+      };
+
+      const pack = mapEntityPackResponse(response, PIPELINE_RUN);
+
+      expect(pack.fields[0]!.confidence).toBeCloseTo(88);
+      expect(pack.fields[1]!.confidence).toBe(100);
+      expect(pack.fields[2]!.confidence).toBeUndefined();
     });
 
     it('maps duplicates and patternAnomalies through from the field profile', () => {

@@ -76,6 +76,40 @@ export function pctOf(count: number, total: number): string {
   return `${((count / total) * 100).toFixed(1)}%`;
 }
 
+/** Uniqueness (already a 0-100 percentage from the profiler) to one decimal. */
+export function uniquenessPct(value: number | undefined): string {
+  return value !== undefined ? `${value.toFixed(1)}%` : '—';
+}
+
+/** Confidence, rounded to a whole number — unlike uniqueness, shown with no decimals. */
+export function confidencePct(value: number | undefined): string {
+  return value !== undefined ? `${Math.round(value)}%` : '—';
+}
+
+/**
+ * Display-only formatting for a raw field identifier/role — replaces
+ * underscores with spaces and capitalizes each word's first letter, e.g.
+ * "identifier_candidate" -> "Identifier Candidate", "account_no" -> "Account
+ * No". Live-profiled packs send `role` as the backend's raw snake_case
+ * semantic_role, and `name` as the raw source column name; fixture packs'
+ * `role`/`name` are already display-ready (e.g. "Identifier candidate",
+ * "SKU", "UOM"). Only ever uppercases a word's first character and leaves
+ * the rest untouched — never lowercases — so an already-cased acronym like
+ * "SKU"/"UOM" survives unchanged instead of being mangled to "Sku"/"Uom".
+ * Formats the label shown to the user only — never mutates the underlying
+ * field, since DrawerHeader compares `field.role` against exact fixture
+ * strings (e.g. 'Identifier candidate') elsewhere, and `field.name` is
+ * reused verbatim in approval titles/messages.
+ */
+export function humanizeLabel(value: string | undefined): string {
+  if (value === undefined || value.trim().length === 0) return '—';
+  return value
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 const GENERIC_COMPARISON_NOTE =
   'These fields have distinct semantics and low value overlap.';
 const OVERLAPPING_COMPARISON_NOTE =

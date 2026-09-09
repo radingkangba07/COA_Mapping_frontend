@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Modal,
   Pressable,
   View,
   Text,
+  Animated,
+  Dimensions,
   type ViewProps,
   type TextProps,
 } from 'react-native';
@@ -30,47 +32,90 @@ interface SheetRootProps {
 }
 
 const SheetRoot = React.forwardRef<View, SheetRootProps>(
-  ({ visible, onClose, side = defaultSide, width, className, testID, children }, ref) => (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={onClose}
-      testID={testID}
-    >
-      <Pressable
-        className={cn(
-          'flex-1 bg-black/40',
-          side === 'bottom' ? 'justify-end' : 'flex-row justify-end',
-        )}
-        onPress={onClose}
-        accessibilityRole="button"
-        accessibilityLabel="Close sheet"
+  ({ visible, onClose, side = defaultSide, width, className, testID, children }, ref) => {
+    // RN's Modal `animationType="slide"` only ever slides vertically (up
+    // from the bottom edge) — there's no built-in horizontal variant. A
+    // side="right" sheet using it was correctly positioned on the right but
+    // always animated in/out like a bottom sheet (down-to-up / up-to-down)
+    // instead of sliding in from the right edge. Animate `translateX`
+    // ourselves for side="right"; side="bottom" keeps Modal's native
+    // vertical slide, which is the intended motion there.
+    const isRight = side === 'right';
+    const translateX = useRef(new Animated.Value(Dimensions.get('window').width)).current;
+    // Modal's `visible` unmounts its content the instant it flips false —
+    // delay that until the close animation actually finishes, so the panel
+    // slides off-screen instead of vanishing mid-slide.
+    const [isMounted, setIsMounted] = useState(visible);
+    const isMountedRef = useRef(true);
+    useEffect(() => () => { isMountedRef.current = false; }, []);
+
+    useEffect(() => {
+      if (!isRight) return;
+      if (visible) {
+        setIsMounted(true);
+        translateX.setValue(Dimensions.get('window').width);
+        Animated.timing(translateX, {
+          toValue: 0,
+          duration: 280,
+          useNativeDriver: !isWeb,
+        }).start();
+      } else {
+        Animated.timing(translateX, {
+          toValue: Dimensions.get('window').width,
+          duration: 220,
+          useNativeDriver: !isWeb,
+        }).start(({ finished }) => {
+          if (finished && isMountedRef.current) setIsMounted(false);
+        });
+      }
+    }, [visible, isRight, translateX]);
+
+    const modalVisible = isRight ? isMounted : visible;
+
+    return (
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType={isRight ? 'none' : 'slide'}
+        onRequestClose={onClose}
+        testID={testID}
       >
         <Pressable
-          ref={ref}
-          onPress={(e) => e.stopPropagation()}
           className={cn(
-            'border-border bg-card',
-            side === 'bottom'
-              ? 'w-full max-h-[80%] rounded-t-xl border-t'
-              : 'h-full w-80 border-l',
-            className,
+            'flex-1 bg-black/40',
+            side === 'bottom' ? 'justify-end' : 'flex-row justify-end',
           )}
-          style={[
-            side === 'right' && width !== undefined
-              ? { width, ...(isWeb ? { maxWidth: '96vw' as unknown as number } : undefined) }
-              : undefined,
-            // Reference: `box-shadow:-8px 0 30px rgba(0,0,0,.2)` on the
-            // sliding right-side panel.
-            side === 'right' && isWeb ? { boxShadow: '-8px 0 30px rgba(0,0,0,.2)' } : undefined,
-          ]}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close sheet"
         >
-          {children}
+          <Animated.View style={isRight ? { height: '100%', transform: [{ translateX }] } : undefined}>
+            <Pressable
+              ref={ref}
+              onPress={(e) => e.stopPropagation()}
+              className={cn(
+                'border-border bg-card',
+                side === 'bottom'
+                  ? 'w-full max-h-[80%] rounded-t-xl border-t'
+                  : 'h-full w-80 border-l',
+                className,
+              )}
+              style={[
+                side === 'right' && width !== undefined
+                  ? { width, ...(isWeb ? { maxWidth: '96vw' as unknown as number } : undefined) }
+                  : undefined,
+                // Reference: `box-shadow:-8px 0 30px rgba(0,0,0,.2)` on the
+                // sliding right-side panel.
+                side === 'right' && isWeb ? { boxShadow: '-8px 0 30px rgba(0,0,0,.2)' } : undefined,
+              ]}
+            >
+              {children}
+            </Pressable>
+          </Animated.View>
         </Pressable>
-      </Pressable>
-    </Modal>
-  ),
+      </Modal>
+    );
+  },
 );
 SheetRoot.displayName = 'Sheet';
 

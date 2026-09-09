@@ -154,6 +154,13 @@ export function SourceDataProfileScreen({
   // does when it also sets `promptFilterIds` (mirrors the reference's own
   // `filterIds` — glow-only for most prompts, glow+dim for "idprob").
   const dimIds = activeMetric?.highlight ?? promptFilterIds;
+  // A metric click also narrows FieldsTable to just its highlighted rows —
+  // unlike dimIds/highlightIds (styling only), this actually removes
+  // non-matching rows and updates the "Showing X-Y of N fields" count.
+  // Scoped to metric clicks only (never promptFilterIds/Copilot) and to
+  // metrics with a non-empty highlight set, so "Total records" (which has
+  // none) still toggles active/accent without hiding every row.
+  const metricFilterIds = activeMetric && activeMetric.highlight.length > 0 ? activeMetric.highlight : null;
   // Reference: `filters: id==='records' ? [] : [{id:'metric-'+id, label:labels[id]}]`
   // — every metric except "Total records" pushes a Visual-filters chip;
   // that one tile stays clickable (toggles active/accent) but never shows
@@ -313,7 +320,13 @@ export function SourceDataProfileScreen({
             <ProfileCoveragePopover pack={pack} testID="source-profile-coverage" />
           </View>
 
-          <FieldsTable pack={pack} highlightIds={highlightIds} dimIds={dimIds} testID="source-profile-table" />
+          <FieldsTable
+            pack={pack}
+            highlightIds={highlightIds}
+            dimIds={dimIds}
+            filterIds={metricFilterIds}
+            testID="source-profile-table"
+          />
         </ScrollView>
 
         <CopilotPanelShell pack={pack} testID="source-profile-copilot" />

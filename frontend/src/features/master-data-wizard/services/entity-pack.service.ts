@@ -517,10 +517,16 @@ function toSample(sampleValues: Record<string, unknown> | null | undefined): Ent
 }
 
 function toEntityField(field: FieldProfileRead): EntityField {
+  // distinct_count/total_count and confidence_score both come back from the
+  // backend as 0-1 fractions (e.g. 0.5, 0.88, 1.00) — scaled to 0-100 here so
+  // they match the fixture-authored packs' own scale (e.g. 44.4, 87) and
+  // FieldsTable's uniquenessPct()/confidencePct() formatters, which both
+  // expect a 0-100 percentage rather than a fraction.
   const uniqueness =
     field.distinct_count != null && field.total_count != null && field.total_count > 0
-      ? field.distinct_count / field.total_count
+      ? (field.distinct_count / field.total_count) * 100
       : undefined;
+  const confidence = field.confidence_score != null ? field.confidence_score * 100 : undefined;
 
   return {
     id: field.field_name,
@@ -530,7 +536,7 @@ function toEntityField(field: FieldProfileRead): EntityField {
     distinct: field.distinct_count ?? undefined,
     uniqueness,
     cardinality: field.cardinality ?? undefined,
-    confidence: field.confidence_score ?? undefined,
+    confidence,
     role: field.semantic_role ?? undefined,
     roleTip: field.role_description ?? undefined,
     impact: toImpact(field.severity),
@@ -550,15 +556,25 @@ function toEntityField(field: FieldProfileRead): EntityField {
 // computed live off pack.fields/pack.source.rowCount, never a literal, so
 // this same generic definition set drives the strip for every scope. The
 // backend has no per-entity metric config yet (unlike the fixture-based
-// dp-kit stand-in, which hand-authors a scope-specific list); this is the
-// live-API equivalent, kept scope-agnostic on purpose.
-const LIVE_ENTITY_METRICS: EntityMetric[] = [
-  { id: 'records', label: 'Total records', kind: 'rowCount', tone: 'neutral', tip: 'All source rows profiled' },
-  { id: 'fields', label: 'Fields profiled', kind: 'fieldCount', tone: 'neutral', tip: 'Columns detected in the source file' },
-  { id: 'blockers', label: 'Blocking issues', kind: 'impactCount', impact: 'blocker', tone: 'blocker', tip: 'Fields that must be resolved before mapping' },
-  { id: 'review', label: 'Needs review', kind: 'reviewCount', tone: 'warn', tip: 'Fields flagged for review' },
-  { id: 'nulls', label: 'Null values', kind: 'sumNulls', tone: 'neutral', tip: 'Total blank values across all fields' },
-];
+// dp-kit stand-in, which hand-authors a scope-specific `highlight` per
+// metric); `highlight` here is computed the same way each metric's own
+// `value` already is — off the real fields — so clicking a live-run tile
+// highlights/filters the same fields its count describes, instead of always
+// being empty (which silently made every KPI tile in a live run a no-op
+// click, unlike the fixture-preview path).
+function buildLiveMetrics(fields: EntityField[]): EntityMetric[] {
+  const blockerIds = fields.filter((f) => f.impact === 'blocker').map((f) => f.id);
+  const reviewIds = fields.filter((f) => f.impact === 'review' || f.impact === 'warning').map((f) => f.id);
+  const nullIds = fields.filter((f) => (f.nullCount ?? 0) > 0).map((f) => f.id);
+
+  return [
+    { id: 'records', label: 'Total records', kind: 'rowCount', tone: 'neutral', tip: 'All source rows profiled' },
+    { id: 'fields', label: 'Fields profiled', kind: 'fieldCount', tone: 'neutral', tip: 'Columns detected in the source file' },
+    { id: 'blockers', label: 'Blocking issues', kind: 'impactCount', impact: 'blocker', tone: 'blocker', tip: 'Fields that must be resolved before mapping', highlight: blockerIds },
+    { id: 'review', label: 'Needs review', kind: 'reviewCount', tone: 'warn', tip: 'Fields flagged for review', highlight: reviewIds },
+    { id: 'nulls', label: 'Null values', kind: 'sumNulls', tone: 'neutral', tip: 'Total blank values across all fields', highlight: nullIds },
+  ];
+}
 
 /**
  * Builds ReadinessBanner's content entirely from real profiled fields — no
@@ -627,7 +643,7 @@ export function mapEntityPackResponse(response: EntityPackApiResponse, run: Pipe
     identity: { candidates: [], confirmed: undefined },
     fields,
     readiness: buildReadiness(fields, rowCount),
-    metrics: LIVE_ENTITY_METRICS,
+    metrics: buildLiveMetrics(fields),
   };
 }
 
