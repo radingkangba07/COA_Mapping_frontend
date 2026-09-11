@@ -8,11 +8,9 @@ import {
 import { ok, err } from '@/shared/types/result.types';
 import {
   createInitialMcpForm,
-  testConnection,
   type McpConnectionForm,
 } from '../../services/mcp.service';
 
-// Button + success panel import `colors` from '@/config/theme', not globally mocked.
 jest.mock('@/config/theme', () => ({
   colors: {
     foreground: '#09090B',
@@ -25,11 +23,15 @@ jest.mock('@/config/theme', () => ({
   },
 }));
 
-// Partial-mock the service so only testConnection is stubbed; validation helpers
-// (validateConnection/hasConnectionErrors) keep their real implementations.
-jest.mock('../../services/mcp.service', () => {
-  const actual = jest.requireActual('../../services/mcp.service');
-  return { ...actual, testConnection: jest.fn() };
+// Mock erp-connection.service: stub createMcpConnection and testMcpConnection
+// while keeping resolveErpId real so gating behaves as in production.
+jest.mock('../../services/erp-connection.service', () => {
+  const actual = jest.requireActual('../../services/erp-connection.service');
+  return {
+    ...actual,
+    createMcpConnection: jest.fn(),
+    testMcpConnection: jest.fn(),
+  };
 });
 
 // The view model imports the real http instance; stub it so module load is inert.
@@ -37,7 +39,14 @@ jest.mock('@/shared/services/http/http.instance', () => ({ httpClient: {} }));
 
 // ─── Imports (after mocks) ──────────────────────────────────────────────────
 import { TestConnectionFlow } from '../TestConnectionFlow';
+import {
+  createMcpConnection,
+  testMcpConnection,
+} from '../../services/erp-connection.service';
 import { useProjectScopeStore } from '../../store/project-scope.store';
+
+const createMock = createMcpConnection as jest.MockedFunction<typeof createMcpConnection>;
+const testMock = testMcpConnection as jest.MockedFunction<typeof testMcpConnection>;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -59,11 +68,15 @@ const invalidForm: McpConnectionForm = {
 
 describe('TestConnectionFlow', () => {
   beforeEach(() => {
-    // Default: a pending promise so loading-state tests stay in 'testing' and
-    // never resolve into the success panel.
-    (testConnection as jest.Mock).mockReset();
-    (testConnection as jest.Mock).mockReturnValue(new Promise(() => undefined));
+    createMock.mockReset();
+    testMock.mockReset();
+    // Default: createMcpConnection resolves quickly; testMcpConnection never
+    // resolves so loading-state tests stay in 'testing'.
+    createMock.mockResolvedValue(ok({ id: 'conn-1', version: 1 }));
+    testMock.mockReturnValue(new Promise(() => undefined));
     useProjectScopeStore.getState().reset();
+    // Seed a valid source ERP so resolveErpId returns non-null ('odoo' → 'odoo').
+    useProjectScopeStore.getState().setSource('odoo');
   });
 
   it('disables the test button when the connection is invalid', () => {
@@ -81,6 +94,9 @@ describe('TestConnectionFlow', () => {
   });
 
   it('enters loading/disabled state after pressing with a valid connection', () => {
+    // createMcpConnection never resolves → hook stays in 'testing' state.
+    createMock.mockReturnValue(new Promise(() => undefined));
+
     render(<TestConnectionFlow connection={validBearerForm} />);
 
     const button = screen.getByTestId('test-connection-button');
@@ -91,7 +107,7 @@ describe('TestConnectionFlow', () => {
   });
 
   it('shows the success panel after a successful test connection', async () => {
-    (testConnection as jest.Mock).mockResolvedValue(
+    testMock.mockResolvedValue(
       ok({
         connectedAt: '2026-06-28T10:00:00.000Z',
         logs: ['line one with token'],
@@ -115,7 +131,7 @@ describe('TestConnectionFlow', () => {
   });
 
   it('opens the logs drawer when View Logs is pressed after a test resolves', async () => {
-    (testConnection as jest.Mock).mockResolvedValue(
+    testMock.mockResolvedValue(
       ok({
         connectedAt: '2026-06-28T10:00:00.000Z',
         logs: ['line one with token'],
@@ -146,9 +162,9 @@ describe('TestConnectionFlow', () => {
   });
 
   it('shows the failure panel with actionable text after a failed test', async () => {
-    (testConnection as jest.Mock).mockResolvedValue(
+    testMock.mockResolvedValue(
       err({
-        code: 'HTTP_401',
+        code: 'CONNECTION_FAILED',
         message: 'Request failed with status code 401',
         details: {},
       }),

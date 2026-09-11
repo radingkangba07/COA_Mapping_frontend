@@ -1,29 +1,36 @@
 // ViewModel tests for the MCP test-connection flow (DA-69). Verifies the hook
-// wires mcp.service.testConnection and resolves status/connectedAt/logs/error.
+// wires erp-connection.service and resolves status/connectedAt/logs/error.
 
 import { act, renderHook } from '@testing-library/react-native';
 
 // Avoid pulling the real http client (and its env/config) into the test.
 jest.mock('@/shared/services/http/http.instance', () => ({ httpClient: {} }));
 
-// Keep the real form helpers/validation; mock only the network call.
-jest.mock('../../services/mcp.service', () => {
-  const actual = jest.requireActual('../../services/mcp.service');
-  return { ...actual, testConnection: jest.fn() };
+// Mock erp-connection.service: stub createMcpConnection and testMcpConnection
+// while keeping resolveErpId real so gating behaves as in production.
+jest.mock('../../services/erp-connection.service', () => {
+  const actual = jest.requireActual('../../services/erp-connection.service');
+  return {
+    ...actual,
+    createMcpConnection: jest.fn(),
+    testMcpConnection: jest.fn(),
+  };
 });
 
 import { ok, err } from '@/shared/types/result.types';
 import {
   createInitialMcpForm,
-  testConnection,
   type McpConnectionForm,
 } from '../../services/mcp.service';
+import {
+  createMcpConnection,
+  testMcpConnection,
+} from '../../services/erp-connection.service';
 import { useProjectScopeStore } from '../../store/project-scope.store';
 import { useTestConnectionViewModel } from '../useTestConnectionViewModel';
 
-const mockTestConnection = testConnection as jest.MockedFunction<
-  typeof testConnection
->;
+const createMock = createMcpConnection as jest.MockedFunction<typeof createMcpConnection>;
+const testMock = testMcpConnection as jest.MockedFunction<typeof testMcpConnection>;
 
 const validForm: McpConnectionForm = {
   ...createInitialMcpForm(),
@@ -40,13 +47,17 @@ const invalidForm: McpConnectionForm = {
 };
 
 beforeEach(() => {
-  mockTestConnection.mockReset();
+  createMock.mockReset();
+  testMock.mockReset();
+  createMock.mockResolvedValue(ok({ id: 'conn-1', version: 1 }));
   useProjectScopeStore.getState().reset();
+  // Seed a valid source ERP so resolveErpId returns non-null.
+  useProjectScopeStore.getState().setSource('odoo');
 });
 
 describe('useTestConnectionViewModel', () => {
   it('resolves to success with connectedAt + logs', async () => {
-    mockTestConnection.mockResolvedValue(
+    testMock.mockResolvedValue(
       ok({ connectedAt: '2026-06-28T10:00:00Z', logs: ['x'] }),
     );
 
@@ -65,8 +76,8 @@ describe('useTestConnectionViewModel', () => {
   });
 
   it('resolves to failure with server message + logs', async () => {
-    mockTestConnection.mockResolvedValue(
-      err({ code: 'HTTP_502', message: 'boom', details: { logs: ['e1'] } }),
+    testMock.mockResolvedValue(
+      err({ code: 'CONNECTION_FAILED', message: 'boom', details: { logs: ['e1'] } }),
     );
 
     const { result } = renderHook(() => useTestConnectionViewModel(validForm));
@@ -84,7 +95,7 @@ describe('useTestConnectionViewModel', () => {
   });
 
   it('invalidates a prior success when the connection is edited', async () => {
-    mockTestConnection.mockResolvedValue(
+    testMock.mockResolvedValue(
       ok({ connectedAt: '2026-06-28T10:00:00Z', logs: ['x'] }),
     );
 
@@ -116,7 +127,7 @@ describe('useTestConnectionViewModel', () => {
   });
 
   it('success survives an unrelated re-render with a content-equal connection', async () => {
-    mockTestConnection.mockResolvedValue(
+    testMock.mockResolvedValue(
       ok({ connectedAt: '2026-06-28T10:00:00Z', logs: ['x'] }),
     );
 
@@ -144,8 +155,6 @@ describe('useTestConnectionViewModel', () => {
   });
 
   it('mount does not reset an already-established gate', () => {
-    // Global beforeEach resets the store; establish the gate AFTER that reset,
-    // before the hook mounts, to prove the first (mount) run is skipped.
     useProjectScopeStore.getState().setConnectionReady(true);
     useProjectScopeStore.getState().setTestStatus('success');
 
@@ -164,7 +173,7 @@ describe('useTestConnectionViewModel', () => {
       await result.current.onTestConnection();
     });
 
-    expect(mockTestConnection).not.toHaveBeenCalled();
+    expect(testMock).not.toHaveBeenCalled();
     expect(result.current.status).toBe('idle');
     expect(result.current.error).toBe(
       'Complete the connection details before testing.',
