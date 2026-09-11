@@ -3,7 +3,7 @@ import { getPipelineRun, type PipelineRun } from '../services/entity-pack.servic
 import type { AppError } from '@/shared/types/result.types';
 import { isAppError } from '@/shared/types/result.types';
 
-const TERMINAL_STATUSES = new Set(['complete', 'error']);
+const TERMINAL_STATUSES = new Set(['complete', 'error', 'failed']);
 
 interface UsePipelineRunPollerResult {
   readonly run: PipelineRun | null;

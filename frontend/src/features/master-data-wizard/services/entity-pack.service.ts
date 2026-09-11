@@ -612,21 +612,120 @@ function toInvalidTable(raw: Record<string, unknown> | null | undefined): Entity
 }
 
 function toEntityField(field: FieldProfileRead): EntityField {
+  const total = field.total_count ?? 0;
   // distinct_count/total_count and confidence_score both come back from the
   // backend as 0-1 fractions (e.g. 0.5, 0.88, 1.00) — scaled to 0-100 here so
   // they match the fixture-authored packs' own scale (e.g. 44.4, 87) and
   // FieldsTable's uniquenessPct()/confidencePct() formatters, which both
   // expect a 0-100 percentage rather than a fraction.
   const uniqueness =
-    field.distinct_count != null && field.total_count != null && field.total_count > 0
-      ? (field.distinct_count / field.total_count) * 100
+    field.distinct_count != null && total > 0
+      ? (field.distinct_count / total) * 100
       : undefined;
   const confidence = field.confidence_score != null ? field.confidence_score * 100 : undefined;
+
+  const stats = (field.stats ?? {}) as Record<string, unknown>;
+  const anomalyEx = field.anomaly_examples as {
+    type?: string;
+    examples?: string[];
+    details?: Array<{ source?: string; rows?: number; canonical?: string | null; status?: string }>;
+  } | null;
+  const dtype = toDatatype(field.user_override_type ?? field.detected_type);
+
+  // ── categories — drives all filter chips and the coverage-popover counts ──
+  // Previously never set, so every category stat in the popover showed 0.
+  const categories: string[] = [];
+  if (field.semantic_role === 'identifier_candidate') categories.push('identifiers');
+  if (field.is_enumeration_candidate === true) categories.push('enums');
+  if ((field.null_count ?? 0) > 0) categories.push('missing');
+  if ((field.duplicate_row_count ?? 0) > 0) categories.push('duplicates');
+  if ((field.pattern_anomalies ?? 0) > 0) categories.push('patterns');
+  if ((field.anomaly_count ?? 0) > 0) categories.push('outliers');
+  if ((field.reference_failures ?? 0) > 0) categories.push('refFailures');
+  if ((field.invalid_count ?? 0) > 0) categories.push('invalid');
+  const populated = total - (field.null_count ?? 0);
+  if (total > 0 && populated / total < 0.05) categories.push('nearEmpty');
+
+  // ── range — numeric types only ────────────────────────────────────────────
+  let range: EntityField['range'];
+  if (dtype === 'Integer' || dtype === 'Decimal') {
+    range = {
+      min: stats.min as string | undefined,
+      max: stats.max as string | undefined,
+      median: stats.median as string | undefined,
+      p95: stats.p95 as string | undefined,
+      method: stats.method as string | undefined,
+      outliers: field.anomaly_count ?? undefined,
+      examples:
+        anomalyEx?.type === 'outlier' && Array.isArray(anomalyEx.examples)
+          ? anomalyEx.examples.join(', ')
+          : undefined,
+    };
+  }
+
+  // ── text stats — text type only ───────────────────────────────────────────
+  let text: EntityField['text'];
+  if (dtype === 'Text') {
+    const ts = stats.text_stats as { min_length?: number; max_length?: number; avg_length?: number } | undefined;
+    if (ts) text = { minLen: ts.min_length, maxLen: ts.max_length, avgLen: ts.avg_length };
+  }
+
+  // ── dateProfile — date type only ──────────────────────────────────────────
+  let dateProfile: EntityField['dateProfile'];
+  if (dtype === 'Date' || dtype === 'DateTime') {
+    const dp = stats.date_profile as
+      | { earliest?: string; latest?: string; invalid?: number; future?: number }
+      | undefined;
+    if (dp) dateProfile = { earliest: dp.earliest, latest: dp.latest, invalid: dp.invalid, future: dp.future };
+  }
+
+  // ── nearEmpty detail ──────────────────────────────────────────────────────
+  let nearEmpty: EntityField['nearEmpty'];
+  if (total > 0 && populated / total < 0.05) {
+    nearEmpty = { populated, populatedPct: Math.round((populated / total) * 1000) / 10 };
+  }
+
+  // ── invalidTable — reference-integrity per-value breakdown ────────────────
+  // anomaly_examples.type === 'reference_integrity' when a scope handler ran.
+  let invalidTable: EntityField['invalidTable'];
+  if (anomalyEx?.type === 'reference_integrity' && Array.isArray(anomalyEx.details)) {
+    invalidTable = anomalyEx.details.map((d) => ({
+      src: d.source,
+      occ: d.rows,
+      canon: d.canonical ?? undefined,
+      status: d.status,
+      tone: (d.status === 'recognized_alias' ? 'ok' : 'warn') as 'ok' | 'warn',
+    }));
+  }
+
+  // ── dist — value distribution ─────────────────────────────────────────────
+  const dist = (field.value_distribution as Array<{ label: string; pct: number }> | null | undefined)
+    ?.map((v) => ({ label: v.label, pct: v.pct }));
+
+  // ── enumeration — snake_case → camelCase + scope-handler extra_stats ──────
+  // Previously a direct cast so valid_ref/invalid_src/etc. were silently
+  // undefined on the frontend (EntityField expects camelCase keys).
+  const ed = field.enumeration_detail as Record<string, unknown> | null | undefined;
+  let enumeration: EntityField['enumeration'];
+  if (ed) {
+    enumeration = {
+      candidate: ed.candidate as string | undefined,
+      validRef: ed.valid_ref as number | undefined,
+      invalidSrc: ed.invalid_src as number | undefined,
+      affectedRows: ed.affected_rows as number | undefined,
+      refIntegrity: ed.ref_integrity as string | undefined,
+      // extra_stats from scope handlers are merged into stats at the top level
+      categoryAvailable: stats.category_available_count as number | undefined,
+      highConf: stats.high_confidence_inference as number | undefined,
+      ambiguous: stats.ambiguous_rows as number | undefined,
+      insufficient: stats.insufficient_evidence_rows as number | undefined,
+    };
+  }
 
   return {
     id: field.field_name,
     name: field.field_name,
-    datatype: toDatatype(field.user_override_type ?? field.detected_type),
+    datatype: dtype,
     nullCount: field.null_count ?? undefined,
     distinct: field.distinct_count ?? undefined,
     uniqueness,
@@ -637,14 +736,20 @@ function toEntityField(field: FieldProfileRead): EntityField {
     impact: toImpact(field.severity),
     impactReason: field.evidence ?? undefined,
     sample: toSample(field.sample_values),
+    categories: categories.length > 0 ? categories : undefined,
     patterns: field.pattern_summary as unknown as EntityField['patterns'],
-    enumeration: toEnumeration(field.enumeration_detail),
-    invalidTable: toInvalidTable(field.anomaly_examples),
-    duplicates: {
-      rows: field.duplicate_row_count ?? undefined,
-      groups: field.duplicate_group_count ?? undefined,
-    },
     patternAnomalies: field.pattern_anomalies ?? undefined,
+    duplicates:
+      (field.duplicate_row_count ?? 0) > 0 || (field.duplicate_group_count ?? 0) > 0
+        ? { rows: field.duplicate_row_count ?? undefined, groups: field.duplicate_group_count ?? undefined }
+        : undefined,
+    range,
+    text,
+    dateProfile,
+    nearEmpty,
+    enumeration,
+    dist,
+    invalidTable,
   };
 }
 

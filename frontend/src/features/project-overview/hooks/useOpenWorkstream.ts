@@ -26,6 +26,7 @@ const MASTER_DATA_ENTITY_BY_NAME: Readonly<Record<string, EntityId>> = {
 
 export function useOpenWorkstream(
   projectId: string,
+  sourceConnectionMethod?: string | undefined,
 ): (workstream: Workstream) => void {
   const navigation =
     useNavigation<NativeStackNavigationProp<ProjectsStackParamList>>();
@@ -36,12 +37,21 @@ export function useOpenWorkstream(
 
       const entityId = MASTER_DATA_ENTITY_BY_NAME[workstream.name];
       if (entityId !== undefined && workstream.orgProjectId != null) {
-        navigation.navigate('MasterDataWizard', {
-          orgProjectId: workstream.orgProjectId,
-          entityId,
-          parentProjectId: projectId,
-          workstream_id: workstream.id,
-        });
+        if (sourceConnectionMethod === 'mcp_server') {
+          navigation.navigate('McpFetch', {
+            orgProjectId: workstream.orgProjectId,
+            entityId,
+            parentProjectId: projectId,
+            workstreamId: workstream.id,
+          });
+        } else {
+          navigation.navigate('MasterDataWizard', {
+            orgProjectId: workstream.orgProjectId,
+            entityId,
+            parentProjectId: projectId,
+            workstream_id: workstream.id,
+          });
+        }
         return;
       }
 
@@ -53,6 +63,6 @@ export function useOpenWorkstream(
         kind: workstream.projectId,
       });
     },
-    [navigation, projectId],
+    [navigation, projectId, sourceConnectionMethod],
   );
 }
