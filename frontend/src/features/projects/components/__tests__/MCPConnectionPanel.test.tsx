@@ -84,17 +84,20 @@ describe('MCPConnectionPanel — auth-type conditional fields', () => {
     renderPanel();
     fireEvent.press(screen.getByTestId('mcp-auth-apikey'));
 
+    expect(screen.getByTestId('mcp-field-login')).toBeTruthy();
     expect(screen.getByTestId('mcp-field-apikey')).toBeTruthy();
-    expect(screen.getByTestId('mcp-field-apikeyname')).toBeTruthy();
+    expect(screen.getByTestId('mcp-field-dbname')).toBeTruthy();
     expect(screen.queryByTestId('mcp-field-token')).toBeNull();
   });
 
-  it('switches to Basic auth fields', () => {
+  it('switches to TBA fields', () => {
     renderPanel();
-    fireEvent.press(screen.getByTestId('mcp-auth-basic'));
+    fireEvent.press(screen.getByTestId('mcp-auth-tba'));
 
-    expect(screen.getByTestId('mcp-field-username')).toBeTruthy();
-    expect(screen.getByTestId('mcp-field-password')).toBeTruthy();
+    expect(screen.getByTestId('mcp-field-consumerkey')).toBeTruthy();
+    expect(screen.getByTestId('mcp-field-consumersecret')).toBeTruthy();
+    expect(screen.getByTestId('mcp-field-tokenid')).toBeTruthy();
+    expect(screen.getByTestId('mcp-field-tokensecret')).toBeTruthy();
     expect(screen.queryByTestId('mcp-field-token')).toBeNull();
   });
 
@@ -104,7 +107,6 @@ describe('MCPConnectionPanel — auth-type conditional fields', () => {
 
     expect(screen.getByTestId('mcp-field-clientid')).toBeTruthy();
     expect(screen.getByTestId('mcp-field-clientsecret')).toBeTruthy();
-    expect(screen.getByTestId('mcp-field-tokenurl')).toBeTruthy();
     expect(screen.queryByTestId('mcp-field-token')).toBeNull();
   });
 
@@ -205,19 +207,15 @@ describe('MCPConnectionPanel — dynamic headers', () => {
 // ─── Advanced settings ────────────────────────────────────────────────────────
 
 describe('MCPConnectionPanel — advanced settings', () => {
-  it('toggles skip-ssl / proxy and updates the timeout via onChange', () => {
+  it('emits updated authType via onChange when auth type changes', () => {
     const onChange = jest.fn();
     renderPanel(onChange);
 
-    // Additional Settings is always visible (no collapsible).
-    fireEvent.press(screen.getByTestId('mcp-skip-ssl'));
-    expect(lastChangeArg(onChange).skipSSL).toBe(true);
+    fireEvent.press(screen.getByTestId('mcp-auth-tba'));
+    expect(lastChangeArg(onChange).authType).toBe('tba');
 
-    fireEvent.press(screen.getByTestId('mcp-proxy'));
-    expect(lastChangeArg(onChange).proxy).toBe(true);
-
-    fireEvent.changeText(textInputForField('mcp-timeout'), '90');
-    expect(lastChangeArg(onChange).timeout).toBe(90);
+    fireEvent.press(screen.getByTestId('mcp-auth-bearer'));
+    expect(lastChangeArg(onChange).authType).toBe('bearer');
   });
 });
 

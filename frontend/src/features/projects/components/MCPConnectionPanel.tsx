@@ -12,7 +12,6 @@ import type { AuthFieldErrors } from './McpAuthFields.config';
 import { McpScopeSelector } from './McpScopeSelector';
 import { McpAuthFields } from './McpAuthFields';
 import { McpHeadersEditor } from './McpHeadersEditor';
-import { McpAdvancedSettings } from './McpAdvancedSettings';
 import { McpPanelTitle } from './McpPanelTitle';
 import { TestConnectionFlow } from './TestConnectionFlow';
 import type { McpFormHeader } from '../services/mcp.service';
@@ -109,7 +108,11 @@ export const MCPConnectionPanel = ({
       >
         <Input
           label="MCP Server URL"
-          placeholder="https://mcp.example.com"
+          placeholder={
+            form.authType === 'oauth2' || form.authType === 'tba'
+              ? 'https://<accountId>.app.netsuite.com'
+              : 'https://mcp.example.com'
+          }
           value={form.url}
           onChangeText={handleUrlChange}
           onBlur={handleUrlBlur}
@@ -118,6 +121,12 @@ export const MCPConnectionPanel = ({
           keyboardType="url"
           testID="mcp-url-input"
         />
+        {(form.authType === 'oauth2' || form.authType === 'tba') && (
+          <Text className="font-body text-xs text-muted-foreground">
+            Enter your account-specific NetSuite URL — e.g.{' '}
+            {'https://<accountId>.app.netsuite.com. Do not use system.netsuite.com.'}
+          </Text>
+        )}
         <McpAuthFields
           form={form}
           onPatch={applyPatch}
@@ -169,14 +178,6 @@ export const MCPConnectionPanel = ({
         )}
 
         {renderFields()}
-
-        <McpAdvancedSettings
-          skipSSL={form.skipSSL}
-          proxy={form.proxy}
-          timeout={form.timeout}
-          onPatch={applyPatch}
-          testID="mcp-advanced"
-        />
 
         <TestConnectionFlow connection={form} testID={`${testID}-test-connection`} />
       </View>

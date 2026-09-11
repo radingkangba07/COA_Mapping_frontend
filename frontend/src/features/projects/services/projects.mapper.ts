@@ -40,13 +40,7 @@ export const projectListResponseSchema = z.object({
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
 
-// Connection-method catalog ids are returned by project GETs and consumed by
-// the project overview summary panel; they are not (yet) part of the Project
-// domain type, so they ride along as an intersection.
-export function toProject(dto: ProjectResponseDTO): Project & {
-  readonly sourceConnectionMethodId?: string | undefined;
-  readonly targetConnectionMethodId?: string | undefined;
-} {
+export function toProject(dto: ProjectResponseDTO): Project {
   return {
     projectId: createProjectId(dto.id),
     name: dto.name,

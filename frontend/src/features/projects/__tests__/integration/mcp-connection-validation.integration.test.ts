@@ -39,7 +39,7 @@ describe('validateConnection — conditional auth fields', () => {
     const authTypes: readonly McpConnectionForm['authType'][] = [
       'bearer',
       'apiKey',
-      'basic',
+      'tba',
       'oauth2',
     ];
 
@@ -84,118 +84,92 @@ describe('validateConnection — conditional auth fields', () => {
   });
 
   describe("authType='apiKey'", () => {
-    it('flags both apiKey and apiKeyName when missing', () => {
+    it('flags apiKey when missing', () => {
       const errors = validateConnection(
         makeForm({
           authType: 'apiKey',
           url: VALID_URL,
           apiKey: '',
-          apiKeyName: '',
         }),
       );
       expect(errors.apiKey).toBeDefined();
-      expect(errors.apiKeyName).toBeDefined();
       expect(hasConnectionErrors(errors)).toBe(true);
     });
 
-    it('clears the errors once both are supplied', () => {
+    it('clears the error once apiKey is supplied', () => {
       const errors = validateConnection(
         makeForm({
           authType: 'apiKey',
           url: VALID_URL,
           apiKey: 'abc123',
-          apiKeyName: 'X-Api-Key',
         }),
       );
       expect(errors.apiKey).toBeUndefined();
-      expect(errors.apiKeyName).toBeUndefined();
       expect(hasConnectionErrors(errors)).toBe(false);
-    });
-
-    it('flags only the missing one when the other is present', () => {
-      const errors = validateConnection(
-        makeForm({
-          authType: 'apiKey',
-          url: VALID_URL,
-          apiKey: 'abc123',
-          apiKeyName: '',
-        }),
-      );
-      expect(errors.apiKey).toBeUndefined();
-      expect(errors.apiKeyName).toBeDefined();
     });
   });
 
-  describe("authType='basic'", () => {
-    it('flags both username and password when missing', () => {
+  describe("authType='tba'", () => {
+    it('flags all four tba fields when missing', () => {
       const errors = validateConnection(
         makeForm({
-          authType: 'basic',
+          authType: 'tba',
           url: VALID_URL,
-          username: '',
-          password: '',
+          consumerKey: '',
+          consumerSecret: '',
+          tokenId: '',
+          tokenSecret: '',
         }),
       );
-      expect(errors.username).toBeDefined();
-      expect(errors.password).toBeDefined();
+      expect(errors.consumerKey).toBeDefined();
+      expect(errors.consumerSecret).toBeDefined();
+      expect(errors.tokenId).toBeDefined();
+      expect(errors.tokenSecret).toBeDefined();
       expect(hasConnectionErrors(errors)).toBe(true);
     });
 
-    it('clears the errors once both are supplied', () => {
+    it('clears the errors once all tba fields are supplied', () => {
       const errors = validateConnection(
         makeForm({
-          authType: 'basic',
+          authType: 'tba',
           url: VALID_URL,
-          username: 'admin',
-          password: 'hunter2',
+          consumerKey: 'ck',
+          consumerSecret: 'cs',
+          tokenId: 'ti',
+          tokenSecret: 'ts',
         }),
       );
-      expect(errors.username).toBeUndefined();
-      expect(errors.password).toBeUndefined();
+      expect(errors.consumerKey).toBeUndefined();
+      expect(errors.consumerSecret).toBeUndefined();
+      expect(errors.tokenId).toBeUndefined();
+      expect(errors.tokenSecret).toBeUndefined();
       expect(hasConnectionErrors(errors)).toBe(false);
     });
   });
 
   describe("authType='oauth2'", () => {
-    it('flags clientId, clientSecret and tokenUrl when missing/invalid', () => {
+    it('flags missing clientId and access token', () => {
       const errors = validateConnection(
         makeForm({
           authType: 'oauth2',
           url: VALID_URL,
           clientId: '',
-          clientSecret: '',
-          tokenUrl: '',
+          token: '',
         }),
       );
       expect(errors.clientId).toBeDefined();
-      expect(errors.clientSecret).toBeDefined();
-      expect(errors.tokenUrl).toBeDefined();
+      expect(errors.token).toBeDefined();
       expect(hasConnectionErrors(errors)).toBe(true);
     });
 
-    it('requires a VALID tokenUrl (not just non-empty)', () => {
+    it('clears all errors once clientId and access token are supplied', () => {
       const errors = validateConnection(
         makeForm({
           authType: 'oauth2',
           url: VALID_URL,
           clientId: 'client-1',
-          clientSecret: 'shh',
-          tokenUrl: 'notaurl',
-        }),
-      );
-      expect(errors.tokenUrl).toBeDefined();
-      expect(errors.clientId).toBeUndefined();
-      expect(errors.clientSecret).toBeUndefined();
-    });
-
-    it('clears all errors once credentials and a valid tokenUrl are supplied', () => {
-      const errors = validateConnection(
-        makeForm({
-          authType: 'oauth2',
-          url: VALID_URL,
-          clientId: 'client-1',
-          clientSecret: 'shh',
-          tokenUrl: VALID_TOKEN_URL,
+          clientSecret: 'client-secret',
+          token: 'access-token',
         }),
       );
       expect(hasConnectionErrors(errors)).toBe(false);
@@ -263,34 +237,32 @@ describe('buildTestConnectionPayload — credentials per authType', () => {
   it("basic -> { username, password }", () => {
     const payload = buildTestConnectionPayload(
       makeForm({
-        authType: 'basic',
+        authType: 'tba',
         url: VALID_URL,
-        username: 'admin',
-        password: 'hunter2',
+        consumerKey: 'ck',
+        tokenId: 'ti',
       }),
     );
-    expect(payload.auth_type).toBe('basic');
+    expect(payload.auth_type).toBe('tba');
     expect(payload.credentials).toEqual({
-      username: 'admin',
-      password: 'hunter2',
+      consumer_key: 'ck',
+      token_id: 'ti',
     });
   });
 
-  it("oauth2 -> { client_id, client_secret, token_url }", () => {
+  it("oauth2 -> { client_id, access_token }", () => {
     const payload = buildTestConnectionPayload(
       makeForm({
         authType: 'oauth2',
         url: VALID_URL,
         clientId: 'client-1',
-        clientSecret: 'shh',
-        tokenUrl: VALID_TOKEN_URL,
+        token: 'access-token-xyz',
       }),
     );
     expect(payload.auth_type).toBe('oauth2');
     expect(payload.credentials).toEqual({
       client_id: 'client-1',
-      client_secret: 'shh',
-      token_url: VALID_TOKEN_URL,
+      access_token: 'access-token-xyz',
     });
   });
 });

@@ -15,7 +15,7 @@ import type {
   MigrationScopePayload,
 } from '../types/project-scope.types';
 
-export type McpFormAuthType = 'bearer' | 'apiKey' | 'basic' | 'oauth2';
+export type McpFormAuthType = 'bearer' | 'apiKey' | 'tba' | 'oauth2';
 
 export type McpConfigureScope = 'source' | 'target' | 'both';
 
@@ -29,18 +29,21 @@ export interface McpConnectionForm {
   readonly scope: McpConfigureScope;
   readonly url: string;
   readonly authType: McpFormAuthType;
-  // bearer
+  // bearer / oauth2 access token
   readonly token: string;
   // apiKey
+  readonly login: string;
   readonly apiKey: string;
   readonly apiKeyName: string;
-  // basic
-  readonly username: string;
-  readonly password: string;
+  readonly dbName: string;
   // oauth2
   readonly clientId: string;
-  readonly clientSecret: string;
-  readonly tokenUrl: string;
+  readonly clientSecret: string; // used to start the OAuth flow, never stored
+  // tba (NetSuite Token-Based Auth)
+  readonly consumerKey: string;
+  readonly consumerSecret: string;
+  readonly tokenId: string;
+  readonly tokenSecret: string;
   // shared
   readonly headers: readonly McpFormHeader[];
   readonly skipSSL: boolean;
@@ -69,13 +72,16 @@ export function isValidMcpUrl(value: string): boolean {
 export interface McpConnectionErrors {
   url?: string;
   token?: string;
+  login?: string;
   apiKey?: string;
-  apiKeyName?: string;
-  username?: string;
-  password?: string;
+  dbName?: string;
   clientId?: string;
   clientSecret?: string;
   tokenUrl?: string;
+  consumerKey?: string;
+  consumerSecret?: string;
+  tokenId?: string;
+  tokenSecret?: string;
 }
 
 // Field-level validation for the MCP connection form (DA-67). All validation
@@ -96,18 +102,17 @@ export function validateConnection(
       break;
     case 'apiKey':
       if (isEmpty(conn.apiKey)) errors.apiKey = 'API key is required';
-      if (isEmpty(conn.apiKeyName)) errors.apiKeyName = 'Key name is required';
       break;
-    case 'basic':
-      if (isEmpty(conn.username)) errors.username = 'Username is required';
-      if (isEmpty(conn.password)) errors.password = 'Password is required';
+    case 'tba':
+      if (isEmpty(conn.consumerKey)) errors.consumerKey = 'Consumer Key is required';
+      if (isEmpty(conn.consumerSecret)) errors.consumerSecret = 'Consumer Secret is required';
+      if (isEmpty(conn.tokenId)) errors.tokenId = 'Token ID is required';
+      if (isEmpty(conn.tokenSecret)) errors.tokenSecret = 'Token Secret is required';
       break;
     case 'oauth2':
       if (isEmpty(conn.clientId)) errors.clientId = 'Client ID is required';
-      if (isEmpty(conn.clientSecret))
-        errors.clientSecret = 'Client secret is required';
-      if (!isValidMcpUrl(conn.tokenUrl))
-        errors.tokenUrl = 'Enter a valid token URL';
+      if (isEmpty(conn.clientSecret)) errors.clientSecret = 'Client Secret is required';
+      if (isEmpty(conn.token)) errors.token = 'Complete OAuth authorisation first';
       break;
   }
 
@@ -121,12 +126,8 @@ export function hasConnectionErrors(errors: McpConnectionErrors): boolean {
 export type McpAuthCredentials =
   | { readonly token: string }
   | { readonly api_key: string; readonly key_name: string }
-  | { readonly username: string; readonly password: string }
-  | {
-      readonly client_id: string;
-      readonly client_secret: string;
-      readonly token_url: string;
-    };
+  | { readonly consumer_key: string; readonly token_id: string }
+  | { readonly client_id: string; readonly access_token: string };
 
 export interface McpTestConnectionHeader {
   readonly key: string;
@@ -150,14 +151,10 @@ function buildCredentials(conn: McpConnectionForm): McpAuthCredentials {
       return { token: conn.token };
     case 'apiKey':
       return { api_key: conn.apiKey, key_name: conn.apiKeyName };
-    case 'basic':
-      return { username: conn.username, password: conn.password };
+    case 'tba':
+      return { consumer_key: conn.consumerKey, token_id: conn.tokenId };
     case 'oauth2':
-      return {
-        client_id: conn.clientId,
-        client_secret: conn.clientSecret,
-        token_url: conn.tokenUrl,
-      };
+      return { client_id: conn.clientId, access_token: conn.token };
   }
 }
 
@@ -186,13 +183,16 @@ export function createInitialMcpForm(): McpConnectionForm {
     url: '',
     authType: 'bearer',
     token: '',
+    login: '',
     apiKey: '',
     apiKeyName: '',
-    username: '',
-    password: '',
+    dbName: '',
     clientId: '',
     clientSecret: '',
-    tokenUrl: '',
+    consumerKey: '',
+    consumerSecret: '',
+    tokenId: '',
+    tokenSecret: '',
     headers: [],
     skipSSL: false,
     proxy: false,

@@ -77,6 +77,11 @@ export const initialState: ProjectScopeState = {
   fetchStatus: 'idle',
   isSavingDraft: false,
   error: null,
+  sourceConnectionId: null,
+  targetConnectionId: null,
+  sourceCredentials: null,
+  targetCredentials: null,
+  mcpFetchData: {},
 };
 
 // ─── Serialization ──────────────────────────────────────────────────────────
@@ -348,7 +353,43 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
     },
 
     reset: (): void => {
-      set(() => ({ ...initialState, draft: createInitialDraft() }));
+      // Preserve connection context and fetched ERP data across wizard resets.
+      // Credentials and mcpFetchData are ephemeral session state — re-fetching
+      // after a token expires would silently fail, so keep whatever was cached.
+      set((state) => ({
+        ...initialState,
+        draft: createInitialDraft(),
+        sourceConnectionId: state.sourceConnectionId,
+        targetConnectionId: state.targetConnectionId,
+        sourceCredentials: state.sourceCredentials,
+        targetCredentials: state.targetCredentials,
+        mcpFetchData: state.mcpFetchData,
+      }));
+    },
+
+    setConnectionContext: (
+      role: 'source' | 'target',
+      connectionId: string,
+      credentials: Record<string, string>,
+    ): void => {
+      set((state) => {
+        if (role === 'source') {
+          state.sourceConnectionId = connectionId;
+          state.sourceCredentials = credentials;
+        } else {
+          state.targetConnectionId = connectionId;
+          state.targetCredentials = credentials;
+        }
+      });
+    },
+
+    setMcpFetchData: (
+      scope: string,
+      data: { records: Record<string, unknown>[]; fields: string[]; total: number; storagePath?: string },
+    ): void => {
+      set((state) => {
+        state.mcpFetchData[scope] = data;
+      });
     },
   })),
 );
