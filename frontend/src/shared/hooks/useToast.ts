@@ -13,6 +13,7 @@ export function useToast(): ToastMethods {
       type: 'success',
       text1: title,
       text2: message,
+      visibilityTime: 1500,
     });
   }, []);
 
