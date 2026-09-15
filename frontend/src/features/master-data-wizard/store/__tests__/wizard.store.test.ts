@@ -179,6 +179,48 @@ describe('wizard.store', () => {
     });
   });
 
+  describe('completeStep', () => {
+    it('adds the step under buildEntityKey(parentProjectId, entityId), purely locally', () => {
+      useWizardStore.getState().setWizardContext({
+        entityId: 'items', orgProjectId: 'org-1', parentProjectId: 'proj-1', workstreamId: 'ws-1',
+      });
+
+      useWizardStore.getState().completeStep('items', 'upload');
+
+      expect(useWizardStore.getState().completedStepIdsByEntity).toEqual({ 'proj-1:items': ['upload'] });
+      expect(mockStorageSet).not.toHaveBeenCalled();
+    });
+
+    it('never adds the same step twice', () => {
+      useWizardStore.getState().setWizardContext({
+        entityId: 'items', orgProjectId: 'org-1', parentProjectId: 'proj-1', workstreamId: 'ws-1',
+      });
+
+      useWizardStore.getState().completeStep('items', 'upload');
+      useWizardStore.getState().completeStep('items', 'upload');
+      useWizardStore.getState().completeStep('items', 'profile');
+
+      expect(useWizardStore.getState().completedStepIdsByEntity).toEqual({ 'proj-1:items': ['upload', 'profile'] });
+    });
+
+    it('keeps two different projects running the same entity from colliding', () => {
+      useWizardStore.getState().setWizardContext({
+        entityId: 'items', orgProjectId: 'org-1', parentProjectId: 'proj-1', workstreamId: 'ws-1',
+      });
+      useWizardStore.getState().completeStep('items', 'upload');
+
+      useWizardStore.getState().setWizardContext({
+        entityId: 'items', orgProjectId: 'org-2', parentProjectId: 'proj-2', workstreamId: 'ws-2',
+      });
+      useWizardStore.getState().completeStep('items', 'profile');
+
+      expect(useWizardStore.getState().completedStepIdsByEntity).toEqual({
+        'proj-1:items': ['upload'],
+        'proj-2:items': ['profile'],
+      });
+    });
+  });
+
   describe('uploadedFileByEntity / sourceCsvByEntity / pipelineRunIdByEntity', () => {
     beforeEach(() => {
       useWizardStore.getState().setWizardContext({

@@ -19,10 +19,16 @@ import type { StepId } from '../types/wizard.types';
 export type MasterDataWizardStackParamList = {
   Upload: undefined;
   Profile: undefined;
+  ValueMapping: undefined;
 };
 
-// One entry per step that actually has a route — steps 3-8 add a line here
-// (and a <Stack.Screen> in MasterDataWizardStack.tsx) as they're built.
+// One entry per step that actually has a registered <Stack.Screen> in
+// MasterDataWizardStack.tsx — steps 3-8 (including 'values'/ValueMapping,
+// removed for now) add a line back here once they're built/rebuilt. A
+// persisted resume step with no entry here (a stale 'values' from before its
+// screen was removed, or any not-yet-built step) safely falls through to the
+// 'Upload' default below rather than resuming to a route the stack doesn't
+// register — an unregistered initialRouteName would fail to navigate.
 const STEP_ROUTE: Partial<Record<StepId, keyof MasterDataWizardStackParamList>> = {
   upload: 'Upload',
   profile: 'Profile',

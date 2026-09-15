@@ -17,6 +17,7 @@ export const STORAGE_KEYS = {
   WIZARD_UPLOADED_FILE_BY_ENTITY: 'coa_wizard_uploaded_file_by_entity',
   WIZARD_SOURCE_CSV_BY_ENTITY: 'coa_wizard_source_csv_by_entity',
   WIZARD_PIPELINE_RUN_ID_BY_ENTITY: 'coa_wizard_pipeline_run_id_by_entity',
+  WIZARD_LOAD_PREVIEW_BY_ENTITY: 'coa_wizard_load_preview_by_entity',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

@@ -120,6 +120,29 @@ interface WizardState {
    * since a stale run belongs to the old file.
    */
   pipelineRunIdByEntity: Partial<Record<string, string>>;
+  /**
+   * The sample CSV loaded via Step 1's "Load sample" button, keyed by
+   * buildEntityKey(parentProjectId, entityId) — kept entirely separate from
+   * uploadedFileByEntity/sourceCsvByEntity so the sample preview and the
+   * actual uploaded-file preview can never overwrite one another. Loading
+   * the sample must never touch uploadedFileByEntity/sourceCsvByEntity
+   * (it is not an upload — the backend never sees it), and confirming a
+   * real upload must never touch this map either. Persisted to
+   * storageService (see hydrateUploadedFileByEntity) so, like the other two,
+   * it survives a browser refresh or the app being closed and reopened.
+   */
+  loadPreviewByEntity: Partial<Record<string, { fileName: string; rows: string[][] }>>;
+  /**
+   * StepRail completion for Upload/Profile, keyed by buildEntityKey(parentProjectId,
+   * entityId) — deliberately local-only, mirroring migration.store.ts's
+   * completedSteps: completeStep() below never calls the workstream-progress
+   * API (contrast entity-pack.service.ts's completeWorkstreamStage, which is
+   * no longer wired to these two screens). A step ticks the instant its
+   * screen's Continue is pressed, but — same trade-off migration.store.ts
+   * accepts — that tick does not survive a refresh, a new tab, or another
+   * device, since nothing server-side backs it any more.
+   */
+  completedStepIdsByEntity: Partial<Record<string, StepId[]>>;
   /** Set by raiseApproval; the approval component reads this to render itself. */
   pendingApproval: ApprovalContext | null;
 }
@@ -167,14 +190,29 @@ interface WizardActions {
   clearPipelineRunId: (entityId: EntityId) => void;
 
   /**
+   * Record the sample CSV loaded via "Load sample" for this entity. Never
+   * touches uploadedFileByEntity/sourceCsvByEntity — see loadPreviewByEntity's
+   * doc comment.
+   */
+  setLoadPreview: (entityId: EntityId, fileName: string, rows: string[][]) => void;
+  /** Clear this entity's loaded sample preview, independent of clearUploadedFile/clearSourceCsv. */
+  clearLoadPreview: (entityId: EntityId) => void;
+
+  /**
    * Loads the persisted uploadedFileByEntity/sourceCsvByEntity/
-   * pipelineRunIdByEntity maps — call once, alongside hydrateStepByEntity,
-   * before reading them. Without this a browser refresh (or the app being
-   * closed and reopened) would show Step 1 as empty even though the backend
-   * already has the file, because those three maps otherwise only live in
-   * memory.
+   * pipelineRunIdByEntity/loadPreviewByEntity maps — call once, alongside
+   * hydrateStepByEntity, before reading them. Without this a browser refresh
+   * (or the app being closed and reopened) would show Step 1 as empty even
+   * though the backend already has the file, because those maps otherwise
+   * only live in memory.
    */
   hydrateUploadedFileByEntity: () => Promise<void>;
+
+  /**
+   * Marks `stepId` complete for this entity, purely in local state — no
+   * network call. See completedStepIdsByEntity's doc comment above.
+   */
+  completeStep: (entityId: EntityId, stepId: StepId) => void;
 
   /** Save raises this; it does not write. Confirming it is what produces a FieldDecision. */
   raiseApproval: (context: ApprovalContext) => void;
@@ -206,6 +244,8 @@ const initialState: WizardState = {
   uploadedFileByEntity: {},
   sourceCsvByEntity: {},
   pipelineRunIdByEntity: {},
+  loadPreviewByEntity: {},
+  completedStepIdsByEntity: {},
   pendingApproval: null,
 };
 
@@ -321,6 +361,24 @@ export const useWizardStore = create<WizardStore>()(
         .catch(() => {});
     },
 
+    setLoadPreview: (entityId: EntityId, fileName: string, rows: string[][]): void => {
+      set((state) => {
+        state.loadPreviewByEntity[buildEntityKey(state.parentProjectId ?? '', entityId)] = { fileName, rows };
+      });
+      storageService
+        .set(STORAGE_KEYS.WIZARD_LOAD_PREVIEW_BY_ENTITY, JSON.stringify(get().loadPreviewByEntity))
+        .catch(() => {});
+    },
+
+    clearLoadPreview: (entityId: EntityId): void => {
+      set((state) => {
+        delete state.loadPreviewByEntity[buildEntityKey(state.parentProjectId ?? '', entityId)];
+      });
+      storageService
+        .set(STORAGE_KEYS.WIZARD_LOAD_PREVIEW_BY_ENTITY, JSON.stringify(get().loadPreviewByEntity))
+        .catch(() => {});
+    },
+
     hydrateUploadedFileByEntity: async (): Promise<void> => {
       try {
         const raw = await storageService.get(STORAGE_KEYS.WIZARD_UPLOADED_FILE_BY_ENTITY);
@@ -355,6 +413,27 @@ export const useWizardStore = create<WizardStore>()(
       } catch {
         // Corrupt or missing storage — keep pipelineRunIdByEntity at its initial {}.
       }
+      try {
+        const raw = await storageService.get(STORAGE_KEYS.WIZARD_LOAD_PREVIEW_BY_ENTITY);
+        if (raw !== null) {
+          const parsed = JSON.parse(raw) as Partial<Record<string, { fileName: string; rows: string[][] }>>;
+          set((state) => {
+            state.loadPreviewByEntity = parsed;
+          });
+        }
+      } catch {
+        // Corrupt or missing storage — keep loadPreviewByEntity at its initial {}.
+      }
+    },
+
+    completeStep: (entityId: EntityId, stepId: StepId): void => {
+      set((state) => {
+        const key = buildEntityKey(state.parentProjectId ?? '', entityId);
+        const existing = state.completedStepIdsByEntity[key] ?? [];
+        if (!existing.includes(stepId)) {
+          state.completedStepIdsByEntity[key] = [...existing, stepId];
+        }
+      });
     },
 
     raiseApproval: (context: ApprovalContext): void => {

@@ -10,6 +10,7 @@ import type { EntityField, EntityId, EntityMetric, EntityPack, EntityReadiness }
 import type { UploadResult } from '../types/upload.types';
 import itemsFixture from '../dp-kit/fixtures/items.entity.json';
 import customersFixture from '../dp-kit/fixtures/customers.entity.json';
+import { formatObjectInline, formatPreviewValue } from '../utils/previewFormat';
 
 // ─── Zod Schema ──────────────────────────────────────────────────────────────
 // Mirrors dp-kit/types/entity.d.ts. Unlike Step 1 (Upload), this step reads
@@ -406,6 +407,27 @@ function toPipelineRun(dto: Record<string, unknown>): PipelineRun {
   };
 }
 
+// Callers pass EntityId as-is (dp-kit/types/entity.d.ts: camelCase — 'fixedAssets'),
+// but the backend's PipelineRunCreate/scope path param validates against
+// snake_case scope names (schemas.py _VALID_SCOPES: 'fixed_assets'). Every other
+// EntityId happens to already match its backend scope 1:1 — 'fixedAssets' is the
+// one exception — so every wire boundary that sends/reads a scope value funnels
+// through this instead of each screen having to know about the mismatch.
+const ENTITY_ID_TO_BACKEND_SCOPE: Record<string, string> = { fixedAssets: 'fixed_assets' };
+function toBackendScope(scope: string): string {
+  return ENTITY_ID_TO_BACKEND_SCOPE[scope] ?? scope;
+}
+// Inverse of the above — every EntityPackApiResponse/PipelineRunRead the
+// backend returns carries its own scope back in this snake_case form, so
+// anything that treats it as this app's EntityId (mapEntityPackResponse's
+// `id`, in particular — typed as EntityId, not just a display string) has to
+// convert it back or silently hold a value ('fixed_assets') that doesn't
+// match the type it claims to be.
+const BACKEND_SCOPE_TO_ENTITY_ID: Record<string, string> = { fixed_assets: 'fixedAssets' };
+function toEntityId(backendScope: string): string {
+  return BACKEND_SCOPE_TO_ENTITY_ID[backendScope] ?? backendScope;
+}
+
 // ─── createPipelineRun · POST /api/v1/pipeline/runs ─────────────────────────
 
 export async function createPipelineRun(
@@ -414,10 +436,11 @@ export async function createPipelineRun(
   sourceFileRef: string,
 ): Promise<Result<PipelineRun, AppError>> {
   try {
-    console.log('[entity-pack.service] POST /api/v1/pipeline/runs', { workstreamId, scope, sourceFileRef });
+    const backendScope = toBackendScope(scope);
+    console.log('[entity-pack.service] POST /api/v1/pipeline/runs', { workstreamId, scope: backendScope, sourceFileRef });
     const response = await httpClient.post<Record<string, unknown>>('/api/v1/pipeline/runs', {
       workstream_id: workstreamId,
-      scope,
+      scope: backendScope,
       source_file_ref: sourceFileRef,
     });
     console.log('[entity-pack.service] POST /api/v1/pipeline/runs -> response', response.data);
@@ -510,10 +533,79 @@ function toImpact(severity: string | null | undefined): EntityField['impact'] {
 // not a bare array — casting the wrapper object straight to EntityField['sample']
 // (string[]) previously fed the FieldsTable "Sample" column an object instead
 // of the values it actually holds.
+// A sample value is nominally a scalar, but the backend's sample_values shape
+// (Record<string, unknown> | null, same opaque contract as anomaly_examples/
+// enumeration_detail above) does not guarantee that — an object or a
+// serialized-JSON string can land in `.values` for a problem field. Routing
+// each entry through formatPreviewValue (rather than a bare String(v)) means
+// FieldsTable's Sample column, which joins up to 3 of these with a middle
+// dot, can never render raw braces/quotes even if that happens.
 function toSample(sampleValues: Record<string, unknown> | null | undefined): EntityField['sample'] {
   const values = sampleValues?.values;
   if (!Array.isArray(values)) return undefined;
-  return values.map((v) => String(v));
+  return values.map((v) => (typeof v === 'string' ? formatPreviewValue(v) : formatObjectInline(v)));
+}
+
+// Backend sends enumeration_detail with snake_case keys (candidate,
+// valid_ref, invalid_src, affected_rows, ref_integrity, ...);
+// EntityField['enumeration'] (dp-kit/types/entity.d.ts — GENERATED, never
+// hand-edited) is camelCase. Casting the raw object straight across, as a
+// previous version of toEntityField() did, left validRef/invalidSrc/
+// affectedRows/refIntegrity reading as undefined at runtime —
+// DistributionTab's enumerationRows() then rendered the literal string
+// "undefined" for those rows instead of the real numbers/status.
+function toEnumeration(raw: Record<string, unknown> | null | undefined): EntityField['enumeration'] {
+  if (!raw) return undefined;
+  const num = (key: string): number | undefined => (typeof raw[key] === 'number' ? (raw[key] as number) : undefined);
+  const str = (key: string): string | undefined => (typeof raw[key] === 'string' ? (raw[key] as string) : undefined);
+  return {
+    candidate: str('candidate'),
+    validRef: num('valid_ref'),
+    invalidSrc: num('invalid_src'),
+    affectedRows: num('affected_rows'),
+    aliasRows: num('alias_rows'),
+    unresolved: num('unresolved'),
+    refIntegrity: str('ref_integrity'),
+    categoryAvailable: num('category_available'),
+    highConf: num('high_conf'),
+    ambiguous: num('ambiguous'),
+    insufficient: num('insufficient'),
+  };
+}
+
+function statusTone(status: string | undefined): 'dup' | 'warn' | 'info' | 'ok' | undefined {
+  switch (status) {
+    case 'recognized_alias':
+      return 'ok';
+    case 'review_required':
+      return 'warn';
+    default:
+      return undefined;
+  }
+}
+
+// anomaly_examples carries a reference-integrity breakdown as
+// `{ type: 'reference_integrity', details: [{ source, canonical, rows,
+// status }] }` — previously never read anywhere in toEntityField(), so it
+// was silently dropped for every live pipeline run. Mapped here onto the
+// existing invalidTable shape (dp-kit/types/entity.d.ts), which
+// InvalidValuesTable.tsx is already built to render as readable text (never
+// raw JSON) — "source → canonical", a row count, and a humanized status
+// badge — so this only had to supply real data, not a new renderer.
+function toInvalidTable(raw: Record<string, unknown> | null | undefined): EntityField['invalidTable'] {
+  if (!raw || raw.type !== 'reference_integrity' || !Array.isArray(raw.details)) return undefined;
+  return raw.details.map((entry): NonNullable<EntityField['invalidTable']>[number] => {
+    const d = (entry ?? {}) as Record<string, unknown>;
+    const status = typeof d.status === 'string' ? d.status : undefined;
+    const canonical = typeof d.canonical === 'string' ? d.canonical.trim() : '';
+    return {
+      src: typeof d.source === 'string' ? d.source : undefined,
+      canon: canonical.length > 0 ? formatPreviewValue(canonical) : undefined,
+      occ: typeof d.rows === 'number' ? d.rows : undefined,
+      status: status ? formatPreviewValue(status) : undefined,
+      tone: statusTone(status),
+    };
+  });
 }
 
 function toEntityField(field: FieldProfileRead): EntityField {
@@ -535,7 +627,7 @@ function toEntityField(field: FieldProfileRead): EntityField {
     nullCount: field.null_count ?? undefined,
     distinct: field.distinct_count ?? undefined,
     uniqueness,
-    cardinality: field.cardinality ?? undefined,
+    cardinality: field.cardinality ? formatPreviewValue(field.cardinality) : undefined,
     confidence,
     role: field.semantic_role ?? undefined,
     roleTip: field.role_description ?? undefined,
@@ -543,7 +635,8 @@ function toEntityField(field: FieldProfileRead): EntityField {
     impactReason: field.evidence ?? undefined,
     sample: toSample(field.sample_values),
     patterns: field.pattern_summary as unknown as EntityField['patterns'],
-    enumeration: field.enumeration_detail as unknown as EntityField['enumeration'],
+    enumeration: toEnumeration(field.enumeration_detail),
+    invalidTable: toInvalidTable(field.anomaly_examples),
     duplicates: {
       rows: field.duplicate_row_count ?? undefined,
       groups: field.duplicate_group_count ?? undefined,
@@ -629,13 +722,17 @@ function buildReadiness(fields: EntityField[], rowCount: number | undefined): En
 }
 
 export function mapEntityPackResponse(response: EntityPackApiResponse, run: PipelineRun): EntityPack {
-  const label = capitalise(response.scope);
+  const entityId = toEntityId(response.scope);
+  // 'fixedAssets' -> 'fixed Assets' -> capitalise -> 'Fixed Assets'; every
+  // other EntityId has no lowercase-then-uppercase boundary, so this is a
+  // no-op for them (capitalise('items') is unchanged from before).
+  const label = capitalise(entityId.replace(/([a-z])([A-Z])/g, '$1 $2'));
   const fields = response.fields.map(toEntityField);
   const rowCount = run.sourceRowCount ?? undefined;
   return {
-    id: response.scope as EntityPack['id'],
+    id: entityId as EntityPack['id'],
     label: { singular: label, plural: `${label}s` },
-    source: { object: response.scope, rowCount },
+    source: { object: entityId, rowCount },
     target: { record: '' },
     // dp-kit's generated EntityIdentity.confirmed is `string | undefined`
     // (no `null` in the type) — undefined is the same "not yet approved"
@@ -653,12 +750,13 @@ export async function getEntityPackFromApi(
   orgProjectId: string,
   scope: string,
 ): Promise<Result<EntityPack, AppError>> {
+  const backendScope = toBackendScope(scope);
   try {
-    console.log(`[entity-pack.service] GET /api/v1/projects/${orgProjectId}/entities/${scope}/profile`);
+    console.log(`[entity-pack.service] GET /api/v1/projects/${orgProjectId}/entities/${backendScope}/profile`);
     const response = await httpClient.get<EntityPackApiResponse>(
-      `/api/v1/projects/${orgProjectId}/entities/${scope}/profile`,
+      `/api/v1/projects/${orgProjectId}/entities/${backendScope}/profile`,
     );
-    console.log(`[entity-pack.service] GET /api/v1/projects/${orgProjectId}/entities/${scope}/profile -> response`, response.data);
+    console.log(`[entity-pack.service] GET /api/v1/projects/${orgProjectId}/entities/${backendScope}/profile -> response`, response.data);
     const runResult = await getPipelineRun(response.data.run_id);
     if (!runResult.ok) return err(runResult.error);
     return ok(mapEntityPackResponse(response.data, runResult.data));
@@ -680,12 +778,13 @@ export async function getActivePipelineRun(
   orgProjectId: string,
   scope: string,
 ): Promise<Result<PipelineRun, AppError>> {
+  const backendScope = toBackendScope(scope);
   try {
-    console.log(`[entity-pack.service] GET /api/v1/projects/${orgProjectId}/entities/${scope}/profile (active-run lookup)`);
+    console.log(`[entity-pack.service] GET /api/v1/projects/${orgProjectId}/entities/${backendScope}/profile (active-run lookup)`);
     const response = await httpClient.get<EntityPackApiResponse>(
-      `/api/v1/projects/${orgProjectId}/entities/${scope}/profile`,
+      `/api/v1/projects/${orgProjectId}/entities/${backendScope}/profile`,
     );
-    console.log(`[entity-pack.service] GET /api/v1/projects/${orgProjectId}/entities/${scope}/profile (active-run lookup) -> response`, response.data);
+    console.log(`[entity-pack.service] GET /api/v1/projects/${orgProjectId}/entities/${backendScope}/profile (active-run lookup) -> response`, response.data);
     return getPipelineRun(response.data.run_id);
   } catch (error: unknown) {
     console.log(`[entity-pack.service] GET /api/v1/projects/${orgProjectId}/entities/${scope}/profile (active-run lookup) -> error`, error);
@@ -696,4 +795,246 @@ export async function getActivePipelineRun(
 /** True when the given error is the "run already in progress" conflict createPipelineRun returns. */
 export function isPipelineRunConflict(error: AppError): boolean {
   return error.code === 'HTTP_409';
+}
+
+/* ============================================================================
+   Persisted org-project files
+   ----------------------------------------------------------------------------
+   Wraps the object-storage listing/removal endpoints so a project's uploaded
+   file is re-derived from the server on every screen mount rather than
+   trusted from local/zustand-persisted state (see MasterDataUploadScreen —
+   this is the single source of truth for "does this project already have an
+   uploaded source file").
+     - GET    /api/v1/storage/org-project/{orgProjectId}/files
+     - DELETE /api/v1/storage/files/{fileId}
+   ========================================================================= */
+
+const orgProjectFileSchema = z.object({
+  id: z.string(),
+  file_type: z.string(),
+  original_filename: z.string(),
+  storage_path: z.string(),
+  content_type: z.string(),
+  size_bytes: z.number(),
+  status: z.string(),
+  columns: z.array(z.string()).nullable().optional(),
+  row_count: z.number(),
+  created_at: z.string(),
+});
+
+const orgProjectFilesResponseSchema = z.object({
+  files: z.array(orgProjectFileSchema),
+  total: z.number(),
+});
+
+/** Mirrors backend FileResponse (see uploadSourceFile's response comment above), as returned by the files-listing endpoint. */
+export interface PersistedFile {
+  readonly id: string;
+  readonly fileType: string;
+  readonly originalFilename: string;
+  readonly storagePath: string;
+  readonly contentType: string;
+  readonly sizeBytes: number;
+  readonly status: string;
+  readonly columns: string[];
+  readonly rowCount: number;
+  readonly createdAt: string;
+}
+
+function toPersistedFile(dto: z.infer<typeof orgProjectFileSchema>): PersistedFile {
+  return {
+    id: dto.id,
+    fileType: dto.file_type,
+    originalFilename: dto.original_filename,
+    storagePath: dto.storage_path,
+    contentType: dto.content_type,
+    sizeBytes: dto.size_bytes,
+    status: dto.status,
+    columns: dto.columns ?? [],
+    rowCount: dto.row_count,
+    createdAt: dto.created_at,
+  };
+}
+
+// ─── listOrgProjectFiles · GET /api/v1/storage/org-project/{orgProjectId}/files
+
+/**
+ * `total` is carried through explicitly (not just derived as `files.length`)
+ * so callers can apply the backend's own literal existence contract —
+ * `files.length > 0 AND total > 0` — rather than assuming today's "total is
+ * always len(files)" backend behaviour holds forever (e.g. if this endpoint
+ * is ever paginated). See useOrgProjectFiles.ts's `hasFile`.
+ */
+export interface OrgProjectFilesResult {
+  readonly files: PersistedFile[];
+  readonly total: number;
+}
+
+// A project holds one workstream per master-data entity (customers, vendors,
+// items, ...) — without this filter, every entity's upload screen shares the
+// exact same file pool (org_project_id alone), so uploading a Customers file
+// then switching to Vendors would show "already uploaded" there too. Pass
+// the entity's own workstream_id (always available — see
+// MasterDataUploadScreen's workstream_id) to scope the list to that entity.
+export async function listOrgProjectFiles(
+  orgProjectId: string,
+  workstreamId?: string,
+): Promise<Result<OrgProjectFilesResult, AppError>> {
+  try {
+    console.log(`[entity-pack.service] GET /api/v1/storage/org-project/${orgProjectId}/files`, { workstreamId });
+    // This endpoint's whole job is "reflect the file the user just deleted or
+    // uploaded" — the URL is identical on every call, and the backend sends
+    // no Cache-Control of its own, so without this a browser is free to
+    // heuristically (RFC 7234 §4.2.2) serve a cached copy of this GET below
+    // the axios/React-Query layer, inconsistently per browser, even though
+    // the refetch that follows a delete/upload is genuinely being issued.
+    const response = await httpClient.get<unknown>(`/api/v1/storage/org-project/${orgProjectId}/files`, {
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      params: workstreamId ? { workstream_id: workstreamId } : undefined,
+    });
+    console.log(`[entity-pack.service] GET /api/v1/storage/org-project/${orgProjectId}/files -> response`, response.data);
+    const parsed = orgProjectFilesResponseSchema.safeParse(response.data);
+    if (!parsed.success) {
+      return err({
+        code: 'INVALID_RESPONSE',
+        message: 'Org project files response failed validation',
+        details: { issues: parsed.error.issues },
+      });
+    }
+    return ok({ files: parsed.data.files.map(toPersistedFile), total: parsed.data.total });
+  } catch (error: unknown) {
+    console.log(`[entity-pack.service] GET /api/v1/storage/org-project/${orgProjectId}/files -> error`, error);
+    return err(toAppError(error));
+  }
+}
+
+// ─── deleteFile · DELETE /api/v1/storage/files/{fileId} ─────────────────────
+
+export async function deleteFile(fileId: string): Promise<Result<void, AppError>> {
+  try {
+    console.log(`[entity-pack.service] DELETE /api/v1/storage/files/${fileId}`);
+    await httpClient.delete(`/api/v1/storage/files/${fileId}`);
+    return ok(undefined);
+  } catch (error: unknown) {
+    console.log(`[entity-pack.service] DELETE /api/v1/storage/files/${fileId} -> error`, error);
+    return err(toAppError(error));
+  }
+}
+
+// ─── downloadPersistedFile · GET /api/v1/storage/download/{fileId} ─────────
+// The files-list endpoint (listOrgProjectFiles above) only ever carries
+// column names and a row count — never actual cell values (see its own
+// response shape). This is the only way to get real preview rows for a file
+// that was uploaded in an earlier session (a refresh, a new tab, revisiting
+// from another route): download the persisted bytes and let the caller
+// parse them the same way a fresh client-side upload already does.
+
+export async function downloadPersistedFile(fileId: string): Promise<Result<string, AppError>> {
+  try {
+    console.log(`[entity-pack.service] GET /api/v1/storage/download/${fileId}`);
+    const response = await httpClient.get<string>(`/api/v1/storage/download/${fileId}`, {
+      responseType: 'text',
+    });
+    return ok(response.data);
+  } catch (error: unknown) {
+    console.log(`[entity-pack.service] GET /api/v1/storage/download/${fileId} -> error`, error);
+    return err(toAppError(error));
+  }
+}
+
+/* ============================================================================
+   Workstream stage progress
+   ----------------------------------------------------------------------------
+   Backs the wizard's StepRail with the workstream's own server-persisted
+   position (`current_stage`) and per-step completion flags
+   (`WorkstreamStage.is_completed`) — the same mechanism the migration flow's
+   workstream stage tracking already uses (src/modules/workstreams/ on the
+   backend). A stage's `name` is the wizard's own StepId string ('upload',
+   'profile', ...) one-for-one — no separate mapping table needed.
+   ========================================================================= */
+
+const workstreamStageSchema = z.object({
+  id: z.string(),
+  workstream_id: z.string(),
+  name: z.string(),
+  sequence: z.number(),
+  is_completed: z.boolean(),
+  completed_at: z.string().nullable(),
+  completed_by: z.string().nullable(),
+});
+
+const workstreamContextSchema = z
+  .object({
+    id: z.string(),
+    current_stage: z.string().nullable(),
+    stages: z.array(workstreamStageSchema),
+  })
+  .passthrough();
+
+export interface WorkstreamStageInfo {
+  readonly id: string;
+  readonly name: string;
+  readonly sequence: number;
+  readonly isCompleted: boolean;
+}
+
+export interface WorkstreamProgress {
+  readonly currentStage: string | null;
+  readonly stages: readonly WorkstreamStageInfo[];
+}
+
+function toWorkstreamProgress(dto: z.infer<typeof workstreamContextSchema>): WorkstreamProgress {
+  return {
+    currentStage: dto.current_stage,
+    stages: dto.stages.map((s) => ({
+      id: s.id,
+      name: s.name,
+      sequence: s.sequence,
+      isCompleted: s.is_completed,
+    })),
+  };
+}
+
+// ─── getWorkstreamProgress · GET /api/v1/workstreams/{workstreamId}/context
+
+export async function getWorkstreamProgress(workstreamId: string): Promise<Result<WorkstreamProgress, AppError>> {
+  try {
+    console.log(`[entity-pack.service] GET /api/v1/workstreams/${workstreamId}/context`);
+    const response = await httpClient.get<unknown>(`/api/v1/workstreams/${workstreamId}/context`, {
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+    });
+    const parsed = workstreamContextSchema.safeParse(response.data);
+    if (!parsed.success) {
+      return err({
+        code: 'INVALID_RESPONSE',
+        message: 'Workstream context response failed validation',
+        details: { issues: parsed.error.issues },
+      });
+    }
+    return ok(toWorkstreamProgress(parsed.data));
+  } catch (error: unknown) {
+    console.log(`[entity-pack.service] GET /api/v1/workstreams/${workstreamId}/context -> error`, error);
+    return err(toAppError(error));
+  }
+}
+
+// ─── completeWorkstreamStage · PATCH /api/v1/workstreams/{workstreamId}/stages/{stageId}/complete
+// Idempotent server-side — safe to call every time a step's Continue is
+// pressed, even if this exact stage was already marked complete earlier.
+
+export async function completeWorkstreamStage(
+  workstreamId: string,
+  stageId: string,
+): Promise<Result<void, AppError>> {
+  try {
+    console.log(`[entity-pack.service] PATCH /api/v1/workstreams/${workstreamId}/stages/${stageId}/complete`);
+    await httpClient.patch(`/api/v1/workstreams/${workstreamId}/stages/${stageId}/complete`);
+    return ok(undefined);
+  } catch (error: unknown) {
+    console.log(
+      `[entity-pack.service] PATCH /api/v1/workstreams/${workstreamId}/stages/${stageId}/complete -> error`,
+      error,
+    );
+    return err(toAppError(error));
+  }
 }

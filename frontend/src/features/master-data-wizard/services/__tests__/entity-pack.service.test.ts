@@ -9,6 +9,8 @@ import {
   getEntityPackFromApi,
   getActivePipelineRun,
   isPipelineRunConflict,
+  listOrgProjectFiles,
+  deleteFile,
   type PipelineRun,
   type FieldProfileRead,
   type EntityPackApiResponse,
@@ -20,6 +22,7 @@ jest.mock('@/shared/services/http/http.instance', () => ({
     get: jest.fn(),
     post: jest.fn(),
     patch: jest.fn(),
+    delete: jest.fn(),
   },
 }));
 
@@ -28,6 +31,7 @@ import { httpClient } from '@/shared/services/http/http.instance';
 const mockGet = httpClient.get as jest.Mock;
 const mockPost = httpClient.post as jest.Mock;
 const mockPatch = httpClient.patch as jest.Mock;
+const mockDelete = httpClient.delete as jest.Mock;
 
 function makeAxiosError(options: {
   status?: number;
@@ -344,6 +348,18 @@ describe('entity-pack.service', () => {
         expect(isPipelineRunConflict(result.error)).toBe(true);
       }
     });
+
+    it('sends "fixed_assets" (backend scope) when called with the EntityId "fixedAssets" — every other EntityId matches its backend scope 1:1, this is the one that doesn\'t', async () => {
+      mockPost.mockResolvedValueOnce({ data: { ...PIPELINE_RUN_DTO, scope: 'fixed_assets' } });
+
+      await createPipelineRun('ws-1', 'fixedAssets', '/storage/a.csv');
+
+      expect(mockPost).toHaveBeenCalledWith('/api/v1/pipeline/runs', {
+        workstream_id: 'ws-1',
+        scope: 'fixed_assets',
+        source_file_ref: '/storage/a.csv',
+      });
+    });
   });
 
   describe('getPipelineRun', () => {
@@ -445,6 +461,22 @@ describe('entity-pack.service', () => {
       expect(pack.source.rowCount).toBeUndefined();
     });
 
+    it('converts the backend\'s "fixed_assets" scope back to the EntityId "fixedAssets" for id/source, and titles the label "Fixed Assets"', () => {
+      const response: EntityPackApiResponse = {
+        run_id: 'run-1',
+        scope: 'fixed_assets',
+        status: 'complete',
+        run_summary: null,
+        fields: [],
+      };
+
+      const pack = mapEntityPackResponse(response, PIPELINE_RUN);
+
+      expect(pack.id).toBe('fixedAssets');
+      expect(pack.source.object).toBe('fixedAssets');
+      expect(pack.label.singular).toBe('Fixed Assets');
+    });
+
     it.each([
       ['clean', 'clean'],
       ['warning', 'warning'],
@@ -463,6 +495,87 @@ describe('entity-pack.service', () => {
       const pack = mapEntityPackResponse(response, PIPELINE_RUN);
 
       expect(pack.fields[0]!.impact).toBe(impact);
+    });
+
+    it('maps enumeration_detail\'s snake_case keys onto EntityField.enumeration (camelCase) rather than leaving them undefined', () => {
+      const response: EntityPackApiResponse = {
+        run_id: 'run-1',
+        scope: 'items',
+        status: 'complete',
+        run_summary: null,
+        fields: [
+          makeFieldProfile({
+            enumeration_detail: {
+              candidate: 'Yes',
+              valid_ref: 2,
+              invalid_src: 0,
+              affected_rows: 2,
+              ref_integrity: 'Passed',
+            },
+          }),
+        ],
+      };
+
+      const pack = mapEntityPackResponse(response, PIPELINE_RUN);
+
+      expect(pack.fields[0]!.enumeration).toEqual({
+        candidate: 'Yes',
+        validRef: 2,
+        invalidSrc: 0,
+        affectedRows: 2,
+        aliasRows: undefined,
+        unresolved: undefined,
+        refIntegrity: 'Passed',
+        categoryAvailable: undefined,
+        highConf: undefined,
+        ambiguous: undefined,
+        insufficient: undefined,
+      });
+    });
+
+    it('maps a reference_integrity anomaly_examples payload onto invalidTable, humanizing the status and never leaving it as raw JSON', () => {
+      const response: EntityPackApiResponse = {
+        run_id: 'run-1',
+        scope: 'items',
+        status: 'complete',
+        run_summary: null,
+        fields: [
+          makeFieldProfile({
+            anomaly_examples: {
+              type: 'reference_integrity',
+              details: [
+                { source: 'Nos', canonical: 'ea', rows: 102, status: 'recognized_alias' },
+                { source: 'For Purchase', canonical: null, rows: 2, status: 'review_required' },
+              ],
+            },
+          }),
+        ],
+      };
+
+      const pack = mapEntityPackResponse(response, PIPELINE_RUN);
+
+      expect(pack.fields[0]!.invalidTable).toEqual([
+        { src: 'Nos', canon: 'Ea', occ: 102, status: 'Recognized Alias', tone: 'ok' },
+        { src: 'For Purchase', canon: undefined, occ: 2, status: 'Review Required', tone: 'warn' },
+      ]);
+    });
+
+    it('leaves invalidTable undefined when anomaly_examples is null or a different shape', () => {
+      const response: EntityPackApiResponse = {
+        run_id: 'run-1',
+        scope: 'items',
+        status: 'complete',
+        run_summary: null,
+        fields: [
+          makeFieldProfile({ anomaly_examples: null }),
+          makeFieldProfile({ field_name: 'other', anomaly_examples: { type: 'outlier', examples: ['1', '2'] } }),
+        ],
+      };
+
+      const pack = mapEntityPackResponse(response, PIPELINE_RUN);
+
+      expect(pack.fields[0]!.invalidTable).toBeUndefined();
+      expect(pack.fields[1]!.invalidTable).toBeUndefined();
     });
 
     describe('readiness', () => {
@@ -615,6 +728,51 @@ describe('entity-pack.service', () => {
       expect(pack.fields[0]!.sample).toBeUndefined();
       expect(pack.fields[1]!.sample).toBeUndefined();
     });
+
+    it('never lets a raw JSON/object sample value reach the Sample column as literal braces or quotes', () => {
+      const response: EntityPackApiResponse = {
+        run_id: 'run-1',
+        scope: 'items',
+        status: 'complete',
+        run_summary: null,
+        fields: [
+          makeFieldProfile({
+            field_name: 'unit_of_measure',
+            sample_values: {
+              values: [
+                '{"type":"reference_integrity","details":[{"source":"Nos","canonical":"ea","rows":102,"status":"recognized_alias"}]}',
+                { source: 'Mtrs', canonical: 'm' },
+                42,
+              ],
+            },
+          }),
+        ],
+      };
+
+      const pack = mapEntityPackResponse(response, PIPELINE_RUN);
+
+      const sample = pack.fields[0]!.sample ?? [];
+      expect(sample.some((s) => /[{}"[\]]/.test(s))).toBe(false);
+      expect(sample).toEqual(['Type: Reference Integrity · Details: Source: Nos, Canonical: Ea, Rows: 102, Status: Recognized Alias', 'Source: Mtrs · Canonical: M', '42']);
+    });
+
+    it('title-cases cardinality but leaves it undefined when the backend sends none', () => {
+      const response: EntityPackApiResponse = {
+        run_id: 'run-1',
+        scope: 'items',
+        status: 'complete',
+        run_summary: null,
+        fields: [
+          makeFieldProfile({ field_name: 'a', cardinality: 'high' }),
+          makeFieldProfile({ field_name: 'b', cardinality: null }),
+        ],
+      };
+
+      const pack = mapEntityPackResponse(response, PIPELINE_RUN);
+
+      expect(pack.fields[0]!.cardinality).toBe('High');
+      expect(pack.fields[1]!.cardinality).toBeUndefined();
+    });
   });
 
   describe('getEntityPackFromApi', () => {
@@ -722,6 +880,129 @@ describe('entity-pack.service', () => {
       expect(isPipelineRunConflict({ code: 'HTTP_409', message: 'x' })).toBe(true);
       expect(isPipelineRunConflict({ code: 'HTTP_500', message: 'x' })).toBe(false);
       expect(isPipelineRunConflict({ code: 'UNKNOWN_ERROR', message: 'x' })).toBe(false);
+    });
+  });
+
+  describe('listOrgProjectFiles', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    const FILE_DTO = {
+      id: 'file-1',
+      file_type: 'source_erp',
+      original_filename: 'customers.csv',
+      storage_path: '/storage/file-1',
+      content_type: 'text/csv',
+      size_bytes: 2048,
+      status: 'ready',
+      columns: ['Account No', 'Customer Name'],
+      row_count: 12,
+      created_at: '2026-09-01T00:00:00Z',
+    };
+
+    it('GETs the org project files and maps each to a PersistedFile, alongside total', async () => {
+      mockGet.mockResolvedValueOnce({ data: { files: [FILE_DTO], total: 1 } });
+
+      const result = await listOrgProjectFiles('org-1');
+
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/storage/org-project/org-1/files', {
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data).toEqual({
+          files: [
+            {
+              id: 'file-1',
+              fileType: 'source_erp',
+              originalFilename: 'customers.csv',
+              storagePath: '/storage/file-1',
+              contentType: 'text/csv',
+              sizeBytes: 2048,
+              status: 'ready',
+              columns: ['Account No', 'Customer Name'],
+              rowCount: 12,
+              createdAt: '2026-09-01T00:00:00Z',
+            },
+          ],
+          total: 1,
+        });
+      }
+    });
+
+    it('defaults columns to an empty array when the backend omits it', async () => {
+      const { columns, ...withoutColumns } = FILE_DTO;
+      void columns;
+      mockGet.mockResolvedValueOnce({ data: { files: [withoutColumns], total: 1 } });
+
+      const result = await listOrgProjectFiles('org-1');
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data.files[0]?.columns).toEqual([]);
+      }
+    });
+
+    it('returns an empty list when the project has no files', async () => {
+      mockGet.mockResolvedValueOnce({ data: { files: [], total: 0 } });
+
+      const result = await listOrgProjectFiles('org-1');
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data).toEqual({ files: [], total: 0 });
+      }
+    });
+
+    it('returns an INVALID_RESPONSE error when the response fails schema validation', async () => {
+      mockGet.mockResolvedValueOnce({ data: { files: [{ id: 'file-1' }], total: 1 } });
+
+      const result = await listOrgProjectFiles('org-1');
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('INVALID_RESPONSE');
+      }
+    });
+
+    it('returns a toAppError-shaped error on failure', async () => {
+      mockGet.mockRejectedValueOnce(makeAxiosError({ status: 404, data: { detail: 'not found' } }));
+
+      const result = await listOrgProjectFiles('missing-project');
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('HTTP_404');
+        expect(result.error.message).toBe('not found');
+      }
+    });
+  });
+
+  describe('deleteFile', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('DELETEs the file by id', async () => {
+      mockDelete.mockResolvedValueOnce({ data: undefined });
+
+      const result = await deleteFile('file-1');
+
+      expect(mockDelete).toHaveBeenCalledWith('/api/v1/storage/files/file-1');
+      expect(result.ok).toBe(true);
+    });
+
+    it('returns a toAppError-shaped error on failure', async () => {
+      mockDelete.mockRejectedValueOnce(makeAxiosError({ status: 404, data: { detail: 'not found' } }));
+
+      const result = await deleteFile('missing-file');
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('HTTP_404');
+        expect(result.error.message).toBe('not found');
+      }
     });
   });
 });
