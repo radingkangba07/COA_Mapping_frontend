@@ -130,6 +130,7 @@ jest.mock('@/config/theme', () => ({
     accent: '#007AFF',
     border: '#ccc',
   },
+  semanticClass: (_family: string, _state: string) => ({ bg: 'bg-gray-100', fg: 'text-gray-900' }),
 }));
 
 jest.mock('@/shared/types/common.types', () => ({

@@ -686,17 +686,7 @@ function toEntityField(field: FieldProfileRead): EntityField {
   }
 
   // ── invalidTable — reference-integrity per-value breakdown ────────────────
-  // anomaly_examples.type === 'reference_integrity' when a scope handler ran.
-  let invalidTable: EntityField['invalidTable'];
-  if (anomalyEx?.type === 'reference_integrity' && Array.isArray(anomalyEx.details)) {
-    invalidTable = anomalyEx.details.map((d) => ({
-      src: d.source,
-      occ: d.rows,
-      canon: d.canonical ?? undefined,
-      status: d.status,
-      tone: (d.status === 'recognized_alias' ? 'ok' : 'warn') as 'ok' | 'warn',
-    }));
-  }
+  const invalidTable = toInvalidTable(field.anomaly_examples as Record<string, unknown> | null);
 
   // ── dist — value distribution ─────────────────────────────────────────────
   const dist = (field.value_distribution as Array<{ label: string; pct: number }> | null | undefined)
