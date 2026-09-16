@@ -170,7 +170,7 @@ export function MasterDataUploadScreen(): React.JSX.Element {
   const entityId = useWizardStore((s) => s.entityId) as EntityId;
   const orgProjectId = useWizardStore((s) => s.orgProjectId) as string;
   const parentProjectId = useWizardStore((s) => s.parentProjectId) as string;
-  const workstream_id = useWizardStore((s) => s.workstreamId) as string;
+  const workstreamId = useWizardStore((s) => s.workstreamId) as string;
 
   const { pack, refetch: refetchPack } = useEntityPack(orgProjectId, entityId);
   const {
@@ -532,7 +532,7 @@ export function MasterDataUploadScreen(): React.JSX.Element {
     }
 
     setIsCreatingRun(true);
-    let result = await createPipelineRun(workstream_id, entityId, effectiveUploadResult.storagePath);
+    let result = await createPipelineRun(workstreamId, entityId, effectiveUploadResult.storagePath);
     // A run for this workstream+scope may already be in progress (e.g. the
     // user went Back and hit Continue again before the earlier run
     // finished) — the backend 409s in that case. Recover the existing run
@@ -548,7 +548,7 @@ export function MasterDataUploadScreen(): React.JSX.Element {
     setPipelineRunId(entityId as EntityId, result.data.id);
     recordStep(entityId, 'profile');
     navigation.navigate('Profile');
-  }, [navigation, orgProjectId, entityId, entityKey, workstream_id, effectiveUploadResult, toast, pipelineRunIdByEntity, setPipelineRunId, recordStep, completeStep]);
+  }, [navigation, orgProjectId, entityId, entityKey, workstreamId, effectiveUploadResult, toast, pipelineRunIdByEntity, setPipelineRunId, recordStep, completeStep]);
 
   const stepCounter = `Step ${uploadStep.n} of ${STEPS.length}`;
   const continueLabel = `Continue to ${profileStep.label}`;
