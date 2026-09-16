@@ -353,18 +353,27 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
     },
 
     reset: (): void => {
-      // Preserve connection context and fetched ERP data across wizard resets.
-      // Credentials and mcpFetchData are ephemeral session state — re-fetching
-      // after a token expires would silently fail, so keep whatever was cached.
+      // Full reset — credentials are intentionally NOT preserved. Stale
+      // credentials surviving a wizard reset risk silent reuse on re-entry.
+      // mcpFetchData is kept because it contains non-sensitive fetched records
+      // that are expensive to re-fetch and safe to display across sessions.
       set((state) => ({
         ...initialState,
         draft: createInitialDraft(),
-        sourceConnectionId: state.sourceConnectionId,
-        targetConnectionId: state.targetConnectionId,
-        sourceCredentials: state.sourceCredentials,
-        targetCredentials: state.targetCredentials,
         mcpFetchData: state.mcpFetchData,
       }));
+    },
+
+    clearCredentials: (): void => {
+      set((state) => {
+        state.sourceConnectionId = null;
+        state.targetConnectionId = null;
+        state.sourceCredentials = null;
+        state.targetCredentials = null;
+        state.connectionReady = false;
+        state.testStatus = 'idle';
+        state.draft.connection.token = '';
+      });
     },
 
     setConnectionContext: (

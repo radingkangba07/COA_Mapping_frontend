@@ -154,6 +154,9 @@ export interface ProjectScopeActions {
     connectionId: string,
     credentials: Record<string, string>,
   ) => void;
+  // Wipe all credential and connection state. Call when the user deliberately
+  // leaves the connection step so stale credentials cannot be reused.
+  clearCredentials: () => void;
   setMcpFetchData: (
     scope: string,
     data: { records: Record<string, unknown>[]; fields: string[]; total: number; storagePath?: string },

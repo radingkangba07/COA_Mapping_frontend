@@ -289,5 +289,64 @@ describe('useProjectScopeStore', () => {
       expect(state.draft.members).toEqual(INITIAL_MEMBERS);
       expect(state.draft).not.toBe(draftBefore);
     });
+
+    it('clears credentials and connection IDs on reset — stale credentials must not survive wizard re-entry', () => {
+      const store = useProjectScopeStore.getState();
+      store.setConnectionContext('source', 'conn-1', { apiKey: 'secret-key' });
+      store.setConnectionContext('target', 'conn-2', { token: 'secret-token' });
+      store.setConnectionReady(true);
+
+      store.reset();
+
+      const state = useProjectScopeStore.getState();
+      expect(state.sourceCredentials).toBeNull();
+      expect(state.targetCredentials).toBeNull();
+      expect(state.sourceConnectionId).toBeNull();
+      expect(state.targetConnectionId).toBeNull();
+      expect(state.connectionReady).toBe(false);
+    });
+
+    it('preserves mcpFetchData across reset — fetched records are non-sensitive and expensive to re-fetch', () => {
+      const store = useProjectScopeStore.getState();
+      store.setMcpFetchData('customers', { records: [{ id: '1' }], fields: ['id'], total: 1 });
+
+      store.reset();
+
+      expect(useProjectScopeStore.getState().mcpFetchData['customers']?.total).toBe(1);
+    });
+  });
+
+  describe('clearCredentials', () => {
+    it('wipes credentials, connection IDs, token, connectionReady and testStatus', () => {
+      const store = useProjectScopeStore.getState();
+      store.setConnectionContext('source', 'conn-1', { apiKey: 'secret' });
+      store.updateConnection({ token: 'bearer-token' });
+      store.setConnectionReady(true);
+      store.setTestStatus('success');
+
+      store.clearCredentials();
+
+      const state = useProjectScopeStore.getState();
+      expect(state.sourceCredentials).toBeNull();
+      expect(state.targetCredentials).toBeNull();
+      expect(state.sourceConnectionId).toBeNull();
+      expect(state.targetConnectionId).toBeNull();
+      expect(state.draft.connection.token).toBe('');
+      expect(state.connectionReady).toBe(false);
+      expect(state.testStatus).toBe('idle');
+    });
+
+    it('leaves non-credential state untouched', () => {
+      const store = useProjectScopeStore.getState();
+      store.setSource('sap');
+      store.setMasterData(['accounts']);
+      store.setConnectionContext('source', 'conn-1', { apiKey: 'secret' });
+
+      store.clearCredentials();
+
+      const state = useProjectScopeStore.getState();
+      expect(state.draft.source).toBe('sap');
+      expect(state.draft.scope.selectedMasterData).toEqual(['accounts']);
+    });
   });
 });
