@@ -115,6 +115,8 @@ export function useMcpFetch(
     void (async () => {
       const loaded = await loadSnapshot();
       if (loaded) return;
+      // Intentional: if no snapshot exists yet, trigger a live fetch automatically
+      // so the user sees data without having to press the Fetch button first.
       if (connectionId !== null && credentials !== null) {
         void fetch();
       }
