@@ -10,7 +10,10 @@ import {
   getActivePipelineRun,
   isPipelineRunConflict,
   listOrgProjectFiles,
+  getFileById,
+  fileMatchesContext,
   deleteFile,
+  type PersistedFile,
   type PipelineRun,
   type FieldProfileRead,
   type EntityPackApiResponse,
@@ -240,6 +243,33 @@ describe('entity-pack.service', () => {
           createdAt: '2026-01-01T00:00:00Z',
         });
       }
+    });
+
+    it('appends entity_id alongside org_project_id/workstream_id so the backend can persist which entity this file belongs to', async () => {
+      const post = jest.fn().mockResolvedValue({
+        data: {
+          file: {
+            id: 'file-3',
+            file_type: 'source_erp',
+            original_filename: 'b.csv',
+            storage_path: '/storage/b.csv',
+            content_type: 'text/csv',
+            size_bytes: 32,
+            status: 'uploaded',
+            row_count: 1,
+            created_at: '2026-01-01T00:00:00Z',
+          },
+        },
+      });
+      const client = { post } as unknown as HttpClient;
+      const file = new File(['a,b\n1,2'], 'b.csv', { type: 'text/csv' });
+
+      await uploadSourceFile(client, file, { orgProjectId: 'org-1', workstreamId: 'ws-1', entityId: 'customers' });
+
+      const formData = post.mock.calls[0][1] as FormData;
+      expect(formData.get('org_project_id')).toBe('org-1');
+      expect(formData.get('workstream_id')).toBe('ws-1');
+      expect(formData.get('entity_id')).toBe('customers');
     });
 
     it('appends the native-picker file shape (uri/name/mimeType) for a non-web UploadedFile', async () => {

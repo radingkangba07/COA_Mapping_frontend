@@ -34,21 +34,33 @@ jest.mock('expo-sharing', () => ({
 const mockNavigate = jest.fn();
 const mockParentNavigate = jest.fn();
 const mockGoBack = jest.fn();
-jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({
-    navigate: mockNavigate,
-    goBack: mockGoBack,
-    getParent: () => ({ navigate: mockParentNavigate }),
-  }),
-}));
+jest.mock('@react-navigation/native', () => {
+  const R = require('react');
+  return {
+    useNavigation: () => ({
+      navigate: mockNavigate,
+      goBack: mockGoBack,
+      getParent: () => ({ navigate: mockParentNavigate }),
+    }),
+    // Real useFocusEffect only re-runs on actual focus changes (no
+    // NavigationContainer here to drive that) — a plain mount-effect is
+    // enough for this suite, which only asserts the persisted-files refetch
+    // fires at all, not that it re-fires on every focus transition.
+    useFocusEffect: (callback: () => void | (() => void)) => {
+      R.useEffect(() => callback(), [callback]);
+    },
+  };
+});
 
 // ─── entity-pack.service mock ───────────────────────────────────────────────
 const mockCreatePipelineRun = jest.fn();
 const mockGetActivePipelineRun = jest.fn();
+const mockDeleteFile = jest.fn();
 jest.mock('../../services/entity-pack.service', () => ({
   createPipelineRun: (...args: unknown[]) => mockCreatePipelineRun(...args),
   getActivePipelineRun: (...args: unknown[]) => mockGetActivePipelineRun(...args),
   isPipelineRunConflict: (error: { code?: string }) => error.code === 'HTTP_409',
+  deleteFile: (...args: unknown[]) => mockDeleteFile(...args),
 }));
 
 // ─── FileUploader stub — FileUploadField / FileTargetCard ──────────────────
@@ -131,20 +143,55 @@ jest.mock('@/features/projects/hooks/useProjectDetail', () => ({
   useProjectDetail: (...args: unknown[]) => mockUseProjectDetail(...args),
 }));
 
-const mockSetUploadedFile = jest.fn();
-const mockClearUploadedFile = jest.fn();
-const mockSetSourceCsv = jest.fn();
-const mockClearSourceCsv = jest.fn();
+// The uploaded-file preview's metadata (name, status, size, columns, row
+// count) comes exclusively from here (GET /api/v1/storage/files/{fileId}),
+// keyed off either this session's own upload response or the discovery
+// call below — never a client-persisted record. This mock ignores its real
+// arguments (see setFileDetails below) except in the tests that assert on
+// them directly.
+const mockFileDetailsRefetch = jest.fn();
+const mockUseFileDetails = jest.fn();
+jest.mock('../../hooks/useFileDetails', () => ({
+  useFileDetails: (...args: unknown[]) => mockUseFileDetails(...args),
+}));
+
+// Discovery (GET /api/v1/storage/org-project/{orgProjectId}/files) — the
+// backend-only "does this org_project_id+workstream_id+entity_id already
+// have a file" lookup that replaces any client-persisted record.
+const mockDiscoveryRefetch = jest.fn();
+const mockUseOrgProjectFiles = jest.fn();
+jest.mock('../../hooks/useOrgProjectFiles', () => ({
+  useOrgProjectFiles: (...args: unknown[]) => mockUseOrgProjectFiles(...args),
+}));
+
+const mockRemoveFile = jest.fn();
+const mockUseDeleteFile = jest.fn();
+jest.mock('../../hooks/useDeleteFile', () => ({
+  useDeleteFile: (...args: unknown[]) => mockUseDeleteFile(...args),
+}));
+
+// Downloads + parses a persisted file's real bytes for the preview table
+// when there's no local csvRows parse to show (see the screen's own
+// comment on effectiveRows) — mocked like every other data hook here so
+// these tests never need a real QueryClientProvider.
+const mockUsePersistedFilePreview = jest.fn();
+jest.mock('../../hooks/usePersistedFilePreview', () => ({
+  usePersistedFilePreview: (...args: unknown[]) => mockUsePersistedFilePreview(...args),
+}));
+
+const mockCompleteStep = jest.fn();
 const mockSetPipelineRunId = jest.fn();
 const mockClearPipelineRunId = jest.fn();
 const mockRecordStep = jest.fn();
+const mockSetLoadPreview = jest.fn();
 let mockPipelineRunIdByEntity: Record<string, string> = {};
-let mockUploadedFileByEntity: Record<string, UploadResult> = {};
-let mockSourceCsvByEntity: Record<string, string[][]> = {};
+let mockLoadPreviewByEntity: Record<string, { fileName: string; rows: string[][] }> = {};
+let mockCurrentStepId = 'upload';
+let mockCompletedStepIdsByEntity: Record<string, string[]> = {};
 jest.mock('../../store/wizard.store', () => ({
   // Real implementation — a pure string-formatting helper, not store state —
-  // so this mock's uploadedFileByEntity/sourceCsvByEntity/pipelineRunIdByEntity
-  // fixtures below can use the exact key shape the screen builds and looks up.
+  // so this mock's pipelineRunIdByEntity fixtures below can use the exact
+  // key shape the screen builds and looks up.
   buildEntityKey: jest.requireActual('../../store/wizard.store').buildEntityKey,
   useWizardStore: (selector: (s: Record<string, unknown>) => unknown) =>
     selector({
@@ -154,16 +201,15 @@ jest.mock('../../store/wizard.store', () => ({
       orgProjectId: 'org-1',
       parentProjectId: 'proj-1',
       workstreamId: 'ws-1',
-      setUploadedFile: mockSetUploadedFile,
-      clearUploadedFile: mockClearUploadedFile,
-      uploadedFileByEntity: mockUploadedFileByEntity,
-      setSourceCsv: mockSetSourceCsv,
-      clearSourceCsv: mockClearSourceCsv,
-      sourceCsvByEntity: mockSourceCsvByEntity,
       pipelineRunIdByEntity: mockPipelineRunIdByEntity,
       setPipelineRunId: mockSetPipelineRunId,
       clearPipelineRunId: mockClearPipelineRunId,
       recordStep: mockRecordStep,
+      loadPreviewByEntity: mockLoadPreviewByEntity,
+      setLoadPreview: mockSetLoadPreview,
+      currentStepId: mockCurrentStepId,
+      completedStepIdsByEntity: mockCompletedStepIdsByEntity,
+      completeStep: mockCompleteStep,
     }),
 }));
 
@@ -184,6 +230,41 @@ const UPLOAD_RESULT: UploadResult = {
   rowCount: 2,
   storagePath: '/storage/file-1',
   createdAt: '2026-09-01T00:00:00Z',
+};
+
+// GET /api/v1/storage/files/{fileId}'s mapped shape (PersistedFile, see
+// entity-pack.service.ts) — a file known only from that lookup, with no
+// local CSV parse behind it.
+const PERSISTED_FILE = {
+  id: 'file-persisted-1',
+  fileType: 'source_erp',
+  originalFilename: 'persisted-customers.csv',
+  storagePath: '/storage/file-persisted-1',
+  contentType: 'text/csv',
+  sizeBytes: 4096,
+  status: 'ready',
+  columns: ['Account No', 'Customer Name'],
+  rowCount: 5,
+  createdAt: '2026-09-01T00:00:00Z',
+};
+
+// Same file, shaped as useFileDetails' PersistedFile response — used to
+// simulate "the upload mutation confirmed, and useFileDetails' own query
+// (driven by the new currentFileId) has settled with the matching file".
+// hasFile is strictly fileDetails.file !== null (see MasterDataUploadScreen's
+// own comment), so `setSourceFileUpload({ result: UPLOAD_RESULT })` alone
+// never makes the screen show a file — this fixture is what's needed too.
+const UPLOAD_RESULT_AS_FILE = {
+  id: UPLOAD_RESULT.fileId,
+  fileType: UPLOAD_RESULT.fileType,
+  originalFilename: UPLOAD_RESULT.fileName,
+  storagePath: UPLOAD_RESULT.storagePath,
+  contentType: UPLOAD_RESULT.contentType,
+  sizeBytes: UPLOAD_RESULT.sizeBytes,
+  status: UPLOAD_RESULT.status,
+  columns: [] as string[],
+  rowCount: UPLOAD_RESULT.rowCount,
+  createdAt: UPLOAD_RESULT.createdAt,
 };
 
 const uploadStep = STEPS.find((s) => s.id === 'upload')!;
@@ -215,16 +296,64 @@ function setProjectDetail(overrides: Partial<ReturnType<typeof mockUseProjectDet
   });
 }
 
+function setFileDetails(overrides: Partial<ReturnType<typeof mockUseFileDetails>> = {}): void {
+  const file = overrides.file !== undefined ? overrides.file : null;
+  mockUseFileDetails.mockReturnValue({
+    file,
+    rowCount: (file as { rowCount?: number } | null)?.rowCount,
+    isLoading: false,
+    error: null,
+    refetch: mockFileDetailsRefetch,
+    isMismatched: false,
+    ...overrides,
+  });
+}
+
+function setOrgProjectFiles(overrides: Partial<ReturnType<typeof mockUseOrgProjectFiles>> = {}): void {
+  mockUseOrgProjectFiles.mockReturnValue({
+    files: [],
+    total: 0,
+    hasFile: false,
+    latestFile: null,
+    isLoading: false,
+    error: null,
+    refetch: mockDiscoveryRefetch,
+    ...overrides,
+  });
+}
+
+function setDeleteFile(overrides: Partial<ReturnType<typeof mockUseDeleteFile>> = {}): void {
+  mockUseDeleteFile.mockReturnValue({
+    remove: mockRemoveFile,
+    isRemoving: false,
+    error: null,
+    ...overrides,
+  });
+}
+
+function setPersistedFilePreview(overrides: Partial<ReturnType<typeof mockUsePersistedFilePreview>> = {}): void {
+  mockUsePersistedFilePreview.mockReturnValue({
+    rows: [],
+    isLoading: false,
+    error: null,
+    ...overrides,
+  });
+}
+
 describe('MasterDataUploadScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockReadAsStringAsync.mockResolvedValue(CSV_CONTENT);
     mockPipelineRunIdByEntity = {};
-    mockUploadedFileByEntity = {};
-    mockSourceCsvByEntity = {};
+    mockCurrentStepId = 'upload';
+    mockCompletedStepIdsByEntity = {};
     setEntityPack(null);
     setSourceFileUpload();
     setProjectDetail();
+    setFileDetails();
+    setOrgProjectFiles();
+    setDeleteFile();
+    setPersistedFilePreview();
     mockCreatePipelineRun.mockResolvedValue({ ok: true, data: { id: 'run-1', status: 'pending' } });
   });
 
@@ -257,16 +386,11 @@ describe('MasterDataUploadScreen', () => {
     expect(screen.getByTestId('upload-continue-button').props.accessibilityState?.disabled).toBe(true);
   });
 
-  it('picks a file, parses it locally and uploads it to the server, clearing any prior confirmed upload first', async () => {
+  it('picks a file, parses it locally and uploads it to the server', async () => {
     render(<MasterDataUploadScreen />);
 
     fireEvent.press(screen.getByTestId('master-data-upload-dropzone-pick'));
 
-    await waitFor(() => {
-      expect(screen.getByText('mock.csv · 2 rows loaded')).toBeTruthy();
-    });
-
-    expect(mockClearUploadedFile).toHaveBeenCalledWith('customers');
     expect(mockUpload).toHaveBeenCalledWith(
       expect.objectContaining({ uri: 'file:///mock.csv', name: 'mock.csv' }),
     );
@@ -275,25 +399,109 @@ describe('MasterDataUploadScreen', () => {
     expect(screen.getByTestId('upload-continue-button').props.accessibilityState?.disabled).toBe(true);
   });
 
-  it('records the confirmed upload in the wizard store and enables Continue once the server confirms it', () => {
+  it('sends entityId through to useSourceFileUpload so entity_id is included on the upload request', () => {
+    render(<MasterDataUploadScreen />);
+
+    expect(mockUseSourceFileUpload).toHaveBeenCalledWith(
+      expect.objectContaining({ orgProjectId: 'org-1', workstreamId: 'ws-1', entityId: 'customers' }),
+    );
+  });
+
+  it('never calls GET /api/v1/storage/files/{fileId} with a real id when there is neither a fresh upload nor a discovered file — shows the plain "no file" state instead', () => {
+    // No fresh uploadResult, no discovery result (default beforeEach state)
+    // — currentFileId stays null, so useFileDetails must never be called
+    // with a real id.
+    render(<MasterDataUploadScreen />);
+
+    expect(mockUseFileDetails).toHaveBeenCalledWith('org-1', 'customers', 'ws-1', null);
+    expect(screen.getByText('No source customers file selected')).toBeTruthy();
+  });
+
+  it("drives useFileDetails off the fresh upload response's fileId the instant the server confirms it", () => {
     setSourceFileUpload({ result: UPLOAD_RESULT });
     render(<MasterDataUploadScreen />);
 
-    expect(mockSetUploadedFile).toHaveBeenCalledWith('customers', UPLOAD_RESULT);
+    expect(mockUseFileDetails).toHaveBeenCalledWith('org-1', 'customers', 'ws-1', UPLOAD_RESULT.fileId);
   });
 
-  it('rehydrates the dropzone and preview from the wizard store on a fresh mount (e.g. after Back), and Continue still works', async () => {
+  it("falls back to the discovery call's latestFile when there's no fresh uploadResult — e.g. after a refresh or navigating back to this screen", () => {
+    // Simulates the screen losing its local mutation state (a real refresh,
+    // or Continue-to-Profile-then-Back) — the upload mutation itself has no
+    // result, but GET /storage/org-project/{orgProjectId}/files (scoped to
+    // this org_project_id+workstream_id+entity_id) still finds the file.
+    // The file must keep showing until Remove is pressed, never disappear
+    // just because of a refresh/reload.
+    setOrgProjectFiles({ latestFile: { id: PERSISTED_FILE.id } as never });
+    setSourceFileUpload({ result: null });
+    render(<MasterDataUploadScreen />);
+
+    expect(mockUseOrgProjectFiles).toHaveBeenCalledWith('org-1', 'ws-1', 'customers');
+    expect(mockUseFileDetails).toHaveBeenCalledWith('org-1', 'customers', 'ws-1', PERSISTED_FILE.id);
+  });
+
+  it('does not refetch file details on mount when there is no file at all', () => {
+    render(<MasterDataUploadScreen />);
+
+    expect(mockFileDetailsRefetch).not.toHaveBeenCalled();
+  });
+
+  it('refetches file details on focus once a file already exists', () => {
+    setSourceFileUpload({ result: UPLOAD_RESULT });
+    render(<MasterDataUploadScreen />);
+
+    expect(mockFileDetailsRefetch).toHaveBeenCalled();
+  });
+
+  it('flags a missing expected column using the persisted file\'s own columns when there is no local CSV parse', async () => {
+    setEntityPack({
+      label: { singular: 'Customer', plural: 'Customers' },
+      target: { record: '' },
+      spec: { expectedColumns: ['Account No', 'Tax Region'] },
+    } as EntityPack);
+    setFileDetails({ file: PERSISTED_FILE, rowCount: PERSISTED_FILE.rowCount });
+    render(<MasterDataUploadScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('file-upload-column-warning')).toBeTruthy();
+    });
+    expect(screen.getByTestId('file-upload-column-warning').props.children).toBe('Tax Region');
+  });
+
+  it('deletes the persisted file (DELETE /api/v1/storage/files/{id}) when Remove is pressed for a file known only from GET /api/v1/storage/files/{id}', async () => {
+    setFileDetails({ file: PERSISTED_FILE, rowCount: PERSISTED_FILE.rowCount });
+    render(<MasterDataUploadScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('file-upload-remove')).toBeTruthy();
+    });
+    fireEvent.press(screen.getByTestId('file-upload-remove'));
+
+    expect(mockRemoveFile).toHaveBeenCalledWith(PERSISTED_FILE.id);
+  });
+
+  it('rehydrates the dropzone from the discovery call on a fresh mount (e.g. after Back), and Continue still works', async () => {
     // Simulates the screen losing its local state — the upload mutation
-    // has no result of its own, but the wizard store already has last
-    // time's confirmed upload and parsed CSV.
-    mockUploadedFileByEntity = { 'proj-1:customers': UPLOAD_RESULT };
-    mockSourceCsvByEntity = {
-      'proj-1:customers': [
-        ['Account No', 'Customer Name'],
-        ['C-1', 'Acme Trading'],
-        ['C-2', 'Beta Supplies'],
-      ],
-    };
+    // has no result of its own, but discovery (GET /storage/org-project/
+    // {orgProjectId}/files) still finds last time's confirmed upload.
+    // currentFileId falls back to that latestFile id, which is what drives
+    // fileDetails (mocked here to match) — hasFile is strictly
+    // fileDetails.file !== null.
+    setOrgProjectFiles({ latestFile: { id: UPLOAD_RESULT.fileId } as never });
+    setFileDetails({
+      file: {
+        id: UPLOAD_RESULT.fileId,
+        fileType: UPLOAD_RESULT.fileType,
+        originalFilename: UPLOAD_RESULT.fileName,
+        storagePath: UPLOAD_RESULT.storagePath,
+        contentType: UPLOAD_RESULT.contentType,
+        sizeBytes: 128,
+        status: 'uploaded',
+        columns: [],
+        rowCount: UPLOAD_RESULT.rowCount,
+        createdAt: UPLOAD_RESULT.createdAt,
+      },
+      rowCount: UPLOAD_RESULT.rowCount,
+    });
     setSourceFileUpload({ result: null });
     render(<MasterDataUploadScreen />);
 
@@ -310,18 +518,13 @@ describe('MasterDataUploadScreen', () => {
     expect(mockCreatePipelineRun).toHaveBeenCalledWith('ws-1', 'customers', UPLOAD_RESULT.storagePath);
   });
 
-  it("does not rehydrate a different project's stored upload for the same entity", () => {
-    // This mock's wizard store is seeded with parentProjectId 'proj-1' (see
-    // the jest.mock block above) — an upload stored under 'proj-2:customers'
-    // belongs to a different project running the same object and must not
-    // bleed into this one's dropzone.
-    mockUploadedFileByEntity = { 'proj-2:customers': UPLOAD_RESULT };
-    mockSourceCsvByEntity = {
-      'proj-2:customers': [
-        ['Account No', 'Customer Name'],
-        ['C-1', 'Acme Trading'],
-      ],
-    };
+  it('never renders a file discovery found but fileDetails did not confirm (e.g. a cross-entity/cross-project mismatch)', () => {
+    // Discovery returned some file id, but useFileDetails — the actual
+    // source of truth for hasFile — rejects/hasn't confirmed it (file:
+    // null). hasFile must stay strictly false; nothing about discovery's
+    // own result should render the file as uploaded on its own.
+    setOrgProjectFiles({ latestFile: { id: 'foreign-file-id' } as never });
+    setFileDetails({ file: null });
     setSourceFileUpload({ result: null });
     render(<MasterDataUploadScreen />);
 
@@ -329,15 +532,23 @@ describe('MasterDataUploadScreen', () => {
     expect(screen.getByText('No source customers file selected')).toBeTruthy();
   });
 
-  it('flags an expected column missing from the uploaded header', async () => {
+  it('shows the local CSV header (not the persisted file\'s own columns) once the upload confirms', async () => {
     setEntityPack({
       label: { singular: 'Customer', plural: 'Customers' },
       target: { record: '' },
       spec: { expectedColumns: ['Account No', 'Tax Region'] },
     } as EntityPack);
-    render(<MasterDataUploadScreen />);
+    const { rerender } = render(<MasterDataUploadScreen />);
 
     fireEvent.press(screen.getByTestId('master-data-upload-dropzone-pick'));
+    await waitFor(() => expect(mockUpload).toHaveBeenCalled());
+
+    // Server confirms the upload, and useFileDetails' own query (now keyed
+    // off the confirmed fileId) settles — this is what actually flips
+    // hasFile to true and lets the column check run.
+    setSourceFileUpload({ result: UPLOAD_RESULT });
+    setFileDetails({ file: UPLOAD_RESULT_AS_FILE, rowCount: UPLOAD_RESULT.rowCount });
+    rerender(<MasterDataUploadScreen />);
 
     await waitFor(() => {
       expect(screen.getByTestId('file-upload-column-warning')).toBeTruthy();
@@ -345,34 +556,38 @@ describe('MasterDataUploadScreen', () => {
     expect(screen.getByTestId('file-upload-column-warning').props.children).toBe('Tax Region');
   });
 
-  it('toggles the source file preview open and closed', async () => {
-    render(<MasterDataUploadScreen />);
+  it('keeps the source file preview hidden by default after a file loads, and toggles it open and closed', async () => {
+    const { rerender } = render(<MasterDataUploadScreen />);
     fireEvent.press(screen.getByTestId('master-data-upload-dropzone-pick'));
 
-    await waitFor(() => {
-      expect(screen.getByText('Source File Preview')).toBeTruthy();
-    });
-
-    fireEvent.press(screen.getByTestId('file-upload-toggle-preview'));
-    expect(screen.queryByText('Source File Preview')).toBeNull();
-
-    fireEvent.press(screen.getByTestId('file-upload-toggle-preview'));
-    expect(screen.getByText('Source File Preview')).toBeTruthy();
-  });
-
-  it('removes the picked file, resetting both local state and the upload mutation', async () => {
-    render(<MasterDataUploadScreen />);
-    fireEvent.press(screen.getByTestId('master-data-upload-dropzone-pick'));
+    setSourceFileUpload({ result: UPLOAD_RESULT });
+    setFileDetails({ file: UPLOAD_RESULT_AS_FILE, rowCount: UPLOAD_RESULT.rowCount });
+    rerender(<MasterDataUploadScreen />);
 
     await waitFor(() => {
       expect(screen.getByText('mock.csv · 2 rows loaded')).toBeTruthy();
     });
+    expect(screen.queryByText('Source File Preview')).toBeNull();
 
+    fireEvent.press(screen.getByTestId('file-upload-toggle-preview'));
+    expect(screen.getByText('Source File Preview')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('file-upload-toggle-preview'));
+    expect(screen.queryByText('Source File Preview')).toBeNull();
+  });
+
+  it('removes an already-confirmed file, resetting the upload mutation and any pipeline run', async () => {
+    setFileDetails({ file: PERSISTED_FILE, rowCount: PERSISTED_FILE.rowCount });
+    render(<MasterDataUploadScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('file-upload-remove')).toBeTruthy();
+    });
     fireEvent.press(screen.getByTestId('file-upload-remove'));
 
-    expect(screen.getByText('No source customers file selected')).toBeTruthy();
     expect(mockResetUpload).toHaveBeenCalled();
-    expect(mockClearUploadedFile).toHaveBeenLastCalledWith('customers');
+    expect(mockClearPipelineRunId).toHaveBeenCalledWith('customers');
+    expect(mockRemoveFile).toHaveBeenCalledWith(PERSISTED_FILE.id);
   });
 
   it('loads the built-in sample file locally without contacting the upload service', () => {
@@ -380,9 +595,17 @@ describe('MasterDataUploadScreen', () => {
 
     fireEvent.press(screen.getByText('Load'));
 
-    expect(screen.getByText('customers-sample.csv · 6 rows loaded')).toBeTruthy();
+    // This mock's wizard.store is a static snapshot (setLoadPreview doesn't
+    // reactively update loadPreviewByEntity here), so the rendered preview
+    // panel can't be asserted on directly — verify the store call itself
+    // instead: the sample is parsed and handed to the store, and the
+    // server is never contacted for it.
+    expect(mockSetLoadPreview).toHaveBeenCalledWith(
+      'customers',
+      'customers-sample.csv',
+      expect.arrayContaining([expect.arrayContaining(['Account No'])]),
+    );
     expect(mockUpload).not.toHaveBeenCalled();
-    expect(mockClearUploadedFile).not.toHaveBeenCalled();
   });
 
   it('downloads the sample file via the native share sheet', async () => {
@@ -402,15 +625,13 @@ describe('MasterDataUploadScreen', () => {
 
   it('navigates back on Back, and to the Profile step on Continue once a file is confirmed', async () => {
     setSourceFileUpload({ result: UPLOAD_RESULT });
+    setFileDetails({ file: UPLOAD_RESULT_AS_FILE, rowCount: UPLOAD_RESULT.rowCount });
     render(<MasterDataUploadScreen />);
 
     fireEvent.press(screen.getByTestId('upload-back-button'));
     expect(mockParentNavigate).toHaveBeenCalledWith('ProjectOverview', { projectId: 'proj-1' });
 
-    fireEvent.press(screen.getByTestId('master-data-upload-dropzone-pick'));
-    await waitFor(() => {
-      expect(screen.getByTestId('upload-continue-button').props.accessibilityState?.disabled).not.toBe(true);
-    });
+    expect(screen.getByTestId('upload-continue-button').props.accessibilityState?.disabled).not.toBe(true);
 
     fireEvent.press(screen.getByTestId('upload-continue-button'));
 
@@ -429,12 +650,8 @@ describe('MasterDataUploadScreen', () => {
   it('reuses a previously created run instead of creating a new one on a second Continue press', async () => {
     mockPipelineRunIdByEntity = { 'proj-1:customers': 'run-already-created' };
     setSourceFileUpload({ result: UPLOAD_RESULT });
+    setFileDetails({ file: UPLOAD_RESULT_AS_FILE, rowCount: UPLOAD_RESULT.rowCount });
     render(<MasterDataUploadScreen />);
-
-    fireEvent.press(screen.getByTestId('master-data-upload-dropzone-pick'));
-    await waitFor(() => {
-      expect(screen.getByTestId('upload-continue-button').props.accessibilityState?.disabled).not.toBe(true);
-    });
 
     fireEvent.press(screen.getByTestId('upload-continue-button'));
 
@@ -451,12 +668,8 @@ describe('MasterDataUploadScreen', () => {
     });
     mockGetActivePipelineRun.mockResolvedValue({ ok: true, data: { id: 'run-existing', status: 'running' } });
     setSourceFileUpload({ result: UPLOAD_RESULT });
+    setFileDetails({ file: UPLOAD_RESULT_AS_FILE, rowCount: UPLOAD_RESULT.rowCount });
     render(<MasterDataUploadScreen />);
-
-    fireEvent.press(screen.getByTestId('master-data-upload-dropzone-pick'));
-    await waitFor(() => {
-      expect(screen.getByTestId('upload-continue-button').props.accessibilityState?.disabled).not.toBe(true);
-    });
 
     fireEvent.press(screen.getByTestId('upload-continue-button'));
 
@@ -469,12 +682,8 @@ describe('MasterDataUploadScreen', () => {
   it('shows a toast and does not navigate when starting the profiler run fails', async () => {
     mockCreatePipelineRun.mockResolvedValue({ ok: false, error: { code: 'HTTP_500', message: 'Server error' } });
     setSourceFileUpload({ result: UPLOAD_RESULT });
+    setFileDetails({ file: UPLOAD_RESULT_AS_FILE, rowCount: UPLOAD_RESULT.rowCount });
     render(<MasterDataUploadScreen />);
-
-    fireEvent.press(screen.getByTestId('master-data-upload-dropzone-pick'));
-    await waitFor(() => {
-      expect(screen.getByTestId('upload-continue-button').props.accessibilityState?.disabled).not.toBe(true);
-    });
 
     fireEvent.press(screen.getByTestId('upload-continue-button'));
 
@@ -492,26 +701,26 @@ describe('MasterDataUploadScreen', () => {
     expect(screen.getByTestId('upload-continue-button').props.accessibilityState?.disabled).toBe(true);
   });
 
-  it('reverts the local file preview to "no file selected" when the server upload fails (e.g. backend unreachable)', async () => {
+  it('never shows the file as accepted when the server upload fails (e.g. backend unreachable)', async () => {
     const { rerender } = render(<MasterDataUploadScreen />);
 
     fireEvent.press(screen.getByTestId('master-data-upload-dropzone-pick'));
-    await waitFor(() => {
-      expect(screen.getByText('mock.csv · 2 rows loaded')).toBeTruthy();
-    });
+    // hasFile is strictly fileDetails.file !== null (see the screen's own
+    // comment) — a local pick alone, with no server confirmation, must
+    // never show a file card.
+    expect(screen.getByText('No source customers file selected')).toBeTruthy();
 
-    // The server call comes back as unreachable — the local preview must not
-    // keep implying the file was accepted.
+    // The server call comes back as unreachable.
     setSourceFileUpload({
       error: { code: 'SERVER_UNREACHABLE', message: 'Cannot reach the server. Make sure it is running, then try again.' },
     });
     rerender(<MasterDataUploadScreen />);
 
     await waitFor(() => {
-      expect(screen.getByText('No source customers file selected')).toBeTruthy();
+      expect(screen.getByText('Upload failed — retry')).toBeTruthy();
     });
+    expect(screen.getByText('No source customers file selected')).toBeTruthy();
     expect(screen.queryByText('mock.csv · 2 rows loaded')).toBeNull();
-    expect(screen.getByText('Upload failed — retry')).toBeTruthy();
   });
 
   it('does not resurrect the preview when a slow file read resolves after the upload already failed', async () => {

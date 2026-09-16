@@ -25,6 +25,53 @@ jest.mock('@/features/migration/components/MigrationLayout', () => {
   };
 });
 
+// ─── useOrgProjectFiles mock ─────────────────────────────────────────────────
+// Discovery (GET /api/v1/storage/org-project/{orgProjectId}/files) — feeds
+// useFileDetails the fileId, scoped to org_project_id+workstream_id+
+// entity_id. Real (non-mocked) here would need a QueryClientProvider, and
+// this suite only cares about what MasterDataWizardScreen does with its
+// result, not its own network behaviour (see useOrgProjectFiles.test.tsx
+// for that).
+const mockDiscoveryRefetch = jest.fn();
+const mockUseOrgProjectFiles = jest.fn();
+jest.mock('../../hooks/useOrgProjectFiles', () => ({
+  useOrgProjectFiles: (...args: unknown[]) => mockUseOrgProjectFiles(...args),
+}));
+
+function setOrgProjectFilesDefault(overrides: Partial<ReturnType<typeof mockUseOrgProjectFiles>> = {}): void {
+  mockUseOrgProjectFiles.mockReturnValue({
+    files: [],
+    total: 0,
+    hasFile: false,
+    latestFile: null,
+    isLoading: false,
+    error: null,
+    refetch: mockDiscoveryRefetch,
+    ...overrides,
+  });
+}
+
+// ─── useFileDetails mock ─────────────────────────────────────────────────────
+// The sidebar's row count comes exclusively from here (GET
+// /api/v1/storage/files/{fileId}), fed by the discovery call above's
+// latestFile — never a local CSV fallback, and never client-persisted state
+// (see MasterDataWizardScreen's own comment).
+const mockFileDetailsRefetch = jest.fn();
+const mockUseFileDetails = jest.fn();
+jest.mock('../../hooks/useFileDetails', () => ({
+  useFileDetails: (...args: unknown[]) => mockUseFileDetails(...args),
+}));
+
+function setFileDetailsDefault(): void {
+  mockUseFileDetails.mockReturnValue({
+    file: null,
+    rowCount: undefined as number | undefined,
+    isLoading: false,
+    error: null,
+    refetch: mockFileDetailsRefetch,
+  });
+}
+
 // ─── Step screen stubs ──────────────────────────────────────────────────────
 // MasterDataWizardStack imports these by path — mocking them here (resolved
 // relative to this test file, same absolute module as the navigator's own
@@ -111,6 +158,8 @@ describe('MasterDataWizardScreen', () => {
     migrationLayoutRenderCount = 0;
     lastSourceRowCount = undefined;
     useWizardStore.getState().reset();
+    setOrgProjectFilesDefault();
+    setFileDetailsDefault();
   });
 
   it('seeds wizard.store from the route params before rendering the Upload step', async () => {
@@ -146,25 +195,54 @@ describe('MasterDataWizardScreen', () => {
     expect(screen.getByTestId('master-data-wizard-screen')).toBeTruthy();
   });
 
-  it('reads the sidebar row count from the same wizard-store CSV Step 1 populates', async () => {
+  it('shows 0 for the sidebar row count when discovery finds no file for this project+entity yet', async () => {
     useWizardStore.getState().setWizardContext({
       entityId: 'items',
       orgProjectId: 'org-1',
       parentProjectId: 'proj-1',
       workstreamId: 'ws-1',
     });
-    useWizardStore.getState().setSourceCsv('items', [
-      ['SKU', 'Name'],
-      ['I-1', 'Widget'],
-      ['I-2', 'Gadget'],
-    ]);
+    // Default beforeEach state — discovery's latestFile is null, so
+    // useFileDetails is never given a real id and rowCount stays undefined.
 
     renderWizard();
 
     await waitFor(() => {
       expect(screen.getByTestId('stub-upload')).toBeTruthy();
     });
-    expect(lastSourceRowCount).toBe(2);
+    expect(lastSourceRowCount).toBe(0);
+  });
+
+  it('reads the sidebar row count from GET /api/v1/storage/files/{fileId} (useFileDetails), fed by the discovery call\'s latestFile, never a local/client-persisted value', async () => {
+    useWizardStore.getState().setWizardContext({
+      entityId: 'items',
+      orgProjectId: 'org-1',
+      parentProjectId: 'proj-1',
+      workstreamId: 'ws-1',
+    });
+    // Discovery (GET /storage/org-project/{orgProjectId}/files, scoped to
+    // org_project_id+workstream_id+entity_id) finds this entity's file —
+    // that's what MasterDataWizardScreen hands to useFileDetails as its
+    // fileId, not any client-persisted record.
+    setOrgProjectFilesDefault({ latestFile: { id: 'file-1' } as never });
+    // mockReturnValue (not -Once): MasterDataWizardScreen re-renders more
+    // than once before settling (the resume-step hydration effect), so a
+    // one-shot override would only apply to the first call and silently
+    // fall back to the default on the render actually asserted against below.
+    mockUseFileDetails.mockReturnValue({
+      file: { id: 'file-1', rowCount: 42 },
+      rowCount: 42,
+      isLoading: false,
+      error: null,
+      refetch: mockFileDetailsRefetch,
+    });
+
+    renderWizard();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('stub-upload')).toBeTruthy();
+    });
+    expect(lastSourceRowCount).toBe(42);
   });
 
   it('resumes on Profile when the project+entity already has a persisted step (e.g. after a browser refresh)', async () => {
@@ -200,6 +278,18 @@ describe('MasterDataWizardScreen', () => {
       expect(screen.getByTestId('stub-upload')).toBeTruthy();
     });
     expect(screen.queryByTestId('stub-profile')).toBeNull();
+  });
+
+  it('falls back to Upload when the persisted step has no registered route (e.g. a stale "values" step from before its screen was removed)', async () => {
+    (SecureStore.getItemAsync as jest.Mock).mockImplementationOnce((key: string) =>
+      Promise.resolve(key === STORAGE_KEYS.WIZARD_STEP_BY_ENTITY ? JSON.stringify({ 'proj-1:items': 'values' }) : null),
+    );
+
+    renderWizard();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('stub-upload')).toBeTruthy();
+    });
   });
 
   it('opens on Upload for an entity with no persisted step yet', async () => {

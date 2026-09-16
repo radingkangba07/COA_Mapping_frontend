@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {View, Text, ScrollView,} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LayoutTemplate, File as FileIcon, ArrowLeft, ArrowRight } from 'lucide-react-native';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -13,6 +13,10 @@ import { useProjectDetail } from '@/features/projects/hooks/useProjectDetail';
 import { createProjectId } from '@/shared/types/common.types';
 import { useEntityPack } from '../hooks/useEntityPack';
 import { useSourceFileUpload } from '../hooks/useSourceFileUpload';
+import { useOrgProjectFiles } from '../hooks/useOrgProjectFiles';
+import { useFileDetails } from '../hooks/useFileDetails';
+import { useDeleteFile } from '../hooks/useDeleteFile';
+import { usePersistedFilePreview } from '../hooks/usePersistedFilePreview';
 import { createPipelineRun, getActivePipelineRun, isPipelineRunConflict } from '../services/entity-pack.service';
 import { useToast } from '@/shared/hooks/useToast';
 import { buildEntityKey, useWizardStore } from '../store/wizard.store';
@@ -21,9 +25,11 @@ import { toStepRail } from '../mappers/toStepRail';
 import { StepRail } from '@/shared/components/ui/StepRail';
 import { parseCSV } from '../utils/csv';
 import { missingColumns } from '../utils/columnCheck';
+import { formatPreviewHeader, formatPreviewValue, isNumericColumn } from '../utils/previewFormat';
 import { colors } from '@/config/theme';
 import type { StepId } from '../types/wizard.types';
 import type { EntityId } from '../types/entity-pack.types';
+import type { UploadResult } from '../types/upload.types';
 import { Button } from '@/shared/components/ui/Button';
 import { Spinner } from '@/shared/components/ui/Spinner';
 import { FileUploadField, FileTargetCard, type UploadedFile } from '@/shared/components/ui/FileUploader';
@@ -33,6 +39,12 @@ import { SampleFileCard } from '@/shared/components/ui/SampleFileCard';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type UploadNav = NativeStackNavigationProp<MasterDataWizardStackParamList, 'Upload'>;
+
+// Stable reference for the zustand selector fallback below — a fresh `[]`
+// literal on every call makes useWizardStore's snapshot compare unequal to
+// itself every render (nothing ever "settles"), which forces React into
+// "Maximum update depth exceeded".
+const EMPTY_STEP_IDS: readonly StepId[] = [];
 
 // ─── Static entity sample fallbacks ─────────────────────────────────────────
 // Used when the backend entity profile endpoint has not yet returned sample data.
@@ -64,6 +76,84 @@ const ENTITY_SAMPLE: Record<string, { name: string; description: string; content
       'ITM-006,Filing Cabinet,Furniture,850.00,ZAR,VAT15,false',
     ].join('\n'),
   },
+  vendors: {
+    name: 'Source Vendors Sample',
+    description: 'Sample vendor master data for a source ERP',
+    content: [
+      'Vendor Code,Vendor Name,VAT No,Email,Payment Terms,Currency,Bank Account',
+      'V-2001,Steel Dynamics Ltd,4302198765,payables@steeldyn.co.za,Net 30,ZAR,1234567890',
+      'V-2002,Global Parts Inc,,orders@globalparts.com,Net 60,USD,9988776655',
+      'V-2003,Nordic Freight AB,5560012233,billing@nordicfreight.se,Net 45,EUR,4455667788',
+      'V-2004,Cape Office Supplies,4890123456,,COD,ZAR,',
+      'V-2005,TechSource Distributors,4123456789,accounts@techsource.co.za,2/10 N30,ZAR,3322114455',
+      'V-2006,Everest Packaging CC,,sales@everestpack.co.za,Net 30,ZAR,6677889900',
+    ].join('\n'),
+  },
+  locations: {
+    name: 'Source Locations Sample',
+    description: 'Sample location master data for a source ERP',
+    content: [
+      'Location Code,Location Name,Type,Address,City,Country,Active',
+      'LOC-01,Main Warehouse,Warehouse,12 Industrial Rd,Johannesburg,South Africa,true',
+      'LOC-02,Cape Town DC,Distribution Center,45 Harbour St,Cape Town,South Africa,true',
+      'LOC-03,Durban Depot,Depot,7 Dock Ave,Durban,South Africa,true',
+      'LOC-04,Retail Store 4,Retail,89 Main St,Pretoria,South Africa,false',
+      'LOC-05,Regional Office,Office,,Bloemfontein,South Africa,true',
+      'LOC-06,Overseas Hub,Warehouse,220 Trade Blvd,Rotterdam,Netherlands,true',
+    ].join('\n'),
+  },
+  contacts: {
+    name: 'Source Contacts Sample',
+    description: 'Sample contact master data for a source ERP',
+    content: [
+      'Contact ID,Full Name,Company,Email,Phone,Role,Active',
+      'CT-001,Sarah Naidoo,Roboweeder Pty Ltd,sarah.naidoo@roboweeder.co.za,+27 82 555 0101,Accounts Manager,true',
+      'CT-002,John Smith,Acme Trading CC,john.smith@acme.com,,Sales Rep,true',
+      'CT-003,Lena Berg,Nordic Freight AB,lena.berg@nordicfreight.se,+46 70 555 2211,Logistics Coordinator,true',
+      'CT-004,,Baltic Imports BV,accounts@baltic.eu,+31 20 555 3344,Finance Contact,true',
+      'CT-005,Thabo Mokoena,Cape Office Supplies,thabo.m@capeoffice.co.za,+27 83 555 4455,Procurement,false',
+      'CT-006,Amy Chen,TechSource Distributors,amy.chen@techsource.co.za,+27 84 555 6677,Account Executive,true',
+    ].join('\n'),
+  },
+  vehicles: {
+    name: 'Source Vehicles Sample',
+    description: 'Sample vehicle fleet master data for a source ERP',
+    content: [
+      'Vehicle ID,Registration No,Make,Model,Year,Fuel Type,Active',
+      'VEH-01,CA 123-456,Toyota,Hilux,2022,Diesel,true',
+      'VEH-02,GP 789-012,Ford,Ranger,2021,Diesel,true',
+      'VEH-03,KZN 345-678,Isuzu,D-Max,2023,Diesel,true',
+      'VEH-04,WC 901-234,Nissan,NV350,2019,Petrol,false',
+      'VEH-05,GP 567-890,Toyota,Corolla,2020,Petrol,true',
+      'VEH-06,,Mercedes-Benz,Sprinter,2022,Diesel,true',
+    ].join('\n'),
+  },
+  equipment: {
+    name: 'Source Equipment Sample',
+    description: 'Sample equipment master data for a source ERP',
+    content: [
+      'Equipment ID,Equipment Name,Category,Serial No,Location,Status,Purchase Date',
+      'EQ-1001,Forklift A,Material Handling,FLA-99231,Main Warehouse,Active,2021-03-15',
+      'EQ-1002,Conveyor Belt 1,Production,CB1-77410,Cape Town DC,Active,2020-07-01',
+      'EQ-1003,Air Compressor,Maintenance,AC-55210,Durban Depot,Under Repair,2019-11-20',
+      'EQ-1004,Generator 5kVA,Power,GEN5-33012,Regional Office,Active,',
+      'EQ-1005,Pallet Jack,Material Handling,,Main Warehouse,Active,2022-01-10',
+      'EQ-1006,CNC Machine,Production,CNC-88123,Overseas Hub,Decommissioned,2015-05-05',
+    ].join('\n'),
+  },
+  fixedassets: {
+    name: 'Source Fixed Assets Sample',
+    description: 'Sample fixed asset register data for a source ERP',
+    content: [
+      'Asset Code,Asset Name,Category,Acquisition Cost,Acquisition Date,Depreciation Method,Book Value',
+      'FA-500,Office Building A,Buildings,4500000.00,2015-06-01,Straight Line,3200000.00',
+      'FA-501,Delivery Truck 1,Vehicles,650000.00,2019-02-14,Reducing Balance,210000.00',
+      'FA-502,Server Rack,IT Equipment,180000.00,2021-09-01,Straight Line,90000.00',
+      'FA-503,Warehouse Racking,Furniture & Fixtures,95000.00,2018-04-10,Straight Line,38000.00',
+      'FA-504,Executive Desk Set,Furniture & Fixtures,25000.00,2022-01-01,,20000.00',
+      'FA-505,Manufacturing Press,Machinery,1200000.00,2016-08-20,Straight Line,',
+    ].join('\n'),
+  },
 };
 
 function toTitleCase(s: string): string {
@@ -89,17 +179,47 @@ export function MasterDataUploadScreen(): React.JSX.Element {
     isUploading,
     error: uploadError,
     reset: resetUpload,
-  } = useSourceFileUpload({ orgProjectId, fileType: 'source_erp' });
-  const setUploadedFile = useWizardStore((s) => s.setUploadedFile);
-  const clearUploadedFile = useWizardStore((s) => s.clearUploadedFile);
+  } = useSourceFileUpload({ orgProjectId, workstreamId: workstream_id, entityId, fileType: 'source_erp' });
   // Keyed by project+entity (see wizard.store.ts's buildEntityKey) so this
   // project's Step 1 never resumes with another project's uploaded file for
   // the same object (e.g. both running Items).
   const entityKey = buildEntityKey(parentProjectId, entityId as EntityId);
-  const storedUpload = useWizardStore((s) => s.uploadedFileByEntity[entityKey]);
-  const storedCsv = useWizardStore((s) => s.sourceCsvByEntity[entityKey]);
-  const setSourceCsv = useWizardStore((s) => s.setSourceCsv);
-  const clearSourceCsv = useWizardStore((s) => s.clearSourceCsv);
+  // Discovery (GET /api/v1/storage/org-project/{orgProjectId}/files, scoped
+  // to org_project_id + workstream_id + entity_id) — the backend-only
+  // "does this entity already have a file, and which one" lookup that
+  // replaces any client-persisted record. This is what makes a second
+  // browser/tab that never made the upload resolve the exact same file.
+  const discoveredFiles = useOrgProjectFiles(orgProjectId, workstream_id, entityId);
+  // currentFileId prefers a fresh upload's own response (instant feedback,
+  // the instant this tab's own upload confirms) and otherwise falls back to
+  // the discovery call above — never client storage. It's cleared in
+  // exactly one place: handleRemove, right alongside the DELETE
+  // /storage/files/{fileId} call below — that's the only action that should
+  // ever make an uploaded file disappear from this screen.
+  const currentFileId = uploadResult?.fileId ?? discoveredFiles.latestFile?.id ?? null;
+  // GET /api/v1/storage/files/{fileId} — this file's own metadata (row
+  // count, filename, columns...), re-validated against org_project_id/
+  // entity_id/workstream_id (see useFileDetails' own header comment) before
+  // any of it is ever shown. Only runs once currentFileId resolves to a
+  // real id — never speculatively before that.
+  const fileDetails = useFileDetails(orgProjectId, entityId, workstream_id, currentFileId);
+  useFocusEffect(
+    useCallback(() => {
+      // Only refetch if a file already exists — never speculatively on a
+      // fresh/empty mount.
+      if (currentFileId) {
+        fileDetails.refetch();
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentFileId]),
+  );
+  const { remove: removeFile } = useDeleteFile({ orgProjectId, workstreamId: workstream_id, entityId });
+  // Kept entirely separate from the uploaded file's own state above — see
+  // loadPreviewByEntity's doc comment in wizard.store.ts. Loading the sample
+  // must never write into, or be overwritten by, the actual uploaded file's
+  // own preview state.
+  const loadPreview = useWizardStore((s) => s.loadPreviewByEntity[entityKey]);
+  const setLoadPreview = useWizardStore((s) => s.setLoadPreview);
   const pipelineRunIdByEntity = useWizardStore((s) => s.pipelineRunIdByEntity);
   const setPipelineRunId = useWizardStore((s) => s.setPipelineRunId);
   const clearPipelineRunId = useWizardStore((s) => s.clearPipelineRunId);
@@ -122,43 +242,114 @@ export function MasterDataUploadScreen(): React.JSX.Element {
     refetchProject();
   }, [refetchPack, refetchProject]);
 
-  const [fileName, setFileName] = useState<string | null>(null);
   const [csvRows, setCsvRows] = useState<string[][]>([]);
+  // Hidden by default (see loadContent's own comment) — the user opts in via
+  // FileUploadField's Preview/Hide-preview toggle.
   const [showPreview, setShowPreview] = useState(false);
+  // Toggled by the Sample File card's Load button — independent of
+  // showPreview above (Source File Preview's own toggle). The underlying
+  // sample rows stay in loadPreviewByEntity either way; this only controls
+  // whether the Load Preview panel is currently shown.
+  const [showLoadPreview, setShowLoadPreview] = useState(false);
   const [isCreatingRun, setIsCreatingRun] = useState(false);
   const toast = useToast();
 
-  // The confirmed upload the rest of Step 1 (and Continue) treats as "the
-  // file for this entity": the just-completed mutation result when one
-  // exists, falling back to whatever the wizard store already has for this
-  // entity. The mutation's own result resets whenever this screen instance
-  // is recreated (e.g. React Navigation re-creating it after Back) even
-  // though the upload was already confirmed by the server — the store is
-  // what survives that, so Continue must read through it too, not just
-  // `uploadResult`.
-  const effectiveUploadResult = uploadResult ?? storedUpload ?? null;
-
-  // Rehydrate the dropzone + preview from the wizard store when this screen
-  // instance starts out with no local state but the entity already has a
-  // confirmed upload (Back from Profile, or switching entityId mid-session).
-  // Local useState never survives that; uploadedFileByEntity/sourceCsvByEntity
-  // do, by design (see wizard.store.ts).
+  // A failed fetch here (expired session, no access to this org project,
+  // backend unreachable) previously left this screen looking exactly like
+  // "no file uploaded yet" — indistinguishable from the real empty state —
+  // which is what made a genuinely-uploaded file look invisible from a
+  // different session. `toast.showError` is stable across renders even
+  // though useToast()'s returned object isn't, so `toast` is deliberately
+  // left out of the dependency array below.
   useEffect(() => {
-    if (storedUpload) {
-      setFileName(storedUpload.fileName);
-      setCsvRows(storedCsv ?? []);
+    if (!fileDetails.error) return;
+    if (fileDetails.error.code === 'HTTP_404') {
+      // currentFileId (a fresh upload's response, or the discovery call's
+      // latestFile) no longer resolves to a real file server-side.
+      // Re-fetching this exact fileId would only ever 404 again, so drop the
+      // fresh-upload source and re-run discovery — that's what actually
+      // clears currentFileId to null (once discovery also confirms nothing
+      // is there), which disables the file-details query entirely and falls
+      // back to the normal "no file yet" state, instead of retrying (and
+      // re-erroring on) that same dead id forever.
+      resetUpload();
+      discoveredFiles.refetch();
+      return;
     }
-  }, [entityId, storedUpload, storedCsv]);
+    toast.showError('Could not load your uploaded file', fileDetails.error.message);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileDetails.error]);
+
+  // Strict, API-only existence + metadata — GET /api/v1/storage/files/
+  // {fileId} (fileDetails) is the single source of truth for "does this
+  // entity have an uploaded source file", full stop. `hasFile` is
+  // `fileDetails.file !== null`, computed strictly from that response.
+  // Neither this nor `effectiveUploadResult` below ever falls back to
+  // fileName/csvRows/uploadResult/the discovery call's own file shape — a
+  // file this endpoint doesn't confirm must never render as "uploaded",
+  // even if local state still has one.
+  const hasFile = fileDetails.file !== null;
+  const effectiveUploadResult: UploadResult | null = fileDetails.file
+    ? {
+        fileId: fileDetails.file.id,
+        fileName: fileDetails.file.originalFilename,
+        fileType: fileDetails.file.fileType,
+        contentType: fileDetails.file.contentType,
+        sizeBytes: fileDetails.file.sizeBytes,
+        status: fileDetails.file.status,
+        rowCount: fileDetails.file.rowCount,
+        storagePath: fileDetails.file.storagePath,
+        createdAt: fileDetails.file.createdAt,
+      }
+    : null;
 
   const MAX_PREVIEW = 8;
 
   const uploadStep = STEPS.find(s => s.id === 'upload')!;
   const profileStep = STEPS.find(s => s.id === 'profile')!;
-  const stepRail = toStepRail(uploadStep.id as StepId, STEPS);
+  // Local only, same pattern as migration.store.ts's completedSteps — see
+  // wizard.store.ts's completedStepIdsByEntity doc comment. currentStepId
+  // reflects the furthest step recordStep has advanced this entity to (e.g.
+  // still shows Profile active/Upload done if the user navigated back here
+  // after already advancing), not just "this is the Upload screen".
+  const currentStepId = useWizardStore((s) => s.currentStepId);
+  const completedStepIds = useWizardStore((s) => s.completedStepIdsByEntity[entityKey] ?? EMPTY_STEP_IDS);
+  const completeStep = useWizardStore((s) => s.completeStep);
+  const stepRail = toStepRail((currentStepId ?? uploadStep.id) as StepId, STEPS, completedStepIds);
 
-  const header = csvRows[0] ?? [];
-  const dataRows = Math.max(0, csvRows.length - 1);
-  const hasFile = fileName !== null;
+  // Local CSV parse when this browser tab actually read the file (this
+  // session's own upload/sample-load); otherwise download and parse the
+  // persisted file's actual bytes (GET /api/v1/storage/download/{fileId})
+  // for a project reopened with no local parse to work from (a refresh, a
+  // new tab, revisiting from another route) — see persistedUploadResult
+  // above. getFileById alone can't cover this: it only ever returns column
+  // names and a row count, never the actual row values.
+  const { rows: persistedRows } = usePersistedFilePreview(
+    csvRows.length === 0 ? (fileDetails.file?.id ?? null) : null,
+  );
+  const effectiveRows = csvRows.length > 0 ? csvRows : persistedRows;
+  const header = effectiveRows[0] ?? fileDetails.file?.columns ?? [];
+  // Row count itself always comes from getFileById (fileDetails), never the
+  // upload mutation's response — see useFileDetails' header comment.
+  // effectiveRows still drives the actual preview table content (real cell
+  // values, which the file-details endpoint never carries), just not the
+  // displayed count.
+  const dataRows = effectiveRows.length > 0 ? Math.max(0, effectiveRows.length - 1) : (fileDetails.rowCount ?? 0);
+  const previewDataRows = effectiveRows.slice(1, 1 + MAX_PREVIEW);
+  // Numeric columns render left-aligned, text columns center-aligned (headers
+  // are always left-aligned, above) — a column only counts as numeric when
+  // every non-empty cell within the previewed rows looks like a plain number.
+  const columnIsNumeric = header.map((_, colIdx) => isNumericColumn(previewDataRows.map((row) => row[colIdx] ?? '')));
+
+  // Load Preview — entirely independent of header/dataRows/previewDataRows
+  // above, which are the uploaded file's own preview. Never derived from,
+  // or falls back to, csvRows/persistedRows.
+  const loadPreviewRows = loadPreview?.rows ?? [];
+  const loadPreviewHeader = loadPreviewRows[0] ?? [];
+  const loadPreviewDataCount = loadPreviewRows.length > 0 ? Math.max(0, loadPreviewRows.length - 1) : 0;
+  const loadPreviewDataRows = loadPreviewRows.slice(1, 1 + MAX_PREVIEW);
+
+  const displayFileName = fileDetails.file?.originalFilename ?? null;
   const spec = pack?.spec ?? {};
   const expectedCols = spec.expectedColumns ?? [];
   const columnWarning = hasFile && expectedCols.length > 0
@@ -190,44 +381,36 @@ export function MasterDataUploadScreen(): React.JSX.Element {
   // silently re-show the preview as if the file had been accepted.
   const activePickRef = useRef(0);
 
-  const loadContent = useCallback((content: string, name: string, pick: number): void => {
+  const loadContent = useCallback((content: string, pick: number): void => {
     if (activePickRef.current !== pick) return;
     const rows = parseCSV(content);
-    setFileName(name);
     setCsvRows(rows);
-    setShowPreview(true);
-    // Persisted so the preview survives this screen losing its local state
-    // (see the rehydrate effect above) — kept in step with uploadedFileByEntity,
-    // which is what actually confirms this parse matches the server's file.
-    setSourceCsv(entityId as EntityId, rows);
-  }, [entityId, setSourceCsv]);
+    // Preview stays hidden by default on every load (including a fresh
+    // upload replacing an already-previewed file) — the user opts in via
+    // FileUploadField's own "Preview"/"Hide preview" toggle button below.
+    // This is plain component state, not persisted anywhere — a remount
+    // (Back from Profile, a refresh, a new tab) starts with none and falls
+    // back to usePersistedFilePreview's backend download instead (see
+    // effectiveRows below), never a client-cached copy of this parse.
+  }, []);
 
   const handleFilePicked = useCallback((file: UploadedFile): void => {
     const pick = ++activePickRef.current;
     if (file instanceof File) {
-      void file.text().then((content) => loadContent(content, file.name, pick));
+      void file.text().then((content) => loadContent(content, pick));
     } else {
       void FileSystem.readAsStringAsync(file.uri).then((content) =>
-        loadContent(content, file.name, pick),
+        loadContent(content, pick),
       );
     }
-    // A previously confirmed fileId (and any profiler run it started)
-    // belongs to the file being replaced — drop both now so neither can be
-    // read while this new upload is still in flight (or if it fails).
-    clearUploadedFile(entityId as EntityId);
-    clearSourceCsv(entityId as EntityId);
+    // A previously confirmed upload (and any profiler run it started)
+    // belongs to the file being replaced. The old fileId already stops
+    // being used the instant uploadSourceFileToServer's own result comes
+    // back (currentFileId prefers uploadResult.fileId over discovery), so
+    // only the profiler run needs an explicit drop here.
     clearPipelineRunId(entityId as EntityId);
     uploadSourceFileToServer(file);
-  }, [loadContent, uploadSourceFileToServer, clearUploadedFile, clearSourceCsv, clearPipelineRunId, entityId]);
-
-  // The single point where a backend-confirmed upload becomes part of wizard
-  // state — mirrors is the source of truth for later steps, never the local
-  // CSV preview parsed in loadContent (which the server never sees).
-  useEffect(() => {
-    if (uploadResult) {
-      setUploadedFile(entityId as EntityId, uploadResult);
-    }
-  }, [uploadResult, entityId, setUploadedFile]);
+  }, [loadContent, uploadSourceFileToServer, clearPipelineRunId, entityId]);
 
   // A failed server upload (e.g. the backend is unreachable) must not leave
   // the local CSV preview looking like an accepted file — drop it so the
@@ -238,29 +421,59 @@ export function MasterDataUploadScreen(): React.JSX.Element {
       // Invalidate any read still in flight for the pick that just failed —
       // see activePickRef's comment above.
       activePickRef.current += 1;
-      setFileName(null);
       setCsvRows([]);
       setShowPreview(false);
-      clearSourceCsv(entityId as EntityId);
     }
-  }, [uploadError, clearSourceCsv, entityId]);
+  }, [uploadError]);
 
   const handleRemove = useCallback((): void => {
     activePickRef.current += 1;
-    setFileName(null);
     setCsvRows([]);
     setShowPreview(false);
     resetUpload();
-    clearUploadedFile(entityId as EntityId);
-    clearSourceCsv(entityId as EntityId);
     clearPipelineRunId(entityId as EntityId);
-  }, [resetUpload, clearUploadedFile, clearSourceCsv, clearPipelineRunId, entityId]);
+    // Actually deletes the persisted file server-side (DELETE
+    // /api/v1/storage/files/{fileId}) — the local-state clearing above is
+    // this screen's own optimistic reset, not a substitute for it.
+    // effectiveUploadResult is itself derived only from fileDetails.file
+    // (see above), so this is the same id either way. useDeleteFile's own
+    // onSuccess is what actually flips hasFile back to false, by
+    // invalidating the discovery query this screen reads currentFileId from.
+    if (fileDetails.file) {
+      removeFile(fileDetails.file.id);
+    }
+  }, [resetUpload, clearPipelineRunId, entityId, fileDetails.file, removeFile]);
 
+  // Deliberately does NOT call loadContent — that function backs the actual
+  // uploaded file's own preview (csvRows) and clicking
+  // Load must never write into, or be overwritten by, that state (see
+  // loadPreviewByEntity's doc comment in wizard.store.ts). The sample is
+  // never uploaded to the server either — no uploadSourceFileToServer call.
+  // Toggles: a first press loads (if needed) and shows it in the (shared)
+  // Source File Preview section below; pressing the same Load button again
+  // just closes it. Also closes showPreview, since only one of the two
+  // sources is ever shown in that one section at a time.
   const handleLoadSample = useCallback((): void => {
+    if (showLoadPreview) {
+      setShowLoadPreview(false);
+      return;
+    }
     if (!sampleContent) return;
-    const pick = ++activePickRef.current;
-    loadContent(sampleContent, `${entityId}-sample.csv`, pick);
-  }, [sampleContent, entityId, loadContent]);
+    const rows = parseCSV(sampleContent);
+    setLoadPreview(entityId as EntityId, `${entityId}-sample.csv`, rows);
+    setShowPreview(false);
+    setShowLoadPreview(true);
+  }, [showLoadPreview, sampleContent, entityId, setLoadPreview]);
+
+  // FileUploadField's own Preview/Hide-preview toggle — closes showLoadPreview
+  // when turning the upload's own preview on, for the same reason.
+  const handleToggleSourcePreview = useCallback((): void => {
+    setShowPreview((prev) => {
+      const next = !prev;
+      if (next) setShowLoadPreview(false);
+      return next;
+    });
+  }, []);
 
   const handleDownloadSample = useCallback(async (): Promise<void> => {
     if (!sampleContent) return;
@@ -304,6 +517,11 @@ export function MasterDataUploadScreen(): React.JSX.Element {
   const handleContinue = useCallback(async (): Promise<void> => {
     if (!effectiveUploadResult) return;
 
+    // Marks the Upload stage complete — local-only (wizard.store.ts's
+    // completedStepIdsByEntity), same pattern as migration.store.ts's
+    // completeStep. Synchronous, so it can never fail.
+    completeStep(entityId, 'upload' as StepId);
+
     // This upload already has a run (an earlier Continue press created one) —
     // reuse it instead of hitting POST /api/v1/pipeline/runs again.
     const existingRunId = pipelineRunIdByEntity[entityKey];
@@ -330,12 +548,12 @@ export function MasterDataUploadScreen(): React.JSX.Element {
     setPipelineRunId(entityId as EntityId, result.data.id);
     recordStep(entityId, 'profile');
     navigation.navigate('Profile');
-  }, [navigation, orgProjectId, entityId, entityKey, workstream_id, effectiveUploadResult, toast, pipelineRunIdByEntity, setPipelineRunId, recordStep]);
+  }, [navigation, orgProjectId, entityId, entityKey, workstream_id, effectiveUploadResult, toast, pipelineRunIdByEntity, setPipelineRunId, recordStep, completeStep]);
 
   const stepCounter = `Step ${uploadStep.n} of ${STEPS.length}`;
   const continueLabel = `Continue to ${profileStep.label}`;
   const fileLine = hasFile
-    ? `${fileName ?? ''} · ${dataRows} rows`
+    ? `${displayFileName ?? ''} · ${dataRows} rows`
     : `No source ${entityId} file selected`;
 
   const targetErpKey = (project?.targetErp ?? '').toLowerCase();
@@ -407,7 +625,6 @@ export function MasterDataUploadScreen(): React.JSX.Element {
             </View>
           </View>
 
-
           {/* ── Main panel ───────────────────────────────────────────── */}
           <View className="border border-border rounded-xl p-5 self-stretch">
             <View className="flex-col gap-6 flex-wrap md:flex-row">
@@ -422,14 +639,14 @@ export function MasterDataUploadScreen(): React.JSX.Element {
                 }
                 subLabel="Upload a source CSV to continue"
                 hasFile={hasFile}
-                fileName={fileName}
+                fileName={displayFileName}
                 rowCount={dataRows}
                 tagClassName="bg-chip text-chip-foreground"
                 expectedColumns={expectedCols}
                 columnWarning={columnWarning}
                 showPreview={showPreview}
                 onFilePicked={handleFilePicked}
-                onTogglePreview={() => setShowPreview(p => !p)}
+                onTogglePreview={handleToggleSourcePreview}
                 onRemove={handleRemove}
                 testID="master-data-upload-dropzone"
               />
@@ -453,53 +670,75 @@ export function MasterDataUploadScreen(): React.JSX.Element {
             />
           </View>
 
-          {/* Source file preview */}
-          {hasFile && showPreview && (
-            <View className="border rounded-xl overflow-hidden self-stretch mt-8 bg-card border-border">
-              <View className="flex-row items-center gap-3 flex-wrap p-4">
-                <LayoutTemplate size={17} color={colors.primary} strokeWidth={1.8} />
-                <Text className="text-base font-bold font-heading text-foreground">Source File Preview</Text>
-                <View className="border rounded-full px-3 py-1 border-border">
-                  <Text className="text-xs font-mono text-muted-foreground">
-                    {`first ${Math.min(MAX_PREVIEW, dataRows)} of ${dataRows} rows`}
-                  </Text>
-                </View>
-              </View>
-              <Text className="text-xs px-4 mb-2 font-body text-muted-foreground">
-                Check the header row and a few sample values before continuing. Column names are matched to target fields in the next step.
-              </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator contentContainerClassName="flex-grow">
-                <View className="flex-1">
-                  <View className="flex-row border-b bg-surface border-b-border">
-                    <View className="w-14 shrink-0 px-3 py-3">
-                      <Text className="text-xs font-bold uppercase tracking-wider font-body text-muted-foreground">SRC #</Text>
-                    </View>
-                    {header.map((col, i) => (
-                      <View key={i} className="flex-1 px-3 py-3">
-                        <Text className="text-xs font-bold uppercase tracking-wider font-body text-muted-foreground" numberOfLines={1}>{col}</Text>
-                      </View>
-                    ))}
+          {/* Source File Preview — the single shared preview section. Shows
+             either this tab's own uploaded-file preview (csvRows/
+             persistedRows) or, when the Sample File "Load" button is toggled
+             on, the loaded sample's preview (loadPreviewByEntity) — never
+             both at once (see the mutual-exclusion in handleLoadSample /
+             handleToggleSourcePreview below). The two data sources
+             themselves stay fully separate — loadPreviewByEntity is never
+             written into csvRows or vice versa (see loadPreviewByEntity's
+             doc comment in wizard.store.ts) — this only reuses the one
+             display section to show whichever preview the user last asked
+             for. */}
+          {(() => {
+            const isLoadPreview = showLoadPreview && loadPreviewRows.length > 0;
+            const isUploadPreview = !isLoadPreview && hasFile && showPreview && effectiveRows.length > 0;
+            if (!isLoadPreview && !isUploadPreview) return null;
+
+            const previewHeader = isLoadPreview ? loadPreviewHeader : header;
+            const previewRows = isLoadPreview ? loadPreviewDataRows : previewDataRows;
+            const previewRowCount = isLoadPreview ? loadPreviewDataCount : dataRows;
+
+            return (
+              <View className="border rounded-xl overflow-hidden self-stretch mt-8 bg-card border-border">
+                <View className="flex-row items-center gap-3 flex-wrap p-4">
+                  <LayoutTemplate size={17} color={colors.primary} strokeWidth={1.8} />
+                  <Text className="text-base font-bold font-heading text-foreground">Source File Preview</Text>
+                  <View className="border rounded-full px-3 py-1 border-border">
+                    <Text className="text-xs font-mono text-muted-foreground">
+                      {`first ${Math.min(MAX_PREVIEW, previewRowCount)} of ${previewRowCount} rows`}
+                    </Text>
                   </View>
-                  {csvRows.slice(1, 1 + MAX_PREVIEW).map((row, ri) => (
-                    <View key={ri} className="flex-row border-b border-b-border">
-                      <View className="w-14 shrink-0 px-3 py-3">
-                        <Text className="text-xs font-mono text-muted-foreground">{ri + 1}</Text>
+                </View>
+                <Text className="text-xs px-4 mb-2 font-body text-muted-foreground">
+                  Check the header row and a few sample values before continuing. Column names are matched to target fields in the next step.
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator contentContainerClassName="flex-grow">
+                  <View className="flex-1">
+                    <View className="flex-row border-b bg-surface border-b-border">
+                      <View className="w-15 shrink-0 px-3 py-3">
+                        <Text className="text-xs font-bold uppercase tracking-wider font-body text-muted-foreground text-left">SRC #</Text>
                       </View>
-                      {row.map((cell, ci) => (
-                        <View key={ci} className="flex-1 px-3 py-3">
-                          <Text className="text-xs font-mono text-foreground" numberOfLines={1}>{cell}</Text>
+                      {previewHeader.map((col, i) => (
+                        <View key={i} className="flex-1 px-3 py-3">
+                          <Text className="text-xs font-bold uppercase tracking-wider font-body text-muted-foreground text-left" numberOfLines={1}>{formatPreviewHeader(col)}</Text>
                         </View>
                       ))}
                     </View>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
-          )}
+                    {previewRows.map((row, ri) => (
+                      <View key={ri} className="flex-row border-b border-b-border">
+                        <View className="w-14 shrink-0 px-3 py-3">
+                          <Text className="text-xs font-mono text-muted-foreground text-left">{ri + 1}</Text>
+                        </View>
+                        {row.map((cell, ci) => (
+                          <View key={ci} className="flex-1 px-3 py-3">
+                            <Text className="text-xs font-mono text-foreground text-left" numberOfLines={1}>
+                              {formatPreviewValue(cell)}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            );
+          })()}
 
           <Text className="text-xs py-1 font-mono text-muted-foreground">
             {hasFile
-              ? `${fileName ?? ''} → ${targetErpInfo.name}`
+              ? `${displayFileName ?? ''} → ${targetErpInfo.name}`
               : `Waiting for a source ${(pack?.label.singular ?? entityId).toLowerCase()} file…`}
           </Text>
         </ScrollView>

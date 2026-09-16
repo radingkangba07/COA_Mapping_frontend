@@ -19,10 +19,13 @@
    survives a full browser refresh even though the rest of this in-memory
    store doesn't. It's keyed by project+entity (buildEntityKey), not entity
    alone, so two different projects running the same object (e.g. both
-   doing Items) never bleed their resume step — or, per uploadedFileByEntity/
-   sourceCsvByEntity below, their uploaded file — into each other. This
-   screen hydrates it and opens the nested stack on this project+entity's
+   doing Items) never bleed their resume step into each other. This screen
+   hydrates it and opens the nested stack on this project+entity's
    last-recorded step instead of always restarting at Upload.
+
+   The uploaded file itself is never read from this store — see
+   useOrgProjectFiles/useFileDetails below, both backend-derived, which is
+   what lets the sidebar show the same row count in every browser/tab.
    ========================================================================= */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -34,6 +37,8 @@ import type { ProjectsStackParamList } from '@/navigation/types';
 import { MigrationLayout } from '@/features/migration/components/MigrationLayout';
 import { Spinner } from '@/shared/components/ui/Spinner';
 import { buildEntityKey, useWizardStore } from '../store/wizard.store';
+import { useOrgProjectFiles } from '../hooks/useOrgProjectFiles';
+import { useFileDetails } from '../hooks/useFileDetails';
 import { MasterDataWizardStack } from '../navigation/MasterDataWizardStack';
 import { stepIdToWizardRoute, type MasterDataWizardStackParamList } from '../navigation/masterDataWizardStack.types';
 import type { EntityId } from '../types/entity-pack.types';
@@ -90,16 +95,26 @@ export function MasterDataWizardScreen(): React.JSX.Element {
     };
   }, [entityId, orgProjectId, parentProjectId, workstream_id, setWizardContext, hydrateStepByEntity, hydrateUploadedFileByEntity]);
 
-  // The sidebar must show the same "N source rows" on every step — read
-  // from the same wizard-store fields Step 1's own dropzone count comes
-  // from (see MasterDataUploadScreen), not from any one step's fetched
-  // pack, which may not even be loaded yet on the current step.
-  const entityKey = buildEntityKey(parentProjectId, entityId as EntityId);
-  const storedCsv = useWizardStore((s) => s.sourceCsvByEntity[entityKey]);
-  const storedUpload = useWizardStore((s) => s.uploadedFileByEntity[entityKey]);
-  const sidebarSourceRowCount = storedCsv
-    ? Math.max(0, storedCsv.length - 1)
-    : storedUpload?.rowCount ?? undefined;
+  // The sidebar must show the same "N source rows" on every step, and the
+  // same count in every browser/tab. GET /api/v1/storage/files/{fileId}
+  // (fileDetails) is the single source of truth for the row count itself;
+  // the fileId that feeds it comes from useOrgProjectFiles — the discovery
+  // call scoped to org_project_id + workstream_id + entity_id — never from
+  // client-persisted state, and never the POST /storage/upload response
+  // (this screen never performs the upload itself). This is what lets a
+  // second browser/tab opening the same project+entity see the same count
+  // a first browser's upload produced, with nothing local to hydrate.
+  const discoveredFiles = useOrgProjectFiles(orgProjectId, workstream_id, entityId);
+  const fileDetails = useFileDetails(orgProjectId, entityId, workstream_id, discoveredFiles.latestFile?.id ?? null);
+  const sidebarSourceRowCount = fileDetails.rowCount ?? 0;
+  // This wizard has no target dataset of its own yet (root CLAUDE.md:
+  // "There is no write endpoint yet") — mirror the same workstream+entity
+  // -scoped file-details count as source rather than leaving this prop
+  // unset, which would fall through to MigrationLayout's own useSidebarData(
+  // projectId) and read useMigrationStore's targetFile — the unrelated COA
+  // migration flow's global store. 0 whenever there's no workstream_id (or
+  // no file yet) for this entity.
+  const sidebarTargetRowCount = workstream_id ? sidebarSourceRowCount : 0;
 
   const handleBack = useCallback((): void => {
     navigation.navigate('ProjectOverview', { projectId: parentProjectId });
@@ -111,6 +126,7 @@ export function MasterDataWizardScreen(): React.JSX.Element {
       projectId={parentProjectId}
       onBack={handleBack}
       sourceRowCount={sidebarSourceRowCount}
+      targetRowCount={sidebarTargetRowCount}
       testID="master-data-wizard-screen"
     >
       {initialRouteName ? (

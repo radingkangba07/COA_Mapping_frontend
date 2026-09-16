@@ -252,6 +252,8 @@ export interface UploadSourceFileOptions {
   fileType?: string;
   jobId?: string;
   workstreamId?: string;
+  /** Which master-data entity (customers, vendors, items, ...) this file belongs to — sent so the backend can persist it and later scope listOrgProjectFiles/getFileById by entity_id, not just workstream_id. */
+  entityId?: string;
 }
 
 export async function uploadSourceFile(
@@ -275,6 +277,7 @@ export async function uploadSourceFile(
     if (options?.projectId) formData.append('project_id', options.projectId);
     if (options?.fileType) formData.append('file_type', options.fileType);
     if (options?.jobId) formData.append('job_id', options.jobId);
+    if (options?.entityId) formData.append('entity_id', options.entityId);
     if (options?.workstreamId) formData.append('workstream_id', options.workstreamId);
 
     console.log('[entity-pack.service] POST /api/v1/storage/upload', options);
@@ -809,6 +812,13 @@ export function isPipelineRunConflict(error: AppError): boolean {
      - DELETE /api/v1/storage/files/{fileId}
    ========================================================================= */
 
+// org_project_id/entity_id/workstream_id — optional because neither the
+// live files-list endpoint nor GET /storage/files/{id} actually sends them
+// back on the file object today (confirmed against a real response) — a
+// strict "must be present and match" check against that real contract
+// blanks out every legitimately-uploaded file, not just cross-entity ones.
+// fileMatchesContext() below only rejects a file when a field it DOES
+// carry disagrees with the caller's context; see its own comment.
 const orgProjectFileSchema = z.object({
   id: z.string(),
   file_type: z.string(),
@@ -820,6 +830,9 @@ const orgProjectFileSchema = z.object({
   columns: z.array(z.string()).nullable().optional(),
   row_count: z.number(),
   created_at: z.string(),
+  org_project_id: z.string().optional(),
+  entity_id: z.string().optional(),
+  workstream_id: z.string().optional(),
 });
 
 const orgProjectFilesResponseSchema = z.object({
@@ -839,6 +852,10 @@ export interface PersistedFile {
   readonly columns: string[];
   readonly rowCount: number;
   readonly createdAt: string;
+  /** Present only if/when the backend starts sending it — see fileMatchesContext(). */
+  readonly orgProjectId?: string;
+  readonly entityId?: string;
+  readonly workstreamId?: string;
 }
 
 function toPersistedFile(dto: z.infer<typeof orgProjectFileSchema>): PersistedFile {
@@ -853,7 +870,37 @@ function toPersistedFile(dto: z.infer<typeof orgProjectFileSchema>): PersistedFi
     columns: dto.columns ?? [],
     rowCount: dto.row_count,
     createdAt: dto.created_at,
+    orgProjectId: dto.org_project_id,
+    entityId: dto.entity_id,
+    workstreamId: dto.workstream_id,
   };
+}
+
+export interface FileContext {
+  readonly orgProjectId?: string;
+  readonly entityId?: string;
+  readonly workstreamId?: string;
+}
+
+/**
+ * True when every context field the file's own response actually carries
+ * agrees with the caller's current org_project_id/entity_id/workstream_id.
+ * A field the response omits is not checked (can't validate what isn't
+ * there — confirmed live: neither the list nor GET /storage/files/{id}
+ * sends these back today) rather than treated as a mismatch — a strict
+ * "must be present" version of this rejected every real file, including
+ * ones this screen had just uploaded itself under the exact current
+ * context, because the field was never in the response to begin with.
+ * Once the backend starts returning these fields, a genuine cross-entity
+ * file (e.g. a Vendor file surfacing under Customer) fails this check and
+ * callers must treat it as "no file" — never display it, never populate
+ * row counts from it.
+ */
+export function fileMatchesContext(file: PersistedFile, ctx: FileContext): boolean {
+  if (ctx.orgProjectId && file.orgProjectId && file.orgProjectId !== ctx.orgProjectId) return false;
+  if (ctx.entityId && file.entityId && file.entityId !== ctx.entityId) return false;
+  if (ctx.workstreamId && file.workstreamId && file.workstreamId !== ctx.workstreamId) return false;
+  return true;
 }
 
 // ─── listOrgProjectFiles · GET /api/v1/storage/org-project/{orgProjectId}/files
@@ -876,12 +923,18 @@ export interface OrgProjectFilesResult {
 // then switching to Vendors would show "already uploaded" there too. Pass
 // the entity's own workstream_id (always available — see
 // MasterDataUploadScreen's workstream_id) to scope the list to that entity.
+// entityId is sent alongside workstream_id (not instead of it) as a second,
+// independent scoping key the backend can filter on.
 export async function listOrgProjectFiles(
   orgProjectId: string,
   workstreamId?: string,
+  entityId?: string,
 ): Promise<Result<OrgProjectFilesResult, AppError>> {
   try {
-    console.log(`[entity-pack.service] GET /api/v1/storage/org-project/${orgProjectId}/files`, { workstreamId });
+    console.log(`[entity-pack.service] GET /api/v1/storage/org-project/${orgProjectId}/files`, { workstreamId, entityId });
+    const params: Record<string, string> = {};
+    if (workstreamId) params.workstream_id = workstreamId;
+    if (entityId) params.entity_id = entityId;
     // This endpoint's whole job is "reflect the file the user just deleted or
     // uploaded" — the URL is identical on every call, and the backend sends
     // no Cache-Control of its own, so without this a browser is free to
@@ -890,7 +943,7 @@ export async function listOrgProjectFiles(
     // the refetch that follows a delete/upload is genuinely being issued.
     const response = await httpClient.get<unknown>(`/api/v1/storage/org-project/${orgProjectId}/files`, {
       headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
-      params: workstreamId ? { workstream_id: workstreamId } : undefined,
+      params: Object.keys(params).length > 0 ? params : undefined,
     });
     console.log(`[entity-pack.service] GET /api/v1/storage/org-project/${orgProjectId}/files -> response`, response.data);
     const parsed = orgProjectFilesResponseSchema.safeParse(response.data);
@@ -904,6 +957,55 @@ export async function listOrgProjectFiles(
     return ok({ files: parsed.data.files.map(toPersistedFile), total: parsed.data.total });
   } catch (error: unknown) {
     console.log(`[entity-pack.service] GET /api/v1/storage/org-project/${orgProjectId}/files -> error`, error);
+    return err(toAppError(error));
+  }
+}
+
+// ─── getFileById · GET /api/v1/storage/files/{fileId} ───────────────────────
+// Flat FileResponse shape (see uploadSourceFile's response comment above:
+// "unlike GET /storage/files/{id}") — same shape listOrgProjectFiles' items
+// already parse, so this reuses orgProjectFileSchema/toPersistedFile rather
+// than a second schema. This is the one source Source/Target row counts
+// should read from: never the POST /storage/upload response (which reflects
+// only the instant of upload, not a later delete/refresh), and never the
+// files-list response either (a different endpoint, scoped to "which file is
+// current", not "what are this file's current details"). org_project_id/
+// entity_id/workstream_id ride alongside file_id on every call so the
+// backend can validate the file actually belongs to the caller's current
+// project+entity+workstream, and so this hook's own cache key can include
+// all four (see useFileDetails.ts).
+export interface GetFileByIdParams {
+  readonly orgProjectId?: string;
+  readonly entityId?: string;
+  readonly workstreamId?: string;
+}
+
+export async function getFileById(
+  fileId: string,
+  params?: GetFileByIdParams,
+): Promise<Result<PersistedFile, AppError>> {
+  try {
+    const query: Record<string, string> = {};
+    if (params?.orgProjectId) query.org_project_id = params.orgProjectId;
+    if (params?.entityId) query.entity_id = params.entityId;
+    if (params?.workstreamId) query.workstream_id = params.workstreamId;
+    console.log(`[entity-pack.service] GET /api/v1/storage/files/${fileId}`, query);
+    const response = await httpClient.get<unknown>(`/api/v1/storage/files/${fileId}`, {
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      params: Object.keys(query).length > 0 ? query : undefined,
+    });
+    console.log(`[entity-pack.service] GET /api/v1/storage/files/${fileId} -> response`, response.data);
+    const parsed = orgProjectFileSchema.safeParse(response.data);
+    if (!parsed.success) {
+      return err({
+        code: 'INVALID_RESPONSE',
+        message: 'File details response failed validation',
+        details: { issues: parsed.error.issues },
+      });
+    }
+    return ok(toPersistedFile(parsed.data));
+  } catch (error: unknown) {
+    console.log(`[entity-pack.service] GET /api/v1/storage/files/${fileId} -> error`, error);
     return err(toAppError(error));
   }
 }
