@@ -50,10 +50,23 @@ export function useTestConnectionViewModel(
 
   const sourceProductId = useProjectScopeStore(selectSource);
   const targetProductId = useProjectScopeStore(selectTarget);
+  const sourceConnectionId = useProjectScopeStore((s) => s.sourceConnectionId);
+  const targetConnectionId = useProjectScopeStore((s) => s.targetConnectionId);
 
-  // Persist the created connection ID across re-renders so a second test click
-  // reuses the same record rather than creating a new one.
-  const connectionIdRef = useRef<string | null>(null);
+  // Seed the ref from the store on mount so a remount reuses the existing
+  // connection record rather than creating a new one.
+  const connectionIdRef = useRef<string | null>(
+    connection.scope === 'target' ? targetConnectionId : sourceConnectionId,
+  );
+
+  // Keep the ref in sync when the store's connection ID is cleared externally
+  // (e.g. clearCredentials() called while the component is still mounted).
+  useEffect(() => {
+    const stored = connection.scope === 'target' ? targetConnectionId : sourceConnectionId;
+    if (stored === null) {
+      connectionIdRef.current = null;
+    }
+  }, [connection.scope, sourceConnectionId, targetConnectionId]);
 
   const isFormValid = useMemo(
     () => !hasConnectionErrors(validateConnection(connection)),

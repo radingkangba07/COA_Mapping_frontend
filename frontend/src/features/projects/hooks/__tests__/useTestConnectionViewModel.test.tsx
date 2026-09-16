@@ -164,6 +164,49 @@ describe('useTestConnectionViewModel', () => {
     expect(useProjectScopeStore.getState().testStatus).toBe('success');
   });
 
+  it('reuses the stored connection ID on remount — no new record is created', async () => {
+    testMock.mockResolvedValue(
+      ok({ connectedAt: '2026-06-28T10:00:00Z', logs: [] }),
+    );
+    // Simulate a prior successful test that stored a connection ID in the store.
+    useProjectScopeStore.getState().setConnectionContext('source', 'conn-existing', { api_key: 'key' });
+
+    const { result } = renderHook(() => useTestConnectionViewModel(validForm));
+
+    await act(async () => {
+      await result.current.onTestConnection();
+    });
+
+    // createMcpConnection must NOT be called — the stored ID was reused.
+    expect(createMock).not.toHaveBeenCalled();
+    expect(testMock).toHaveBeenCalledWith(expect.anything(), 'conn-existing', validForm);
+  });
+
+  it('clears the connection ID ref when the store connection is wiped while the component is mounted', async () => {
+    testMock.mockResolvedValue(
+      ok({ connectedAt: '2026-06-28T10:00:00Z', logs: [] }),
+    );
+    createMock.mockResolvedValue(ok({ id: 'conn-new', version: 1 }));
+
+    // Seed the store with an existing connection ID.
+    useProjectScopeStore.getState().setConnectionContext('source', 'conn-old', { api_key: 'key' });
+
+    const { result } = renderHook(() => useTestConnectionViewModel(validForm));
+
+    // Externally clear the connection ID (e.g. clearCredentials() called elsewhere).
+    act(() => {
+      useProjectScopeStore.setState({ sourceConnectionId: null });
+    });
+
+    await act(async () => {
+      await result.current.onTestConnection();
+    });
+
+    // createMcpConnection must be called because the ref was synced to null.
+    expect(createMock).toHaveBeenCalledTimes(1);
+    expect(testMock).toHaveBeenCalledWith(expect.anything(), 'conn-new', validForm);
+  });
+
   it('does not call the service for an invalid form', async () => {
     const { result } = renderHook(() =>
       useTestConnectionViewModel(invalidForm),
