@@ -15,7 +15,7 @@ import { useMcpFetch } from '../hooks/useMcpFetch';
 import { STEPS } from '../dp-kit/react/taxonomy';
 import { toStepRail } from '../mappers/toStepRail';
 import { StepRail } from '@/shared/components/ui/StepRail';
-import { colors } from '@/config/theme';
+import { colors, semanticClass } from '@/config/theme';
 import type { StepId } from '../types/wizard.types';
 import { Button } from '@/shared/components/ui/Button';
 import { Spinner } from '@/shared/components/ui/Spinner';
@@ -38,8 +38,9 @@ function toTitleCase(s: string): string {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 // entityId values from the wizard use camelCase; the pipeline scope validator expects snake_case.
+// Generic transform — never branch on a specific entity (dp-kit rule 2).
 function toPipelineScope(entityId: string): string {
-  return entityId === 'fixedAssets' ? 'fixed_assets' : entityId;
+  return entityId.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 }
 
 export function McpFetchScreen(): React.JSX.Element {
@@ -258,7 +259,7 @@ export function McpFetchScreen(): React.JSX.Element {
                 ) : (
                   <View className="border border-border rounded-xl p-6">
                     <View className="flex-row items-center gap-3">
-                      <View className="w-9 h-9 rounded-lg items-center justify-center shrink-0 bg-find-info">
+                      <View className={`w-9 h-9 rounded-lg items-center justify-center shrink-0 ${semanticClass('find', 'info').bg}`}>
                         <Server size={18} color={colors.accent} strokeWidth={2} />
                       </View>
                       <View className="flex-1">
@@ -289,15 +290,15 @@ export function McpFetchScreen(): React.JSX.Element {
                       </Text>
                     )}
                     {mcpFetch.error !== null && (
-                      <View className="mt-3 rounded-lg p-3 bg-find-warn">
-                        <Text className="text-xs leading-normal font-body text-warning">
+                      <View className={`mt-3 rounded-lg p-3 ${semanticClass('find', 'warn').bg}`}>
+                        <Text className={`text-xs leading-normal font-body ${semanticClass('find', 'warn').fg}`}>
                           {`Error: ${mcpFetch.error}`}
                         </Text>
                       </View>
                     )}
                     {hasRecords && (
-                      <View className="mt-3 self-center rounded-full px-3 py-1 bg-impact-clean">
-                        <Text className="text-xs font-bold tracking-wide font-body text-success">
+                      <View className={`mt-3 self-center rounded-full px-3 py-1 ${semanticClass('impact', 'clean').bg}`}>
+                        <Text className={`text-xs font-bold tracking-wide font-body ${semanticClass('impact', 'clean').fg}`}>
                           {`${mcpFetch.total} records fetched`}
                         </Text>
                       </View>
