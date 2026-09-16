@@ -273,6 +273,7 @@ describe('wizard.store', () => {
       );
 
       useWizardStore.getState().clearPipelineRunId('items');
+      await Promise.resolve(); // flush get().then() chain
       expect(useWizardStore.getState().pipelineRunIdByEntity).toEqual({});
       expect(mockStorageSet).toHaveBeenLastCalledWith(
         STORAGE_KEYS.WIZARD_PIPELINE_RUN_ID_BY_ENTITY,
@@ -287,6 +288,18 @@ describe('wizard.store', () => {
       expect(mockStorageSet).toHaveBeenCalledWith(
         STORAGE_KEYS.WIZARD_PIPELINE_RUN_ID_BY_ENTITY,
         JSON.stringify({ 'proj-1:customers': 'run-customers', 'proj-1:items': 'run-items' }),
+      );
+    });
+
+    it('clearPipelineRunId merges with existing storage — does not wipe other entities', async () => {
+      mockStorageGet.mockResolvedValue(
+        JSON.stringify({ 'proj-1:customers': 'run-customers', 'proj-1:items': 'run-items' }),
+      );
+      useWizardStore.getState().clearPipelineRunId('items');
+      await Promise.resolve();
+      expect(mockStorageSet).toHaveBeenLastCalledWith(
+        STORAGE_KEYS.WIZARD_PIPELINE_RUN_ID_BY_ENTITY,
+        JSON.stringify({ 'proj-1:customers': 'run-customers' }),
       );
     });
 
