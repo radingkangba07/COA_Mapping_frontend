@@ -24,6 +24,14 @@ interface McpFetchViewModel {
   readonly fetch: () => Promise<void>;
 }
 
+// MCP adapter YAML keys scopes in kebab-case (e.g. fixed-assets), while
+// dp-kit entity IDs are camelCase (fixedAssets). Pipeline uses snake_case and
+// is handled by toBackendScope inside entity-pack.service. Only the two MCP
+// adapter endpoints (fetch-records, snapshot) need this conversion.
+function toMcpScope(entityId: string): string {
+  return entityId.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+}
+
 export function useMcpFetch(
   connectionId: string | null,
   credentials: Record<string, string> | null,
@@ -64,14 +72,14 @@ export function useMcpFetch(
     if (!workstreamId) return false;
     try {
       const { data } = await httpClient.get<McpFetchResponse>(
-        `/api/v1/mcp-clients/snapshot?workstream_id=${workstreamId}&scope=${scope}`,
+        `/api/v1/mcp-clients/snapshot?workstream_id=${workstreamId}&scope=${toMcpScope(scope)}`,
       );
       applyData(data);
       return true;
     } catch {
       return false;
     }
-  }, [workstreamId, applyData]);
+  }, [workstreamId, applyData, scope]);
 
   // Live fetch from ERP — requires valid credentials/token.
   const fetch = useCallback(async (): Promise<void> => {
@@ -86,7 +94,7 @@ export function useMcpFetch(
     try {
       const { data } = await httpClient.post<McpFetchResponse>(
         `/api/v1/mcp-clients/${connectionId}/fetch-records`,
-        { credentials, scope, workstream_id: workstreamId ?? null },
+        { credentials, scope: toMcpScope(scope), workstream_id: workstreamId ?? null },
       );
       applyData(data);
       setHasFetchedInSession(true);

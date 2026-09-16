@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, FlatList } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -37,11 +37,6 @@ function toTitleCase(s: string): string {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
-// entityId values from the wizard use camelCase; the pipeline scope validator expects snake_case.
-// Generic transform — never branch on a specific entity (dp-kit rule 2).
-function toPipelineScope(entityId: string): string {
-  return entityId.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
-}
 
 export function McpFetchScreen(): React.JSX.Element {
   const route = useRoute<McpFetchRoute>();
@@ -69,8 +64,7 @@ export function McpFetchScreen(): React.JSX.Element {
     refetchProject();
   }, [refetchPack, refetchProject]);
 
-  // Show all fetched records — no preview cap for MCP fetch.
-  const MAX_PREVIEW = mcpFetch.records.length;
+  const MAX_PREVIEW = 50;
 
   const uploadStep = STEPS.find(s => s.id === 'upload')!;
   const profileStep = STEPS.find(s => s.id === 'profile')!;
@@ -105,22 +99,21 @@ export function McpFetchScreen(): React.JSX.Element {
     // Seed wizard context first so recordStep writes under the correct project key.
     setWizardContext({ entityId: entityId as EntityId, orgProjectId, parentProjectId, workstreamId });
 
-    const scope = toPipelineScope(entityId);
-
-    // 1. Reuse an existing run stored locally (same device, persisted across sessions).
-    const entityKey = `${parentProjectId}:${entityId}`;
-    const existingRunId = pipelineRunIdByEntity[entityKey];
-    if (existingRunId) {
-      recordStep(entityId as EntityId, 'profile');
-      navigation.navigate('MasterDataWizard', { orgProjectId, entityId, parentProjectId, workstream_id: workstreamId });
-      return;
-    }
-
-    // 2. If the user did NOT explicitly fetch new data in this session (e.g. storage was
-    //    cleared on another device), check the backend for an already-completed run.
-    //    This prevents creating a duplicate run when a completed profile already exists.
+    // If the user has NOT explicitly fetched new data in this session, reuse what
+    // we already know. A live fetch always wins — the old run ID belongs to old data.
     if (!mcpFetch.hasFetchedInSession) {
-      const latestResult = await getActivePipelineRun(orgProjectId, scope);
+      // 1. Reuse a run stored locally (persisted across sessions on this device).
+      const entityKey = `${parentProjectId}:${entityId}`;
+      const existingRunId = pipelineRunIdByEntity[entityKey];
+      if (existingRunId) {
+        recordStep(entityId as EntityId, 'profile');
+        navigation.navigate('MasterDataWizard', { orgProjectId, entityId, parentProjectId, workstream_id: workstreamId });
+        return;
+      }
+
+      // 2. No local run — check backend for an already-completed run so we don't
+      //    create a duplicate when the profile already exists (e.g. storage cleared).
+      const latestResult = await getActivePipelineRun(orgProjectId, entityId);
       if (latestResult.ok && latestResult.data.status === 'complete') {
         setPipelineRunId(entityId as EntityId, latestResult.data.id);
         recordStep(entityId as EntityId, 'profile');
@@ -136,9 +129,9 @@ export function McpFetchScreen(): React.JSX.Element {
     }
 
     setIsCreatingRun(true);
-    let result = await createPipelineRun(workstreamId, scope, storagePath);
+    let result = await createPipelineRun(workstreamId, entityId, storagePath);
     if (!result.ok && isPipelineRunConflict(result.error)) {
-      result = await getActivePipelineRun(orgProjectId, scope);
+      result = await getActivePipelineRun(orgProjectId, entityId);
     }
     setIsCreatingRun(false);
 
@@ -346,25 +339,30 @@ export function McpFetchScreen(): React.JSX.Element {
                       </View>
                     ))}
                   </View>
-                  {mcpFetch.records.slice(0, MAX_PREVIEW).map((record, ri) => (
-                    <View key={ri} className="flex-row border-b border-b-border">
-                      <View className="w-14 shrink-0 px-3 py-3">
-                        <Text className="text-xs font-mono text-muted-foreground">{ri + 1}</Text>
-                      </View>
-                      {mcpFetch.fields.map((field, ci) => (
-                        <View key={ci} className="flex-1 px-3 py-3">
-                          <Text className="text-xs font-mono text-foreground" numberOfLines={1}>{
-                            (() => {
-                              const v = record[field];
-                              if (v === null || v === undefined) return '—';
-                              if (typeof v === 'object') return JSON.stringify(v);
-                              return String(v);
-                            })()
-                          }</Text>
+                  <FlatList
+                    data={mcpFetch.records.slice(0, MAX_PREVIEW)}
+                    keyExtractor={(_, i) => String(i)}
+                    scrollEnabled={false}
+                    renderItem={({ item: record, index: ri }) => (
+                      <View className="flex-row border-b border-b-border">
+                        <View className="w-14 shrink-0 px-3 py-3">
+                          <Text className="text-xs font-mono text-muted-foreground">{ri + 1}</Text>
                         </View>
-                      ))}
-                    </View>
-                  ))}
+                        {mcpFetch.fields.map((field, ci) => (
+                          <View key={ci} className="flex-1 px-3 py-3">
+                            <Text className="text-xs font-mono text-foreground" numberOfLines={1}>{
+                              (() => {
+                                const v = record[field];
+                                if (v === null || v === undefined) return '—';
+                                if (typeof v === 'object') return JSON.stringify(v);
+                                return String(v);
+                              })()
+                            }</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  />
                 </View>
               </ScrollView>
             </View>

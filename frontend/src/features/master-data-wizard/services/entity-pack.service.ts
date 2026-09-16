@@ -549,32 +549,6 @@ function toSample(sampleValues: Record<string, unknown> | null | undefined): Ent
   return values.map((v) => (typeof v === 'string' ? formatPreviewValue(v) : formatObjectInline(v)));
 }
 
-// Backend sends enumeration_detail with snake_case keys (candidate,
-// valid_ref, invalid_src, affected_rows, ref_integrity, ...);
-// EntityField['enumeration'] (dp-kit/types/entity.d.ts — GENERATED, never
-// hand-edited) is camelCase. Casting the raw object straight across, as a
-// previous version of toEntityField() did, left validRef/invalidSrc/
-// affectedRows/refIntegrity reading as undefined at runtime —
-// DistributionTab's enumerationRows() then rendered the literal string
-// "undefined" for those rows instead of the real numbers/status.
-function toEnumeration(raw: Record<string, unknown> | null | undefined): EntityField['enumeration'] {
-  if (!raw) return undefined;
-  const num = (key: string): number | undefined => (typeof raw[key] === 'number' ? (raw[key] as number) : undefined);
-  const str = (key: string): string | undefined => (typeof raw[key] === 'string' ? (raw[key] as string) : undefined);
-  return {
-    candidate: str('candidate'),
-    validRef: num('valid_ref'),
-    invalidSrc: num('invalid_src'),
-    affectedRows: num('affected_rows'),
-    aliasRows: num('alias_rows'),
-    unresolved: num('unresolved'),
-    refIntegrity: str('ref_integrity'),
-    categoryAvailable: num('category_available'),
-    highConf: num('high_conf'),
-    ambiguous: num('ambiguous'),
-    insufficient: num('insufficient'),
-  };
-}
 
 function statusTone(status: string | undefined): 'dup' | 'warn' | 'info' | 'ok' | undefined {
   switch (status) {
