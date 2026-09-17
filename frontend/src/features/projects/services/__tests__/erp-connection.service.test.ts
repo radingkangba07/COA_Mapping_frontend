@@ -9,6 +9,14 @@ import {
   testMcpConnection,
 } from '../erp-connection.service';
 
+// Web Crypto API is unavailable in Jest — mock encryptCredentials to return a
+// deterministic base64 string so payload assertions remain stable.
+jest.mock('@/shared/services/crypto/credentials.crypto', () => ({
+  encryptCredentials: jest.fn((creds: Record<string, string>) =>
+    Promise.resolve(Buffer.from(JSON.stringify(creds)).toString('base64')),
+  ),
+}));
+
 function makeClient(post: jest.Mock): HttpClient {
   return { post } as unknown as HttpClient;
 }
@@ -66,8 +74,7 @@ describe('startOAuth2Flow', () => {
     await startOAuth2Flow(makeClient(post), 'cid', 'csecret', 'https://base.url');
 
     expect(post).toHaveBeenCalledWith('/api/v1/mcp-clients/oauth2/start', {
-      client_id: 'cid',
-      client_secret: 'csecret',
+      encrypted_credentials: expect.any(String),
       base_url: 'https://base.url',
     });
   });
@@ -188,7 +195,7 @@ describe('testMcpConnection', () => {
 
     expect(post).toHaveBeenCalledWith(
       '/api/v1/mcp-clients/conn-42/test',
-      { credentials: { access_token: 'tok' } },
+      { encrypted_credentials: expect.any(String) },
     );
   });
 
@@ -199,7 +206,7 @@ describe('testMcpConnection', () => {
 
     expect(post).toHaveBeenCalledWith(
       '/api/v1/mcp-clients/c/test',
-      { credentials: { api_key: 'mykey' } },
+      { encrypted_credentials: expect.any(String) },
     );
   });
 
