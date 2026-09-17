@@ -170,7 +170,7 @@ export function MasterDataUploadScreen(): React.JSX.Element {
   const entityId = useWizardStore((s) => s.entityId) as EntityId;
   const orgProjectId = useWizardStore((s) => s.orgProjectId) as string;
   const parentProjectId = useWizardStore((s) => s.parentProjectId) as string;
-  const workstream_id = useWizardStore((s) => s.workstreamId) as string;
+  const workstreamId = useWizardStore((s) => s.workstreamId) as string;
 
   const { pack, refetch: refetchPack } = useEntityPack(orgProjectId, entityId);
   const {
@@ -179,17 +179,17 @@ export function MasterDataUploadScreen(): React.JSX.Element {
     isUploading,
     error: uploadError,
     reset: resetUpload,
-  } = useSourceFileUpload({ orgProjectId, workstreamId: workstream_id, entityId, fileType: 'source_erp' });
+  } = useSourceFileUpload({ orgProjectId, workstreamId: workstreamId, entityId, fileType: 'source_erp' });
   // Keyed by project+entity (see wizard.store.ts's buildEntityKey) so this
   // project's Step 1 never resumes with another project's uploaded file for
   // the same object (e.g. both running Items).
   const entityKey = buildEntityKey(parentProjectId, entityId as EntityId);
   // Discovery (GET /api/v1/storage/org-project/{orgProjectId}/files, scoped
-  // to org_project_id + workstream_id + entity_id) — the backend-only
+  // to org_project_id + workstreamId + entity_id) — the backend-only
   // "does this entity already have a file, and which one" lookup that
   // replaces any client-persisted record. This is what makes a second
   // browser/tab that never made the upload resolve the exact same file.
-  const discoveredFiles = useOrgProjectFiles(orgProjectId, workstream_id, entityId);
+  const discoveredFiles = useOrgProjectFiles(orgProjectId, workstreamId, entityId);
   // currentFileId prefers a fresh upload's own response (instant feedback,
   // the instant this tab's own upload confirms) and otherwise falls back to
   // the discovery call above — never client storage. It's cleared in
@@ -199,10 +199,10 @@ export function MasterDataUploadScreen(): React.JSX.Element {
   const currentFileId = uploadResult?.fileId ?? discoveredFiles.latestFile?.id ?? null;
   // GET /api/v1/storage/files/{fileId} — this file's own metadata (row
   // count, filename, columns...), re-validated against org_project_id/
-  // entity_id/workstream_id (see useFileDetails' own header comment) before
+  // entity_id/workstreamId (see useFileDetails' own header comment) before
   // any of it is ever shown. Only runs once currentFileId resolves to a
   // real id — never speculatively before that.
-  const fileDetails = useFileDetails(orgProjectId, entityId, workstream_id, currentFileId);
+  const fileDetails = useFileDetails(orgProjectId, entityId, workstreamId, currentFileId);
   useFocusEffect(
     useCallback(() => {
       // Only refetch if a file already exists — never speculatively on a
@@ -213,7 +213,7 @@ export function MasterDataUploadScreen(): React.JSX.Element {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentFileId]),
   );
-  const { remove: removeFile } = useDeleteFile({ orgProjectId, workstreamId: workstream_id, entityId });
+  const { remove: removeFile } = useDeleteFile({ orgProjectId, workstreamId: workstreamId, entityId });
   // Kept entirely separate from the uploaded file's own state above — see
   // loadPreviewByEntity's doc comment in wizard.store.ts. Loading the sample
   // must never write into, or be overwritten by, the actual uploaded file's
@@ -532,7 +532,7 @@ export function MasterDataUploadScreen(): React.JSX.Element {
     }
 
     setIsCreatingRun(true);
-    let result = await createPipelineRun(workstream_id, entityId, effectiveUploadResult.storagePath);
+    let result = await createPipelineRun(workstreamId, entityId, effectiveUploadResult.storagePath);
     // A run for this workstream+scope may already be in progress (e.g. the
     // user went Back and hit Continue again before the earlier run
     // finished) — the backend 409s in that case. Recover the existing run
@@ -548,7 +548,7 @@ export function MasterDataUploadScreen(): React.JSX.Element {
     setPipelineRunId(entityId as EntityId, result.data.id);
     recordStep(entityId, 'profile');
     navigation.navigate('Profile');
-  }, [navigation, orgProjectId, entityId, entityKey, workstream_id, effectiveUploadResult, toast, pipelineRunIdByEntity, setPipelineRunId, recordStep, completeStep]);
+  }, [navigation, orgProjectId, entityId, entityKey, workstreamId, effectiveUploadResult, toast, pipelineRunIdByEntity, setPipelineRunId, recordStep, completeStep]);
 
   const stepCounter = `Step ${uploadStep.n} of ${STEPS.length}`;
   const continueLabel = `Continue to ${profileStep.label}`;

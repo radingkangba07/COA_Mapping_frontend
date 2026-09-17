@@ -51,6 +51,7 @@ export type ProjectsStackParamList = {
    * carry their own params.
    */
   MasterDataWizard: { orgProjectId: string; entityId: string; parentProjectId: string; workstream_id: string };
+  McpFetch: { orgProjectId: string; entityId: string; parentProjectId: string; workstreamId: string };
 };
 
 export type MigrationStackParamList = {

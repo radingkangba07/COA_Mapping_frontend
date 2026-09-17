@@ -33,6 +33,8 @@ export interface Project {
   readonly currentStep: number;
   readonly effectivePermission: string | undefined;
   readonly displayCode: string | undefined;
+  readonly sourceConnectionMethodId: string | undefined;
+  readonly targetConnectionMethodId: string | undefined;
 }
 
 export interface ProjectMember {
