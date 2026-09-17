@@ -28,6 +28,12 @@ const CM_TO_METHOD: Record<string, ConnectionMethod> = {
   mcp_server: 'mcp',
 };
 
+// Reverse map used when saving manual method changes to vendor prefs.
+const METHOD_TO_CM: Record<string, string> = {
+  csv: 'csv_file',
+  mcp: 'mcp_server',
+};
+
 export interface UseErpCascadeReturn {
   vendorOptions: SelectOption[];
   productOptions: SelectOption[];
@@ -36,6 +42,7 @@ export interface UseErpCascadeReturn {
   isLoadingVendors: boolean;
   isLoadingProducts: boolean;
   onVendorChange: (vendor: string) => void;
+  onMethodChange: (method: ConnectionMethod) => void;
   onProductChange: (productId: string) => void;
 }
 
@@ -175,6 +182,20 @@ export function useErpCascade(
     [currentProducts, selectedVendor, onSelectErp, onSelectMethod, onVendorResolved],
   );
 
+  // Wraps onSelectMethod so that a manual method change also persists the
+  // preference — onProductChange only saves on product selection, not on
+  // subsequent method changes made by the user in the Step 3 dropdown.
+  const onMethodChange = useCallback(
+    (method: ConnectionMethod): void => {
+      onSelectMethod(method);
+      if (selectedVendor && selectedErpId) {
+        const cmId = METHOD_TO_CM[method as string] ?? null;
+        void saveVendorPref(selectedVendor, selectedErpId, cmId);
+      }
+    },
+    [onSelectMethod, selectedVendor, selectedErpId],
+  );
+
   return {
     vendorOptions,
     productOptions,
@@ -184,5 +205,6 @@ export function useErpCascade(
     isLoadingProducts: catalogueQuery.isLoading,
     onVendorChange,
     onProductChange,
+    onMethodChange,
   };
 }

@@ -15,10 +15,10 @@ function toLeanAuthType(authType: McpFormAuthType): McpAuthType {
   switch (authType) {
     case 'bearer':
       return 'bearer';
-    case 'basic':
-      return 'basic';
     case 'apiKey':
       return 'apiKey';
+    case 'tba':
+      return 'bearer';
     case 'oauth2':
       return 'bearer';
   }

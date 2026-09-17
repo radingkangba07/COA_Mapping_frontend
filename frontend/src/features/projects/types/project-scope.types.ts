@@ -105,6 +105,15 @@ export interface ProjectScopeState {
   readonly fetchStatus: RequestStatus; // shared status for Fetch-from-ERP
   readonly isSavingDraft: boolean;
   readonly error: AppError | null;
+  // Created MCP connection record IDs — set after a successful test, reused for data fetch.
+  readonly sourceConnectionId: string | null;
+  readonly targetConnectionId: string | null;
+  // Ephemeral credentials — never serialised to the draft payload sent to the API.
+  readonly sourceCredentials: Record<string, string> | null;
+  readonly targetCredentials: Record<string, string> | null;
+  // Fetched ERP records keyed by scope (e.g. "items", "customers").
+  // Persists across screen navigations within the same wizard session.
+  readonly mcpFetchData: Record<string, { records: Record<string, unknown>[]; fields: string[]; total: number; storagePath?: string }>;
 }
 
 export interface ProjectScopeActions {
@@ -138,6 +147,20 @@ export interface ProjectScopeActions {
   clearError: () => void;
   saveDraft: (client: HttpClient) => Promise<Result<void, AppError>>;
   reset: () => void;
+  // Store the connection record ID and credentials after a successful test so
+  // they are available for subsequent data fetch calls without re-authentication.
+  setConnectionContext: (
+    role: 'source' | 'target',
+    connectionId: string,
+    credentials: Record<string, string>,
+  ) => void;
+  // Wipe all credential and connection state. Call when the user deliberately
+  // leaves the connection step so stale credentials cannot be reused.
+  clearCredentials: () => void;
+  setMcpFetchData: (
+    scope: string,
+    data: { records: Record<string, unknown>[]; fields: string[]; total: number; storagePath?: string },
+  ) => void;
 }
 
 export type ProjectScopeStore = ProjectScopeState & ProjectScopeActions;

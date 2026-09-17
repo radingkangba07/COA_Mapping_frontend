@@ -77,6 +77,11 @@ export const initialState: ProjectScopeState = {
   fetchStatus: 'idle',
   isSavingDraft: false,
   error: null,
+  sourceConnectionId: null,
+  targetConnectionId: null,
+  sourceCredentials: null,
+  targetCredentials: null,
+  mcpFetchData: {},
 };
 
 // ─── Serialization ──────────────────────────────────────────────────────────
@@ -348,7 +353,52 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
     },
 
     reset: (): void => {
-      set(() => ({ ...initialState, draft: createInitialDraft() }));
+      // Full reset — credentials are intentionally NOT preserved. Stale
+      // credentials surviving a wizard reset risk silent reuse on re-entry.
+      // mcpFetchData is kept because it contains non-sensitive fetched records
+      // that are expensive to re-fetch and safe to display across sessions.
+      set((state) => ({
+        ...initialState,
+        draft: createInitialDraft(),
+        mcpFetchData: state.mcpFetchData,
+      }));
+    },
+
+    clearCredentials: (): void => {
+      set((state) => {
+        state.sourceConnectionId = null;
+        state.targetConnectionId = null;
+        state.sourceCredentials = null;
+        state.targetCredentials = null;
+        state.connectionReady = false;
+        state.testStatus = 'idle';
+        state.draft.connection.token = '';
+      });
+    },
+
+    setConnectionContext: (
+      role: 'source' | 'target',
+      connectionId: string,
+      credentials: Record<string, string>,
+    ): void => {
+      set((state) => {
+        if (role === 'source') {
+          state.sourceConnectionId = connectionId;
+          state.sourceCredentials = credentials;
+        } else {
+          state.targetConnectionId = connectionId;
+          state.targetCredentials = credentials;
+        }
+      });
+    },
+
+    setMcpFetchData: (
+      scope: string,
+      data: { records: Record<string, unknown>[]; fields: string[]; total: number; storagePath?: string },
+    ): void => {
+      set((state) => {
+        state.mcpFetchData[scope] = data;
+      });
     },
   })),
 );

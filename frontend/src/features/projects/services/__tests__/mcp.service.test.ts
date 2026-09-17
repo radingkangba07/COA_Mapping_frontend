@@ -59,13 +59,16 @@ describe('createInitialMcpForm', () => {
       url: '',
       authType: 'bearer',
       token: '',
+      login: '',
       apiKey: '',
       apiKeyName: '',
-      username: '',
-      password: '',
+      dbName: '',
       clientId: '',
       clientSecret: '',
-      tokenUrl: '',
+      consumerKey: '',
+      consumerSecret: '',
+      tokenId: '',
+      tokenSecret: '',
       headers: [],
       skipSSL: false,
       proxy: false,
@@ -128,42 +131,44 @@ describe('validateConnection — bearer', () => {
 describe('validateConnection — apiKey', () => {
   const base = { url: 'https://mcp.example.com', authType: 'apiKey' as const };
 
-  it('flags missing apiKey and apiKeyName', () => {
+  it('flags missing apiKey', () => {
     const errors = validateConnection(
-      makeForm({ ...base, apiKey: '', apiKeyName: '' }),
+      makeForm({ ...base, apiKey: '' }),
     );
     expect(errors.apiKey).toBe('API key is required');
-    expect(errors.apiKeyName).toBe('Key name is required');
   });
 
-  it('passes when both apiKey and apiKeyName are present', () => {
+  it('passes when apiKey is present', () => {
     const errors = validateConnection(
-      makeForm({ ...base, apiKey: 'k', apiKeyName: 'X-API-Key' }),
+      makeForm({ ...base, apiKey: 'k' }),
     );
     expect(errors.apiKey).toBeUndefined();
-    expect(errors.apiKeyName).toBeUndefined();
   });
 });
 
-// ─── validateConnection — basic ───────────────────────────────────────────────
+// ─── validateConnection — tba ─────────────────────────────────────────────────
 
-describe('validateConnection — basic', () => {
-  const base = { url: 'https://mcp.example.com', authType: 'basic' as const };
+describe('validateConnection — tba', () => {
+  const base = { url: 'https://mcp.example.com', authType: 'tba' as const };
 
-  it('flags missing username and password', () => {
+  it('flags missing tba fields', () => {
     const errors = validateConnection(
-      makeForm({ ...base, username: '', password: '' }),
+      makeForm({ ...base, consumerKey: '', consumerSecret: '', tokenId: '', tokenSecret: '' }),
     );
-    expect(errors.username).toBe('Username is required');
-    expect(errors.password).toBe('Password is required');
+    expect(errors.consumerKey).toBe('Consumer Key is required');
+    expect(errors.consumerSecret).toBe('Consumer Secret is required');
+    expect(errors.tokenId).toBe('Token ID is required');
+    expect(errors.tokenSecret).toBe('Token Secret is required');
   });
 
-  it('passes when both username and password are present', () => {
+  it('passes when all tba fields are present', () => {
     const errors = validateConnection(
-      makeForm({ ...base, username: 'u', password: 'p' }),
+      makeForm({ ...base, consumerKey: 'ck', consumerSecret: 'cs', tokenId: 'ti', tokenSecret: 'ts' }),
     );
-    expect(errors.username).toBeUndefined();
-    expect(errors.password).toBeUndefined();
+    expect(errors.consumerKey).toBeUndefined();
+    expect(errors.consumerSecret).toBeUndefined();
+    expect(errors.tokenId).toBeUndefined();
+    expect(errors.tokenSecret).toBeUndefined();
   });
 });
 
@@ -172,39 +177,20 @@ describe('validateConnection — basic', () => {
 describe('validateConnection — oauth2', () => {
   const base = { url: 'https://mcp.example.com', authType: 'oauth2' as const };
 
-  it('flags missing clientId, clientSecret, and tokenUrl', () => {
+  it('flags missing clientId and access token', () => {
     const errors = validateConnection(
-      makeForm({ ...base, clientId: '', clientSecret: '', tokenUrl: '' }),
+      makeForm({ ...base, clientId: '', token: '' }),
     );
     expect(errors.clientId).toBe('Client ID is required');
-    expect(errors.clientSecret).toBe('Client secret is required');
-    expect(errors.tokenUrl).toBe('Enter a valid token URL');
+    expect(errors.token).toBe('Complete OAuth authorisation first');
   });
 
-  it('flags an invalid tokenUrl', () => {
+  it('passes when clientId and access token are present', () => {
     const errors = validateConnection(
-      makeForm({
-        ...base,
-        clientId: 'c',
-        clientSecret: 's',
-        tokenUrl: 'notaurl',
-      }),
-    );
-    expect(errors.tokenUrl).toBe('Enter a valid token URL');
-  });
-
-  it('passes when all fields are valid (valid http(s) tokenUrl)', () => {
-    const errors = validateConnection(
-      makeForm({
-        ...base,
-        clientId: 'c',
-        clientSecret: 's',
-        tokenUrl: 'https://auth.example.com/token',
-      }),
+      makeForm({ ...base, clientId: 'c', token: 'access-token' }),
     );
     expect(errors.clientId).toBeUndefined();
-    expect(errors.clientSecret).toBeUndefined();
-    expect(errors.tokenUrl).toBeUndefined();
+    expect(errors.token).toBeUndefined();
   });
 });
 
@@ -265,16 +251,16 @@ describe('buildTestConnectionPayload', () => {
     expect(payload.credentials).toEqual({ api_key: 'k', key_name: 'X-API-Key' });
   });
 
-  it('maps basic credentials', () => {
+  it('maps tba credentials', () => {
     const payload = buildTestConnectionPayload(
       makeForm({
         url: 'https://mcp.example.com',
-        authType: 'basic',
-        username: 'u',
-        password: 'p',
+        authType: 'tba',
+        consumerKey: 'ck',
+        tokenId: 'ti',
       }),
     );
-    expect(payload.credentials).toEqual({ username: 'u', password: 'p' });
+    expect(payload.credentials).toEqual({ consumer_key: 'ck', token_id: 'ti' });
   });
 
   it('maps oauth2 credentials to snake_case', () => {
@@ -283,14 +269,12 @@ describe('buildTestConnectionPayload', () => {
         url: 'https://mcp.example.com',
         authType: 'oauth2',
         clientId: 'c',
-        clientSecret: 's',
-        tokenUrl: 'https://auth.example.com/token',
+        token: 'tok',
       }),
     );
     expect(payload.credentials).toEqual({
       client_id: 'c',
-      client_secret: 's',
-      token_url: 'https://auth.example.com/token',
+      access_token: 'tok',
     });
   });
 
