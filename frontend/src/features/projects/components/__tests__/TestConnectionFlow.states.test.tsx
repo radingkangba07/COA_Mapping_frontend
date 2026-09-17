@@ -9,14 +9,10 @@ import { ok, err } from '@/shared/types/result.types';
 import type { AppError, Result } from '@/shared/types/result.types';
 import {
   createInitialMcpForm,
-  testConnection,
   type McpConnectionForm,
   type McpTestConnectionResult,
 } from '../../services/mcp.service';
 
-// Button, success/failure panels, and the logs drawer (Sheet) all import
-// `colors` from '@/config/theme'. Mirror the union of colors the sibling
-// suites reference so the whole rendered subtree resolves.
 jest.mock('@/config/theme', () => ({
   colors: {
     foreground: '#09090B',
@@ -31,12 +27,15 @@ jest.mock('@/config/theme', () => ({
   },
 }));
 
-// Partial-mock the service so only `testConnection` is stubbed; validation
-// helpers (validateConnection/hasConnectionErrors) keep real implementations
-// so `canTest`/gating behave exactly as in production.
-jest.mock('../../services/mcp.service', () => {
-  const actual = jest.requireActual('../../services/mcp.service');
-  return { ...actual, testConnection: jest.fn() };
+// Mock erp-connection.service: stub createMcpConnection and testMcpConnection
+// so no real HTTP is made. Keep resolveErpId real so gating works.
+jest.mock('../../services/erp-connection.service', () => {
+  const actual = jest.requireActual('../../services/erp-connection.service');
+  return {
+    ...actual,
+    createMcpConnection: jest.fn(),
+    testMcpConnection: jest.fn(),
+  };
 });
 
 // The view model imports the real http instance; stub it so module load is inert.
@@ -44,12 +43,15 @@ jest.mock('@/shared/services/http/http.instance', () => ({ httpClient: {} }));
 
 // ─── Imports (after mocks) ──────────────────────────────────────────────────
 import { TestConnectionFlow } from '../TestConnectionFlow';
+import {
+  createMcpConnection,
+  testMcpConnection,
+} from '../../services/erp-connection.service';
 import { useProjectScopeStore } from '../../store/project-scope.store';
 import { selectCanCreateProject } from '../../store/project-scope.selectors';
 
-const testConnectionMock = testConnection as jest.MockedFunction<
-  typeof testConnection
->;
+const createMock = createMcpConnection as jest.MockedFunction<typeof createMcpConnection>;
+const testMock = testMcpConnection as jest.MockedFunction<typeof testMcpConnection>;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -66,8 +68,13 @@ const successResult = (
 ): Result<McpTestConnectionResult, AppError> => ok({ connectedAt, logs });
 
 beforeEach(() => {
-  testConnectionMock.mockReset();
+  createMock.mockReset();
+  testMock.mockReset();
+  // createMcpConnection succeeds by default; individual tests override testMcpConnection.
+  createMock.mockResolvedValue(ok({ id: 'conn-1', version: 1 }));
   useProjectScopeStore.getState().reset();
+  // Seed a valid source ERP so resolveErpId returns non-null ('odoo' → 'odoo').
+  useProjectScopeStore.getState().setSource('odoo');
 });
 
 // ─── DA-153: Test Connection flow — acceptance criteria ─────────────────────
@@ -76,8 +83,8 @@ describe('DA-153 Test Connection flow', () => {
   // AC1: status 'testing' → button is in loading/disabled state.
   describe('AC1: testing render state', () => {
     it('disables the Test Connection button while the request is in flight', () => {
-      // Never resolves → status stays 'testing'.
-      testConnectionMock.mockReturnValue(new Promise(() => undefined));
+      // createMcpConnection never resolves → hook stays in 'testing' state.
+      createMock.mockReturnValue(new Promise(() => undefined));
 
       render(<TestConnectionFlow connection={validForm} />);
 
@@ -92,7 +99,7 @@ describe('DA-153 Test Connection flow', () => {
   // AC2: success panel shows "Connected on {timestamp}".
   describe('AC2: success panel', () => {
     it("renders 'Connected on' with the returned timestamp", async () => {
-      testConnectionMock.mockResolvedValue(
+      testMock.mockResolvedValue(
         successResult('2026-06-28T10:00:00.000Z', ['ok line']),
       );
 
@@ -100,9 +107,7 @@ describe('DA-153 Test Connection flow', () => {
 
       fireEvent.press(screen.getByTestId('test-connection-button'));
 
-      const message = await screen.findByTestId(
-        'test-connection-success-message',
-      );
+      const message = await screen.findByTestId('test-connection-success-message');
       expect(message.props.children).toEqual([
         'Connected on ',
         expect.any(String),
@@ -113,9 +118,9 @@ describe('DA-153 Test Connection flow', () => {
   // AC3: failure panel shows an actionable error (not the raw HTTP message).
   describe('AC3: failure panel actionable error', () => {
     it('maps a 401 to an actionable message and hides the raw error', async () => {
-      testConnectionMock.mockResolvedValue(
+      testMock.mockResolvedValue(
         err({
-          code: 'HTTP_401',
+          code: 'CONNECTION_FAILED',
           message: 'Request failed with status code 401',
           details: {},
         }),
@@ -125,9 +130,7 @@ describe('DA-153 Test Connection flow', () => {
 
       fireEvent.press(screen.getByTestId('test-connection-button'));
 
-      const message = await screen.findByTestId(
-        'test-connection-failure-message',
-      );
+      const message = await screen.findByTestId('test-connection-failure-message');
       expect(message.props.children).toMatch(/Authentication failed/i);
       expect(String(message.props.children)).not.toContain(
         'Request failed with status code 401',
@@ -138,7 +141,7 @@ describe('DA-153 Test Connection flow', () => {
   // AC4: View Logs drawer renders logs with secrets redacted client-side.
   describe('AC4: View Logs redaction', () => {
     it('redacts secrets in every rendered log line', async () => {
-      testConnectionMock.mockResolvedValue(
+      testMock.mockResolvedValue(
         successResult('2026-06-28T10:00:00.000Z', [
           'Authorization: Bearer sk-secret-XYZ',
           'password=hunter2',
@@ -175,9 +178,7 @@ describe('DA-153 Test Connection flow', () => {
   // AC6: Create gate (store/selector) flips only after a successful test.
   describe('AC6: Create gate (store + selectCanCreateProject)', () => {
     it('keeps connectionReady false until a successful test, then flips it true', async () => {
-      testConnectionMock.mockResolvedValue(
-        successResult('2026-06-28T10:00:00.000Z'),
-      );
+      testMock.mockResolvedValue(successResult('2026-06-28T10:00:00.000Z'));
 
       render(<TestConnectionFlow connection={validForm} />);
 
@@ -193,9 +194,9 @@ describe('DA-153 Test Connection flow', () => {
     });
 
     it('leaves connectionReady false after a failed test', async () => {
-      testConnectionMock.mockResolvedValue(
+      testMock.mockResolvedValue(
         err({
-          code: 'HTTP_401',
+          code: 'CONNECTION_FAILED',
           message: 'Request failed with status code 401',
           details: {},
         }),
@@ -210,24 +211,18 @@ describe('DA-153 Test Connection flow', () => {
     });
 
     it('selectCanCreateProject is false before and true after a successful test (full MCP gate)', async () => {
-      testConnectionMock.mockResolvedValue(
-        successResult('2026-06-28T10:00:00.000Z'),
-      );
+      testMock.mockResolvedValue(successResult('2026-06-28T10:00:00.000Z'));
 
-      // Seed every other Create precondition so connectionReady is the ONLY
-      // thing gating the Create button for an MCP project.
+      // Seed every other Create precondition so connectionReady is the ONLY gate.
       const store = useProjectScopeStore.getState();
       store.setCompanyId('company-1');
-      store.setSource('sap');
-      store.setTarget('netsuite');
-      // Both sides on MCP so connection-readiness is the only remaining gate.
+      store.setSource('odoo');
+      store.setTarget('oracle_netsuite');
       store.setSourceMethod('mcp');
       store.setTargetMethod('mcp');
 
       expect(useProjectScopeStore.getState().draft.sourceMethod).toBe('mcp');
-      expect(
-        selectCanCreateProject(useProjectScopeStore.getState()),
-      ).toBe(false);
+      expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(false);
 
       render(<TestConnectionFlow connection={validForm} />);
 
@@ -235,9 +230,7 @@ describe('DA-153 Test Connection flow', () => {
       await screen.findByTestId('test-connection-success-message');
 
       await waitFor(() => {
-        expect(
-          selectCanCreateProject(useProjectScopeStore.getState()),
-        ).toBe(true);
+        expect(selectCanCreateProject(useProjectScopeStore.getState())).toBe(true);
       });
     });
   });

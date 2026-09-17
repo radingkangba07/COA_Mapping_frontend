@@ -39,6 +39,7 @@ const ErpCard = ({
     isLoadingProducts,
     onVendorChange,
     onProductChange,
+    onMethodChange,
   } = useErpCascade(selectedErpId, onSelectErp, onSelectMethod, role, onVendorResolved);
 
   const disabled = isLoading;
@@ -91,7 +92,7 @@ const ErpCard = ({
         <Select
           options={connectionMethodOptions}
           value={selectedMethod}
-          onValueChange={(v) => onSelectMethod(v as ConnectionMethod)}
+          onValueChange={(v) => onMethodChange(v as ConnectionMethod)}
           placeholder="Select connection method"
           disabled={disabled || selectedErpId === null || connectionMethodOptions.length === 0}
           testID={`erp-method-select-${role}`}

@@ -16,7 +16,12 @@ const GENERIC_FAILURE_MESSAGE =
 export function toActionableMessage(raw: string): string {
   const normalized = raw.toLowerCase();
 
-  if (normalized.includes('401') || normalized.includes('unauthorized')) {
+  if (
+    normalized.includes('401') ||
+    normalized.includes('unauthorized') ||
+    normalized.includes('odoo_auth_failed') ||
+    normalized.includes('access denied')
+  ) {
     return 'Authentication failed — check your credentials and try again.';
   }
   if (normalized.includes('403') || normalized.includes('forbidden')) {

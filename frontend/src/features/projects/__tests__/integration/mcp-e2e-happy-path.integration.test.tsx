@@ -34,14 +34,14 @@ const postMock = httpClient.post as jest.MockedFunction<typeof httpClient.post>;
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
 const SOURCE_ERP: ERPSystem = {
-  id: 'sap',
-  name: 'SAP',
-  description: 'SAP source system',
+  id: 'odoo',
+  name: 'Odoo',
+  description: 'Odoo source system',
   fields: [],
 };
 
 const TARGET_ERP: ERPSystem = {
-  id: 'netsuite',
+  id: 'oracle_netsuite',
   name: 'Oracle NetSuite',
   description: 'NetSuite target system',
   fields: [],
@@ -97,8 +97,13 @@ const FETCH_COA_RESPONSE = {
 // Programs the shared `post` mock to resolve per endpoint URL.
 function programNetwork(): void {
   postMock.mockImplementation((url: string) => {
-    if (url === '/mcp/test-connection') {
-      return Promise.resolve(TEST_CONNECTION_RESPONSE);
+    // createMcpConnection
+    if (url === '/api/v1/mcp-clients') {
+      return Promise.resolve({ data: { id: 'conn-1', version: 1 } });
+    }
+    // testMcpConnection
+    if (typeof url === 'string' && url.startsWith('/api/v1/mcp-clients/') && url.endsWith('/test')) {
+      return Promise.resolve({ data: { success: true, latency_ms: 50, error: null } });
     }
     if (url === '/mcp/fetch-coa') {
       return Promise.resolve(FETCH_COA_RESPONSE);
@@ -178,7 +183,7 @@ describe('DA-93 MCP E2E happy path', () => {
 
     expect(testHook.result.current.status).toBe('success');
     expect(postMock).toHaveBeenCalledWith(
-      '/mcp/test-connection',
+      expect.stringMatching(/\/api\/v1\/mcp-clients(\/[^/]+\/test)?/),
       expect.anything(),
     );
     expect(useProjectScopeStore.getState().connectionReady).toBe(true);
