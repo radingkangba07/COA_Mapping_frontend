@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { toAppError } from '@/shared/services/http/http.client';
 import { useProjectScopeStore } from '@/features/projects/store/project-scope.store';
+import { encryptCredentials } from '@/shared/services/crypto/credentials.crypto';
 
 interface McpFetchResponse {
   readonly scope: string;
@@ -92,9 +93,10 @@ export function useMcpFetch(
     setError(null);
 
     try {
+      const encryptedCreds = await encryptCredentials(credentials);
       const { data } = await httpClient.post<McpFetchResponse>(
         `/api/v1/mcp-clients/${connectionId}/fetch-records`,
-        { credentials, scope: toMcpScope(scope), workstream_id: workstreamId ?? null },
+        { encrypted_credentials: encryptedCreds, scope: toMcpScope(scope), workstream_id: workstreamId ?? null },
       );
       applyData(data);
       setHasFetchedInSession(true);

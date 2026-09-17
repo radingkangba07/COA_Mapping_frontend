@@ -18,6 +18,12 @@ jest.mock('@/shared/services/http/http.client', () => ({
   }),
 }));
 
+jest.mock('@/shared/services/crypto/credentials.crypto', () => ({
+  encryptCredentials: jest.fn((creds: Record<string, string>) =>
+    Promise.resolve(Buffer.from(JSON.stringify(creds)).toString('base64')),
+  ),
+}));
+
 const mockSetMcpFetchData = jest.fn();
 const mockStoreState = {
   mcpFetchData: {} as Record<string, unknown>,
@@ -124,7 +130,7 @@ describe('useMcpFetch', () => {
 
     expect(mockPost).toHaveBeenCalledWith(
       '/api/v1/mcp-clients/conn-1/fetch-records',
-      expect.objectContaining({ scope: 'items', credentials: { api_key: 'k' } }),
+      expect.objectContaining({ scope: 'items', encrypted_credentials: expect.any(String) }),
     );
   });
 

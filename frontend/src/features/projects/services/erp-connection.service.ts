@@ -1,9 +1,10 @@
 // Real backend integration for MCP client connections (POST /api/v1/mcp-clients).
-// Credentials are passed per-call and never stored — only public config is
-// persisted in the connection record.
+// Credentials are RSA-OAEP encrypted before transmission so they never appear
+// as plaintext in the browser network payload.
 
 import type { HttpClient } from '@/shared/services/http/http.types';
 import type { AppError, Result } from '@/shared/types/result.types';
+import { encryptCredentials } from '@/shared/services/crypto/credentials.crypto';
 import { ok, err } from '@/shared/types/result.types';
 import { toAppError } from '@/shared/services/http/http.client';
 import type { McpConnectionForm, McpFormAuthType, McpTestConnectionResult } from './mcp.service';
@@ -64,7 +65,12 @@ function buildCredentials(authType: McpFormAuthType, form: McpConnectionForm): R
     case 'apiKey':
       return { api_key: form.apiKey };
     case 'tba':
-      return { consumer_secret: form.consumerSecret, token_secret: form.tokenSecret };
+      return {
+        consumer_key: form.consumerKey,
+        consumer_secret: form.consumerSecret,
+        token_id: form.tokenId,
+        token_secret: form.tokenSecret,
+      };
     case 'oauth2':
       return { access_token: form.token };
   }
@@ -84,9 +90,9 @@ export async function startOAuth2Flow(
   baseUrl: string,
 ): Promise<Result<OAuth2StartResponse, AppError>> {
   try {
+    const encrypted = await encryptCredentials({ client_id: clientId, client_secret: clientSecret });
     const { data } = await client.post<OAuth2StartResponse>('/api/v1/mcp-clients/oauth2/start', {
-      client_id: clientId,
-      client_secret: clientSecret,
+      encrypted_credentials: encrypted,
       base_url: baseUrl,
     });
     return ok(data);
@@ -112,7 +118,7 @@ interface ConnectionRecord {
 }
 
 interface TestConnectionBody {
-  credentials: Record<string, string>;
+  encrypted_credentials: string;
 }
 
 interface TestConnectionResponse {
@@ -151,10 +157,10 @@ export async function testMcpConnection(
   connectionId: string,
   form: McpConnectionForm,
 ): Promise<Result<McpTestConnectionResult, AppError>> {
-  const body: TestConnectionBody = {
-    credentials: buildCredentials(form.authType, form),
-  };
   try {
+    const body: TestConnectionBody = {
+      encrypted_credentials: await encryptCredentials(buildCredentials(form.authType, form)),
+    };
     const { data } = await client.post<TestConnectionResponse>(
       `/api/v1/mcp-clients/${connectionId}/test`,
       body,
