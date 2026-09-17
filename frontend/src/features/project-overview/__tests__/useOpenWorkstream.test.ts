@@ -121,4 +121,36 @@ describe('useOpenWorkstream', () => {
       projectId: 'different-project-id',
     }));
   });
+
+  it('navigates to McpFetch (not MasterDataWizard) for a master-data workstream when sourceConnectionMethod is mcp_server', () => {
+    const { result } = renderHook(() => useOpenWorkstream('prj-123', 'mcp_server'));
+    result.current(itemsWs);
+    expect(mockNavigate).toHaveBeenCalledWith('McpFetch', {
+      orgProjectId: 'org-proj-1',
+      entityId: 'items',
+      parentProjectId: 'prj-123',
+      workstreamId: 'ws-3',
+    });
+    expect(mockNavigate).not.toHaveBeenCalledWith('MasterDataWizard', expect.anything());
+  });
+
+  it('navigates to MasterDataWizard (not McpFetch) for a master-data workstream when sourceConnectionMethod is csv_file', () => {
+    const { result } = renderHook(() => useOpenWorkstream('prj-123', 'csv_file'));
+    result.current(itemsWs);
+    expect(mockNavigate).toHaveBeenCalledWith('MasterDataWizard', expect.objectContaining({
+      entityId: 'items',
+    }));
+    expect(mockNavigate).not.toHaveBeenCalledWith('McpFetch', expect.anything());
+  });
+
+  it('navigates to McpFetch for Fixed Assets when sourceConnectionMethod is mcp_server', () => {
+    const { result } = renderHook(() => useOpenWorkstream('prj-123', 'mcp_server'));
+    result.current(fixedAssetsWs);
+    expect(mockNavigate).toHaveBeenCalledWith('McpFetch', {
+      orgProjectId: 'org-proj-9',
+      entityId: 'fixedAssets',
+      parentProjectId: 'prj-123',
+      workstreamId: 'ws-9',
+    });
+  });
 });

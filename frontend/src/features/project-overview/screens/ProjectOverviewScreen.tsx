@@ -40,7 +40,7 @@ export const ProjectOverviewScreen = (): React.JSX.Element => {
 
   const { project, isLoading: isProjectLoading } = useProjectDetail(projectId as ProjectId);
   const { overview, isLoading: isOverviewLoading } = useProjectOverview(projectId);
-const openWorkstream = useOpenWorkstream(projectId);
+  const openWorkstream = useOpenWorkstream(projectId, project?.sourceConnectionMethodId);
 
   const isLoading = isProjectLoading || isOverviewLoading;
 

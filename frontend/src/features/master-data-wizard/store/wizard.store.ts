@@ -347,8 +347,17 @@ export const useWizardStore = create<WizardStore>()(
       set((state) => {
         state.pipelineRunIdByEntity[buildEntityKey(state.parentProjectId ?? '', entityId)] = runId;
       });
+      // Merge with whatever is already in storage before writing back.
+      // McpFetchScreen can call this before hydrateUploadedFileByEntity runs, so
+      // the in-memory map may be {} — serialising it directly would wipe other
+      // entities' run IDs that were persisted from a previous session.
       storageService
-        .set(STORAGE_KEYS.WIZARD_PIPELINE_RUN_ID_BY_ENTITY, JSON.stringify(get().pipelineRunIdByEntity))
+        .get(STORAGE_KEYS.WIZARD_PIPELINE_RUN_ID_BY_ENTITY)
+        .then((stored) => {
+          const existing = stored ? (JSON.parse(stored) as Partial<Record<string, string>>) : {};
+          const merged = { ...existing, ...get().pipelineRunIdByEntity };
+          return storageService.set(STORAGE_KEYS.WIZARD_PIPELINE_RUN_ID_BY_ENTITY, JSON.stringify(merged));
+        })
         .catch(() => {});
     },
 
@@ -356,8 +365,17 @@ export const useWizardStore = create<WizardStore>()(
       set((state) => {
         delete state.pipelineRunIdByEntity[buildEntityKey(state.parentProjectId ?? '', entityId)];
       });
+      // Same merge-before-write pattern as setPipelineRunId: read storage first
+      // so a cold-session clear (in-memory map still {}) does not wipe other
+      // entities' persisted run IDs.
       storageService
-        .set(STORAGE_KEYS.WIZARD_PIPELINE_RUN_ID_BY_ENTITY, JSON.stringify(get().pipelineRunIdByEntity))
+        .get(STORAGE_KEYS.WIZARD_PIPELINE_RUN_ID_BY_ENTITY)
+        .then((stored) => {
+          const existing = stored ? (JSON.parse(stored) as Partial<Record<string, string>>) : {};
+          const key = buildEntityKey(get().parentProjectId ?? '', entityId);
+          const { [key]: _removed, ...rest } = { ...existing, ...get().pipelineRunIdByEntity };
+          return storageService.set(STORAGE_KEYS.WIZARD_PIPELINE_RUN_ID_BY_ENTITY, JSON.stringify(rest));
+        })
         .catch(() => {});
     },
 

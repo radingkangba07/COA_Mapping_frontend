@@ -548,7 +548,6 @@ function toSample(sampleValues: Record<string, unknown> | null | undefined): Ent
   if (!Array.isArray(values)) return undefined;
   return values.map((v) => (typeof v === 'string' ? formatPreviewValue(v) : formatObjectInline(v)));
 }
-
 // Backend sends enumeration_detail with snake_case keys (candidate,
 // valid_ref, invalid_src, affected_rows, ref_integrity, ...);
 // EntityField['enumeration'] (dp-kit/types/entity.d.ts — GENERATED, never

@@ -10,6 +10,7 @@ import { ClientOrgDetailScreen } from '@/features/projects/screens/ClientOrgDeta
 import { ProjectOverviewScreen } from '@/features/project-overview/screens/ProjectOverviewScreen';
 import { WorkstreamDetailScreen } from '@/features/project-overview/screens/WorkstreamDetailScreen';
 import { MasterDataWizardScreen } from '@/features/master-data-wizard/screens/MasterDataWizardScreen';
+import { McpFetchScreen } from '@/features/master-data-wizard/screens/McpFetchScreen';
 
 const Stack = createNativeStackNavigator<ProjectsStackParamList>();
 
@@ -24,6 +25,7 @@ export const ProjectsStack = (): React.JSX.Element => (
       <Stack.Screen name="ProjectOverview" component={ProjectOverviewScreen} options={{ title: 'Project Overview' }} />
       <Stack.Screen name="WorkstreamDetail" component={WorkstreamDetailScreen} options={{ title: 'Workstream' }} />
       <Stack.Screen name="MasterDataWizard" component={MasterDataWizardScreen} options={{ title: 'DataPortation' }} />
+      <Stack.Screen name="McpFetch" component={McpFetchScreen} options={{ title: 'Preview ERP Data' }} />
     </Stack.Navigator>
   </ErrorBoundary>
 );

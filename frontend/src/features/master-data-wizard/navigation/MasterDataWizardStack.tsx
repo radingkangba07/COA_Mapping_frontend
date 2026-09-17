@@ -37,8 +37,10 @@ function ProfileStep(): React.JSX.Element {
   const entityId = useWizardStore((s) => s.entityId) as EntityId;
   const recordStep = useWizardStore((s) => s.recordStep);
   const handleBack = useCallback((): void => {
-    recordStep(entityId, 'upload');
-    navigation.navigate('Upload');
+    if (navigation.canGoBack()) {
+      recordStep(entityId, 'upload');
+    }
+    navigation.goBack();
   }, [navigation, entityId, recordStep]);
   return <SourceDataProfileScreen onBack={handleBack} />;
 }
