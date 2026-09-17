@@ -357,6 +357,12 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
         ...initialState,
         draft: createInitialDraft(),
         mcpFetchData: state.mcpFetchData,
+        sourceConnectionId: state.sourceConnectionId,
+        targetConnectionId: state.targetConnectionId,
+        sourceCredentials: state.sourceCredentials,
+        targetCredentials: state.targetCredentials,
+        connectionReady: state.connectionReady,
+        testStatus: state.testStatus,
       }));
     },
 

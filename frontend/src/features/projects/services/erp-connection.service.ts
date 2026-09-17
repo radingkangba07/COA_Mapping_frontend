@@ -4,7 +4,7 @@
 
 import type { HttpClient } from '@/shared/services/http/http.types';
 import type { AppError, Result } from '@/shared/types/result.types';
-import { encryptCredentials } from '@/shared/services/crypto/credentials.crypto';
+import { encryptCredentials, clearKeyCache } from '@/shared/services/crypto/credentials.crypto';
 import { ok, err } from '@/shared/types/result.types';
 import { toAppError } from '@/shared/services/http/http.client';
 import type { McpConnectionForm, McpFormAuthType, McpTestConnectionResult } from './mcp.service';
@@ -174,6 +174,7 @@ export async function testMcpConnection(
     }
     return ok({ connectedAt: new Date().toISOString(), logs: [] });
   } catch (error: unknown) {
+    clearKeyCache();
     return err(toAppError(error));
   }
 }
