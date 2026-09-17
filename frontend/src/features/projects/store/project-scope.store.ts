@@ -356,10 +356,6 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
       set((state) => ({
         ...initialState,
         draft: createInitialDraft(),
-        sourceConnectionId: state.sourceConnectionId,
-        targetConnectionId: state.targetConnectionId,
-        sourceCredentials: state.sourceCredentials,
-        targetCredentials: state.targetCredentials,
         mcpFetchData: state.mcpFetchData,
       }));
     },

@@ -14,6 +14,14 @@ jest.mock('@/shared/services/http/http.instance', () => ({
   httpClient: { post: jest.fn() },
 }));
 
+// Web Crypto API (window.crypto.subtle) is unavailable in Jest — mock
+// encryptCredentials so the real service path executes without throwing.
+jest.mock('@/shared/services/crypto/credentials.crypto', () => ({
+  encryptCredentials: jest.fn((creds: Record<string, string>) =>
+    Promise.resolve(Buffer.from(JSON.stringify(creds)).toString('base64')),
+  ),
+}));
+
 // ─── Imports (after mocks) ───────────────────────────────────────────────────
 import { httpClient } from '@/shared/services/http/http.instance';
 import { useFetchFromErp } from '@/features/migration/hooks/useFetchFromErp';
