@@ -22,6 +22,7 @@ jest.mock('@/shared/services/crypto/credentials.crypto', () => ({
   encryptCredentials: jest.fn((creds: Record<string, string>) =>
     Promise.resolve(Buffer.from(JSON.stringify(creds)).toString('base64')),
   ),
+  clearKeyCache: jest.fn(),
 }));
 
 const mockSetMcpFetchData = jest.fn();

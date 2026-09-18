@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { toAppError } from '@/shared/services/http/http.client';
 import { useProjectScopeStore } from '@/features/projects/store/project-scope.store';
-import { encryptCredentials } from '@/shared/services/crypto/credentials.crypto';
+import { encryptCredentials, clearKeyCache } from '@/shared/services/crypto/credentials.crypto';
 
 interface McpFetchResponse {
   readonly scope: string;
@@ -101,6 +101,7 @@ export function useMcpFetch(
       applyData(data);
       setHasFetchedInSession(true);
     } catch (e: unknown) {
+      clearKeyCache();
       setError(toAppError(e).message);
     } finally {
       setIsFetching(false);

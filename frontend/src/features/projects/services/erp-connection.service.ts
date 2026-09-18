@@ -97,6 +97,7 @@ export async function startOAuth2Flow(
     });
     return ok(data);
   } catch (error: unknown) {
+    clearKeyCache();
     return err(toAppError(error));
   }
 }

@@ -64,7 +64,10 @@ export function useOAuth2Flow(onTokenReceived: (token: string) => void): OAuth2F
 
       const handler = (event: MessageEvent): void => {
         // Only accept messages from our backend callback page.
-        const expectedOrigin = env.API_BASE_URL || window.location.origin;
+        // Extract the origin component so path suffixes in API_BASE_URL do not
+        // break the comparison. window.location.origin is intentionally not used
+        // as a fallback — it is the frontend origin, not the backend origin.
+        const expectedOrigin = new URL(env.API_BASE_URL).origin;
         if (event.origin !== expectedOrigin) return;
 
         window.removeEventListener('message', handler);
