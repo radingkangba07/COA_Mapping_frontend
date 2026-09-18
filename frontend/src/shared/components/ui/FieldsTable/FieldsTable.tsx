@@ -25,7 +25,7 @@ import { tint } from '@/features/master-data-wizard/utils/colorMix';
 import { matchesCategory, fmt, pctOf, uniquenessPct, confidencePct, humanizeLabel, sortValueFor } from '@/features/master-data-wizard/utils/fields';
 import { UnsortedIcon } from '@/shared/components/icons/UnsortedIcon';
 import { confidenceRamp, nullRowsRamp } from '@/features/master-data-wizard/utils/metricRamp';
-import { PAGE_SIZE, impactLabel } from '@/features/master-data-wizard/utils/taxonomy';
+import { impactLabel } from '@/features/master-data-wizard/utils/taxonomy';
 import type { EntityPack } from '@/features/master-data-wizard/dp-kit/types/entity';
 
 interface FieldsTableProps {
@@ -95,9 +95,17 @@ interface HeaderDef {
 // `color:var(--muted)` reads too light against this app's actual muted
 // value at typical zoom — darkened a step, still derived from theme
 // tokens (never a hardcoded hex), per explicit user request.
-const HEADER_TEXT_CLASS = 'text-center font-body text-xs font-medium';
+const HEADER_TEXT_CLASS = 'text-center uppercase font-body text-xs font-medium';
 
-const CHECKBOX_WIDTH = 26;
+const CHECKBOX_WIDTH = 30;
+
+// Upper bound on rows shown per page — a local UI constant, not sourced
+// from dp-taxonomies.json (the taxonomy models field-level vocabulary, not
+// this table's own pagination). The actual per-render page size (below) is
+// calculated from the table's own current field count, capped at this
+// max: a pack with fewer fields than this never shows an unused amount of
+// empty page room or a pagination footer it doesn't need.
+const MAX_PAGE_SIZE = 15;
 
 const CONFIDENCE_TOOLTIP = 'Confidence in the inferred role/datatype — not overall data quality.';
 
@@ -138,28 +146,34 @@ function stopRowPress(e: GestureResponderEvent): void {
   (e as unknown as { stopPropagation?: () => void }).stopPropagation?.();
 }
 
-// Widened against the reference's own min-widths (112/118/132/96 for
-// Null/Populated/Distinct/Confidence) — ours were narrower across the
-// board, which is why single-line headers like "Migration impact" were
-// wrapping awkwardly. `populated` needed to go past the reference's own
-// 118px: the browser lets a table cell grow past min-width to avoid
-// wrapping "Populated Rows" mid-word, but RN's fixed-width columns can't,
-// so it needs a little extra room here to fit on one sub-line. `findings`
-// was already wider than the reference (240 vs 180), so left as-is rather
-// than shrinking it.
+// Fixed per-column widths, one uniform 140px for every content column.
+//
+// An earlier revision tried to auto-size these from each cell's actual
+// measured content (useAutoColumnWidth, since removed) — that measurement
+// lived inside the very Table.Cell View whose width it was trying to
+// determine, so onLayout could never report more than the column's current
+// (already-fixed) width: Yoga clamps an alignSelf:'center' child's auto
+// width to `min(intrinsic content width, available cross-axis space)`, and
+// available space *is* the parent's current width. It only ever "worked"
+// for a single unwrappable token wider than the column — every real
+// multi-word value just wrapped inside the existing width and reported
+// that, so every one of these columns sat pinned at its 140px floor
+// (itself raised from the reference's own narrower 112/118/130/132/96
+// min-widths, needed so headers like "Migration impact" don't wrap
+// awkwardly). That 140px floor is what has actually been rendering — this
+// is those same numbers made literal now that nothing grows them further.
+// `findings` was never part of the broken mechanism — it sizes itself from
+// leftover container width instead (see colWidths below).
 const COL = {
-  field: 80,
-  sample: 190,
-  role: 130,
-  type: 70,
-  nullCount: 112,
-  populated: 136,
-  distinct: 132,
-  findings: 240,
-  // Matches the reference's own 96px min-width exactly (unlike Null/
-  // Populated/Distinct above, this one was never actually widened — it
-  // had accidentally been set to nullCount's 112 instead).
-  confidence: 96,
+  field: 140,
+  sample: 140,
+  role: 140,
+  type: 140,
+  nullCount: 140,
+  populated: 160,
+  distinct: 140,
+  findings: 260,
+  confidence: 140,
   impact: 140,
 } as const;
 
@@ -193,7 +207,7 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, filterIds = null, test
   useAppStore((s) => s.theme);
   // A step darker than plain `mutedForeground` for header rest-state text
   // — see HEADER_TEXT_CLASS's comment above.
-  const headerRestColor = mixHex(colors.mutedForeground, colors.foreground, 0.55);
+  const headerRestColor = mixHex(colors.mutedForeground, colors.foreground, 0.08);
   const categoryFilter = useSourceProfileStore((s) => s.categoryFilter);
   const sortKey = useSourceProfileStore((s) => s.sortKey);
   const sortDirection = useSourceProfileStore((s) => s.sortDirection);
@@ -207,30 +221,36 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, filterIds = null, test
 
   const rowCount = pack.source.rowCount ?? 0;
 
-  const { paged, pageCount, total } = useMemo(() => {
+  const { paged, pageCount, total, pageSize } = useMemo(() => {
     const filtered = pack.fields.filter(
       (f) => matchesCategory(f, categoryFilter) && (filterIds === null || filterIds.includes(f.id)),
     );
     const sorted = sortKey
       ? [...filtered].sort((a, b) => {
-          const av = sortValueFor(a, sortKey, rowCount);
-          const bv = sortValueFor(b, sortKey, rowCount);
-          const cmp = av < bv ? -1 : av > bv ? 1 : 0;
-          return sortDirection === 'asc' ? cmp : -cmp;
-        })
+        const av = sortValueFor(a, sortKey, rowCount);
+        const bv = sortValueFor(b, sortKey, rowCount);
+        const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+        return sortDirection === 'asc' ? cmp : -cmp;
+      })
       : filtered;
 
-    const count = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+    // Calculated from this table's own current field count, not a fixed
+    // constant — a pack with fewer fields than MAX_PAGE_SIZE gets exactly
+    // that many per page (so `total > pageSize` below never shows a
+    // pagination footer it doesn't need); one with more is capped at
+    // MAX_PAGE_SIZE per page, same as before.
+    const effectivePageSize = Math.max(1, Math.min(MAX_PAGE_SIZE, sorted.length));
+    const count = Math.max(1, Math.ceil(sorted.length / effectivePageSize));
     const clampedPage = Math.min(page, count - 1);
     const rows = sorted
-      .slice(clampedPage * PAGE_SIZE, (clampedPage + 1) * PAGE_SIZE)
-      .map((f, i) => ({ field: f, rowNo: clampedPage * PAGE_SIZE + i + 1 }));
+      .slice(clampedPage * effectivePageSize, (clampedPage + 1) * effectivePageSize)
+      .map((f, i) => ({ field: f, rowNo: clampedPage * effectivePageSize + i + 1 }));
 
-    return { paged: rows, pageCount: count, total: sorted.length };
+    return { paged: rows, pageCount: count, total: sorted.length, pageSize: effectivePageSize };
   }, [pack.fields, categoryFilter, filterIds, sortKey, sortDirection, page, rowCount]);
 
-  const startRow = paged.length > 0 ? (page * PAGE_SIZE) + 1 : 0;
-  const endRow = paged.length > 0 ? (page * PAGE_SIZE) + paged.length : 0;
+  const startRow = paged.length > 0 ? (page * pageSize) + 1 : 0;
+  const endRow = paged.length > 0 ? (page * pageSize) + paged.length : 0;
 
   // Sized from the actual max row number (not a fixed guess) so packs with
   // 100+ or 1000+ fields don't wrap their "#" column the same way 2-digit
@@ -286,23 +306,23 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, filterIds = null, test
           <Table.Row>
             <Table.HeaderCell
               width={CHECKBOX_WIDTH}
-              className="bg-surface px-1 py-[11px]"
+              className="items-center justify-center bg-surface px-1 py-[11px]"
               style={stickyLeft(frozenLeft.checkbox)}
             >
               <View />
             </Table.HeaderCell>
             <Table.HeaderCell
               width={rowNoWidth}
-              className="items-center bg-surface px-1 py-[11px]"
+              className="items-center bg-surface px-1 py-5"
               style={stickyLeft(frozenLeft.rowNo)}
             >
-              <Text className={HEADER_TEXT_CLASS} style={{ color: headerRestColor }}>#</Text>
+              <Text className={`${HEADER_TEXT_CLASS}  justify-center`} style={{ color: headerRestColor }}>#</Text>
             </Table.HeaderCell>
             {HEADERS.map((h, index) => (
               <Table.HeaderCell
                 key={h.label}
                 width={colWidths[h.col]}
-                className={index === 0 ? 'bg-surface p-0' : 'p-0'}
+                className={index === 0 ? 'items-center justify-center bg-surface p-0 uppercase' : 'items-center justify-center p-0'}
                 style={index === 0 ? stickyLeft(frozenLeft.field) : undefined}
               >
                 {h.sortKey ? (
@@ -313,7 +333,7 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, filterIds = null, test
                     // (already used for the Copilot feedback buttons):
                     // active always wins accent, otherwise hover brightens
                     // to full foreground, otherwise the header sits muted.
-                    const fg = isActive ? colors.accent : isHovered ? colors.foreground : headerRestColor;
+                    const fg = isActive ? colors.accent : isHovered ? colors.foreground : colors.mutedForeground;
                     return (
                       <Tooltip content={h.tip} position="bottom" className="self-stretch">
                         <Pressable
@@ -326,7 +346,11 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, filterIds = null, test
                           // — distinct from `badgeTint`'s fixed 13%.
                           style={{ backgroundColor: isActive ? tint(colors.accent, 12) : 'transparent' }}
                         >
-                          <Text className="text-center font-body text-xs font-medium" style={{ color: fg }} numberOfLines={2}>
+                          <Text
+                            className={`${HEADER_TEXT_CLASS}`}
+                            numberOfLines={2}
+                            style={{ color: fg }}
+                          >
                             {h.label}
                           </Text>
                           {isActive ? (
@@ -343,11 +367,17 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, filterIds = null, test
                     );
                   })()
                 ) : (
-                  <Text className={`${HEADER_TEXT_CLASS} px-3 py-[11px]`} style={{ color: headerRestColor }} numberOfLines={2}>{h.label}</Text>
+                  <Text
+                    className={`${HEADER_TEXT_CLASS} px-3 py-[11px]`}
+                    style={{ color: headerRestColor }}
+                    numberOfLines={2}
+                  >
+                    {h.label}
+                  </Text>
                 )}
               </Table.HeaderCell>
             ))}
-            <Table.HeaderCell width={ACTIONS_WIDTH} className="px-2 py-[11px]"><View /></Table.HeaderCell>
+            <Table.HeaderCell width={ACTIONS_WIDTH} className="items-center justify-center bg-surface px-1 py-[11px]"><Text style={{ color: headerRestColor }} className={`${HEADER_TEXT_CLASS}`}>Action</Text></Table.HeaderCell>
           </Table.Row>
         </Table.Header>
 
@@ -381,7 +411,7 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, filterIds = null, test
             >
               <Table.Cell
                 width={CHECKBOX_WIDTH}
-                className="px-2 py-3"
+                className="items-center justify-start px-3 py-3"
                 style={[stickyLeft(frozenLeft.checkbox), { backgroundColor: colors.card }]}
               >
                 <Pressable onPress={stopRowPress} className="flex-row items-center ">
@@ -405,73 +435,85 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, filterIds = null, test
               </Table.Cell>
               <Table.Cell
                 width={rowNoWidth}
-                className="items-center px-1 py-2"
+                className="items-center justify-start px-3 py-3"
                 style={[stickyLeft(frozenLeft.rowNo), { backgroundColor: colors.card }]}
               >
-                <Text className="text-center text-sm text-muted-foreground">{rowNo}</Text>
+                <Text className="text-left text-xs text-muted-foreground">{rowNo}</Text>
               </Table.Cell>
               <Table.Cell
-                width={COL.field}
-                className="items-center px-3 py-3"
+                width={colWidths.field}
+                className="items-center justify-start px-3 py-3"
                 style={[stickyLeft(frozenLeft.field), { backgroundColor: colors.card }]}
               >
-                <View className="flex-row items-center justify-center">
-                  <Text className="text-center text-md font-bold text-foreground">{humanizeLabel(field.name)}</Text>
+                <View className="flex-row shrink-0 items-center justify-center self-center">
+                  <Text className="text-center text-sm font-bold text-foreground">{humanizeLabel(field.name)}</Text>
                   {decisionState.confirmed ? (
                     <SemanticBadge family="impact" state="clean" size="tag">CONFIRMED</SemanticBadge>
                   ) : null}
                   {decisionState.ignored ? (
                     <View className="rounded-[4px] border px-[5px] py-px" style={{ borderColor: colors.border }}>
-                      <Text className="text-md font-semibold" style={{ color: colors.mutedForeground }}>
+                      <Text className="text-xs font-semibold" style={{ color: colors.mutedForeground }}>
                         IGNORED
                       </Text>
                     </View>
                   ) : null}
                 </View>
               </Table.Cell>
-              <Table.Cell width={COL.sample} className="items-center px-3 py-2.5">
-                {field.semantic ? (
-                  <Text className="text-center text-xs text-muted-foreground">{field.semantic}</Text>
-                ) : null}
-                <Text className="mt-[3px] text-center font-mono text-xs text-muted-foreground">
-                  {field.sample && field.sample.length > 0 ? field.sample.slice(0, 3).join('  ·  ') : '—'}
-                </Text>
+              <Table.Cell width={colWidths.sample} className="items-center justify-start px-3 py-2.5">
+                <View className="items-center shrink-0 self-center">
+                  {field.semantic ? (
+                    <Text className="text-left text-xs text-muted-foreground">{field.semantic}</Text>
+                  ) : null}
+                  <Text className="mt-[3px]  text-left font-mono text-xs text-muted-foreground">
+                    {field.sample && field.sample.length > 0 ? field.sample.slice(0, 3).join('  ·  ') : '—'}
+                  </Text>
+                </View>
               </Table.Cell>
-              <Table.Cell width={COL.role} className="items-center px-3 py-2.5">
-                {field.roleTip !== undefined && field.roleTip.length > 0 ? (
-                  <Tooltip content={field.roleTip} position="bottom" onPress={() => openField(field.id)}>
-                    <Text className="text-center text-xs text-foreground">{humanizeLabel(field.role)}</Text>
-                  </Tooltip>
-                ) : (
-                  <Text className="text-center text-xs text-foreground">{humanizeLabel(field.role)}</Text>
-                )}
+              <Table.Cell width={colWidths.role} className="items-center justify-start px-3 py-2.5">
+                <View className="shrink-0 self-center">
+                  {field.roleTip !== undefined && field.roleTip.length > 0 ? (
+                    <Tooltip content={field.roleTip} position="bottom" onPress={() => openField(field.id)}>
+                      <Text className="text-left justify-start text-xs text-foreground">{humanizeLabel(field.role)}</Text>
+                    </Tooltip>
+                  ) : (
+                    <Text className="text-left text-xs text-foreground">{humanizeLabel(field.role)}</Text>
+                  )}
+                </View>
               </Table.Cell>
-              <Table.Cell width={COL.type} className="items-center px-3 py-2.5">
-                <Text className="text-center font-mono text-sm text-muted-foreground">{field.datatype}</Text>
+              <Table.Cell width={colWidths.type} className="items-center justify-start px-3 py-2.5">
+                <View className="shrink-0 self-center">
+                  <Text className="text-left font-mono text-xs text-muted-foreground">{field.datatype}</Text>
+                </View>
               </Table.Cell>
-              <Table.Cell width={COL.nullCount} className="items-center px-2 py-2.5">
-                <GradientChip {...nullRowsRamp(field.nullCount ?? 0, rowCount)} className="self-center">
-                  {fmt(field.nullCount ?? 0)}
-                </GradientChip>
-                <Text className="mt-1 text-center text-xs text-muted-foreground">
-                  {pctOf(field.nullCount ?? 0, rowCount)}
-                </Text>
+              <Table.Cell width={colWidths.nullCount} className="items-center justify-start px-2 py-2.5">
+                <View className="items-center shrink-0 self-center">
+                  <GradientChip {...nullRowsRamp(field.nullCount ?? 0, rowCount)} className="self-center">
+                    {fmt(field.nullCount ?? 0)}
+                  </GradientChip>
+                  <Text className="mt-1 text-left text-xs text-muted-foreground">
+                    {pctOf(field.nullCount ?? 0, rowCount)}
+                  </Text>
+                </View>
               </Table.Cell>
-              <Table.Cell width={COL.populated} className="items-center px-2 py-2.5">
-                <Text className="text-center font-mono text-xs text-muted-foreground">
-                  {fmt(rowCount - (field.nullCount ?? 0))}
-                </Text>
-                <Text className="mt-1 text-center text-xs text-muted-foreground">
-                  {pctOf(rowCount - (field.nullCount ?? 0), rowCount)}
-                </Text>
+              <Table.Cell width={colWidths.populated} className="items-center justify-start px-2 py-2.5">
+                <View className="items-center shrink-0 self-center">
+                  <Text className="text-left font-mono text-xs text-muted-foreground">
+                    {fmt(rowCount - (field.nullCount ?? 0))}
+                  </Text>
+                  <Text className="mt-1 text-left text-xs text-muted-foreground">
+                    {pctOf(rowCount - (field.nullCount ?? 0), rowCount)}
+                  </Text>
+                </View>
               </Table.Cell>
-              <Table.Cell width={COL.distinct} className="items-center px-3 py-2.5">
-                <Text className="text-center font-mono text-xs text-foreground">{fmt(field.distinct ?? 0)}</Text>
-                <Text className="mt-[3px] text-center text-xs text-muted-foreground">
-                  {uniquenessPct(field.uniqueness)}
-                </Text>
+              <Table.Cell width={colWidths.distinct} className="items-center justify-start px-3 py-2.5">
+                <View className="items-center shrink-0 self-center">
+                  <Text className="text-left font-mono text-xs text-foreground">{fmt(field.distinct ?? 0)}</Text>
+                  <Text className="mt-[3px] text-left text-xs text-muted-foreground">
+                    {uniquenessPct(field.uniqueness)}
+                  </Text>
+                </View>
               </Table.Cell>
-              <Table.Cell width={colWidths.findings} className="items-center px-3 py-2.5">
+              <Table.Cell width={colWidths.findings} className="items-center justify-start px-3 py-2.5">
                 <View
                   // Reference: `display:grid;grid-template-columns:
                   // repeat(2,max-content);justify-content:center;gap:5px`
@@ -479,11 +521,13 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, filterIds = null, test
                   // of-room flex row. RN has no grid primitive at all, so
                   // this is web-only (`display:'grid'` is valid web CSS,
                   // not part of RN's own `ViewStyle` union); native falls
-                  // back to the previous flex-wrap approximation.
+                  // back to the previous flex-wrap approximation. Left-
+                  // justified (not centered) per the table's start-aligned
+                  // data-value convention.
                   style={
                     isWeb
-                      ? ({ display: 'grid', gridTemplateColumns: 'repeat(2, max-content)', justifyContent: 'center', gap: 5 } as unknown as ViewStyle)
-                      : { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 5 }
+                      ? ({ display: 'grid', gridTemplateColumns: 'repeat(2, max-content)', justifyContent: 'start', gap: 5 } as unknown as ViewStyle)
+                      : { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', gap: 5 }
                   }
                 >
                   {field.cardinality ? (
@@ -504,37 +548,40 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, filterIds = null, test
                   ) : null}
                 </View>
               </Table.Cell>
-              <Table.Cell width={COL.confidence} className="items-center px-3 py-2.5">
-                <Tooltip content={CONFIDENCE_TOOLTIP} position="bottom" onPress={() => openField(field.id)}>
-                  <GradientChip {...confidenceRamp(field.confidence)} size="confidence" className="self-center">
-                    {confidencePct(field.confidence)}
-                  </GradientChip>
-                </Tooltip>
-              </Table.Cell>
-              <Table.Cell width={COL.impact} className="items-center px-3 py-2.5">
-                {field.impactReason !== undefined && field.impactReason.length > 0 && !decisionState.ignored ? (
-                  <Tooltip content={field.impactReason} position="bottom" onPress={() => openField(field.id)}>
-                    <SemanticBadge family="impact" state={field.impact} className="self-center">
-                      {impactLabel(field.impact)}
-                    </SemanticBadge>
+              <Table.Cell width={colWidths.confidence} className="items-center justify-start px-3 py-2.5">
+                <View className="shrink-0 self-center">
+                  <Tooltip content={CONFIDENCE_TOOLTIP} position="bottom" onPress={() => openField(field.id)}>
+                    <GradientChip {...confidenceRamp(field.confidence)} size="confidence" className="self-center">
+                      {confidencePct(field.confidence)}
+                    </GradientChip>
                   </Tooltip>
-                ) : (
-                  <SemanticBadge
-                    family="impact"
-                    state={decisionState.ignored ? 'na' : field.impact}
-                    className="self-center"
-                  >
-                    {decisionState.ignored ? 'Ignored' : impactLabel(field.impact)}
-                  </SemanticBadge>
-                )}
+                </View>
               </Table.Cell>
-              <Table.Cell width={ACTIONS_WIDTH} className="items-center px-2 py-2.5">
+              <Table.Cell width={colWidths.impact} className="items-center justify-start px-3 py-2.5">
+                <View className="shrink-0 self-center">
+                  {field.impactReason !== undefined && field.impactReason.length > 0 && !decisionState.ignored ? (
+                    <Tooltip content={field.impactReason} position="bottom" onPress={() => openField(field.id)}>
+                      <SemanticBadge family="impact" state={field.impact} className="self-center">
+                        {impactLabel(field.impact)}
+                      </SemanticBadge>
+                    </Tooltip>
+                  ) : (
+                    <SemanticBadge
+                      family="impact"
+                      state={decisionState.ignored ? 'na' : field.impact}
+                      className="self-center"
+                    >
+                      {decisionState.ignored ? 'Ignored' : impactLabel(field.impact)}
+                    </SemanticBadge>
+                  )}
+                </View>
+              </Table.Cell>
+              <Table.Cell width={ACTIONS_WIDTH} className="items-center justify-start px-2 py-2.5">
                 <Pressable onPress={stopRowPress}>
                   <RowActionsCell
                     field={field}
                     isSelected={isSelected}
                     onOpen={() => openField(field.id)}
-                    onEdit={() => openField(field.id, 'issues')}
                     onToggleCompare={() => toggleSelected(field.id)}
                     testID={testID}
                   />
@@ -545,7 +592,7 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, filterIds = null, test
         })}
       </Table>
 
-      {total > PAGE_SIZE ? (
+      {total > pageSize ? (
         <View className="flex-row flex-wrap items-center justify-between gap-3 border-t border-border px-[14px] py-[11px]">
           <Text className="text-xs text-muted-foreground">
             Showing <Text className="font-mono text-xs text-foreground">{startRow}–{endRow}</Text> of{' '}

@@ -35,6 +35,12 @@ import type { StepId } from '../types/wizard.types';
 import type { AppError } from '@/shared/types/result.types';
 import { isAppError } from '@/shared/types/result.types';
 
+// Stable reference for the zustand selector fallback below — a fresh `[]`
+// literal on every call makes useWizardStore's snapshot compare unequal to
+// itself every render (nothing ever "settles"), which forces React into
+// "Maximum update depth exceeded".
+const EMPTY_STEP_IDS: readonly StepId[] = [];
+
 interface SourceDataProfileScreenProps {
   /** Defaults to wizard.store's entityId (set by MasterDataWizardScreen); overridable for tests/preview. */
   readonly entityId?: EntityId;
@@ -67,6 +73,18 @@ export function SourceDataProfileScreen({
   const handleBack = useCallback((): void => {
     onBackProp?.();
   }, [onBackProp]);
+
+  // Local only, same pattern as migration.store.ts's completedSteps — see
+  // wizard.store.ts's completedStepIdsByEntity doc comment.
+  const currentStepId = useWizardStore((s) => s.currentStepId);
+  const completedStepIds = useWizardStore(
+    (s) => s.completedStepIdsByEntity[buildEntityKey(parentProjectId ?? '', entityId)] ?? EMPTY_STEP_IDS,
+  );
+  const completeStep = useWizardStore((s) => s.completeStep);
+  const handleContinue = useCallback((): void => {
+    completeStep(entityId, 'profile' as StepId);
+    onContinue?.();
+  }, [completeStep, entityId, onContinue]);
 
   // Forces re-render on theme toggle so colors.* below reads fresh values —
   // colors is a plain proxy, not a hook, so nothing else here re-renders
@@ -136,7 +154,7 @@ export function SourceDataProfileScreen({
 
   const step = getStep('profile');
   const stepCount = STEPS.length;
-  const stepRail = toStepRail('profile' as StepId);
+  const stepRail = toStepRail((currentStepId ?? 'profile') as StepId, STEPS, completedStepIds);
 
   const handleCloseDrawer = useCallback(() => closeField(), [closeField]);
   // Called unconditionally (before the loading/error/empty early returns
@@ -263,7 +281,7 @@ export function SourceDataProfileScreen({
                   </View>
                 </Button>
               ) : null}
-              <Button variant="default"  onPress={onContinue} testID="source-profile-continue">
+              <Button variant="default"  onPress={() => void handleContinue()} testID="source-profile-continue">
                 <View className="flex-row items-center justify-center gap-2">
                   <Text className="text-sm font-semibold text-primary-foreground">
                     Confirm profile &amp; generate mappings

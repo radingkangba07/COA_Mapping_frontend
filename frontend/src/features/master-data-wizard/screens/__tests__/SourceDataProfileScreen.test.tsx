@@ -37,7 +37,7 @@ describe('SourceDataProfileScreen', () => {
     expect(screen.getByText(`Step ${getStep('profile').n} of ${STEPS.length}`)).toBeTruthy();
     expect(within(screen.getByTestId('source-profile-kpi-records')).getByText('42,580')).toBeTruthy();
     expect(screen.getByText('SKU')).toBeTruthy();
-    expect(screen.getByText(/Showing 1.30 of 33 fields/)).toBeTruthy();
+    expect(screen.getByText(/Showing 1[–-]15 of 33 fields/)).toBeTruthy();
   });
 
   it('expands the readiness banner to reveal recommended-order chips and evidence', async () => {
@@ -124,7 +124,7 @@ describe('SourceDataProfileScreen', () => {
       expect(screen.getByTestId('source-profile-kpi-dupes')).toBeTruthy();
       expect(screen.getByTestId('source-profile-table-open-name')).toBeTruthy();
     });
-    expect(screen.getByText(/Showing 1.30 of 33 fields/)).toBeTruthy();
+    expect(screen.getByText(/Showing 1[–-]15 of 33 fields/)).toBeTruthy();
 
     // "dupes" highlights a single field (sku) in the items fixture — clicking
     // it now narrows FieldsTable down to just that row, not only styling it.
@@ -147,7 +147,7 @@ describe('SourceDataProfileScreen', () => {
       expect(screen.queryByTestId('source-profile-visual-filters')).toBeNull();
     });
     expect(screen.getByTestId('source-profile-table-open-name')).toBeTruthy();
-    expect(screen.getByText(/Showing 1.30 of 33 fields/)).toBeTruthy();
+    expect(screen.getByText(/Showing 1[–-]15 of 33 fields/)).toBeTruthy();
   });
 
   it("clicking the 'Total records' KPI tile toggles active state without hiding any rows (it has no highlight set)", async () => {
@@ -163,7 +163,7 @@ describe('SourceDataProfileScreen', () => {
     // table — all 33 fields (and the paginated footer describing them)
     // stay exactly as before the click.
     await waitFor(() => {
-      expect(screen.getByText(/Showing 1.30 of 33 fields/)).toBeTruthy();
+      expect(screen.getByText(/Showing 1[–-]15 of 33 fields/)).toBeTruthy();
     });
     expect(screen.getByTestId('source-profile-table-open-name')).toBeTruthy();
   });
@@ -244,7 +244,9 @@ describe('SourceDataProfileScreen', () => {
     if (!decision) throw new Error('expected one decision');
     expect(decision).toMatchObject({ kind: 'ignore', fieldId: 'sku', label: 'Ignored SKU' });
 
-    useSourceProfileStore.getState().undoDecision(decision.id);
+    act(() => {
+      useSourceProfileStore.getState().undoDecision(decision.id);
+    });
     expect(useSourceProfileStore.getState().decisions).toHaveLength(0);
   });
 });

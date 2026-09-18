@@ -66,7 +66,7 @@ export function confidenceRamp(confidence: number | undefined): RampColors {
   return {
     start: oklch(L, C, 255),
     end: oklch(L2, C, 255),
-    fg: L < 0.62 ? '#ffffff' : oklch(0.36, 0.11, 255),
+    fg: L < 0.62 ? '#ffffff' : '#ffffff',
   };
 }
 

@@ -1,4 +1,5 @@
 import { needsReview, impactRank } from './taxonomy';
+import { formatObjectInline, formatPreviewValue } from './previewFormat';
 import type { EntityField, EntityMetric, EntityPack, Impact } from '../dp-kit/types/entity';
 
 export function matchesCategory(field: EntityField, categoryId: string): boolean {
@@ -65,9 +66,17 @@ function dig(obj: unknown, path: string): unknown {
   }, obj);
 }
 
-/** Thousands-separated for numbers, passed through otherwise. Matches dp-base.js's fmt(). */
+/** Thousands-separated for numbers, passed through otherwise. Matches
+ *  dp-base.js's fmt() for the primitive cases it was ever actually called
+ *  with; an object/array (a metric's `path` under-specifying a fieldStat,
+ *  e.g. `path: 'enumeration'` instead of `'enumeration.affectedRows'` — see
+ *  buildMetrics() below) would otherwise render as the literal string
+ *  "[object Object]" — routed through formatObjectInline instead so it
+ *  reads as text, not raw JSON. */
 export function fmt(value: unknown): string {
-  return typeof value === 'number' ? value.toLocaleString('en-US') : String(value);
+  if (typeof value === 'number') return value.toLocaleString('en-US');
+  if (typeof value === 'object' && value !== null) return formatObjectInline(value);
+  return String(value);
 }
 
 /** Null/populated-rate percentage, formatted to one decimal. */
@@ -103,11 +112,7 @@ export function confidencePct(value: number | undefined): string {
  */
 export function humanizeLabel(value: string | undefined): string {
   if (value === undefined || value.trim().length === 0) return '—';
-  return value
-    .split(/[_\s]+/)
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+  return formatPreviewValue(value);
 }
 
 const GENERIC_COMPARISON_NOTE =
