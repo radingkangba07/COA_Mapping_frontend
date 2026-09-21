@@ -4,8 +4,8 @@ import type { MappingExportItem } from '@/features/export/types/export.types';
  * Generates a CSV string from mapping export items.
  * Ported from App.js handleSaveTypeMappingCSV (lines 1379-1397).
  */
-export function generateCSV(mappings: readonly MappingExportItem[]): string {
-  const header = 'Source Field,Target Field,Source Type,Target Type,Confidence,Method';
+export function generateCSV(mappings: readonly MappingExportItem[], projectId: string): string {
+  const header = 'Source Field,Target Field,Source Type,Target Type,Score,Remark,Project ID';
 
   const rows = mappings.map((item) => {
     const fields = [
@@ -13,8 +13,9 @@ export function generateCSV(mappings: readonly MappingExportItem[]): string {
       escapeCSVField(item.target_field),
       escapeCSVField(item.source_type),
       escapeCSVField(item.target_type),
-      String(item.confidence),
-      escapeCSVField(item.method),
+      String(item.score),
+      escapeCSVField(item.remark),
+      escapeCSVField(projectId),
     ];
     return fields.join(',');
   });
