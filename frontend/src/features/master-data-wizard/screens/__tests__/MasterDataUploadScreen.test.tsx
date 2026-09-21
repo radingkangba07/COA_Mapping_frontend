@@ -44,8 +44,8 @@ jest.mock('@react-navigation/native', () => {
     }),
     // Real useFocusEffect only re-runs on actual focus changes (no
     // NavigationContainer here to drive that) — a plain mount-effect is
-    // enough for this suite, which only asserts the persisted-files refetch
-    // fires at all, not that it re-fires on every focus transition.
+    // enough for this suite, which only asserts the discovery refetch fires
+    // at all, not that it re-fires on every focus transition.
     useFocusEffect: (callback: () => void | (() => void)) => {
       R.useEffect(() => callback(), [callback]);
     },
@@ -143,21 +143,12 @@ jest.mock('@/features/projects/hooks/useProjectDetail', () => ({
   useProjectDetail: (...args: unknown[]) => mockUseProjectDetail(...args),
 }));
 
-// The uploaded-file preview's metadata (name, status, size, columns, row
-// count) comes exclusively from here (GET /api/v1/storage/files/{fileId}),
-// keyed off either this session's own upload response or the discovery
-// call below — never a client-persisted record. This mock ignores its real
-// arguments (see setFileDetails below) except in the tests that assert on
-// them directly.
-const mockFileDetailsRefetch = jest.fn();
-const mockUseFileDetails = jest.fn();
-jest.mock('../../hooks/useFileDetails', () => ({
-  useFileDetails: (...args: unknown[]) => mockUseFileDetails(...args),
-}));
-
-// Discovery (GET /api/v1/storage/org-project/{orgProjectId}/files) — the
-// backend-only "does this org_project_id+workstream_id+entity_id already
-// have a file" lookup that replaces any client-persisted record.
+// GET /api/v1/storage/org-project/{org_project_id}/files is the single source
+// of truth for the FileUploader's state — this mock's `latestFile` (already
+// filtered by entity_id+workstream_id in the real hook; see
+// useOrgProjectFiles.test.tsx for that filter's own coverage) is what
+// MasterDataUploadScreen reads hasFile/fileName/rowCount/columns from
+// directly. There is no second per-file GET anywhere in this screen.
 const mockDiscoveryRefetch = jest.fn();
 const mockUseOrgProjectFiles = jest.fn();
 jest.mock('../../hooks/useOrgProjectFiles', () => ({
@@ -184,6 +175,10 @@ const mockSetPipelineRunId = jest.fn();
 const mockClearPipelineRunId = jest.fn();
 const mockRecordStep = jest.fn();
 const mockSetLoadPreview = jest.fn();
+const mockSetUploadedFile = jest.fn();
+const mockClearUploadedFile = jest.fn();
+const mockSetSourceCsv = jest.fn();
+const mockClearSourceCsv = jest.fn();
 let mockPipelineRunIdByEntity: Record<string, string> = {};
 let mockLoadPreviewByEntity: Record<string, { fileName: string; rows: string[][] }> = {};
 let mockCurrentStepId = 'upload';
@@ -207,6 +202,10 @@ jest.mock('../../store/wizard.store', () => ({
       recordStep: mockRecordStep,
       loadPreviewByEntity: mockLoadPreviewByEntity,
       setLoadPreview: mockSetLoadPreview,
+      setUploadedFile: mockSetUploadedFile,
+      clearUploadedFile: mockClearUploadedFile,
+      setSourceCsv: mockSetSourceCsv,
+      clearSourceCsv: mockClearSourceCsv,
       currentStepId: mockCurrentStepId,
       completedStepIdsByEntity: mockCompletedStepIdsByEntity,
       completeStep: mockCompleteStep,
@@ -232,9 +231,12 @@ const UPLOAD_RESULT: UploadResult = {
   createdAt: '2026-09-01T00:00:00Z',
 };
 
-// GET /api/v1/storage/files/{fileId}'s mapped shape (PersistedFile, see
-// entity-pack.service.ts) — a file known only from that lookup, with no
-// local CSV parse behind it.
+// GET /api/v1/storage/org-project/{org_project_id}/files's per-item shape
+// (PersistedFile, see entity-pack.service.ts) — a file known only from
+// discovery, with no local CSV parse behind it. Carries its own
+// entity_id/workstream_id, matching the current selection ('customers'/
+// 'ws-1') — see the cross-entity/cross-workstream tests below for fixtures
+// that deliberately don't.
 const PERSISTED_FILE = {
   id: 'file-persisted-1',
   fileType: 'source_erp',
@@ -246,14 +248,13 @@ const PERSISTED_FILE = {
   columns: ['Account No', 'Customer Name'],
   rowCount: 5,
   createdAt: '2026-09-01T00:00:00Z',
+  entityId: 'customers',
+  workstreamId: 'ws-1',
 };
 
-// Same file, shaped as useFileDetails' PersistedFile response — used to
-// simulate "the upload mutation confirmed, and useFileDetails' own query
-// (driven by the new currentFileId) has settled with the matching file".
-// hasFile is strictly fileDetails.file !== null (see MasterDataUploadScreen's
-// own comment), so `setSourceFileUpload({ result: UPLOAD_RESULT })` alone
-// never makes the screen show a file — this fixture is what's needed too.
+// Same file, shaped as useOrgProjectFiles' latestFile — used to simulate
+// "the upload confirmed, and the discovery refetch it triggers has settled
+// with the matching record".
 const UPLOAD_RESULT_AS_FILE = {
   id: UPLOAD_RESULT.fileId,
   fileType: UPLOAD_RESULT.fileType,
@@ -265,6 +266,8 @@ const UPLOAD_RESULT_AS_FILE = {
   columns: [] as string[],
   rowCount: UPLOAD_RESULT.rowCount,
   createdAt: UPLOAD_RESULT.createdAt,
+  entityId: 'customers',
+  workstreamId: 'ws-1',
 };
 
 const uploadStep = STEPS.find((s) => s.id === 'upload')!;
@@ -292,19 +295,6 @@ function setProjectDetail(overrides: Partial<ReturnType<typeof mockUseProjectDet
     isFetching: false,
     error: null,
     refetch: mockRefetchProject,
-    ...overrides,
-  });
-}
-
-function setFileDetails(overrides: Partial<ReturnType<typeof mockUseFileDetails>> = {}): void {
-  const file = overrides.file !== undefined ? overrides.file : null;
-  mockUseFileDetails.mockReturnValue({
-    file,
-    rowCount: (file as { rowCount?: number } | null)?.rowCount,
-    isLoading: false,
-    error: null,
-    refetch: mockFileDetailsRefetch,
-    isMismatched: false,
     ...overrides,
   });
 }
@@ -350,7 +340,6 @@ describe('MasterDataUploadScreen', () => {
     setEntityPack(null);
     setSourceFileUpload();
     setProjectDetail();
-    setFileDetails();
     setOrgProjectFiles();
     setDeleteFile();
     setPersistedFilePreview();
@@ -399,57 +388,53 @@ describe('MasterDataUploadScreen', () => {
     expect(screen.getByTestId('upload-continue-button').props.accessibilityState?.disabled).toBe(true);
   });
 
-  it('sends entityId through to useSourceFileUpload so entity_id is included on the upload request', () => {
+  it('sends orgProjectId/workstreamId through to useSourceFileUpload', () => {
     render(<MasterDataUploadScreen />);
 
     expect(mockUseSourceFileUpload).toHaveBeenCalledWith(
-      expect.objectContaining({ orgProjectId: 'org-1', workstreamId: 'ws-1', entityId: 'customers' }),
+      expect.objectContaining({ orgProjectId: 'org-1', workstreamId: 'ws-1' }),
     );
   });
 
-  it('never calls GET /api/v1/storage/files/{fileId} with a real id when there is neither a fresh upload nor a discovered file — shows the plain "no file" state instead', () => {
-    // No fresh uploadResult, no discovery result (default beforeEach state)
-    // — currentFileId stays null, so useFileDetails must never be called
-    // with a real id.
+  it('calls useOrgProjectFiles scoped to the current org_project_id+workstream_id+entityId, and shows "no file" when it finds nothing', () => {
     render(<MasterDataUploadScreen />);
 
-    expect(mockUseFileDetails).toHaveBeenCalledWith('org-1', 'customers', 'ws-1', null);
+    expect(mockUseOrgProjectFiles).toHaveBeenCalledWith('org-1', 'ws-1', 'customers');
     expect(screen.getByText('No source customers file selected')).toBeTruthy();
   });
 
-  it("drives useFileDetails off the fresh upload response's fileId the instant the server confirms it", () => {
+  it('populates the FileUploader directly from the discovery response\'s latestFile — no second per-file fetch', () => {
+    setOrgProjectFiles({ latestFile: PERSISTED_FILE });
+    render(<MasterDataUploadScreen />);
+
+    expect(screen.getByText(`${PERSISTED_FILE.originalFilename} · ${PERSISTED_FILE.rowCount} rows loaded`)).toBeTruthy();
+  });
+
+  it('re-runs discovery immediately after a successful upload, rather than trusting the raw mutation response', () => {
     setSourceFileUpload({ result: UPLOAD_RESULT });
     render(<MasterDataUploadScreen />);
 
-    expect(mockUseFileDetails).toHaveBeenCalledWith('org-1', 'customers', 'ws-1', UPLOAD_RESULT.fileId);
+    expect(mockDiscoveryRefetch).toHaveBeenCalled();
+  });
+
+  it('re-runs discovery on every focus, so switching Entity/Workstream and coming back re-evaluates immediately', () => {
+    render(<MasterDataUploadScreen />);
+
+    expect(mockDiscoveryRefetch).toHaveBeenCalled();
   });
 
   it("falls back to the discovery call's latestFile when there's no fresh uploadResult — e.g. after a refresh or navigating back to this screen", () => {
     // Simulates the screen losing its local mutation state (a real refresh,
     // or Continue-to-Profile-then-Back) — the upload mutation itself has no
-    // result, but GET /storage/org-project/{orgProjectId}/files (scoped to
+    // result, but GET /storage/org-project/{org_project_id}/files (scoped to
     // this org_project_id+workstream_id+entity_id) still finds the file.
     // The file must keep showing until Remove is pressed, never disappear
     // just because of a refresh/reload.
-    setOrgProjectFiles({ latestFile: { id: PERSISTED_FILE.id } as never });
+    setOrgProjectFiles({ latestFile: PERSISTED_FILE });
     setSourceFileUpload({ result: null });
     render(<MasterDataUploadScreen />);
 
-    expect(mockUseOrgProjectFiles).toHaveBeenCalledWith('org-1', 'ws-1', 'customers');
-    expect(mockUseFileDetails).toHaveBeenCalledWith('org-1', 'customers', 'ws-1', PERSISTED_FILE.id);
-  });
-
-  it('does not refetch file details on mount when there is no file at all', () => {
-    render(<MasterDataUploadScreen />);
-
-    expect(mockFileDetailsRefetch).not.toHaveBeenCalled();
-  });
-
-  it('refetches file details on focus once a file already exists', () => {
-    setSourceFileUpload({ result: UPLOAD_RESULT });
-    render(<MasterDataUploadScreen />);
-
-    expect(mockFileDetailsRefetch).toHaveBeenCalled();
+    expect(screen.getByText(`${PERSISTED_FILE.originalFilename} · ${PERSISTED_FILE.rowCount} rows loaded`)).toBeTruthy();
   });
 
   it('flags a missing expected column using the persisted file\'s own columns when there is no local CSV parse', async () => {
@@ -458,7 +443,7 @@ describe('MasterDataUploadScreen', () => {
       target: { record: '' },
       spec: { expectedColumns: ['Account No', 'Tax Region'] },
     } as EntityPack);
-    setFileDetails({ file: PERSISTED_FILE, rowCount: PERSISTED_FILE.rowCount });
+    setOrgProjectFiles({ latestFile: PERSISTED_FILE });
     render(<MasterDataUploadScreen />);
 
     await waitFor(() => {
@@ -467,8 +452,8 @@ describe('MasterDataUploadScreen', () => {
     expect(screen.getByTestId('file-upload-column-warning').props.children).toBe('Tax Region');
   });
 
-  it('deletes the persisted file (DELETE /api/v1/storage/files/{id}) when Remove is pressed for a file known only from GET /api/v1/storage/files/{id}', async () => {
-    setFileDetails({ file: PERSISTED_FILE, rowCount: PERSISTED_FILE.rowCount });
+  it('deletes the persisted file (DELETE /api/v1/storage/files/{id}) when Remove is pressed', async () => {
+    setOrgProjectFiles({ latestFile: PERSISTED_FILE });
     render(<MasterDataUploadScreen />);
 
     await waitFor(() => {
@@ -479,35 +464,24 @@ describe('MasterDataUploadScreen', () => {
     expect(mockRemoveFile).toHaveBeenCalledWith(PERSISTED_FILE.id);
   });
 
+  it("extracts the matched file's own workstream_id for the delete call, not just the currently selected workstream_id", () => {
+    setOrgProjectFiles({ latestFile: { ...PERSISTED_FILE, workstreamId: 'ws-owned-by-file' } });
+    render(<MasterDataUploadScreen />);
+
+    expect(mockUseDeleteFile).toHaveBeenCalledWith(
+      expect.objectContaining({ orgProjectId: 'org-1', workstreamId: 'ws-owned-by-file', entityId: 'customers' }),
+    );
+  });
+
   it('rehydrates the dropzone from the discovery call on a fresh mount (e.g. after Back), and Continue still works', async () => {
-    // Simulates the screen losing its local state — the upload mutation
-    // has no result of its own, but discovery (GET /storage/org-project/
-    // {orgProjectId}/files) still finds last time's confirmed upload.
-    // currentFileId falls back to that latestFile id, which is what drives
-    // fileDetails (mocked here to match) — hasFile is strictly
-    // fileDetails.file !== null.
-    setOrgProjectFiles({ latestFile: { id: UPLOAD_RESULT.fileId } as never });
-    setFileDetails({
-      file: {
-        id: UPLOAD_RESULT.fileId,
-        fileType: UPLOAD_RESULT.fileType,
-        originalFilename: UPLOAD_RESULT.fileName,
-        storagePath: UPLOAD_RESULT.storagePath,
-        contentType: UPLOAD_RESULT.contentType,
-        sizeBytes: 128,
-        status: 'uploaded',
-        columns: [],
-        rowCount: UPLOAD_RESULT.rowCount,
-        createdAt: UPLOAD_RESULT.createdAt,
-      },
-      rowCount: UPLOAD_RESULT.rowCount,
-    });
+    // Simulates the screen losing its local state — the upload mutation has
+    // no result of its own, but discovery (GET /storage/org-project/
+    // {org_project_id}/files) still finds last time's confirmed upload.
+    setOrgProjectFiles({ latestFile: UPLOAD_RESULT_AS_FILE });
     setSourceFileUpload({ result: null });
     render(<MasterDataUploadScreen />);
 
-    await waitFor(() => {
-      expect(screen.getByText('mock.csv · 2 rows loaded')).toBeTruthy();
-    });
+    expect(screen.getByText('mock.csv · 2 rows loaded')).toBeTruthy();
     expect(screen.getByTestId('upload-continue-button').props.accessibilityState?.disabled).not.toBe(true);
 
     fireEvent.press(screen.getByTestId('upload-continue-button'));
@@ -518,21 +492,19 @@ describe('MasterDataUploadScreen', () => {
     expect(mockCreatePipelineRun).toHaveBeenCalledWith('ws-1', 'customers', UPLOAD_RESULT.storagePath);
   });
 
-  it('never renders a file discovery found but fileDetails did not confirm (e.g. a cross-entity/cross-project mismatch)', () => {
-    // Discovery returned some file id, but useFileDetails — the actual
-    // source of truth for hasFile — rejects/hasn't confirmed it (file:
-    // null). hasFile must stay strictly false; nothing about discovery's
-    // own result should render the file as uploaded on its own.
-    setOrgProjectFiles({ latestFile: { id: 'foreign-file-id' } as never });
-    setFileDetails({ file: null });
-    setSourceFileUpload({ result: null });
+  it('never shows a file belonging to a different entity or workstream, even under the same org project', () => {
+    // useOrgProjectFiles itself is what enforces the strict entity_id +
+    // workstream_id match (see useOrgProjectFiles.test.tsx) — this only
+    // proves the screen honours whatever it comes back with. A mismatched
+    // file never reaches this mock as `latestFile` in the first place, so
+    // the default (null) beforeEach state already represents that case.
     render(<MasterDataUploadScreen />);
 
     expect(screen.queryByText('mock.csv · 2 rows loaded')).toBeNull();
     expect(screen.getByText('No source customers file selected')).toBeTruthy();
   });
 
-  it('shows the local CSV header (not the persisted file\'s own columns) once the upload confirms', async () => {
+  it('shows the local CSV header (not the discovered file\'s own columns) once the upload confirms', async () => {
     setEntityPack({
       label: { singular: 'Customer', plural: 'Customers' },
       target: { record: '' },
@@ -543,11 +515,11 @@ describe('MasterDataUploadScreen', () => {
     fireEvent.press(screen.getByTestId('master-data-upload-dropzone-pick'));
     await waitFor(() => expect(mockUpload).toHaveBeenCalled());
 
-    // Server confirms the upload, and useFileDetails' own query (now keyed
-    // off the confirmed fileId) settles — this is what actually flips
-    // hasFile to true and lets the column check run.
+    // Server confirms the upload; the discovery refetch it triggers settles
+    // with the matching record — this is what actually flips hasFile to
+    // true and lets the column check run.
     setSourceFileUpload({ result: UPLOAD_RESULT });
-    setFileDetails({ file: UPLOAD_RESULT_AS_FILE, rowCount: UPLOAD_RESULT.rowCount });
+    setOrgProjectFiles({ latestFile: UPLOAD_RESULT_AS_FILE });
     rerender(<MasterDataUploadScreen />);
 
     await waitFor(() => {
@@ -561,7 +533,7 @@ describe('MasterDataUploadScreen', () => {
     fireEvent.press(screen.getByTestId('master-data-upload-dropzone-pick'));
 
     setSourceFileUpload({ result: UPLOAD_RESULT });
-    setFileDetails({ file: UPLOAD_RESULT_AS_FILE, rowCount: UPLOAD_RESULT.rowCount });
+    setOrgProjectFiles({ latestFile: UPLOAD_RESULT_AS_FILE });
     rerender(<MasterDataUploadScreen />);
 
     await waitFor(() => {
@@ -577,7 +549,7 @@ describe('MasterDataUploadScreen', () => {
   });
 
   it('removes an already-confirmed file, resetting the upload mutation and any pipeline run', async () => {
-    setFileDetails({ file: PERSISTED_FILE, rowCount: PERSISTED_FILE.rowCount });
+    setOrgProjectFiles({ latestFile: PERSISTED_FILE });
     render(<MasterDataUploadScreen />);
 
     await waitFor(() => {
@@ -625,7 +597,7 @@ describe('MasterDataUploadScreen', () => {
 
   it('navigates back on Back, and to the Profile step on Continue once a file is confirmed', async () => {
     setSourceFileUpload({ result: UPLOAD_RESULT });
-    setFileDetails({ file: UPLOAD_RESULT_AS_FILE, rowCount: UPLOAD_RESULT.rowCount });
+    setOrgProjectFiles({ latestFile: UPLOAD_RESULT_AS_FILE });
     render(<MasterDataUploadScreen />);
 
     fireEvent.press(screen.getByTestId('upload-back-button'));
@@ -650,7 +622,7 @@ describe('MasterDataUploadScreen', () => {
   it('reuses a previously created run instead of creating a new one on a second Continue press', async () => {
     mockPipelineRunIdByEntity = { 'proj-1:customers': 'run-already-created' };
     setSourceFileUpload({ result: UPLOAD_RESULT });
-    setFileDetails({ file: UPLOAD_RESULT_AS_FILE, rowCount: UPLOAD_RESULT.rowCount });
+    setOrgProjectFiles({ latestFile: UPLOAD_RESULT_AS_FILE });
     render(<MasterDataUploadScreen />);
 
     fireEvent.press(screen.getByTestId('upload-continue-button'));
@@ -668,7 +640,7 @@ describe('MasterDataUploadScreen', () => {
     });
     mockGetActivePipelineRun.mockResolvedValue({ ok: true, data: { id: 'run-existing', status: 'running' } });
     setSourceFileUpload({ result: UPLOAD_RESULT });
-    setFileDetails({ file: UPLOAD_RESULT_AS_FILE, rowCount: UPLOAD_RESULT.rowCount });
+    setOrgProjectFiles({ latestFile: UPLOAD_RESULT_AS_FILE });
     render(<MasterDataUploadScreen />);
 
     fireEvent.press(screen.getByTestId('upload-continue-button'));
@@ -682,7 +654,7 @@ describe('MasterDataUploadScreen', () => {
   it('shows a toast and does not navigate when starting the profiler run fails', async () => {
     mockCreatePipelineRun.mockResolvedValue({ ok: false, error: { code: 'HTTP_500', message: 'Server error' } });
     setSourceFileUpload({ result: UPLOAD_RESULT });
-    setFileDetails({ file: UPLOAD_RESULT_AS_FILE, rowCount: UPLOAD_RESULT.rowCount });
+    setOrgProjectFiles({ latestFile: UPLOAD_RESULT_AS_FILE });
     render(<MasterDataUploadScreen />);
 
     fireEvent.press(screen.getByTestId('upload-continue-button'));
@@ -705,9 +677,9 @@ describe('MasterDataUploadScreen', () => {
     const { rerender } = render(<MasterDataUploadScreen />);
 
     fireEvent.press(screen.getByTestId('master-data-upload-dropzone-pick'));
-    // hasFile is strictly fileDetails.file !== null (see the screen's own
-    // comment) — a local pick alone, with no server confirmation, must
-    // never show a file card.
+    // hasFile is strictly discoveredFiles.latestFile !== null (see the
+    // screen's own comment) — a local pick alone, with no server
+    // confirmation, must never show a file card.
     expect(screen.getByText('No source customers file selected')).toBeTruthy();
 
     // The server call comes back as unreachable.

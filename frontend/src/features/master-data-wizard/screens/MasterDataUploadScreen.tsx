@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {View, Text, ScrollView,} from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LayoutTemplate, File as FileIcon, ArrowLeft, ArrowRight } from 'lucide-react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import type { ProjectsStackParamList } from '@/navigation/types';
 import type { MasterDataWizardStackParamList } from '../navigation/masterDataWizardStack.types';
+import { stepIdToWizardRoute } from '../navigation/masterDataWizardStack.types';
 import { isWeb } from '@/shared/utils/platform.utils';
 import { getERPById } from '@/shared/constants/erp-systems';
 import { useProjectDetail } from '@/features/projects/hooks/useProjectDetail';
@@ -14,7 +15,6 @@ import { createProjectId } from '@/shared/types/common.types';
 import { useEntityPack } from '../hooks/useEntityPack';
 import { useSourceFileUpload } from '../hooks/useSourceFileUpload';
 import { useOrgProjectFiles } from '../hooks/useOrgProjectFiles';
-import { useFileDetails } from '../hooks/useFileDetails';
 import { useDeleteFile } from '../hooks/useDeleteFile';
 import { usePersistedFilePreview } from '../hooks/usePersistedFilePreview';
 import { createPipelineRun, getActivePipelineRun, isPipelineRunConflict } from '../services/entity-pack.service';
@@ -43,7 +43,8 @@ type UploadNav = NativeStackNavigationProp<MasterDataWizardStackParamList, 'Uplo
 // Stable reference for the zustand selector fallback below — a fresh `[]`
 // literal on every call makes useWizardStore's snapshot compare unequal to
 // itself every render (nothing ever "settles"), which forces React into
-// "Maximum update depth exceeded".
+// "Maximum update depth exceeded". Same pattern as SourceDataProfileScreen's
+// own EMPTY_STEP_IDS.
 const EMPTY_STEP_IDS: readonly StepId[] = [];
 
 // ─── Static entity sample fallbacks ─────────────────────────────────────────
@@ -179,41 +180,34 @@ export function MasterDataUploadScreen(): React.JSX.Element {
     isUploading,
     error: uploadError,
     reset: resetUpload,
-  } = useSourceFileUpload({ orgProjectId, workstreamId: workstreamId, entityId, fileType: 'source_erp' });
-  // Keyed by project+entity (see wizard.store.ts's buildEntityKey) so this
-  // project's Step 1 never resumes with another project's uploaded file for
-  // the same object (e.g. both running Items).
+  } = useSourceFileUpload({ orgProjectId, workstreamId, fileType: 'source_erp' });
+  // Keyed by project+entity (see wizard.store.ts's buildEntityKey) — local
+  // step/run bookkeeping only (below); never the uploaded file itself, see
+  // discoveredFiles.
   const entityKey = buildEntityKey(parentProjectId, entityId as EntityId);
-  // Discovery (GET /api/v1/storage/org-project/{orgProjectId}/files, scoped
-  // to org_project_id + workstreamId + entity_id) — the backend-only
-  // "does this entity already have a file, and which one" lookup that
-  // replaces any client-persisted record. This is what makes a second
-  // browser/tab that never made the upload resolve the exact same file.
+  // GET /api/v1/storage/org-project/{org_project_id}/files is the single
+  // source of truth for the FileUploader's state. useOrgProjectFiles filters
+  // its response by file.workstreamId === workstreamId — a file failing
+  // that check is never shown, even if it belongs to this same org project.
+  // Because this hook's own query key includes workstreamId/entityId,
+  // changing either re-evaluates and refreshes the displayed file
+  // immediately — never a stale file left over from a different
+  // entity/workstream selection.
   const discoveredFiles = useOrgProjectFiles(orgProjectId, workstreamId, entityId);
-  // currentFileId prefers a fresh upload's own response (instant feedback,
-  // the instant this tab's own upload confirms) and otherwise falls back to
-  // the discovery call above — never client storage. It's cleared in
-  // exactly one place: handleRemove, right alongside the DELETE
-  // /storage/files/{fileId} call below — that's the only action that should
-  // ever make an uploaded file disappear from this screen.
-  const currentFileId = uploadResult?.fileId ?? discoveredFiles.latestFile?.id ?? null;
-  // GET /api/v1/storage/files/{fileId} — this file's own metadata (row
-  // count, filename, columns...), re-validated against org_project_id/
-  // entity_id/workstreamId (see useFileDetails' own header comment) before
-  // any of it is ever shown. Only runs once currentFileId resolves to a
-  // real id — never speculatively before that.
-  const fileDetails = useFileDetails(orgProjectId, entityId, workstreamId, currentFileId);
-  useFocusEffect(
-    useCallback(() => {
-      // Only refetch if a file already exists — never speculatively on a
-      // fresh/empty mount.
-      if (currentFileId) {
-        fileDetails.refetch();
-      }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentFileId]),
-  );
-  const { remove: removeFile } = useDeleteFile({ orgProjectId, workstreamId: workstreamId, entityId });
+  // files[0] after that filter — the ONE record this screen may ever
+  // display. null means no file matches this exact workstream, full stop;
+  // nothing else (a local CSV parse, the upload mutation's own response, a
+  // file loaded for a different entity/workstream) may substitute for it.
+  const matchedFile = discoveredFiles.latestFile;
+  const hasFile = matchedFile !== null;
+  // The matched file's OWN workstreamId, extracted from the record itself
+  // rather than assumed from the current selection — used for subsequent
+  // file operations (delete, below) so they always act on the workstream
+  // the backend actually associated with this file. Falls back to the
+  // selected workstreamId only while the backend doesn't yet echo
+  // workstream_id back on the file object.
+  const matchedWorkstreamId = matchedFile?.workstreamId ?? workstreamId;
+  const { remove: removeFile } = useDeleteFile({ orgProjectId, workstreamId: matchedWorkstreamId, entityId });
   // Kept entirely separate from the uploaded file's own state above — see
   // loadPreviewByEntity's doc comment in wizard.store.ts. Loading the sample
   // must never write into, or be overwritten by, the actual uploaded file's
@@ -224,6 +218,14 @@ export function MasterDataUploadScreen(): React.JSX.Element {
   const setPipelineRunId = useWizardStore((s) => s.setPipelineRunId);
   const clearPipelineRunId = useWizardStore((s) => s.clearPipelineRunId);
   const recordStep = useWizardStore((s) => s.recordStep);
+  const completeStep = useWizardStore((s) => s.completeStep);
+  const completedStepIds = useWizardStore(
+    (s) => s.completedStepIdsByEntity[buildEntityKey(parentProjectId ?? '', entityId)] ?? EMPTY_STEP_IDS,
+  );
+  const setUploadedFile = useWizardStore((s) => s.setUploadedFile);
+  const clearUploadedFile = useWizardStore((s) => s.clearUploadedFile);
+  const setSourceCsv = useWizardStore((s) => s.setSourceCsv);
+  const clearSourceCsv = useWizardStore((s) => s.clearSourceCsv);
   const { project, isLoading: isProjectLoading, isFetching: isProjectFetching, error: projectError, refetch: refetchProject } = useProjectDetail(createProjectId(parentProjectId));
   // The entity-pack profile fetch is deliberately excluded from this gate:
   // the backend has no GET /projects/{id}/entities/{id}/profile route yet,
@@ -242,6 +244,7 @@ export function MasterDataUploadScreen(): React.JSX.Element {
     refetchProject();
   }, [refetchPack, refetchProject]);
 
+  const [fileName, setFileName] = useState<string | null>(null);
   const [csvRows, setCsvRows] = useState<string[][]>([]);
   // Hidden by default (see loadContent's own comment) — the user opts in via
   // FileUploadField's Preview/Hide-preview toggle.
@@ -254,52 +257,51 @@ export function MasterDataUploadScreen(): React.JSX.Element {
   const [isCreatingRun, setIsCreatingRun] = useState(false);
   const toast = useToast();
 
-  // A failed fetch here (expired session, no access to this org project,
-  // backend unreachable) previously left this screen looking exactly like
-  // "no file uploaded yet" — indistinguishable from the real empty state —
-  // which is what made a genuinely-uploaded file look invisible from a
-  // different session. `toast.showError` is stable across renders even
-  // though useToast()'s returned object isn't, so `toast` is deliberately
-  // left out of the dependency array below.
+  // After a successful upload, immediately re-run discovery and let ITS
+  // response — not the raw mutation result — become what the screen shows.
+  // This is what makes "just uploaded, this tab" and "opened fresh in a
+  // second tab/browser" resolve through the exact same code path.
   useEffect(() => {
-    if (!fileDetails.error) return;
-    if (fileDetails.error.code === 'HTTP_404') {
-      // currentFileId (a fresh upload's response, or the discovery call's
-      // latestFile) no longer resolves to a real file server-side.
-      // Re-fetching this exact fileId would only ever 404 again, so drop the
-      // fresh-upload source and re-run discovery — that's what actually
-      // clears currentFileId to null (once discovery also confirms nothing
-      // is there), which disables the file-details query entirely and falls
-      // back to the normal "no file yet" state, instead of retrying (and
-      // re-erroring on) that same dead id forever.
-      resetUpload();
+    if (uploadResult) {
       discoveredFiles.refetch();
-      return;
     }
-    toast.showError('Could not load your uploaded file', fileDetails.error.message);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileDetails.error]);
+  }, [uploadResult]);
 
-  // Strict, API-only existence + metadata — GET /api/v1/storage/files/
-  // {fileId} (fileDetails) is the single source of truth for "does this
-  // entity have an uploaded source file", full stop. `hasFile` is
-  // `fileDetails.file !== null`, computed strictly from that response.
-  // Neither this nor `effectiveUploadResult` below ever falls back to
-  // fileName/csvRows/uploadResult/the discovery call's own file shape — a
-  // file this endpoint doesn't confirm must never render as "uploaded",
-  // even if local state still has one.
-  const hasFile = fileDetails.file !== null;
-  const effectiveUploadResult: UploadResult | null = fileDetails.file
+  // React Navigation returning focus to an already-mounted screen doesn't
+  // remount it, so this is what makes coming back from Profile (or any
+  // other step) re-evaluate the discovery response instead of showing
+  // whatever it last happened to hold.
+  useFocusEffect(
+    useCallback(() => {
+      discoveredFiles.refetch();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [orgProjectId, workstreamId, entityId]),
+  );
+
+  // A failed discovery fetch (expired session, no access to this org
+  // project, backend unreachable) previously left this screen looking
+  // exactly like "no file uploaded yet" — indistinguishable from the real
+  // empty state. `toast.showError` is stable across renders even though
+  // useToast()'s returned object isn't, so `toast` is deliberately left out
+  // of the dependency array below.
+  useEffect(() => {
+    if (!discoveredFiles.error) return;
+    toast.showError('Could not load your uploaded file', discoveredFiles.error.message);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [discoveredFiles.error]);
+
+  const effectiveUploadResult: UploadResult | null = matchedFile
     ? {
-        fileId: fileDetails.file.id,
-        fileName: fileDetails.file.originalFilename,
-        fileType: fileDetails.file.fileType,
-        contentType: fileDetails.file.contentType,
-        sizeBytes: fileDetails.file.sizeBytes,
-        status: fileDetails.file.status,
-        rowCount: fileDetails.file.rowCount,
-        storagePath: fileDetails.file.storagePath,
-        createdAt: fileDetails.file.createdAt,
+        fileId: matchedFile.id,
+        fileName: matchedFile.originalFilename,
+        fileType: matchedFile.fileType,
+        contentType: matchedFile.contentType,
+        sizeBytes: matchedFile.sizeBytes,
+        status: matchedFile.status,
+        rowCount: matchedFile.rowCount,
+        storagePath: matchedFile.storagePath,
+        createdAt: matchedFile.createdAt,
       }
     : null;
 
@@ -307,34 +309,41 @@ export function MasterDataUploadScreen(): React.JSX.Element {
 
   const uploadStep = STEPS.find(s => s.id === 'upload')!;
   const profileStep = STEPS.find(s => s.id === 'profile')!;
-  // Local only, same pattern as migration.store.ts's completedSteps — see
-  // wizard.store.ts's completedStepIdsByEntity doc comment. currentStepId
-  // reflects the furthest step recordStep has advanced this entity to (e.g.
-  // still shows Profile active/Upload done if the user navigated back here
-  // after already advancing), not just "this is the Upload screen".
-  const currentStepId = useWizardStore((s) => s.currentStepId);
-  const completedStepIds = useWizardStore((s) => s.completedStepIdsByEntity[entityKey] ?? EMPTY_STEP_IDS);
-  const completeStep = useWizardStore((s) => s.completeStep);
-  const stepRail = toStepRail((currentStepId ?? uploadStep.id) as StepId, STEPS, completedStepIds);
+  const stepRail = toStepRail(uploadStep.id as StepId, STEPS, completedStepIds);
+  // StepRail only ever calls this for a 'complete' or 'active' dot (see
+  // StepRail.tsx's own clickable check) — an 'upcoming' step is never
+  // pressable, so this never needs to guard against jumping ahead.
+  // recordStep persists the jump (survives a refresh) the same way
+  // handleBack/handleContinue already do elsewhere in this wizard.
+  const handleStepPress = useCallback(
+    (stepId: StepId): void => {
+      recordStep(entityId, stepId);
+      navigation.navigate(stepIdToWizardRoute(stepId));
+    },
+    [recordStep, entityId, navigation],
+  );
 
   // Local CSV parse when this browser tab actually read the file (this
   // session's own upload/sample-load); otherwise download and parse the
   // persisted file's actual bytes (GET /api/v1/storage/download/{fileId})
   // for a project reopened with no local parse to work from (a refresh, a
-  // new tab, revisiting from another route) — see persistedUploadResult
-  // above. getFileById alone can't cover this: it only ever returns column
-  // names and a row count, never the actual row values.
+  // new tab, revisiting from another route). The discovery response alone
+  // can't cover this: it only ever returns column names and a row count,
+  // never the actual row values.
   const { rows: persistedRows } = usePersistedFilePreview(
-    csvRows.length === 0 ? (fileDetails.file?.id ?? null) : null,
+    orgProjectId,
+    entityId,
+    workstreamId,
+    csvRows.length === 0 ? (matchedFile?.id ?? null) : null,
   );
   const effectiveRows = csvRows.length > 0 ? csvRows : persistedRows;
-  const header = effectiveRows[0] ?? fileDetails.file?.columns ?? [];
-  // Row count itself always comes from getFileById (fileDetails), never the
-  // upload mutation's response — see useFileDetails' header comment.
-  // effectiveRows still drives the actual preview table content (real cell
-  // values, which the file-details endpoint never carries), just not the
-  // displayed count.
-  const dataRows = effectiveRows.length > 0 ? Math.max(0, effectiveRows.length - 1) : (fileDetails.rowCount ?? 0);
+  const header = effectiveRows[0] ?? matchedFile?.columns ?? [];
+  // Row count itself always comes from the discovery response (matchedFile),
+  // never the upload mutation's own response — see discoveredFiles' own
+  // header comment. effectiveRows still drives the actual preview table
+  // content (real cell values, which the discovery response never carries),
+  // just not the displayed count.
+  const dataRows = effectiveRows.length > 0 ? Math.max(0, effectiveRows.length - 1) : (matchedFile?.rowCount ?? 0);
   const previewDataRows = effectiveRows.slice(1, 1 + MAX_PREVIEW);
   // Numeric columns render left-aligned, text columns center-aligned (headers
   // are always left-aligned, above) — a column only counts as numeric when
@@ -349,19 +358,21 @@ export function MasterDataUploadScreen(): React.JSX.Element {
   const loadPreviewDataCount = loadPreviewRows.length > 0 ? Math.max(0, loadPreviewRows.length - 1) : 0;
   const loadPreviewDataRows = loadPreviewRows.slice(1, 1 + MAX_PREVIEW);
 
-  const displayFileName = fileDetails.file?.originalFilename ?? null;
+  const displayFileName = matchedFile?.originalFilename ?? null;
   const spec = pack?.spec ?? {};
   const expectedCols = spec.expectedColumns ?? [];
   const columnWarning = hasFile && expectedCols.length > 0
     ? missingColumns(header, expectedCols)
     : [];
 
-  const targetErpInfo = pack?.target.record
-    ? { name: pack.target.record, record: spec.targetNote ?? pack.target.record }
-    : {
-      name: (() => { const e = getERPById(project?.targetErp ?? ''); return e?.name ?? (toTitleCase((project?.targetErp ?? '').replace(/_/g, ' ')) || '—'); })(),
-      record: pack?.target.record ?? '',
-    };
+  // Always the project's own target ERP selection — never the entity pack's
+  // JSON fixture data (pack.target.record / spec.targetNote), so this card
+  // reflects what the project was actually configured with, not a fixture
+  // value that happens to be present for some entities and not others.
+  const targetErpInfo = {
+    name: (() => { const e = getERPById(project?.targetErp ?? ''); return e?.name ?? (toTitleCase((project?.targetErp ?? '').replace(/_/g, ' ')) || '—'); })(),
+    record: '',
+  };
 
   const entityLabel = pack?.label.plural ?? entityId.charAt(0).toUpperCase() + entityId.slice(1);
 
@@ -381,36 +392,43 @@ export function MasterDataUploadScreen(): React.JSX.Element {
   // silently re-show the preview as if the file had been accepted.
   const activePickRef = useRef(0);
 
-  const loadContent = useCallback((content: string, pick: number): void => {
+  const loadContent = useCallback((content: string, name: string, pick: number): void => {
     if (activePickRef.current !== pick) return;
     const rows = parseCSV(content);
+    setFileName(name);
     setCsvRows(rows);
-    // Preview stays hidden by default on every load (including a fresh
-    // upload replacing an already-previewed file) — the user opts in via
-    // FileUploadField's own "Preview"/"Hide preview" toggle button below.
-    // This is plain component state, not persisted anywhere — a remount
-    // (Back from Profile, a refresh, a new tab) starts with none and falls
-    // back to usePersistedFilePreview's backend download instead (see
-    // effectiveRows below), never a client-cached copy of this parse.
-  }, []);
+    // Persisted so the preview survives this screen losing its local state
+    // (see the rehydrate effect above) — kept in step with uploadedFileByEntity,
+    // which is what actually confirms this parse matches the server's file.
+    setSourceCsv(entityId as EntityId, rows);
+  }, [entityId, setSourceCsv]);
 
   const handleFilePicked = useCallback((file: UploadedFile): void => {
     const pick = ++activePickRef.current;
     if (file instanceof File) {
-      void file.text().then((content) => loadContent(content, pick));
+      void file.text().then((content) => loadContent(content, file.name, pick));
     } else {
       void FileSystem.readAsStringAsync(file.uri).then((content) =>
-        loadContent(content, pick),
+        loadContent(content, file.name, pick),
       );
     }
-    // A previously confirmed upload (and any profiler run it started)
-    // belongs to the file being replaced. The old fileId already stops
-    // being used the instant uploadSourceFileToServer's own result comes
-    // back (currentFileId prefers uploadResult.fileId over discovery), so
-    // only the profiler run needs an explicit drop here.
+    // A previously confirmed fileId (and any profiler run it started)
+    // belongs to the file being replaced — drop both now so neither can be
+    // read while this new upload is still in flight (or if it fails).
+    clearUploadedFile(entityId as EntityId);
+    clearSourceCsv(entityId as EntityId);
     clearPipelineRunId(entityId as EntityId);
     uploadSourceFileToServer(file);
-  }, [loadContent, uploadSourceFileToServer, clearPipelineRunId, entityId]);
+  }, [loadContent, uploadSourceFileToServer, clearUploadedFile, clearSourceCsv, clearPipelineRunId, entityId]);
+
+  // The single point where a backend-confirmed upload becomes part of wizard
+  // state — mirrors is the source of truth for later steps, never the local
+  // CSV preview parsed in loadContent (which the server never sees).
+  useEffect(() => {
+    if (uploadResult) {
+      setUploadedFile(entityId as EntityId, uploadResult);
+    }
+  }, [uploadResult, entityId, setUploadedFile]);
 
   // A failed server upload (e.g. the backend is unreachable) must not leave
   // the local CSV preview looking like an accepted file — drop it so the
@@ -421,38 +439,37 @@ export function MasterDataUploadScreen(): React.JSX.Element {
       // Invalidate any read still in flight for the pick that just failed —
       // see activePickRef's comment above.
       activePickRef.current += 1;
+      setFileName(null);
       setCsvRows([]);
-      setShowPreview(false);
+      setShowPreview(true);
     }
-  }, [uploadError]);
+  }, [uploadError, clearSourceCsv, entityId]);
 
   const handleRemove = useCallback((): void => {
     activePickRef.current += 1;
+    setFileName(null);
     setCsvRows([]);
     setShowPreview(false);
     resetUpload();
+    clearUploadedFile(entityId as EntityId);
+    clearSourceCsv(entityId as EntityId);
     clearPipelineRunId(entityId as EntityId);
     // Actually deletes the persisted file server-side (DELETE
     // /api/v1/storage/files/{fileId}) — the local-state clearing above is
     // this screen's own optimistic reset, not a substitute for it.
-    // effectiveUploadResult is itself derived only from fileDetails.file
-    // (see above), so this is the same id either way. useDeleteFile's own
+    // effectiveUploadResult is itself derived only from matchedFile (see
+    // above), so this is the same id either way. useDeleteFile's own
     // onSuccess is what actually flips hasFile back to false, by
-    // invalidating the discovery query this screen reads currentFileId from.
-    if (fileDetails.file) {
-      removeFile(fileDetails.file.id);
+    // invalidating the discovery query this screen reads matchedFile from.
+    if (matchedFile) {
+      removeFile(matchedFile.id);
     }
-  }, [resetUpload, clearPipelineRunId, entityId, fileDetails.file, removeFile]);
+  }, [resetUpload, clearPipelineRunId, entityId, matchedFile, removeFile]);
 
-  // Deliberately does NOT call loadContent — that function backs the actual
-  // uploaded file's own preview (csvRows) and clicking
-  // Load must never write into, or be overwritten by, that state (see
-  // loadPreviewByEntity's doc comment in wizard.store.ts). The sample is
-  // never uploaded to the server either — no uploadSourceFileToServer call.
-  // Toggles: a first press loads (if needed) and shows it in the (shared)
-  // Source File Preview section below; pressing the same Load button again
-  // just closes it. Also closes showPreview, since only one of the two
-  // sources is ever shown in that one section at a time.
+  // Toggles open/closed on repeated presses, same as FileUploadField's own
+  // Preview/Hide-preview button (handleToggleSourcePreview below) — a second
+  // press on Load previously just re-loaded and re-showed the same rows,
+  // with no way to close the panel back from this button.
   const handleLoadSample = useCallback((): void => {
     if (showLoadPreview) {
       setShowLoadPreview(false);
@@ -461,6 +478,8 @@ export function MasterDataUploadScreen(): React.JSX.Element {
     if (!sampleContent) return;
     const rows = parseCSV(sampleContent);
     setLoadPreview(entityId as EntityId, `${entityId}-sample.csv`, rows);
+    // Mutual exclusion with the uploaded file's own preview — see this
+    // section's own header comment ("never both at once").
     setShowPreview(false);
     setShowLoadPreview(true);
   }, [showLoadPreview, sampleContent, entityId, setLoadPreview]);
@@ -517,10 +536,14 @@ export function MasterDataUploadScreen(): React.JSX.Element {
   const handleContinue = useCallback(async (): Promise<void> => {
     if (!effectiveUploadResult) return;
 
-    // Marks the Upload stage complete — local-only (wizard.store.ts's
-    // completedStepIdsByEntity), same pattern as migration.store.ts's
-    // completeStep. Synchronous, so it can never fail.
-    completeStep(entityId, 'upload' as StepId);
+    // Reaching this point at all means the upload already succeeded —
+    // idempotent (wizard.store.ts's completeStep no-ops if 'upload' is
+    // already in the set), so this is safe to call on every Continue press,
+    // not just the very first one. Called unconditionally, before the
+    // existingRunId early return below, so a revisit (Back then Continue
+    // again, or reopening the project) still marks Upload complete instead
+    // of leaving Profile's step rail showing it as undone.
+    completeStep(entityId, 'upload');
 
     // This upload already has a run (an earlier Continue press created one) —
     // reuse it instead of hitting POST /api/v1/pipeline/runs again.
@@ -584,7 +607,7 @@ export function MasterDataUploadScreen(): React.JSX.Element {
         <ScrollView className="flex-1 pr-5" keyboardShouldPersistTaps="handled">
 
           {/* ── Wizard stepper (all 8 taxonomy steps) ───────────────────────── */}
-          <StepRail rail={stepRail} />
+          <StepRail rail={stepRail} onStepPress={handleStepPress} />
 
           {/* ── Page header ────────────────────────────────────────────── */}
           <View className="mt-8 mb-5 flex-row items-start gap-4 flex-wrap bg-card">
@@ -595,7 +618,9 @@ export function MasterDataUploadScreen(): React.JSX.Element {
               </View>
               <View className="flex-row items-center gap-2">
                 <FileIcon size={14} color={colors.mutedForeground} strokeWidth={2} />
-                <Text className="text-xs font-mono text-muted-foreground" numberOfLines={1}>{fileLine}</Text>
+                <Text className="text-xs font-mono text-muted-foreground" numberOfLines={1}> 
+                {fileLine}
+                </Text>
               </View>
             </View>
             <View className="flex-row items-end gap-2">
@@ -625,6 +650,7 @@ export function MasterDataUploadScreen(): React.JSX.Element {
             </View>
           </View>
 
+
           {/* ── Main panel ───────────────────────────────────────────── */}
           <View className="border border-border rounded-xl p-5 self-stretch">
             <View className="flex-col gap-6 flex-wrap md:flex-row">
@@ -639,7 +665,7 @@ export function MasterDataUploadScreen(): React.JSX.Element {
                 }
                 subLabel="Upload a source CSV to continue"
                 hasFile={hasFile}
-                fileName={displayFileName}
+                fileName={fileName ?? displayFileName}
                 rowCount={dataRows}
                 tagClassName="bg-chip text-chip-foreground"
                 expectedColumns={expectedCols}
@@ -691,7 +717,7 @@ export function MasterDataUploadScreen(): React.JSX.Element {
             const previewRowCount = isLoadPreview ? loadPreviewDataCount : dataRows;
 
             return (
-              <View className="border rounded-xl overflow-hidden self-stretch mt-8 bg-card border-border">
+              <View className="border rounded-xl overflow-hidden self-stretch mt-5 bg-card border-border">
                 <View className="flex-row items-center gap-3 flex-wrap p-4">
                   <LayoutTemplate size={17} color={colors.primary} strokeWidth={1.8} />
                   <Text className="text-base font-bold font-heading text-foreground">Source File Preview</Text>
@@ -712,18 +738,18 @@ export function MasterDataUploadScreen(): React.JSX.Element {
                       </View>
                       {previewHeader.map((col, i) => (
                         <View key={i} className="flex-1 px-3 py-3">
-                          <Text className="text-xs font-bold uppercase tracking-wider font-body text-muted-foreground text-left" numberOfLines={1}>{formatPreviewHeader(col)}</Text>
+                          <Text className="text-xs text-wrap font-bold uppercase tracking-wider font-body text-muted-foreground text-left" >{formatPreviewHeader(col)}</Text>
                         </View>
                       ))}
                     </View>
                     {previewRows.map((row, ri) => (
                       <View key={ri} className="flex-row border-b border-b-border">
                         <View className="w-14 shrink-0 px-3 py-3">
-                          <Text className="text-xs font-mono text-muted-foreground text-left">{ri + 1}</Text>
+                          <Text className="text-xs text-wrap font-mono text-muted-foreground text-left">{ri + 1}</Text>
                         </View>
                         {row.map((cell, ci) => (
                           <View key={ci} className="flex-1 px-3 py-3">
-                            <Text className="text-xs font-mono text-foreground text-left" numberOfLines={1}>
+                            <Text className="text-xs text-wrap font-mono text-foreground text-left">
                               {formatPreviewValue(cell)}
                             </Text>
                           </View>

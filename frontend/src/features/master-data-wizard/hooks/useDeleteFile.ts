@@ -6,7 +6,7 @@
    useSourceFileUpload.ts — so screens only trigger the delete and read its
    status, with no direct HTTP handling of their own.
 
-   Takes the discovery context (orgProjectId/workstreamId/entityId) so a
+   Takes the discovery context (org_project_id/workstream_id/entityId) so a
    successful delete can invalidate useOrgProjectFiles' own cache entry
    (buildOrgProjectFilesKey) and drop the deleted file's useFileDetails cache
    entry (fileDetailsQueryKey) — "after delete: clear current file state,
@@ -51,7 +51,7 @@ export function useDeleteFile(context: DeleteFileContext): DeleteFileViewModel {
       queryClient.removeQueries({
         queryKey: fileDetailsQueryKey(context.orgProjectId, context.entityId, context.workstreamId, fileId),
       });
-      // Re-derive "does this org_project_id+workstream_id+entity_id have a
+      // Re-derive "does this orgProjectId+workstreamId+entityId have a
       // file" from the server — this is what actually flips hasFile back to
       // false for this hook's caller (and for any other component in this
       // tab watching the same discovery query, e.g. the wizard sidebar).

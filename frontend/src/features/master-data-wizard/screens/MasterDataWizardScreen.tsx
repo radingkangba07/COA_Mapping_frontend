@@ -49,7 +49,11 @@ type WizardNav = NativeStackNavigationProp<ProjectsStackParamList, 'MasterDataWi
 export function MasterDataWizardScreen(): React.JSX.Element {
   const route = useRoute<WizardRoute>();
   const navigation = useNavigation<WizardNav>();
-  const { orgProjectId, entityId, parentProjectId, workstream_id } = route.params;
+  // Route param field itself stays workstream_id (defined in navigation/types.ts's
+  // MasterDataWizard route and shared with McpFetchScreen.tsx/useOpenWorkstream.ts —
+  // MCP call sites are out of scope for this rename) — only the local
+  // binding below is camelCase, matching the rest of this screen's fields.
+  const { orgProjectId, entityId, parentProjectId, workstream_id: workstreamId } = route.params;
 
   const setWizardContext = useWizardStore((s) => s.setWizardContext);
   const hydrateStepByEntity = useWizardStore((s) => s.hydrateStepByEntity);
@@ -85,7 +89,7 @@ export function MasterDataWizardScreen(): React.JSX.Element {
         entityId: entityId as EntityId,
         orgProjectId,
         parentProjectId,
-        workstreamId: workstream_id,
+        workstreamId,
       });
       const resumeStep = useWizardStore.getState().stepByEntity[buildEntityKey(parentProjectId, entityId as EntityId)];
       setInitialRouteName(stepIdToWizardRoute(resumeStep));
@@ -93,7 +97,7 @@ export function MasterDataWizardScreen(): React.JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [entityId, orgProjectId, parentProjectId, workstream_id, setWizardContext, hydrateStepByEntity, hydrateUploadedFileByEntity]);
+  }, [entityId, orgProjectId, parentProjectId, workstreamId, setWizardContext, hydrateStepByEntity, hydrateUploadedFileByEntity]);
 
   // The sidebar must show the same "N source rows" on every step, and the
   // same count in every browser/tab. GET /api/v1/storage/files/{fileId}
@@ -104,17 +108,17 @@ export function MasterDataWizardScreen(): React.JSX.Element {
   // (this screen never performs the upload itself). This is what lets a
   // second browser/tab opening the same project+entity see the same count
   // a first browser's upload produced, with nothing local to hydrate.
-  const discoveredFiles = useOrgProjectFiles(orgProjectId, workstream_id, entityId);
-  const fileDetails = useFileDetails(orgProjectId, entityId, workstream_id, discoveredFiles.latestFile?.id ?? null);
+  const discoveredFiles = useOrgProjectFiles(orgProjectId, workstreamId, entityId);
+  const fileDetails = useFileDetails(orgProjectId, entityId, workstreamId, discoveredFiles.latestFile?.id ?? null);
   const sidebarSourceRowCount = fileDetails.rowCount ?? 0;
   // This wizard has no target dataset of its own yet (root CLAUDE.md:
   // "There is no write endpoint yet") — mirror the same workstream+entity
   // -scoped file-details count as source rather than leaving this prop
   // unset, which would fall through to MigrationLayout's own useSidebarData(
   // projectId) and read useMigrationStore's targetFile — the unrelated COA
-  // migration flow's global store. 0 whenever there's no workstream_id (or
+  // migration flow's global store. 0 whenever there's no workstreamId (or
   // no file yet) for this entity.
-  const sidebarTargetRowCount = workstream_id ? sidebarSourceRowCount : 0;
+  const sidebarTargetRowCount = workstreamId ? sidebarSourceRowCount : 0;
 
   const handleBack = useCallback((): void => {
     navigation.navigate('ProjectOverview', { projectId: parentProjectId });

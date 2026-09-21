@@ -204,6 +204,9 @@ export async function getEntityPack(entityId: EntityId): Promise<Result<EntityPa
        and rejects an empty body with 422, matching the request shape below.
      - Body is multipart/form-data: file (required) + org_project_id /
        project_id / file_type / job_id / workstream_id (all optional strings).
+       entity_id is NOT part of this contract — the backend's Form(...)
+       parameters (src/modules/storage/routes.py) don't declare it, so
+       FastAPI would silently drop it if sent. Confirmed live 2026-09-21.
      - 201 response is NOT a flat FileResponse (unlike GET
        /storage/files/{id}) — the upload handler wraps it:
        { success: true, file: { id, file_type, original_filename,
@@ -252,8 +255,6 @@ export interface UploadSourceFileOptions {
   fileType?: string;
   jobId?: string;
   workstreamId?: string;
-  /** Which master-data entity (customers, vendors, items, ...) this file belongs to — sent so the backend can persist it and later scope listOrgProjectFiles/getFileById by entity_id, not just workstream_id. */
-  entityId?: string;
 }
 
 export async function uploadSourceFile(
@@ -277,7 +278,6 @@ export async function uploadSourceFile(
     if (options?.projectId) formData.append('project_id', options.projectId);
     if (options?.fileType) formData.append('file_type', options.fileType);
     if (options?.jobId) formData.append('job_id', options.jobId);
-    if (options?.entityId) formData.append('entity_id', options.entityId);
     if (options?.workstreamId) formData.append('workstream_id', options.workstreamId);
 
     console.log('[entity-pack.service] POST /api/v1/storage/upload', options);
@@ -327,7 +327,7 @@ export async function uploadSourceFile(
      - POST  /api/v1/pipeline/runs
      - GET   /api/v1/pipeline/runs/{runId}
      - PATCH /api/v1/pipeline/runs/{runId}/fields/{fieldId}/type
-     - GET   /api/v1/projects/{orgProjectId}/entities/{scope}/profile
+     - GET   /api/v1/projects/{org_project_id}/entities/{scope}/profile
    Same Result<T, AppError> pattern as the rest of this file.
 
    EntityPackResponse (backend) carries `run_id` but not `source_row_count` —
@@ -548,6 +548,7 @@ function toSample(sampleValues: Record<string, unknown> | null | undefined): Ent
   if (!Array.isArray(values)) return undefined;
   return values.map((v) => (typeof v === 'string' ? formatPreviewValue(v) : formatObjectInline(v)));
 }
+
 // Backend sends enumeration_detail with snake_case keys (candidate,
 // valid_ref, invalid_src, affected_rows, ref_integrity, ...);
 // EntityField['enumeration'] (dp-kit/types/entity.d.ts — GENERATED, never
@@ -746,7 +747,7 @@ export function mapEntityPackResponse(response: EntityPackApiResponse, run: Pipe
   };
 }
 
-// ─── getEntityPackFromApi · GET /api/v1/projects/{orgProjectId}/entities/{scope}/profile
+// ─── getEntityPackFromApi · GET /api/v1/projects/{org_project_id}/entities/{scope}/profile
 
 export async function getEntityPackFromApi(
   orgProjectId: string,
@@ -807,17 +808,10 @@ export function isPipelineRunConflict(error: AppError): boolean {
    trusted from local/zustand-persisted state (see MasterDataUploadScreen —
    this is the single source of truth for "does this project already have an
    uploaded source file").
-     - GET    /api/v1/storage/org-project/{orgProjectId}/files
+     - GET    /api/v1/storage/org-project/{org_project_id}/files
      - DELETE /api/v1/storage/files/{fileId}
    ========================================================================= */
 
-// org_project_id/entity_id/workstream_id — optional because neither the
-// live files-list endpoint nor GET /storage/files/{id} actually sends them
-// back on the file object today (confirmed against a real response) — a
-// strict "must be present and match" check against that real contract
-// blanks out every legitimately-uploaded file, not just cross-entity ones.
-// fileMatchesContext() below only rejects a file when a field it DOES
-// carry disagrees with the caller's context; see its own comment.
 const orgProjectFileSchema = z.object({
   id: z.string(),
   file_type: z.string(),
@@ -902,7 +896,36 @@ export function fileMatchesContext(file: PersistedFile, ctx: FileContext): boole
   return true;
 }
 
-// ─── listOrgProjectFiles · GET /api/v1/storage/org-project/{orgProjectId}/files
+/**
+ * workstream_id only — not entity_id. Confirmed directly against the live
+ * backend (COA_Mapping_backend_V0, src/modules/storage/schemas.py):
+ * `FileResponse` has no `entity_id` field at all (it isn't a column, it
+ * never will match anything), and the `GET /storage/org-project/
+ * {org_project_id}/files` route doesn't even accept workstream_id as a query
+ * param. So this deliberately does NOT check entity_id — a filter that can
+ * never pass isn't a filter, it's a permanent "no file", which is exactly
+ * the regression this function replaces.
+ *
+ * Lenient on workstream_id, not strict: only reject a file that actually
+ * carries a workstream_id disagreeing with the caller's selection. Today's
+ * real FileResponse doesn't carry workstream_id per file either, so this is
+ * currently a no-op that lets every file under the org project through —
+ * once the backend adds workstream_id to FileResponse, this starts
+ * actually enforcing it with zero frontend changes required.
+ */
+export function matchesWorkstream(file: PersistedFile, selectedWorkstreamId: string): boolean {
+  if (file.workstreamId && file.workstreamId !== selectedWorkstreamId) return false;
+  return true;
+}
+
+// ─── listWorkstreamFiles · GET /api/v1/files/workstream/{workstream_id} ────
+// Replaces the earlier org-project-scoped listing
+// (GET /api/v1/storage/org-project/{org_project_id}/files) as the FileUploader's
+// discovery call — that endpoint never actually accepted workstream_id as a
+// query param server-side (see matchesWorkstream's own comment below), so
+// scoping was only ever enforced client-side. This endpoint is keyed by
+// workstream_id directly, matching "a project holds one workstream per
+// master-data entity" at the API level instead of re-deriving it client-side.
 
 /**
  * `total` is carried through explicitly (not just derived as `files.length`)
@@ -916,53 +939,51 @@ export interface OrgProjectFilesResult {
   readonly total: number;
 }
 
-// A project holds one workstream per master-data entity (customers, vendors,
-// items, ...) — without this filter, every entity's upload screen shares the
-// exact same file pool (org_project_id alone), so uploading a Customers file
-// then switching to Vendors would show "already uploaded" there too. Pass
-// the entity's own workstream_id (always available — see
-// MasterDataUploadScreen's workstream_id) to scope the list to that entity.
-// entityId is sent alongside workstream_id (not instead of it) as a second,
-// independent scoping key the backend can filter on.
-export async function listOrgProjectFiles(
-  orgProjectId: string,
-  workstreamId?: string,
+// workstream_id is the required path segment — a project holds one
+// workstream per master-data entity (customers, vendors, items, ...), so
+// this alone scopes the list to the entity currently open (see
+// MasterDataUploadScreen's workstream_id). entityId/org_project_id ride
+// along as optional query params for whenever the backend starts using them
+// server-side too, same as the endpoint this replaces.
+export async function listWorkstreamFiles(
+  workstreamId: string,
   entityId?: string,
+  orgProjectId?: string,
 ): Promise<Result<OrgProjectFilesResult, AppError>> {
   try {
-    console.log(`[entity-pack.service] GET /api/v1/storage/org-project/${orgProjectId}/files`, { workstreamId, entityId });
+    console.log(`[entity-pack.service] GET /api/v1/files/workstream/${workstreamId}`, { entityId, orgProjectId });
     const params: Record<string, string> = {};
-    if (workstreamId) params.workstream_id = workstreamId;
     if (entityId) params.entity_id = entityId;
+    if (orgProjectId) params.org_project_id = orgProjectId;
     // This endpoint's whole job is "reflect the file the user just deleted or
     // uploaded" — the URL is identical on every call, and the backend sends
     // no Cache-Control of its own, so without this a browser is free to
     // heuristically (RFC 7234 §4.2.2) serve a cached copy of this GET below
     // the axios/React-Query layer, inconsistently per browser, even though
     // the refetch that follows a delete/upload is genuinely being issued.
-    const response = await httpClient.get<unknown>(`/api/v1/storage/org-project/${orgProjectId}/files`, {
+    const response = await httpClient.get<unknown>(`/api/v1/files/workstream/${workstreamId}`, {
       headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
       params: Object.keys(params).length > 0 ? params : undefined,
     });
-    console.log(`[entity-pack.service] GET /api/v1/storage/org-project/${orgProjectId}/files -> response`, response.data);
+    console.log(`[entity-pack.service] GET /api/v1/files/workstream/${workstreamId} -> response`, response.data);
     const parsed = orgProjectFilesResponseSchema.safeParse(response.data);
     if (!parsed.success) {
       return err({
         code: 'INVALID_RESPONSE',
-        message: 'Org project files response failed validation',
+        message: 'Workstream files response failed validation',
         details: { issues: parsed.error.issues },
       });
     }
     return ok({ files: parsed.data.files.map(toPersistedFile), total: parsed.data.total });
   } catch (error: unknown) {
-    console.log(`[entity-pack.service] GET /api/v1/storage/org-project/${orgProjectId}/files -> error`, error);
+    console.log(`[entity-pack.service] GET /api/v1/files/workstream/${workstreamId} -> error`, error);
     return err(toAppError(error));
   }
 }
 
 // ─── getFileById · GET /api/v1/storage/files/{fileId} ───────────────────────
 // Flat FileResponse shape (see uploadSourceFile's response comment above:
-// "unlike GET /storage/files/{id}") — same shape listOrgProjectFiles' items
+// "unlike GET /storage/files/{id}") — same shape listWorkstreamFiles' items
 // already parse, so this reuses orgProjectFileSchema/toPersistedFile rather
 // than a second schema. This is the one source Source/Target row counts
 // should read from: never the POST /storage/upload response (which reflects
@@ -1023,7 +1044,7 @@ export async function deleteFile(fileId: string): Promise<Result<void, AppError>
 }
 
 // ─── downloadPersistedFile · GET /api/v1/storage/download/{fileId} ─────────
-// The files-list endpoint (listOrgProjectFiles above) only ever carries
+// The files-list endpoint (listWorkstreamFiles above) only ever carries
 // column names and a row count — never actual cell values (see its own
 // response shape). This is the only way to get real preview rows for a file
 // that was uploaded in an earlier session (a refresh, a new tab, revisiting
@@ -1096,7 +1117,7 @@ function toWorkstreamProgress(dto: z.infer<typeof workstreamContextSchema>): Wor
   };
 }
 
-// ─── getWorkstreamProgress · GET /api/v1/workstreams/{workstreamId}/context
+// ─── getWorkstreamProgress · GET /api/v1/workstreams/{workstream_id}/context
 
 export async function getWorkstreamProgress(workstreamId: string): Promise<Result<WorkstreamProgress, AppError>> {
   try {
@@ -1119,7 +1140,7 @@ export async function getWorkstreamProgress(workstreamId: string): Promise<Resul
   }
 }
 
-// ─── completeWorkstreamStage · PATCH /api/v1/workstreams/{workstreamId}/stages/{stageId}/complete
+// ─── completeWorkstreamStage · PATCH /api/v1/workstreams/{workstream_id}/stages/{stageId}/complete
 // Idempotent server-side — safe to call every time a step's Continue is
 // pressed, even if this exact stage was already marked complete earlier.
 

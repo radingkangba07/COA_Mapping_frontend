@@ -6,7 +6,7 @@
    Never the POST /storage/upload response (useSourceFileUpload's `result`,
    or wizard.store's uploadedFileByEntity it feeds) — that reflects only the
    instant of upload and goes stale the moment a delete/refresh happens
-   without a matching local-state update. Never listOrgProjectFiles' own
+   without a matching local-state update. Never listWorkstreamFiles' own
    row_count either — that endpoint's job is discovering *which* file is
    current for this project+entity+workstream, not reporting this file's
    up-to-date details.
@@ -21,7 +21,7 @@
    and clears rowCount, rather than silently keeping a stale prior file's
    count on screen.
 
-   Query key includes orgProjectId + entityId + workstreamId + fileId (root
+   Query key includes org_project_id + entityId + workstream_id + fileId (root
    task: "Isolate query/cache keys using org_project_id + entity_id +
    workstream_id + file_id") — a new upload's new fileId (or a delete's null)
    changes the key on its own, so no manual cross-hook invalidation is needed

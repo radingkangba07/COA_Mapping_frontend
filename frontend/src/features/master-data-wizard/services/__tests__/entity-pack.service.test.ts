@@ -9,14 +9,14 @@ import {
   getEntityPackFromApi,
   getActivePipelineRun,
   isPipelineRunConflict,
-  listOrgProjectFiles,
+  listWorkstreamFiles,
   getFileById,
   fileMatchesContext,
   deleteFile,
-  type PersistedFile,
   type PipelineRun,
   type FieldProfileRead,
   type EntityPackApiResponse,
+  type PersistedFile,
 } from '../entity-pack.service';
 import type { HttpClient } from '@/shared/services/http/http.types';
 
@@ -245,7 +245,7 @@ describe('entity-pack.service', () => {
       }
     });
 
-    it('appends entity_id alongside org_project_id/workstream_id so the backend can persist which entity this file belongs to', async () => {
+    it('appends org_project_id/workstream_id — entity_id is not part of the upload contract (see uploadSourceFile\'s own doc comment: the backend\'s Form(...) parameters don\'t declare it)', async () => {
       const post = jest.fn().mockResolvedValue({
         data: {
           file: {
@@ -264,12 +264,12 @@ describe('entity-pack.service', () => {
       const client = { post } as unknown as HttpClient;
       const file = new File(['a,b\n1,2'], 'b.csv', { type: 'text/csv' });
 
-      await uploadSourceFile(client, file, { orgProjectId: 'org-1', workstreamId: 'ws-1', entityId: 'customers' });
+      await uploadSourceFile(client, file, { orgProjectId: 'org-1', workstreamId: 'ws-1' });
 
       const formData = post.mock.calls[0][1] as FormData;
       expect(formData.get('org_project_id')).toBe('org-1');
       expect(formData.get('workstream_id')).toBe('ws-1');
-      expect(formData.get('entity_id')).toBe('customers');
+      expect(formData.get('entity_id')).toBeNull();
     });
 
     it('appends the native-picker file shape (uri/name/mimeType) for a non-web UploadedFile', async () => {
@@ -913,7 +913,7 @@ describe('entity-pack.service', () => {
     });
   });
 
-  describe('listOrgProjectFiles', () => {
+  describe('listWorkstreamFiles', () => {
     beforeEach(() => {
       jest.clearAllMocks();
     });
@@ -931,13 +931,14 @@ describe('entity-pack.service', () => {
       created_at: '2026-09-01T00:00:00Z',
     };
 
-    it('GETs the org project files and maps each to a PersistedFile, alongside total', async () => {
+    it('GETs the workstream files and maps each to a PersistedFile, alongside total', async () => {
       mockGet.mockResolvedValueOnce({ data: { files: [FILE_DTO], total: 1 } });
 
-      const result = await listOrgProjectFiles('org-1');
+      const result = await listWorkstreamFiles('ws-1');
 
-      expect(mockGet).toHaveBeenCalledWith('/api/v1/storage/org-project/org-1/files', {
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/files/workstream/ws-1', {
         headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+        params: undefined,
       });
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -966,7 +967,7 @@ describe('entity-pack.service', () => {
       void columns;
       mockGet.mockResolvedValueOnce({ data: { files: [withoutColumns], total: 1 } });
 
-      const result = await listOrgProjectFiles('org-1');
+      const result = await listWorkstreamFiles('ws-1');
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -974,10 +975,10 @@ describe('entity-pack.service', () => {
       }
     });
 
-    it('returns an empty list when the project has no files', async () => {
+    it('returns an empty list when the workstream has no files', async () => {
       mockGet.mockResolvedValueOnce({ data: { files: [], total: 0 } });
 
-      const result = await listOrgProjectFiles('org-1');
+      const result = await listWorkstreamFiles('ws-1');
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -988,7 +989,7 @@ describe('entity-pack.service', () => {
     it('returns an INVALID_RESPONSE error when the response fails schema validation', async () => {
       mockGet.mockResolvedValueOnce({ data: { files: [{ id: 'file-1' }], total: 1 } });
 
-      const result = await listOrgProjectFiles('org-1');
+      const result = await listWorkstreamFiles('ws-1');
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
@@ -999,13 +1000,145 @@ describe('entity-pack.service', () => {
     it('returns a toAppError-shaped error on failure', async () => {
       mockGet.mockRejectedValueOnce(makeAxiosError({ status: 404, data: { detail: 'not found' } }));
 
-      const result = await listOrgProjectFiles('missing-project');
+      const result = await listWorkstreamFiles('missing-workstream');
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error.code).toBe('HTTP_404');
         expect(result.error.message).toBe('not found');
       }
+    });
+
+    it('sends entity_id and org_project_id as query params when both are given', async () => {
+      mockGet.mockResolvedValueOnce({ data: { files: [FILE_DTO], total: 1 } });
+
+      await listWorkstreamFiles('ws-1', 'customers', 'org-1');
+
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/files/workstream/ws-1', {
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+        params: { entity_id: 'customers', org_project_id: 'org-1' },
+      });
+    });
+  });
+
+  describe('getFileById', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    const FILE_DTO = {
+      id: 'file-1',
+      file_type: 'source_erp',
+      original_filename: 'customers.csv',
+      storage_path: '/storage/file-1',
+      content_type: 'text/csv',
+      size_bytes: 2048,
+      status: 'ready',
+      columns: ['Account No', 'Customer Name'],
+      row_count: 12,
+      created_at: '2026-09-01T00:00:00Z',
+    };
+
+    it('GETs the file by id and maps it to a PersistedFile', async () => {
+      mockGet.mockResolvedValueOnce({ data: FILE_DTO });
+
+      const result = await getFileById('file-1');
+
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/storage/files/file-1', {
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data).toEqual({
+          id: 'file-1',
+          fileType: 'source_erp',
+          originalFilename: 'customers.csv',
+          storagePath: '/storage/file-1',
+          contentType: 'text/csv',
+          sizeBytes: 2048,
+          status: 'ready',
+          columns: ['Account No', 'Customer Name'],
+          rowCount: 12,
+          createdAt: '2026-09-01T00:00:00Z',
+        });
+      }
+    });
+
+    it('sends org_project_id, entity_id and workstream_id as query params when given', async () => {
+      mockGet.mockResolvedValueOnce({ data: FILE_DTO });
+
+      await getFileById('file-1', { orgProjectId: 'org-1', entityId: 'customers', workstreamId: 'ws-1' });
+
+      expect(mockGet).toHaveBeenCalledWith('/api/v1/storage/files/file-1', {
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+        params: { org_project_id: 'org-1', entity_id: 'customers', workstream_id: 'ws-1' },
+      });
+    });
+
+    it('returns an INVALID_RESPONSE error when the response fails schema validation', async () => {
+      mockGet.mockResolvedValueOnce({ data: { id: 'file-1' } });
+
+      const result = await getFileById('file-1');
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('INVALID_RESPONSE');
+      }
+    });
+
+    it('returns a toAppError-shaped error on failure', async () => {
+      mockGet.mockRejectedValueOnce(makeAxiosError({ status: 404, data: { detail: 'not found' } }));
+
+      const result = await getFileById('missing-file');
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('HTTP_404');
+        expect(result.error.message).toBe('not found');
+      }
+    });
+  });
+
+  describe('fileMatchesContext', () => {
+    function makeFile(overrides: Partial<PersistedFile> = {}): PersistedFile {
+      return {
+        id: 'file-1',
+        fileType: 'source_erp',
+        originalFilename: 'customers.csv',
+        storagePath: '/storage/file-1',
+        contentType: 'text/csv',
+        sizeBytes: 2048,
+        status: 'ready',
+        columns: [],
+        rowCount: 12,
+        createdAt: '2026-09-01T00:00:00Z',
+        ...overrides,
+      };
+    }
+
+    it('passes a file that carries none of org_project_id/entity_id/workstream_id — today\'s real backend contract, nothing to check', () => {
+      const file = makeFile();
+      expect(fileMatchesContext(file, { orgProjectId: 'org-1', entityId: 'customers', workstreamId: 'ws-1' })).toBe(true);
+    });
+
+    it('rejects a file whose entityId disagrees with the current context (e.g. a Vendor file surfacing under Customer)', () => {
+      const file = makeFile({ entityId: 'vendors' });
+      expect(fileMatchesContext(file, { orgProjectId: 'org-1', entityId: 'customers', workstreamId: 'ws-1' })).toBe(false);
+    });
+
+    it('rejects a file whose orgProjectId disagrees with the current context', () => {
+      const file = makeFile({ orgProjectId: 'org-2' });
+      expect(fileMatchesContext(file, { orgProjectId: 'org-1', entityId: 'customers', workstreamId: 'ws-1' })).toBe(false);
+    });
+
+    it('rejects a file whose workstreamId disagrees with the current context', () => {
+      const file = makeFile({ workstreamId: 'ws-2' });
+      expect(fileMatchesContext(file, { orgProjectId: 'org-1', entityId: 'customers', workstreamId: 'ws-1' })).toBe(false);
+    });
+
+    it('accepts a file whose fields all agree with the current context', () => {
+      const file = makeFile({ orgProjectId: 'org-1', entityId: 'customers', workstreamId: 'ws-1' });
+      expect(fileMatchesContext(file, { orgProjectId: 'org-1', entityId: 'customers', workstreamId: 'ws-1' })).toBe(true);
     });
   });
 
