@@ -37,7 +37,7 @@ export const LoginScreen = ({ navigation }: Props): React.JSX.Element => {
               DataPortation
             </Text>
             <Text className="mt-1 text-sm text-muted-foreground">
-              Chart of Accounts Migration Tool
+              Migration Assistant Tool
             </Text>
           </View>
 

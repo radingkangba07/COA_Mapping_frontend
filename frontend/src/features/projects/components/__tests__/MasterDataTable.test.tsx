@@ -94,28 +94,4 @@ describe('MasterDataTable', () => {
     fireEvent.press(vendorsDataConversion);
     expect(onToggleColumn).toHaveBeenCalledWith('vendors', 'dataConversion');
   });
-
-  it('keeps the Master Data Management checkbox disabled for every scope', () => {
-    const onToggleColumn = jest.fn();
-    render(
-      <MasterDataTable
-        testID="md"
-        rows={[coaRow, otherRow]}
-        onToggleColumn={onToggleColumn}
-      />,
-    );
-
-    expect(screen.getByTestId('md-chart-of-accounts-mdm')).toHaveProp(
-      'accessibilityState',
-      { checked: false, disabled: true },
-    );
-    expect(screen.getByTestId('md-vendors-mdm')).toHaveProp(
-      'accessibilityState',
-      { checked: false, disabled: true },
-    );
-
-    fireEvent.press(screen.getByTestId('md-chart-of-accounts-mdm'));
-    fireEvent.press(screen.getByTestId('md-vendors-mdm'));
-    expect(onToggleColumn).not.toHaveBeenCalled();
-  });
 });

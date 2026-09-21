@@ -42,7 +42,7 @@ export function MigrationScopeSection({
       className="flex-col gap-3 lg:flex-row lg:items-stretch lg:gap-2"
       testID={testID}
     >
-      <View className="gap-2 rounded-lg border border-border bg-card p-2 lg:grow lg:basis-[80px]">
+      <View className="gap-2 rounded-lg border border-border bg-card p-2 lg:flex-1">
         <View className="pb-2">
           <MasterDataTable
             rows={masterData}
@@ -62,8 +62,6 @@ export function MigrationScopeSection({
         </View>
       </View>
 
-      {/* Master Data grows by the arrow-zone width (80px) so Opening Balances
-          starts exactly where the Target ERP card starts in the section above. */}
       <View className="gap-2 rounded-lg border border-border bg-card p-2 lg:flex-1 lg:flex-col">
         <View className="pb-2">
           <OpeningBalancesChecklist

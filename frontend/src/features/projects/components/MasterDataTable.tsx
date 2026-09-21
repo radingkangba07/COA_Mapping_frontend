@@ -19,9 +19,7 @@ interface MasterDataRowProps {
   readonly testID?: string;
 }
 
-// A normal (non-collapsible) row: a left chevron, the label, then the two
-// independent checkbox columns. Each checkbox is its own control, so a row's
-// checkbox is selectable on its own.
+// A normal (non-collapsible) row: the label, then the Data Conversion checkbox.
 function MasterDataRow({
   row,
   onToggleColumn,
@@ -31,10 +29,6 @@ function MasterDataRow({
 
   const handleDataConversion = useCallback(() => {
     onToggleColumn(row.id, 'dataConversion');
-  }, [onToggleColumn, row.id]);
-
-  const handleMdm = useCallback(() => {
-    onToggleColumn(row.id, 'mdm');
   }, [onToggleColumn, row.id]);
 
   return (
@@ -47,7 +41,7 @@ function MasterDataRow({
           <Text className={`w-[50%] font-body text-sm font-medium ${isEnabled ? 'text-foreground' : 'text-muted-foreground'}`}>
             {row.label}
           </Text>
-          <View className="w-[20%] items-center">
+          <View className="w-[50%] items-center">
             <Checkbox
               checked={row.dataConversion}
               onCheckedChange={handleDataConversion}
@@ -57,14 +51,6 @@ function MasterDataRow({
                   ? `${testID}-${row.id}-dataConversion`
                   : undefined
               }
-            />
-          </View>
-          <View className="w-[30%] items-center">
-            <Checkbox
-              checked={row.mdm}
-              onCheckedChange={handleMdm}
-              isDisabled
-              testID={testID !== undefined ? `${testID}-${row.id}-mdm` : undefined}
             />
           </View>
         </View>
@@ -93,11 +79,8 @@ export function MasterDataTable({
             </Text>
             {counter}
           </View>
-          <Text className="w-[20%] text-center font-body text-xs font-medium text-foreground">
+          <Text className="w-[50%] text-center font-body text-xs font-medium text-foreground">
             Data Conversion
-          </Text>
-          <Text className="w-[30%] text-center font-body text-xs font-medium text-foreground">
-            Master Data Management
           </Text>
         </View>
       </View>
