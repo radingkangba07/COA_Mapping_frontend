@@ -147,6 +147,10 @@ export interface ProjectScopeActions {
   clearError: () => void;
   saveDraft: (client: HttpClient) => Promise<Result<void, AppError>>;
   reset: () => void;
+  // Clears only the project wizard draft (name, description, source, target,
+  // scope, members). Does NOT wipe the connection context — credentials and
+  // connectionReady survive so Upload Files can fetch immediately after creation.
+  resetProjectForm: () => void;
   // Store the connection record ID and credentials after a successful test so
   // they are available for subsequent data fetch calls without re-authentication.
   setConnectionContext: (

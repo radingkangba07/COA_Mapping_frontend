@@ -353,14 +353,18 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
     },
 
     reset: (): void => {
-      // Full reset — credentials are intentionally NOT preserved. Stale
-      // credentials surviving a wizard reset risk silent reuse on re-entry.
-      // mcpFetchData is kept because it contains non-sensitive fetched records
-      // that are expensive to re-fetch and safe to display across sessions.
       set((state) => ({
         ...initialState,
         draft: createInitialDraft(),
         mcpFetchData: state.mcpFetchData,
+      }));
+    },
+
+    resetProjectForm: (): void => {
+      set(() => ({
+        draft: createInitialDraft(),
+        isSavingDraft: false,
+        error: null,
       }));
     },
 

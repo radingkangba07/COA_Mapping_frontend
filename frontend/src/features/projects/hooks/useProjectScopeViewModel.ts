@@ -275,7 +275,7 @@ export function useProjectScopeViewModel(
       if (result.ok) {
         void queryClient.invalidateQueries({ queryKey: ['projects'] });
         toast.showSuccess('Project created');
-        useProjectScopeStore.getState().reset();
+        useProjectScopeStore.getState().resetProjectForm();
         return true;
       }
       toast.showError(result.error.message ?? 'Failed to create project');

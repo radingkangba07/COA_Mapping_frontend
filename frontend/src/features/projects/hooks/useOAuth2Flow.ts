@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { startOAuth2Flow } from '../services/erp-connection.service';
+import { env } from '@/config/env';
 
 export type OAuth2Status = 'idle' | 'connecting' | 'connected' | 'error';
 
@@ -63,7 +64,11 @@ export function useOAuth2Flow(onTokenReceived: (token: string) => void): OAuth2F
 
       const handler = (event: MessageEvent): void => {
         // Only accept messages from our backend callback page.
-        if (event.origin !== 'http://localhost:8001') return;
+        // Extract the origin component so path suffixes in API_BASE_URL do not
+        // break the comparison. window.location.origin is intentionally not used
+        // as a fallback — it is the frontend origin, not the backend origin.
+        const expectedOrigin = new URL(env.API_BASE_URL).origin;
+        if (event.origin !== expectedOrigin) return;
 
         window.removeEventListener('message', handler);
         listenerRef.current = null;

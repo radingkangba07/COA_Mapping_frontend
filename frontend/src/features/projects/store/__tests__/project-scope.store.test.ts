@@ -290,10 +290,10 @@ describe('useProjectScopeStore', () => {
       expect(state.draft).not.toBe(draftBefore);
     });
 
-    it('clears credentials and connection IDs on reset — stale credentials must not survive wizard re-entry', () => {
+    it('clears connection state — reset is a full wipe for test isolation and new wizard entry', () => {
       const store = useProjectScopeStore.getState();
-      store.setConnectionContext('source', 'conn-1', { apiKey: 'secret-key' });
-      store.setConnectionContext('target', 'conn-2', { token: 'secret-token' });
+      store.setConnectionContext('source', 'conn-1', { api_key: 'x' });
+      store.setConnectionContext('target', 'conn-2', { access_token: 'y' });
       store.setConnectionReady(true);
 
       store.reset();
@@ -304,6 +304,24 @@ describe('useProjectScopeStore', () => {
       expect(state.sourceConnectionId).toBeNull();
       expect(state.targetConnectionId).toBeNull();
       expect(state.connectionReady).toBe(false);
+    });
+
+    it('resetProjectForm preserves connection state — credentials survive project creation for Upload Files fetch', () => {
+      const store = useProjectScopeStore.getState();
+      store.setConnectionContext('source', 'conn-1', { api_key: 'x' });
+      store.setConnectionContext('target', 'conn-2', { access_token: 'y' });
+      store.setConnectionReady(true);
+      store.setName('My Project');
+
+      store.resetProjectForm();
+
+      const state = useProjectScopeStore.getState();
+      expect(state.sourceCredentials).not.toBeNull();
+      expect(state.targetCredentials).not.toBeNull();
+      expect(state.sourceConnectionId).toBe('conn-1');
+      expect(state.targetConnectionId).toBe('conn-2');
+      expect(state.connectionReady).toBe(true);
+      expect(state.draft.name).toBe('');
     });
 
     it('preserves mcpFetchData across reset — fetched records are non-sensitive and expensive to re-fetch', () => {
@@ -319,8 +337,8 @@ describe('useProjectScopeStore', () => {
   describe('clearCredentials', () => {
     it('wipes credentials, connection IDs, token, connectionReady and testStatus', () => {
       const store = useProjectScopeStore.getState();
-      store.setConnectionContext('source', 'conn-1', { apiKey: 'secret' });
-      store.updateConnection({ token: 'bearer-token' });
+      store.setConnectionContext('source', 'conn-1', { api_key: 'x' });
+      store.updateConnection({ token: 'y' });
       store.setConnectionReady(true);
       store.setTestStatus('success');
 
@@ -340,7 +358,7 @@ describe('useProjectScopeStore', () => {
       const store = useProjectScopeStore.getState();
       store.setSource('sap');
       store.setMasterData(['accounts']);
-      store.setConnectionContext('source', 'conn-1', { apiKey: 'secret' });
+      store.setConnectionContext('source', 'conn-1', { api_key: 'x' });
 
       store.clearCredentials();
 
