@@ -10,6 +10,7 @@ import { RolePillSelector } from './RolePillSelector';
 import { SCOPE_MEMBER_ROLES, memberRoleLabel } from './MemberRoles.config';
 
 const ROLE_BADGE_CLASS: Record<ProjectPermission, { className: string; textClassName: string }> = {
+  owner:    { className: 'bg-[#E9EAF7]', textClassName: 'text-[#003399]' },
   admin:    { className: 'bg-[#E9EAF7]', textClassName: 'text-[#003399]' },
   editor:   { className: 'bg-[#E9EAF7]', textClassName: 'text-[#003399]' },
   approver: { className: 'bg-[#E9EAF7]', textClassName: 'text-[#003399]' },

@@ -55,7 +55,7 @@ export const TopAppBar = ({
         >
           {currentLabel}
         </Text>
-        <StatusBadge status={status} size="md" className="ml-3 self-center" />
+        <StatusBadge status={status} className="ml-3 self-center" />
       </View>
 
       {/* Row 2: Source ERP → Target ERP · Project ID */}
