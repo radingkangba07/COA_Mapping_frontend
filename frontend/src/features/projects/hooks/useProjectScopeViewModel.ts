@@ -2,14 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { httpClient } from '@/shared/services/http/http.instance';
 import { useToast } from '@/shared/hooks/useToast';
-import { getERPById } from '@/shared/constants/erp-systems';
 import { useERPConfig } from '@/features/erp-config/hooks/useERPConfig';
-import {
-  CONNECTION_METHODS,
-  type ConnectionMethod,
-  type MCPConnection,
-  type ProjectScopeDraft,
-  type ProjectScopeSeed,
+import type {
+  ConnectionMethod,
+  MCPConnection,
+  ProjectScopeDraft,
+  ProjectScopeSeed,
 } from '../types/project-scope.types';
 import type { ProjectCreate, ProjectGroup } from '../types/projects.types';
 import type { OrgId } from '@/shared/types/common.types';
@@ -37,10 +35,9 @@ import {
  *
  * company carried from entry modal -> draft.companyId -> create payload
  */
-// Translates dropdown values (CONNECTION_METHODS) to backend catalog ids.
-const _CONNECTION_METHOD_MAP: Record<ConnectionMethod, string> = {
-  [CONNECTION_METHODS.CSV]: 'csv_file',
-  [CONNECTION_METHODS.MCP]: 'mcp_server',
+const _CONNECTION_METHOD_MAP: Record<string, string> = {
+  csv: 'csv_file',
+  mcp: 'mcp_server',
 };
 
 export function buildCreatePayload(draft: ProjectScopeDraft): ProjectCreate {
@@ -54,10 +51,6 @@ export function buildCreatePayload(draft: ProjectScopeDraft): ProjectCreate {
     targetErp: draft.target ?? undefined,
     sourceProductId: draft.source ?? undefined,
     targetProductId: draft.target ?? undefined,
-    // Each product belongs to exactly one vendor, so the backend vendor key is
-    // derived from the selected product — action=create requires both.
-    sourceVendorId: draft.source ? getERPById(draft.source)?.vendorId : undefined,
-    targetVendorId: draft.target ? getERPById(draft.target)?.vendorId : undefined,
     sourceConnectionMethodId: draft.sourceMethod
       ? (_CONNECTION_METHOD_MAP[draft.sourceMethod] ?? draft.sourceMethod)
       : undefined,
@@ -67,28 +60,15 @@ export function buildCreatePayload(draft: ProjectScopeDraft): ProjectCreate {
     masterDataSelections: (() => {
       if (draft.scope.selectedMasterData.length === 0) return undefined;
       // selectedMasterData stores column-keyed entries ("chart-of-accounts:dataConversion").
-      // Group per item so each entry carries its capability flags — the
-      // DC/MDM distinction must survive to the API. `selected` stays for
-      // backward compatibility with backends that predate the flags.
-      const flagsById = new Map<string, { dataConversion: boolean; mdm: boolean }>();
-      for (const key of draft.scope.selectedMasterData) {
-        const [id, column] = key.split(':');
-        if (id === undefined || id.length === 0) continue;
-        const flags = flagsById.get(id) ?? { dataConversion: false, mdm: false };
-        if (column === 'mdm') {
-          flags.mdm = true;
-        } else {
-          // 'dataConversion' or legacy un-suffixed keys
-          flags.dataConversion = true;
-        }
-        flagsById.set(id, flags);
-      }
-      return [...flagsById].map(([id, flags]) => ({
-        data_type: id,
-        selected: true,
-        data_conversion: flags.dataConversion,
-        mdm: flags.mdm,
-      }));
+      // The API expects one entry per item ID, so strip the column suffix and deduplicate.
+      const uniqueIds = [
+        ...new Set(
+          draft.scope.selectedMasterData
+            .map((key) => key.split(':')[0])
+            .filter((id): id is string => id !== undefined),
+        ),
+      ];
+      return uniqueIds.map((id) => ({ data_type: id, selected: true }));
     })(),
     openingBalanceSelections:
       draft.scope.selectedOpeningBalances.length > 0

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TextInput } from 'react-native';
-import { ArrowRight, Search } from 'lucide-react-native';
+import { ArrowRight, Info, Search } from 'lucide-react-native';
 import { Select } from '@/shared/components/ui/Select';
 import type { SelectOption } from '@/shared/components/ui/Select';
 import { colors } from '@/config/theme';
@@ -10,18 +10,13 @@ import {
   getUniqueVendors,
 } from '@/shared/constants/erp-systems';
 import type { ERPSystem } from '@/features/erp-config/types/erp-config.types';
-import {
-  CONNECTION_METHODS,
-  type ConnectionMethod,
-} from '../types/project-scope.types';
+import type { ConnectionMethod } from '../types/project-scope.types';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-// Values come from CONNECTION_METHODS so the dropdown and every comparison
-// share one definition.
 const CONNECTION_METHOD_OPTIONS: SelectOption[] = [
-  { label: 'MCP Server (Model Context Protocol)', value: CONNECTION_METHODS.MCP },
-  { label: 'CSV File Upload', value: CONNECTION_METHODS.CSV },
+  { label: 'MCP Server (Model Context Protocol)', value: 'mcp' },
+  { label: 'CSV File Upload', value: 'csv' },
 ];
 
 const VENDOR_OPTIONS: SelectOption[] = getUniqueVendors().map((v) => ({
@@ -76,12 +71,12 @@ const ErpCard = ({
       className="flex-1 rounded-lg border border-border bg-background p-2 gap-2"
       testID={`erp-card-${role}`}
     >
-      <Text className="font-heading text-base font-semibold text-card-foreground">
+      <Text className="font-heading text-sm font-semibold text-foreground">
         {label}
       </Text>
 
       <View className="gap-1">
-        <Text className="font-body text-sm font-medium text-foreground">
+        <Text className="font-body text-sm font-bold text-foreground">
           Step 1: Select Vendor
         </Text>
         <Select
@@ -95,7 +90,7 @@ const ErpCard = ({
       </View>
 
       <View className="gap-1">
-        <Text className="font-body text-sm font-medium text-foreground">
+        <Text className="font-body text-sm font-bold text-foreground">
           Step 2: Select Product
         </Text>
         <Select
@@ -109,9 +104,12 @@ const ErpCard = ({
       </View>
 
       <View className="gap-1">
-        <Text className="font-body text-sm font-medium text-foreground">
-          Step 3: Select Connection Method
-        </Text>
+        <View className="flex-row items-center gap-1">
+          <Text className="font-body text-sm font-bold text-foreground">
+            Step 3: Select Connection Method
+          </Text>
+          <Info size={14} color={colors.mutedForeground} />
+        </View>
         <Select
           options={CONNECTION_METHOD_OPTIONS}
           value={selectedMethod}
@@ -129,6 +127,12 @@ const ErpCard = ({
 
 export const ErpSectionSearch = (): React.JSX.Element => (
   <View className="flex-col items-end gap-1 flex-shrink-0">
+    <Text
+      className="font-body text-sm text-primary"
+      accessibilityRole="link"
+    >
+      Need more ERP options?
+    </Text>
     <View className="flex-row items-center gap-1 rounded-md border border-input bg-background px-1.5 py-1">
       <Search size={14} color={colors.mutedForeground} />
       <TextInput
@@ -185,7 +189,7 @@ export const ErpSourceTargetSelect = ({
         onSelectMethod={onSelectSourceMethod}
       />
 
-      <View className="items-center justify-center py-1 lg:px-4">
+      <View className="items-center justify-center py-1">
         <View className="h-10 w-10 items-center justify-center rounded-full border border-border bg-background">
           <ArrowRight size={16} color={colors.foreground} />
         </View>

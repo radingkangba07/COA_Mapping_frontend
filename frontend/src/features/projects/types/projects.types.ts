@@ -56,21 +56,13 @@ export interface ProjectCreate {
   readonly targetErp?: string | undefined;
   readonly sourceProductId?: string | undefined;
   readonly targetProductId?: string | undefined;
-  readonly sourceVendorId?: string | undefined;
-  readonly targetVendorId?: string | undefined;
   readonly sourceConnectionMethodId?: string | undefined;
   readonly targetConnectionMethodId?: string | undefined;
   readonly orgId?: string | undefined;
   readonly companyId?: string | undefined;
   readonly companyName?: string | undefined;
   readonly description?: string | undefined;
-  readonly masterDataSelections?: readonly {
-    readonly data_type: string;
-    /** Legacy aggregate flag (data_conversion || mdm) — kept for backends that predate the capability flags. */
-    readonly selected: boolean;
-    readonly data_conversion: boolean;
-    readonly mdm: boolean;
-  }[];
+  readonly masterDataSelections?: readonly { readonly data_type: string; readonly selected: boolean }[];
   readonly openingBalanceSelections?: readonly { readonly account_type: string; readonly include: boolean }[];
   readonly members?: readonly {
     readonly id: string;

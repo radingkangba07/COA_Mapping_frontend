@@ -62,7 +62,7 @@ const enabledRow: MasterDataRowVM = makeRow({ id: 'customers' });
 // ─── Tests ─────────────────────────────────────────────────────────────────
 
 describe('MasterDataTable', () => {
-  it('keeps only the Chart of Accounts data-conversion checkbox clickable', () => {
+  it('renders the Chart of Accounts checkboxes as clickable with no gated hint', () => {
     const onToggleColumn = jest.fn();
     render(
       <MasterDataTable
@@ -90,13 +90,11 @@ describe('MasterDataTable', () => {
       'dataConversion',
     );
 
-    // The COA MDM checkbox is disabled — pressing it does nothing.
-    onToggleColumn.mockClear();
     fireEvent.press(screen.getByTestId('md-chart-of-accounts-mdm'));
-    expect(onToggleColumn).not.toHaveBeenCalled();
+    expect(onToggleColumn).toHaveBeenCalledWith(CHART_OF_ACCOUNTS_ID, 'mdm');
   });
 
-  it('disables both checkboxes for non-COA rows', () => {
+  it('calls onToggleColumn with id + column for a normal row and renders no gated hint', () => {
     const onToggleColumn = jest.fn();
     render(
       <MasterDataTable
@@ -108,12 +106,10 @@ describe('MasterDataTable', () => {
 
     expect(screen.queryByTestId('md-customers-gated-hint')).toBeNull();
 
-    expect(
-      screen.getByTestId('md-customers-dataConversion'),
-    ).toHaveProp('accessibilityState', { checked: false, disabled: true });
-
     fireEvent.press(screen.getByTestId('md-customers-dataConversion'));
+    expect(onToggleColumn).toHaveBeenCalledWith('customers', 'dataConversion');
+
     fireEvent.press(screen.getByTestId('md-customers-mdm'));
-    expect(onToggleColumn).not.toHaveBeenCalled();
+    expect(onToggleColumn).toHaveBeenCalledWith('customers', 'mdm');
   });
 });

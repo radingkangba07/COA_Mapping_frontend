@@ -3,7 +3,6 @@ const ERP_SYSTEMS_DATA = [
     id: 'sap',
     name: 'SAP',
     vendor: 'SAP',
-    vendorId: 'sap',
     productName: 'SAP S/4HANA',
     description: 'SAP ERP / S/4HANA financial accounting',
     isStub: false,
@@ -13,7 +12,6 @@ const ERP_SYSTEMS_DATA = [
     id: 'oracle_netsuite',
     name: 'Oracle NetSuite',
     vendor: 'Oracle',
-    vendorId: 'oracle',
     productName: 'NetSuite ERP',
     description: 'Oracle NetSuite cloud ERP accounting',
     isStub: false,
@@ -23,7 +21,6 @@ const ERP_SYSTEMS_DATA = [
     id: 'dynamics365',
     name: 'Microsoft Dynamics 365',
     vendor: 'Microsoft',
-    vendorId: 'microsoft',
     productName: 'Dynamics 365',
     description: 'Microsoft Dynamics 365 Finance & Operations',
     isStub: false,
@@ -33,7 +30,6 @@ const ERP_SYSTEMS_DATA = [
     id: 'quickbooks',
     name: 'QuickBooks',
     vendor: 'Intuit',
-    vendorId: 'intuit',
     productName: 'QuickBooks',
     description: 'Intuit QuickBooks Online / Desktop accounting',
     isStub: false,
@@ -43,7 +39,6 @@ const ERP_SYSTEMS_DATA = [
     id: 'sage_intacct',
     name: 'Sage Intacct',
     vendor: 'Sage',
-    vendorId: 'sage',
     productName: 'Sage Intacct',
     description: 'Sage Intacct cloud financial management',
     isStub: false,
@@ -53,7 +48,6 @@ const ERP_SYSTEMS_DATA = [
     id: 'xero',
     name: 'Xero',
     vendor: 'Xero',
-    vendorId: 'xero',
     productName: 'Xero',
     description: 'Xero cloud-based accounting platform',
     isStub: false,
@@ -63,7 +57,6 @@ const ERP_SYSTEMS_DATA = [
     id: 'odoo',
     name: 'Odoo',
     vendor: 'Odoo',
-    vendorId: 'odoo',
     productName: 'Odoo',
     description: 'Odoo open-source ERP accounting module',
     isStub: true,
@@ -73,7 +66,6 @@ const ERP_SYSTEMS_DATA = [
     id: 'syspro',
     name: 'Syspro',
     vendor: 'SYSPRO',
-    vendorId: 'syspro',
     productName: 'SYSPRO ERP',
     description: 'Syspro ERP for manufacturing and distribution',
     isStub: true,
@@ -83,7 +75,6 @@ const ERP_SYSTEMS_DATA = [
     id: 'accpac',
     name: 'Accpac',
     vendor: 'Sage',
-    vendorId: 'sage',
     productName: 'Sage 300 (Accpac)',
     description: 'Sage 300 (Accpac) business management',
     isStub: true,
@@ -97,8 +88,6 @@ export interface ERPSystemInfo {
   readonly id: ERPSystemId;
   readonly name: string;
   readonly vendor: string;
-  /** Backend catalog vendor key — sent as source/target_vendor_id on create. */
-  readonly vendorId: string;
   readonly productName: string;
   readonly description: string;
   readonly isStub: boolean;

@@ -4,19 +4,18 @@ import type { WritableDraft } from 'immer';
 import type { HttpClient } from '@/shared/services/http/http.types';
 import type { AppError, Result } from '@/shared/types/result.types';
 import type { ProjectPermission } from '../types/project-access.types';
-import {
-  CONNECTION_METHODS,
-  type AggregationMode,
-  type ConnectionMethod,
-  type MCPConnection,
-  type MigrationScope,
-  type ProjectDraftPayload,
-  type ProjectScopeDraft,
-  type ProjectScopeMember,
-  type ProjectScopeSeed,
-  type ProjectScopeState,
-  type ProjectScopeStore,
-  type RequestStatus,
+import type {
+  AggregationMode,
+  ConnectionMethod,
+  MCPConnection,
+  MigrationScope,
+  ProjectDraftPayload,
+  ProjectScopeDraft,
+  ProjectScopeMember,
+  ProjectScopeSeed,
+  ProjectScopeState,
+  ProjectScopeStore,
+  RequestStatus,
 } from '../types/project-scope.types';
 import { saveProjectDraft } from '../services/projects.service';
 
@@ -52,12 +51,12 @@ export function createInitialDraft(): ProjectScopeDraft {
     description: '',
     source: null,
     target: null,
-    // LEGACY method preserves the migration UploadScreen default (MCP).
-    method: CONNECTION_METHODS.MCP,
-    // PER-SIDE methods default to CSV (File Upload needs no test connection),
+    // LEGACY method preserves the migration UploadScreen default ('mcp').
+    method: 'mcp',
+    // PER-SIDE methods default to 'csv' (File Upload needs no test connection),
     // so the page is not blocked on mount.
-    sourceMethod: CONNECTION_METHODS.CSV,
-    targetMethod: CONNECTION_METHODS.CSV,
+    sourceMethod: 'csv',
+    targetMethod: 'csv',
     connection: { ...INITIAL_CONNECTION, headers: [] },
     scope: {
       selectedMasterData: [],
