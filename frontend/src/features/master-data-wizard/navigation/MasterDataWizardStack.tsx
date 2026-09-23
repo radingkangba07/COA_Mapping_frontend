@@ -19,6 +19,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MasterDataUploadScreen } from '../screens/MasterDataUploadScreen';
 import { SourceDataProfileScreen } from '../screens/SourceDataProfileScreen';
+import { FieldMappingScreen } from '../screens/FieldMappingScreen';
+import { ValueMappingScreen } from '../screens/ValueMappingScreen';
 import { useWizardStore } from '../store/wizard.store';
 import type { EntityId } from '../types/entity-pack.types';
 import type { MasterDataWizardStackParamList } from './masterDataWizardStack.types';
@@ -29,8 +31,7 @@ const Stack = createNativeStackNavigator<MasterDataWizardStackParamList>();
  * SourceDataProfileScreen takes onBack/onContinue as plain callback props
  * rather than calling useNavigation() itself (see its own header comment) —
  * this wrapper is what supplies the real one when it's mounted for real,
- * inside a NavigationContainer. Step 3 (Mapping) doesn't exist yet, so
- * onContinue is intentionally left unset — same as before this refactor.
+ * inside a NavigationContainer.
  */
 function ProfileStep(): React.JSX.Element {
   const navigation = useNavigation<NativeStackNavigationProp<MasterDataWizardStackParamList>>();
@@ -42,7 +43,41 @@ function ProfileStep(): React.JSX.Element {
     }
     navigation.goBack();
   }, [navigation, entityId, recordStep]);
-  return <SourceDataProfileScreen onBack={handleBack} />;
+  const handleContinue = useCallback((): void => {
+    navigation.navigate('Mapping');
+  }, [navigation]);
+  return <SourceDataProfileScreen onBack={handleBack} onContinue={handleContinue} />;
+}
+
+/** Step 3 — same wrapper convention as ProfileStep above. */
+function MappingStep(): React.JSX.Element {
+  const navigation = useNavigation<NativeStackNavigationProp<MasterDataWizardStackParamList>>();
+  const entityId = useWizardStore((s) => s.entityId) as EntityId;
+  const recordStep = useWizardStore((s) => s.recordStep);
+  const handleBack = useCallback((): void => {
+    if (navigation.canGoBack()) {
+      recordStep(entityId, 'profile');
+    }
+    navigation.goBack();
+  }, [navigation, entityId, recordStep]);
+  const handleContinue = useCallback((): void => {
+    navigation.navigate('ValueMapping');
+  }, [navigation]);
+  return <FieldMappingScreen onBack={handleBack} onContinue={handleContinue} />;
+}
+
+/** Step 4 — placeholder screen (see ValueMappingScreen's own doc comment); only Back is wired, there's no step 5 to continue to yet. */
+function ValuesStep(): React.JSX.Element {
+  const navigation = useNavigation<NativeStackNavigationProp<MasterDataWizardStackParamList>>();
+  const entityId = useWizardStore((s) => s.entityId) as EntityId;
+  const recordStep = useWizardStore((s) => s.recordStep);
+  const handleBack = useCallback((): void => {
+    if (navigation.canGoBack()) {
+      recordStep(entityId, 'mapping');
+    }
+    navigation.goBack();
+  }, [navigation, entityId, recordStep]);
+  return <ValueMappingScreen onBack={handleBack} />;
 }
 
 export interface MasterDataWizardStackProps {
@@ -55,6 +90,8 @@ export function MasterDataWizardStack({ initialRouteName }: MasterDataWizardStac
     <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRouteName ?? 'Upload'}>
       <Stack.Screen name="Upload" component={MasterDataUploadScreen} />
       <Stack.Screen name="Profile" component={ProfileStep} />
+      <Stack.Screen name="Mapping" component={MappingStep} />
+      <Stack.Screen name="ValueMapping" component={ValuesStep} />
     </Stack.Navigator>
   );
 }

@@ -2318,16 +2318,49 @@
     "proposals": [
       {
         "id": "f1",
-        "name": "Item Name",
-        "sdtype": "Char",
-        "role": "Name",
+        "name": "Inactive",
+        "sdtype": "Boolean",
+        "role": "Flag",
         "samples": [
-          "SS Bolt M10",
-          "M8 Hex Nut",
-          "Washer 12mm"
+          "No"
         ],
-        "targetId": "name",
-        "conf": 99,
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f2",
+        "name": "Internal ID",
+        "sdtype": "Number",
+        "role": "Identifier candidate",
+        "samples": [
+          "9220",
+          "9219",
+          "9124"
+        ],
+        "status": "Unmapped",
+        "validation": "\u2014",
+        "evidence": [
+          "name",
+          "samples",
+          "datatype"
+        ],
+        "why": "Fully populated and unique, but a raw legacy row id \u2014 Name already supplies a human-readable code for Internal Reference, so this has no distinct Odoo target in the current registry."
+      },
+      {
+        "id": "f3",
+        "name": "Name",
+        "sdtype": "Char",
+        "role": "Identifier",
+        "samples": [
+          "INS-SS304-M6X23-RBCE",
+          "PG21_SLITTED",
+          "ERJ-3EKF2401V"
+        ],
+        "targetId": "default_code",
+        "conf": 96,
         "status": "Suggested",
         "validation": "Compatible",
         "evidence": [
@@ -2336,144 +2369,121 @@
           "datatype",
           "prior"
         ],
-        "handoff": "Ready"
+        "handoff": "Ready",
+        "why": "Matches the naming convention of an internal reference code \u2014 alphanumeric, unique, no spaces \u2014 and a prior mapping for this exact source/target pair exists."
       },
       {
-        "id": "f2",
-        "name": "SKU",
+        "id": "f4",
+        "name": "Display Name",
         "sdtype": "Char",
-        "role": "Identifier",
+        "role": "Name",
         "samples": [
-          "FST-1001",
-          "FST-1002",
-          "WSH-012"
+          "SS304 Insert Nut Round Big Close End M6\u00d723",
+          "Polymaide Slitted Flexible Black Conduit Pg21",
+          "RES SMD 2.4K OHM 1% 1/10W 0603"
         ],
-        "targetId": "default_code",
+        "targetId": "name",
+        "conf": 98,
+        "status": "Suggested",
+        "validation": "Compatible",
+        "evidence": [
+          "name",
+          "samples",
+          "datatype",
+          "meaning"
+        ],
+        "handoff": "Ready",
+        "why": "Near-fully populated, human-readable, and the closest semantic match to Odoo's product Name field."
+      },
+      {
+        "id": "f5",
+        "name": "SubType",
+        "sdtype": "Selection",
+        "samples": [
+          "For Purchase"
+        ],
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f6",
+        "name": "Description",
+        "sdtype": "Text",
+        "samples": [
+          "SS304 Insert Nut Round Big Close End M6\u00d723",
+          "Polymaide Slitted Flexible Black Conduit Pg21",
+          "RES SMD 2.4K OHM 1% 1/10W 0603"
+        ],
+        "status": "Unmapped",
+        "validation": "\u2014",
+        "evidence": [
+          "samples",
+          "meaning"
+        ],
+        "why": "68.6% populated and duplicates Display Name/Purchase Description wherever it is present \u2014 no distinct Odoo target justifies carrying a third copy of the same text."
+      },
+      {
+        "id": "f7",
+        "name": "Purchase Description",
+        "sdtype": "Text",
+        "role": "Description",
+        "samples": [
+          "SS304 Insert Nut Round Big Close End M6\u00d723",
+          "Polymaide Slitted Flexible Black Conduit Pg21",
+          "RES SMD 2.4K OHM 1% 1/10W 0603"
+        ],
+        "targetId": "description_purchase",
         "conf": 97,
         "status": "Suggested",
         "validation": "Compatible",
         "evidence": [
           "name",
-          "datatype",
-          "prior"
-        ],
-        "handoff": "Ready"
-      },
-      {
-        "id": "f3",
-        "name": "UPC",
-        "sdtype": "Char",
-        "role": "Identifier",
-        "samples": [
-          "8901234567890",
-          "8901234567891"
-        ],
-        "targetId": "barcode",
-        "conf": 95,
-        "status": "Suggested",
-        "validation": "Compatible",
-        "evidence": [
-          "name",
           "samples",
           "datatype"
         ],
         "handoff": "Ready"
-      },
-      {
-        "id": "f4",
-        "name": "Base Price",
-        "sdtype": "Decimal",
-        "role": "Amount",
-        "samples": [
-          "12.50",
-          "4.20",
-          "89.00"
-        ],
-        "targetId": "list_price",
-        "conf": 88,
-        "status": "Review required",
-        "validation": "Warning",
-        "evidence": [
-          "name",
-          "samples",
-          "datatype"
-        ],
-        "handoff": "Format conversion required",
-        "why": "Numeric selling prices best match the Odoo Sales Price (list_price). Confidence is just below the auto-accept band because the column could also represent cost \u2014 confirm this is a sell price. Currency/decimal formatting is resolved on Page 4."
-      },
-      {
-        "id": "f5",
-        "name": "Unit Cost",
-        "sdtype": "Decimal",
-        "role": "Amount",
-        "samples": [
-          "8.10",
-          "2.90",
-          "61.00"
-        ],
-        "targetId": "standard_price",
-        "conf": 90,
-        "status": "Suggested",
-        "validation": "Compatible",
-        "evidence": [
-          "name",
-          "datatype",
-          "meaning"
-        ],
-        "handoff": "Ready"
-      },
-      {
-        "id": "f6",
-        "name": "Expense Account",
-        "sdtype": "Char",
-        "role": "Reference",
-        "samples": [
-          "Material Cost",
-          "Freight In",
-          "Duty"
-        ],
-        "targetId": "property_account_expense_id",
-        "conf": 84,
-        "status": "Review required",
-        "validation": "Warning",
-        "evidence": [
-          "samples",
-          "meaning",
-          "prior"
-        ],
-        "handoff": "Reference crosswalk required",
-        "why": "Expense Account contains general-ledger account references. Expense Account (property_account_expense_id) is the closest compatible Odoo target based on its business meaning, sample values and previously approved mappings. The GL account labels don\u2019t match Odoo account records yet, so a reference-value crosswalk is required on Page 4."
-      },
-      {
-        "id": "f7",
-        "name": "Item Type",
-        "sdtype": "Char",
-        "role": "Category",
-        "samples": [
-          "Goods",
-          "Service"
-        ],
-        "targetId": "type",
-        "conf": 93,
-        "status": "Suggested",
-        "validation": "Compatible",
-        "evidence": [
-          "name",
-          "samples",
-          "meaning"
-        ],
-        "handoff": "Value mapping required",
-        "why": "The Goods / Service enumeration determines whether a record is a stockable product or a service in Odoo, governed by Product Type. The source values are enumerations, so the Goods\u2192consu / Service\u2192service value crosswalk happens on Page 4."
       },
       {
         "id": "f8",
-        "name": "UOM",
+        "name": "Vendor Name",
         "sdtype": "Char",
-        "role": "Reference",
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f9",
+        "name": "Store Display Name",
+        "sdtype": "Char",
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f10",
+        "name": "Store Description",
+        "sdtype": "Text",
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f11",
+        "name": "Primary Units Type",
+        "sdtype": "Selection",
+        "role": "Unit of measure",
         "samples": [
-          "EA",
-          "BOX",
-          "KG"
+          "Nos",
+          "Mtrs"
         ],
         "targetId": "uom_id",
         "conf": 82,
@@ -2481,614 +2491,502 @@
         "validation": "Warning",
         "evidence": [
           "name",
+          "meaning",
+          "rule"
+        ],
+        "handoff": "Reference crosswalk required",
+        "why": "Two consistent unit labels (Nos, Mtrs) map onto Odoo's Unit of Measure, but the source stores a plain label where Odoo needs a reference to a uom.uom record."
+      },
+      {
+        "id": "f12",
+        "name": "Primary Stock Unit",
+        "sdtype": "Selection",
+        "role": "Unit of measure",
+        "samples": [
+          "Nos",
+          "Mtrs"
+        ],
+        "targetId": "uom_id",
+        "conf": 58,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "samples",
+          "rule"
+        ],
+        "handoff": "Reference crosswalk required",
+        "why": "Same two values as Primary Units Type \u2014 a competing, lower-confidence candidate for the same target; accepting Primary Units Type first is recommended."
+      },
+      {
+        "id": "f13",
+        "name": "Primary Purchase Unit",
+        "sdtype": "Selection",
+        "role": "Unit of measure",
+        "samples": [
+          "Nos",
+          "Mtrs"
+        ],
+        "status": "Blocked",
+        "validation": "Blocked",
+        "evidence": [
+          "samples",
+          "rule"
+        ],
+        "why": "No purchase-specific unit-of-measure field exists in the current Odoo target registry."
+      },
+      {
+        "id": "f14",
+        "name": "Primary Sale Unit",
+        "sdtype": "Selection",
+        "role": "Unit of measure",
+        "samples": [
+          "Nos",
+          "Mtrs"
+        ],
+        "status": "Blocked",
+        "validation": "Blocked",
+        "evidence": [
+          "samples",
+          "rule"
+        ],
+        "why": "No sale-specific unit-of-measure field exists in the current Odoo target registry."
+      },
+      {
+        "id": "f15",
+        "name": "Display in Web Site",
+        "sdtype": "Boolean",
+        "samples": [
+          "No"
+        ],
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f16",
+        "name": "Purchase Price",
+        "sdtype": "Decimal",
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f17",
+        "name": "Preferred Vendor",
+        "sdtype": "Char",
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f18",
+        "name": "Base Price",
+        "sdtype": "Decimal",
+        "role": "Amount",
+        "targetId": "list_price",
+        "status": "Blocked",
+        "validation": "Blocked",
+        "evidence": [
+          "name",
+          "rule"
+        ],
+        "why": "Name matches Odoo's Sales Price closely, but the column is 0% populated in this export \u2014 nothing to migrate yet."
+      },
+      {
+        "id": "f19",
+        "name": "Alternate Price 1",
+        "sdtype": "Decimal",
+        "status": "Unmapped",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f20",
+        "name": "Alternate Price 2",
+        "sdtype": "Decimal",
+        "status": "Unmapped",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f21",
+        "name": "Alternate Price 3",
+        "sdtype": "Decimal",
+        "status": "Unmapped",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f22",
+        "name": "Income Account",
+        "sdtype": "Reference",
+        "samples": [
+          "Sales - Others",
+          "Sales - Roboweeder"
+        ],
+        "status": "Unmapped",
+        "validation": "\u2014",
+        "evidence": [
+          "name",
+          "samples"
+        ],
+        "why": "A GL account reference, but the current Odoo target registry has no income-account field \u2014 only Expense Account is modelled."
+      },
+      {
+        "id": "f23",
+        "name": "Asset Account",
+        "sdtype": "Reference",
+        "samples": [
+          "Inventory - Raw Materials",
+          "Inventory - Semi Finished Goods",
+          "Inventory - Finished Goods"
+        ],
+        "status": "Unmapped",
+        "validation": "\u2014",
+        "evidence": [
+          "name",
+          "samples"
+        ],
+        "why": "A GL account reference with no corresponding field in the current Odoo target registry."
+      },
+      {
+        "id": "f24",
+        "name": "Expense/COGS Account",
+        "sdtype": "Reference",
+        "samples": [
+          "COGS - Others",
+          "Office Equipment",
+          "COGS - Roboweeder"
+        ],
+        "targetId": "property_account_expense_id",
+        "conf": 74,
+        "status": "Review required",
+        "validation": "Warning",
+        "evidence": [
+          "name",
+          "samples",
+          "rule"
+        ],
+        "handoff": "Reference crosswalk required",
+        "why": "Clearest GL-account match in the file, but source values are plain account-name text and Odoo needs a reference to an account.account record \u2014 the standout crosswalk item this migration needs resolved."
+      },
+      {
+        "id": "f25",
+        "name": "Costing Method",
+        "sdtype": "Selection",
+        "samples": [
+          "Average",
+          "N/A"
+        ],
+        "status": "Unmapped",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f26",
+        "name": "On Special",
+        "sdtype": "Boolean",
+        "samples": [
+          "No"
+        ],
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f27",
+        "name": "On Hand",
+        "sdtype": "Number",
+        "role": "Measure",
+        "samples": [
+          "3",
+          "1",
+          "2"
+        ],
+        "status": "Blocked",
+        "validation": "Blocked",
+        "evidence": [
+          "samples",
+          "rule"
+        ],
+        "why": "Odoo tracks on-hand quantity through stock quants, not a writable product.template field \u2014 7.6% populated regardless."
+      },
+      {
+        "id": "f28",
+        "name": "Available",
+        "sdtype": "Number",
+        "role": "Measure",
+        "samples": [
+          "3",
+          "1",
+          "2"
+        ],
+        "status": "Blocked",
+        "validation": "Blocked",
+        "evidence": [
+          "samples",
+          "rule"
+        ],
+        "why": "Same modelling gap as On Hand \u2014 quantity-available isn't a product.template field in Odoo."
+      },
+      {
+        "id": "f29",
+        "name": "On Order",
+        "sdtype": "Number",
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f30",
+        "name": "Committed",
+        "sdtype": "Number",
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f31",
+        "name": "Back Ordered",
+        "sdtype": "Number",
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f32",
+        "name": "Reorder Point",
+        "sdtype": "Number",
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f33",
+        "name": "Preferred Stock Level",
+        "sdtype": "Number",
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f34",
+        "name": "Reorder Multiple",
+        "sdtype": "Number",
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f35",
+        "name": "Drop Ship Item",
+        "sdtype": "Boolean",
+        "samples": [
+          "No"
+        ],
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f36",
+        "name": "Special Order Item",
+        "sdtype": "Boolean",
+        "samples": [
+          "No"
+        ],
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f37",
+        "name": "Copy SO Descr.",
+        "sdtype": "Boolean",
+        "samples": [
+          "No"
+        ],
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f38",
+        "name": "Weight",
+        "sdtype": "Decimal",
+        "role": "Measure",
+        "targetId": "weight",
+        "status": "Blocked",
+        "validation": "Blocked",
+        "evidence": [
+          "name",
+          "rule"
+        ],
+        "why": "Direct name match for Odoo's Weight field, but 0% populated in this export."
+      },
+      {
+        "id": "f39",
+        "name": "Weight Units",
+        "sdtype": "Selection",
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f40",
+        "name": "Class",
+        "sdtype": "Selection",
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ]
+      },
+      {
+        "id": "f41",
+        "name": "Department",
+        "sdtype": "Selection",
+        "samples": [
+          "HR Admin"
+        ],
+        "status": "Excluded",
+        "validation": "\u2014",
+        "evidence": [
+          "samples"
+        ],
+        "why": "1% populated and, where present, holds an HR value ('HR Admin') that looks unrelated to item classification."
+      },
+      {
+        "id": "f42",
+        "name": "Date Created",
+        "sdtype": "DateTime",
+        "role": "Date",
+        "samples": [
+          "6/9/2026 7:56",
+          "6/8/2026 11:27",
+          "6/8/2026 8:21"
+        ],
+        "targetId": "create_date",
+        "conf": 88,
+        "status": "Blocked",
+        "validation": "Blocked",
+        "evidence": [
+          "name",
+          "samples",
+          "datatype",
+          "rule"
+        ],
+        "why": "Strong name and content match for Created On, but that Odoo field is read-only \u2014 the value can be read, never written, during migration."
+      },
+      {
+        "id": "f43",
+        "name": "Last Modified",
+        "sdtype": "DateTime",
+        "role": "Date",
+        "samples": [
+          "6/9/2026 10:02",
+          "6/9/2026 10:03",
+          "6/8/2026 13:39"
+        ],
+        "status": "Unmapped",
+        "validation": "\u2014",
+        "evidence": [
           "samples",
           "datatype"
         ],
-        "handoff": "Value mapping required",
-        "why": "Maps to Unit of Measure. Some source codes (EA, BOX) have no direct Odoo unit and will need a value crosswalk on Page 4."
+        "why": "No write-date-equivalent field exists in the current Odoo target registry."
       },
       {
-        "id": "f9",
-        "name": "Subsidiary",
-        "sdtype": "Char",
-        "role": "Reference",
+        "id": "f44",
+        "name": "Item Category",
+        "sdtype": "Selection",
+        "role": "Category",
         "samples": [
-          "Tartan Aerial Sense Tech Pvt Ltd",
-          "Tartan UK Ltd"
+          "Raw material",
+          "Semi finished Goods",
+          "Finished Goods"
         ],
-        "targetId": "company_id",
+        "targetId": "categ_id",
         "conf": 79,
         "status": "Review required",
         "validation": "Warning",
         "evidence": [
-          "samples",
-          "meaning"
-        ],
-        "handoff": "Reference crosswalk required",
-        "why": "The source names legal entities and maps to the Odoo Company field, but the labels do not exactly match existing company records \u2014 reference-record value mapping will be required on Page 4."
-      },
-      {
-        "id": "f10",
-        "name": "Purchase Description",
-        "sdtype": "Text",
-        "role": "Description",
-        "samples": [
-          "High-tensile M10 fastener, zinc"
-        ],
-        "targetId": "description_purchase",
-        "conf": 100,
-        "status": "Suggested",
-        "validation": "Compatible",
-        "evidence": [
-          "name",
-          "datatype",
-          "prior"
-        ],
-        "handoff": "Ready"
-      },
-      {
-        "id": "f11",
-        "name": "Weight (kg)",
-        "sdtype": "Decimal",
-        "role": "Amount",
-        "samples": [
-          "0.045",
-          "1.20"
-        ],
-        "targetId": "weight",
-        "conf": 90,
-        "status": "Suggested",
-        "validation": "Compatible",
-        "evidence": [
           "name",
           "samples",
-          "datatype"
-        ],
-        "handoff": "Ready"
-      },
-      {
-        "id": "f12",
-        "name": "Created Date",
-        "sdtype": "Integer \u00b7 YYYYMMDD",
-        "role": "Date",
-        "samples": [
-          "20260710",
-          "20251203"
-        ],
-        "targetId": "create_date",
-        "conf": 72,
-        "status": "Blocked",
-        "validation": "Blocked",
-        "evidence": [
-          "name",
-          "samples"
-        ],
-        "handoff": null,
-        "why": "The integer YYYYMMDD parses to a creation timestamp, but create_date in Odoo is system-managed and not writable on import. The target is unavailable \u2014 route this to a custom writable field or drop it before continuing."
-      },
-      {
-        "id": "f13",
-        "name": "Tax Code",
-        "sdtype": "Char",
-        "role": "Category",
-        "samples": [
-          "GST18",
-          "GST12",
-          "EXEMPT"
-        ],
-        "targetId": "taxes_id",
-        "conf": 68,
-        "status": "Review required",
-        "validation": "Warning",
-        "evidence": [
-          "name",
-          "samples"
-        ],
-        "handoff": "Value mapping required",
-        "why": "Tax codes resemble Customer Taxes references, but confidence is low and the codes must be crosswalked to Odoo tax records on Page 4."
-      },
-      {
-        "id": "f14",
-        "name": "Legacy Code",
-        "sdtype": "Char",
-        "role": "Identifier",
-        "samples": [
-          "LGC-0091",
-          "LGC-1188"
-        ],
-        "targetId": "",
-        "altId": "default_code",
-        "altScore": 52,
-        "conf": null,
-        "status": "Unmapped",
-        "validation": "\u2014",
-        "evidence": [
-          "samples"
-        ],
-        "handoff": null,
-        "why": "A legacy identifier with no strong target. It could map to Internal Reference (default_code) at low confidence, or be excluded if it is not needed in Odoo."
-      },
-      {
-        "id": "f15",
-        "name": "Unknown Flag",
-        "sdtype": "Integer",
-        "role": "Boolean",
-        "samples": [
-          "0",
-          "1"
-        ],
-        "targetId": "",
-        "altId": "",
-        "altScore": 44,
-        "conf": null,
-        "status": "Unmapped",
-        "validation": "\u2014",
-        "evidence": [
-          "samples"
-        ],
-        "handoff": null,
-        "why": "No confident target. The boolean has no clear business meaning from the header alone \u2014 assign a target, add a default, or exclude it."
-      },
-      {
-        "id": "f16",
-        "name": "Internal Notes",
-        "sdtype": "Text",
-        "role": "Description",
-        "samples": [
-          "ck ok",
-          "recheck qty"
-        ],
-        "targetId": "",
-        "conf": null,
-        "status": "Excluded",
-        "validation": "\u2014",
-        "evidence": [
+          "meaning",
           "rule"
         ],
-        "handoff": null,
-        "scope": "This file",
-        "why": "Excluded on this file by a user rule \u2014 internal free-text notes are not migrated to Odoo."
-      },
-      {
-        "id": "f17",
-        "name": "List Price INR",
-        "sdtype": "Decimal",
-        "role": "Amount",
-        "samples": [
-          "1050.00",
-          "349.00",
-          "7420.00"
-        ],
-        "targetId": "list_price",
-        "conf": 86,
-        "status": "Review required",
-        "validation": "Warning",
-        "evidence": [
-          "name",
-          "samples",
-          "datatype"
-        ],
-        "handoff": "Format conversion required",
-        "why": "Currency-denominated selling price; maps to Sales Price but needs currency/decimal normalization on Page 4."
-      },
-      {
-        "id": "f18",
-        "name": "Standard Cost",
-        "sdtype": "Decimal",
-        "role": "Amount",
-        "samples": [
-          "8.10",
-          "2.90",
-          "61.00"
-        ],
-        "targetId": "standard_price",
-        "conf": 92,
-        "status": "Suggested",
-        "validation": "Compatible",
-        "evidence": [
-          "name",
-          "datatype",
-          "prior"
-        ],
-        "handoff": "Ready",
-        "why": "Numeric unit cost aligns with the Odoo Cost field."
-      },
-      {
-        "id": "f19",
-        "name": "Product Family",
-        "sdtype": "Char",
-        "role": "Category",
-        "samples": [
-          "Fasteners",
-          "Seals",
-          "Tools"
-        ],
-        "targetId": "categ_id",
-        "conf": 90,
-        "status": "Suggested",
-        "validation": "Compatible",
-        "evidence": [
-          "name",
-          "meaning"
-        ],
-        "handoff": "Value mapping required",
-        "why": "Groups products into families that map to Odoo Product Category; family names need a value crosswalk on Page 4."
-      },
-      {
-        "id": "f20",
-        "name": "Brand",
-        "sdtype": "Char",
-        "role": "Category",
-        "samples": [
-          "Bosch",
-          "3M",
-          "Hilti"
-        ],
-        "targetId": "categ_id",
-        "conf": 76,
-        "status": "Review required",
-        "validation": "Warning",
-        "evidence": [
-          "samples",
-          "meaning"
-        ],
-        "handoff": "Value mapping required",
-        "why": "Brand can seed a product category but overlaps with Product Family \u2014 confirm the intended category source."
-      },
-      {
-        "id": "f21",
-        "name": "Long Description",
-        "sdtype": "Text",
-        "role": "Description",
-        "samples": [
-          "High-tensile zinc-plated fastener"
-        ],
-        "targetId": "description_purchase",
-        "conf": 84,
-        "status": "Review required",
-        "validation": "Warning",
-        "evidence": [
-          "name",
-          "datatype"
-        ],
-        "handoff": "Ready",
-        "why": "Free-text description close to Purchase Description; confirm sales vs. purchase description target."
-      },
-      {
-        "id": "f22",
-        "name": "Net Weight",
-        "sdtype": "Decimal",
-        "role": "Amount",
-        "samples": [
-          "0.044",
-          "1.18"
-        ],
-        "targetId": "weight",
-        "conf": 93,
-        "status": "Suggested",
-        "validation": "Compatible",
-        "evidence": [
-          "name",
-          "samples",
-          "datatype"
-        ],
-        "handoff": "Ready",
-        "why": "Numeric mass maps directly to the Odoo Weight field."
-      },
-      {
-        "id": "f23",
-        "name": "Gross Weight",
-        "sdtype": "Decimal",
-        "role": "Amount",
-        "samples": [
-          "0.052",
-          "1.34"
-        ],
-        "targetId": "weight",
-        "conf": 88,
-        "status": "Review required",
-        "validation": "Warning",
-        "evidence": [
-          "name",
-          "samples"
-        ],
-        "handoff": "Ready",
-        "why": "Also a mass value; conflicts with Net Weight for the single Weight target \u2014 pick one."
-      },
-      {
-        "id": "f24",
-        "name": "Sales UOM",
-        "sdtype": "Char",
-        "role": "Reference",
-        "samples": [
-          "EA",
-          "BOX"
-        ],
-        "targetId": "uom_id",
-        "conf": 81,
-        "status": "Review required",
-        "validation": "Warning",
-        "evidence": [
-          "name",
-          "samples"
-        ],
-        "handoff": "Value mapping required",
-        "why": "Sales unit of measure; codes need crosswalk to Odoo units on Page 4."
-      },
-      {
-        "id": "f25",
-        "name": "Purchase UOM",
-        "sdtype": "Char",
-        "role": "Reference",
-        "samples": [
-          "CTN",
-          "PLT"
-        ],
-        "targetId": "uom_id",
-        "conf": 80,
-        "status": "Review required",
-        "validation": "Warning",
-        "evidence": [
-          "name",
-          "samples"
-        ],
-        "handoff": "Value mapping required",
-        "why": "Purchase unit of measure; overlaps with Sales UOM on the single UoM target."
-      },
-      {
-        "id": "f26",
-        "name": "Vendor Name",
-        "sdtype": "Char",
-        "role": "Reference",
-        "samples": [
-          "Acme Traders",
-          "Delta Supply"
-        ],
-        "targetId": "company_id",
-        "conf": 72,
-        "status": "Review required",
-        "validation": "Warning",
-        "evidence": [
-          "samples",
-          "meaning"
-        ],
         "handoff": "Reference crosswalk required",
-        "why": "Vendor references need matching to existing records on Page 4."
+        "why": "Fully populated, low-cardinality, and semantically the clearest match for the required Product Category field \u2014 needs a crosswalk from plain labels to product.category records."
       },
       {
-        "id": "f27",
-        "name": "Product Status",
-        "sdtype": "Char",
+        "id": "f45",
+        "name": "Item Type",
+        "sdtype": "Selection",
         "role": "Category",
         "samples": [
-          "Active",
-          "Phased Out"
+          "Mechanical",
+          "Electrical",
+          "HR Admin"
         ],
         "targetId": "type",
-        "conf": 69,
-        "status": "Review required",
-        "validation": "Warning",
-        "evidence": [
-          "samples"
-        ],
-        "handoff": "Value mapping required",
-        "why": "Low-confidence match to Product Type; likely a lifecycle flag needing its own target."
-      },
-      {
-        "id": "f28",
-        "name": "Is Active",
-        "sdtype": "Integer",
-        "role": "Boolean",
-        "samples": [
-          "0",
-          "1"
-        ],
-        "targetId": "",
-        "altId": "",
-        "altScore": 40,
-        "conf": null,
-        "status": "Unmapped",
-        "validation": "\u2014",
-        "evidence": [
-          "samples"
-        ],
-        "handoff": null,
-        "why": "Boolean active flag with no confident target \u2014 add a default or exclude."
-      },
-      {
-        "id": "f29",
-        "name": "Modified Date",
-        "sdtype": "Integer \u00b7 YYYYMMDD",
-        "role": "Date",
-        "samples": [
-          "20260715",
-          "20251130"
-        ],
-        "targetId": "create_date",
-        "conf": 70,
+        "conf": 42,
         "status": "Blocked",
         "validation": "Blocked",
         "evidence": [
           "name",
-          "samples"
-        ],
-        "handoff": null,
-        "why": "write_date is system-managed and not writable on import \u2014 target unavailable."
-      },
-      {
-        "id": "f30",
-        "name": "EAN",
-        "sdtype": "Char",
-        "role": "Identifier",
-        "samples": [
-          "4006381333931"
-        ],
-        "targetId": "barcode",
-        "conf": 96,
-        "status": "Suggested",
-        "validation": "Compatible",
-        "evidence": [
-          "name",
           "samples",
-          "datatype"
-        ],
-        "handoff": "Ready",
-        "why": "EAN barcodes map directly to the Odoo Barcode field."
-      },
-      {
-        "id": "f31",
-        "name": "MPN",
-        "sdtype": "Char",
-        "role": "Identifier",
-        "samples": [
-          "MPN-88213",
-          "MPN-90114"
-        ],
-        "targetId": "default_code",
-        "conf": 78,
-        "status": "Review required",
-        "validation": "Warning",
-        "evidence": [
-          "name",
-          "samples"
-        ],
-        "handoff": "Ready",
-        "why": "Manufacturer part number could serve as Internal Reference; conflicts with SKU on default_code."
-      },
-      {
-        "id": "f32",
-        "name": "Category Code",
-        "sdtype": "Char",
-        "role": "Category",
-        "samples": [
-          "CAT-01",
-          "CAT-07"
-        ],
-        "targetId": "categ_id",
-        "conf": 87,
-        "status": "Review required",
-        "validation": "Warning",
-        "evidence": [
-          "name",
-          "samples"
-        ],
-        "handoff": "Value mapping required",
-        "why": "Coded category values need crosswalk to Odoo category records on Page 4."
-      },
-      {
-        "id": "f33",
-        "name": "Tax Class",
-        "sdtype": "Char",
-        "role": "Category",
-        "samples": [
-          "STD",
-          "ZERO"
-        ],
-        "targetId": "taxes_id",
-        "conf": 71,
-        "status": "Review required",
-        "validation": "Warning",
-        "evidence": [
-          "name",
-          "samples"
-        ],
-        "handoff": "Value mapping required",
-        "why": "Tax classes map to Customer Taxes after crosswalking to Odoo tax records."
-      },
-      {
-        "id": "f34",
-        "name": "Comments",
-        "sdtype": "Text",
-        "role": "Description",
-        "samples": [
-          "legacy import",
-          "verify"
-        ],
-        "targetId": "",
-        "conf": null,
-        "status": "Excluded",
-        "validation": "\u2014",
-        "evidence": [
           "rule"
         ],
-        "handoff": null,
-        "scope": "This file",
-        "why": "Excluded by user rule \u2014 free-text comments are not migrated."
-      },
-      {
-        "id": "f35",
-        "name": "Warehouse",
-        "sdtype": "Char",
-        "role": "Reference",
-        "samples": [
-          "WH-MUM",
-          "WH-LON"
-        ],
-        "targetId": "company_id",
-        "conf": 66,
-        "status": "Review required",
-        "validation": "Warning",
-        "evidence": [
-          "samples"
-        ],
-        "handoff": "Reference crosswalk required",
-        "why": "Warehouse codes loosely map to Company; confirm and crosswalk on Page 4."
-      },
-      {
-        "id": "f36",
-        "name": "Currency",
-        "sdtype": "Char",
-        "role": "Reference",
-        "samples": [
-          "INR",
-          "GBP",
-          "USD"
-        ],
-        "targetId": "",
-        "altId": "",
-        "altScore": 38,
-        "conf": null,
-        "status": "Unmapped",
-        "validation": "\u2014",
-        "evidence": [
-          "samples"
-        ],
-        "handoff": null,
-        "why": "Currency has no direct product-master target \u2014 handled by pricelists, not a field mapping."
+        "handoff": "Value mapping required",
+        "why": "Name matches Odoo's required Product Type field, but the source values (Mechanical, Electrical, HR Admin) don't correspond to Odoo's product-type options \u2014 a value mapping is needed before this can be proposed as Suggested."
       }
     ],
     "missingTargets": [
       {
         "id": "m1",
-        "name": "\u2014",
-        "sdtype": "\u2014",
-        "role": "Required target",
-        "samples": [],
-        "targetId": "categ_id",
-        "conf": null,
-        "status": "Missing target",
-        "validation": "\u2014",
-        "evidence": [
-          "required"
-        ],
-        "handoff": null,
-        "why": "Product Category (categ_id) is required by Odoo but no source field maps to it. Map a source field or set a project-wide default value on Page 4."
-      },
-      {
-        "id": "m2",
-        "name": "\u2014",
-        "sdtype": "\u2014",
-        "role": "Required target",
-        "samples": [],
         "targetId": "invoice_policy",
-        "conf": null,
         "status": "Missing target",
-        "validation": "\u2014",
         "evidence": [
           "required"
         ],
-        "handoff": null,
-        "why": "Invoicing Policy (invoice_policy) is required for storable products. No source field supplies it \u2014 a default population method is required."
+        "why": "No source column addresses how invoicing quantity is determined \u2014 Odoo's Invoicing Policy has no candidate in this file."
       }
     ],
     "cards": [
@@ -3139,19 +3037,19 @@
     "readiness": {
       "headline": "Mapping readiness: Needs attention",
       "tone": "warn",
-      "narrative": "Most source fields map cleanly to Odoo product fields on name, datatype and previously approved mappings. The exceptions cluster in two places: GL account references, whose labels do not match Odoo account records and need a crosswalk, and two required Odoo targets that no source field supplies at all. Nothing is written until each proposal is accepted.",
+      "narrative": "Name and Display Name map cleanly to Odoo's Internal Reference and Name fields, and Purchase Description carries straight across. The real gaps cluster around GL account references \u2014 Income, Asset and Expense/COGS Account are plain text in this export and need a crosswalk to Odoo account records, most importantly Expense/COGS Account \u2014 plus Item Type, whose values (Mechanical, Electrical, HR Admin) don't match Odoo's product-type options and need a value mapping first. Invoicing Policy has no source column at all. Nothing is written until each proposal is accepted.",
       "recommendedOrder": [
         {
-          "label": "Confirm the identifier mapping",
-          "target": "f2"
+          "label": "Confirm the identifier mappings",
+          "target": "f3"
         },
         {
-          "label": "Crosswalk GL account references",
-          "target": "f6"
+          "label": "Crosswalk the Expense/COGS Account reference",
+          "target": "f24"
         },
         {
-          "label": "Supply the missing required targets",
-          "target": "m1"
+          "label": "Resolve the Item Type value mapping",
+          "target": "f45"
         }
       ],
       "evidence": []

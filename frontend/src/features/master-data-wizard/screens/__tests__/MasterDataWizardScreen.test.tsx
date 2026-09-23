@@ -280,9 +280,9 @@ describe('MasterDataWizardScreen', () => {
     expect(screen.queryByTestId('stub-profile')).toBeNull();
   });
 
-  it('falls back to Upload when the persisted step has no registered route (e.g. a stale "values" step from before its screen was removed)', async () => {
+  it('falls back to Upload when the persisted step has no registered route (e.g. a "formats" step whose screen has not shipped yet)', async () => {
     (SecureStore.getItemAsync as jest.Mock).mockImplementationOnce((key: string) =>
-      Promise.resolve(key === STORAGE_KEYS.WIZARD_STEP_BY_ENTITY ? JSON.stringify({ 'proj-1:items': 'values' }) : null),
+      Promise.resolve(key === STORAGE_KEYS.WIZARD_STEP_BY_ENTITY ? JSON.stringify({ 'proj-1:items': 'formats' }) : null),
     );
 
     renderWizard();

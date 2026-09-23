@@ -175,11 +175,14 @@ export function buildFieldComparison(a: EntityField, b: EntityField, rowCount: n
   };
 }
 
+/** Full `metricTone` family, matching `MetricBadge`'s own prop type —
+ *  Profile only ever produces blocker/warn/neutral; ok/info/muted are for
+ *  other steps' KPI cards (e.g. `utils/mapping.ts`'s `buildMappingCards`). */
 export interface BuiltMetric {
   readonly id: string;
   readonly label: string;
   readonly value: string;
-  readonly tone: 'blocker' | 'warn' | 'neutral';
+  readonly tone: 'blocker' | 'warn' | 'neutral' | 'ok' | 'info' | 'muted';
   readonly tip: string;
   readonly highlight: readonly string[];
 }

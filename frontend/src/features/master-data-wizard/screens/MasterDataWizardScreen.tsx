@@ -36,6 +36,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ProjectsStackParamList } from '@/navigation/types';
 import { MigrationLayout } from '@/features/migration/components/MigrationLayout';
 import { Spinner } from '@/shared/components/ui/Spinner';
+import { WizardRightPanelContext } from '../context/wizardRightPanel.context';
 import { buildEntityKey, useWizardStore } from '../store/wizard.store';
 import { useOrgProjectFiles } from '../hooks/useOrgProjectFiles';
 import { useFileDetails } from '../hooks/useFileDetails';
@@ -124,6 +125,12 @@ export function MasterDataWizardScreen(): React.JSX.Element {
     navigation.navigate('ProjectOverview', { projectId: parentProjectId });
   }, [navigation, parentProjectId]);
 
+  // Owns the single rightPanel slot too (e.g. Field Mapping's Copilot
+  // panel) — see WizardRightPanelContext's doc comment. A step screen
+  // registers into this slot instead of wrapping itself in a second
+  // MigrationLayout, which used to render a duplicate sidebar.
+  const [wizardRightPanel, setWizardRightPanel] = useState<React.ReactNode>(null);
+
   return (
     <MigrationLayout
       title="DataPortation"
@@ -131,15 +138,18 @@ export function MasterDataWizardScreen(): React.JSX.Element {
       onBack={handleBack}
       sourceRowCount={sidebarSourceRowCount}
       targetRowCount={sidebarTargetRowCount}
+      rightPanel={wizardRightPanel}
       testID="master-data-wizard-screen"
     >
-      {initialRouteName ? (
-        <MasterDataWizardStack initialRouteName={initialRouteName} />
-      ) : (
-        <View className="flex-1 items-center justify-center">
-          <Spinner size="lg" />
-        </View>
-      )}
+      <WizardRightPanelContext.Provider value={setWizardRightPanel}>
+        {initialRouteName ? (
+          <MasterDataWizardStack initialRouteName={initialRouteName} />
+        ) : (
+          <View className="flex-1 items-center justify-center">
+            <Spinner size="lg" />
+          </View>
+        )}
+      </WizardRightPanelContext.Provider>
     </MigrationLayout>
   );
 }

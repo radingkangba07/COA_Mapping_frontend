@@ -17,6 +17,9 @@ import {
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { usePlatform } from '@/shared/hooks/usePlatform';
 import { colors } from '@/config/theme';
+import { DEFAULT_PAGE_SIZE } from '@/shared/constants/pagination';
+import { getPageNumbers } from '@/shared/utils/pagination.utils';
+import { Select } from '@/shared/components/ui/Select';
 import { CompanyGroupHeader } from './CompanyGroupHeader';
 import { ProjectCard } from './ProjectCard';
 import type { Project, ProjectGroup } from '../types/projects.types';
@@ -42,9 +45,10 @@ interface ProjectSection {
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const EMPTY_ICON = <FolderOpen size={48} color={colors.mutedForeground} />;
-const PAGE_SIZE = 10;
 
 // ─── Pagination ────────────────────────────────────────────────────────────
+
+const PAGE_SIZE_OPTIONS = [10, 15, 25, 50];
 
 interface PaginationProps {
   currentPage: number;
@@ -52,6 +56,7 @@ interface PaginationProps {
   totalItems: number;
   pageSize: number;
   onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
 }
 
 function Pagination({
@@ -60,6 +65,7 @@ function Pagination({
   totalItems,
   pageSize,
   onPageChange,
+  onPageSizeChange,
 }: PaginationProps): React.JSX.Element | null {
   if (totalPages <= 1) return null;
 
@@ -72,6 +78,13 @@ function Pagination({
         {start}–{end} of {totalItems}
       </Text>
       <View className="flex-row items-center gap-1">
+        <Select
+          options={PAGE_SIZE_OPTIONS.map((n) => ({ label: `${n} per page`, value: String(n) }))}
+          value={String(pageSize)}
+          onValueChange={(v) => onPageSizeChange(Number(v))}
+          triggerClassName="h-auto rounded-md px-2.5 py-1.5"
+          dropdownWidth={140}
+        />
         <Pressable
           onPress={() => onPageChange(currentPage - 1)}
           disabled={currentPage <= 1}
@@ -81,9 +94,32 @@ function Pagination({
         >
           <ChevronLeft size={14} color={colors.mutedForeground} />
         </Pressable>
-        <Text className="font-body text-xs text-muted-foreground px-2">
-          {currentPage} / {totalPages}
-        </Text>
+        {getPageNumbers(currentPage - 1, totalPages).map((token, i) => {
+          if (token === 'ellipsis') {
+            return (
+              <Text key={`ellipsis-${i}`} className="px-1 font-body text-xs text-muted-foreground">
+                …
+              </Text>
+            );
+          }
+          const pageNumber = token + 1;
+          const isActive = pageNumber === currentPage;
+          return (
+            <Pressable
+              key={pageNumber}
+              onPress={() => onPageChange(pageNumber)}
+              className="min-w-[26px] items-center rounded-md border border-border px-2 py-1.5"
+              style={isActive ? { borderColor: colors.accent, backgroundColor: colors.surfaceHighlight } : undefined}
+            >
+              <Text
+                className="font-mono text-xs font-semibold"
+                style={{ color: isActive ? colors.accent : colors.foreground }}
+              >
+                {pageNumber}
+              </Text>
+            </Pressable>
+          );
+        })}
         <Pressable
           onPress={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages}
@@ -173,7 +209,13 @@ const WebProjectList = ({
   testID,
 }: ProjectListProps): React.JSX.Element => {
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  const handlePageSizeChange = useCallback((size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  }, []);
 
   const toggleGroup = useCallback((key: string) => {
     setCollapsedGroups((prev) => {
@@ -198,7 +240,7 @@ const WebProjectList = ({
 
   const allItems = useMemo(() => flattenProjects(groups), [groups]);
   const totalItems = allItems.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const visiblePage = Math.min(currentPage, totalPages);
 
   React.useEffect(() => {
@@ -209,8 +251,8 @@ const WebProjectList = ({
 
   // Paginate the flat list, then re-group for rendering
   const pagedGroups = useMemo(() => {
-    const start = (visiblePage - 1) * PAGE_SIZE;
-    const pagedItems = allItems.slice(start, start + PAGE_SIZE);
+    const start = (visiblePage - 1) * pageSize;
+    const pagedItems = allItems.slice(start, start + pageSize);
 
     const groupMap = new Map<string, { group: ProjectGroup; projects: Project[] }>();
     for (const { project, group } of pagedItems) {
@@ -227,7 +269,7 @@ const WebProjectList = ({
       ...group,
       projects,
     }));
-  }, [allItems, visiblePage]);
+  }, [allItems, visiblePage, pageSize]);
 
   return (
     <ScrollView
@@ -266,8 +308,9 @@ const WebProjectList = ({
           currentPage={visiblePage}
           totalPages={totalPages}
           totalItems={totalItems}
-          pageSize={PAGE_SIZE}
+          pageSize={pageSize}
           onPageChange={setCurrentPage}
+          onPageSizeChange={handlePageSizeChange}
         />
       </View>
     </ScrollView>

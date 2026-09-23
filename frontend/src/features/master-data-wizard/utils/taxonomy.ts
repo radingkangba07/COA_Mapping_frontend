@@ -47,6 +47,55 @@ export function impactRank(impact: Impact): number {
   return IMPACT_STATES[impact]?.rank ?? 0;
 }
 
+const MAPPING_HANDOFF_STATES: Record<string, { find?: string; step?: string | null }> =
+  taxonomies.mappingHandoff.states;
+
+/** `MappingProposal.handoff` -> `find`-family semantic state, for the
+ *  Proposed Target column's handoff chip. Mirrors the reference's own
+ *  `mappingHandoffFind()`: falls back to 'info' for an unrecognised key. */
+export function mappingHandoffFind(handoff: string | undefined): string {
+  if (handoff === undefined) return 'info';
+  return MAPPING_HANDOFF_STATES[handoff]?.find ?? 'info';
+}
+
+// JSON-imported object literals type their string fields as plain `string`,
+// not the narrower `Impact` union, even though dp-taxonomies.json's own
+// comment guarantees "Each maps onto an existing impact state" — cast at
+// this one read site (not scattered) rather than typing the whole record
+// loosely and losing the guarantee for callers.
+const MAPPING_VALIDATION_STATES: Record<string, { impact?: string }> = taxonomies.mappingValidation.states;
+const MAPPING_STATUS_STATES: Record<string, { impact?: string }> = taxonomies.mappingStatus.states;
+
+/** `MappingProposal.validation` -> `impact`-family state, for the
+ *  Validation column's badge. Mirrors the reference's own
+ *  `mappingValidationImpact()`: falls back to 'na'. */
+export function mappingValidationImpact(validation: string | undefined): Impact {
+  if (validation === undefined) return 'na';
+  return (MAPPING_VALIDATION_STATES[validation]?.impact as Impact | undefined) ?? 'na';
+}
+
+/** `MappingProposal.status` -> `impact`-family state, for the Status
+ *  column's badge. Mirrors the reference's own `mappingStatusImpact()`:
+ *  falls back to 'na'. */
+export function mappingStatusImpact(status: string): Impact {
+  return (MAPPING_STATUS_STATES[status]?.impact as Impact | undefined) ?? 'na';
+}
+
+const MAPPING_EVIDENCE_LABELS: Record<string, string> = taxonomies.mappingEvidence.labels;
+const MAPPING_EVIDENCE_SHORT: Record<string, string> = taxonomies.mappingEvidence.short;
+
+/** Evidence code -> full label (chip tooltip text). Falls back to the
+ *  raw code for an unrecognised one, same looseness as the other
+ *  mapping-taxonomy readers here. */
+export function mappingEvidenceLabel(code: string): string {
+  return MAPPING_EVIDENCE_LABELS[code] ?? code;
+}
+
+/** Evidence code -> short label (chip display text). */
+export function mappingEvidenceShort(code: string): string {
+  return MAPPING_EVIDENCE_SHORT[code] ?? code;
+}
+
 export type DrawerTabId = 'overview' | 'distribution' | 'issues' | 'ai';
 
 export interface DrawerTab {

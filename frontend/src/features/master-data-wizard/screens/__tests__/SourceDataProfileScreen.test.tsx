@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, waitFor, fireEvent, within, act } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SourceDataProfileScreen } from '../SourceDataProfileScreen';
+import { WizardRightPanelContext } from '../../context/wizardRightPanel.context';
 import { useSourceProfileStore } from '../../store/sourceProfile.store';
 import { STEPS, getStep } from '../../utils/taxonomy';
 
@@ -248,5 +249,29 @@ describe('SourceDataProfileScreen', () => {
       useSourceProfileStore.getState().undoDecision(decision.id);
     });
     expect(useSourceProfileStore.getState().decisions).toHaveLength(0);
+  });
+
+  it('registers the Copilot panel into the shared wizard rightPanel slot once the pack loads', async () => {
+    const setRightPanel = jest.fn();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { unmount } = render(
+      <QueryClientProvider client={queryClient}>
+        <WizardRightPanelContext.Provider value={setRightPanel}>
+          <SourceDataProfileScreen />
+        </WizardRightPanelContext.Provider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Source Data Profile')).toBeTruthy();
+    });
+
+    await waitFor(() => {
+      expect(setRightPanel).toHaveBeenLastCalledWith(expect.anything());
+    });
+    expect(setRightPanel.mock.calls.at(-1)?.[0]).not.toBeNull();
+
+    unmount();
+    expect(setRightPanel).toHaveBeenLastCalledWith(null);
   });
 });

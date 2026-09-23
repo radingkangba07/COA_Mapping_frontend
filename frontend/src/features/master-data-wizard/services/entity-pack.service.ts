@@ -15,7 +15,8 @@ import { formatObjectInline, formatPreviewValue } from '../utils/previewFormat';
 // ─── Zod Schema ──────────────────────────────────────────────────────────────
 // Mirrors dp-kit/types/entity.d.ts. Unlike Step 1 (Upload), this step reads
 // pack.fields/readiness/metrics — the profiler output that doesn't exist at
-// Upload — so those are validated here, not left as passthrough.
+// Upload — so those are validated here, not left as passthrough. pack.mapping
+// (Field Mapping, step 3) is validated the same way, for the same reason.
 
 const findingSchema = z.object({ t: z.string(), tone: z.enum(['dup', 'warn', 'info', 'ok']) });
 const distBarSchema = z.object({ label: z.string().optional(), pct: z.number().optional() });
@@ -130,6 +131,54 @@ const entityReadinessSchema = z.object({
   evidence: z.array(z.object({ value: z.string(), label: z.string() })).optional(),
 });
 
+// Field Mapping (step 3). Mirrors EntityMapping in entity.d.ts — proposals
+// and missingTargets share one row shape there (restated per-array rather
+// than factored into one z.object, matching entity.d.ts's own comment on
+// why the shape is restated instead of left as a bare/shared node).
+const mappingRowSchema = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  sdtype: z.string().optional(),
+  role: z.string().optional(),
+  samples: z.array(z.string()).optional(),
+  targetId: z.string().nullable().optional(),
+  conf: z.number().nullable().optional(),
+  status: z.string(),
+  validation: z.string().optional(),
+  evidence: z.array(z.string()).optional(),
+  handoff: z.string().nullable().optional(),
+  why: z.string().optional(),
+});
+
+const targetFieldSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  dtype: z.string().optional(),
+  required: z.boolean().optional(),
+  identifier: z.boolean().optional(),
+  writable: z.boolean().optional(),
+});
+
+const mappingCardSchema = z.object({
+  id: z.enum(['high', 'review', 'none', 'missing', 'excluded']),
+  label: z.string(),
+  impact: z.string().optional(),
+  statuses: z.array(z.string()).optional(),
+});
+
+const entityMappingSchema = z.object({
+  targetFields: z.array(targetFieldSchema).optional(),
+  proposals: z.array(mappingRowSchema).optional(),
+  missingTargets: z.array(mappingRowSchema).optional(),
+  cards: z.array(mappingCardSchema).optional(),
+  autoAcceptAt: z.number().optional(),
+  pageSize: z.number().optional(),
+  // Step-3 readiness banner — same real shape as the top-level readiness
+  // (entity.d.ts's own comment: "Both are the same real shape at runtime",
+  // see mapping.ts's toMappingReadiness), so entityReadinessSchema covers it.
+  readiness: entityReadinessSchema.optional(),
+});
+
 const entityPackSchema = z.object({
   id: z.string(),
   label: z.object({ singular: z.string(), plural: z.string(), recordWord: z.string().optional() }),
@@ -143,6 +192,7 @@ const entityPackSchema = z.object({
   metrics: z.array(entityMetricSchema).optional(),
   readiness: entityReadinessSchema.optional(),
   fields: z.array(entityFieldSchema),
+  mapping: entityMappingSchema.optional(),
   copilotPrompts: z.array(z.unknown()).optional(),
   copilotResponses: z.record(z.string(), z.unknown()).optional(),
   copilotFixes: z.record(z.string(), z.unknown()).optional(),

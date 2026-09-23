@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, type ViewProps } from 'react-native';
+import { View, Text, ScrollView, Pressable, type ViewProps } from 'react-native';
 import { cn } from '@/shared/utils/string.utils';
 import { isWeb } from '@/shared/utils/platform.utils';
 
@@ -72,16 +72,10 @@ interface TableHeaderProps extends ViewProps {
 
 const Header = React.forwardRef<View, TableHeaderProps>(
   ({ className, children, ...props }, ref) => {
-    // position: 'sticky' is web-only CSS; not valid in React Native ViewStyle
-    const stickyStyle = isWeb
-      ? ({ position: 'sticky' as unknown as 'relative', top: 0, zIndex: 1 })
-      : undefined;
-
     return (
       <View
         ref={ref}
         className={cn('flex-row bg-surface border-b border-border', className)}
-        style={stickyStyle}
         {...props}
       >
         {children}
@@ -93,18 +87,36 @@ Header.displayName = 'TableHeader';
 
 interface TableRowProps extends ViewProps {
   className?: string;
+  /** Makes the whole row clickable (e.g. Mapping's row -> detail drawer) —
+   *  renders as a `Pressable` instead of a plain `View` when set; absent,
+   *  behaves exactly as before. Cells that must swallow their own clicks
+   *  (a checkbox, an inline editor, action icons) use `Table.Cell`'s own
+   *  `stopPropagation` below rather than this component knowing about them. */
+  onPress?: () => void;
 }
 
 const Row = React.forwardRef<View, TableRowProps>(
-  ({ className, children, ...props }, ref) => (
-    <View
-      ref={ref}
-      className={cn('flex-row border-b border-border', className)}
-      {...props}
-    >
-      {children}
-    </View>
-  ),
+  ({ className, children, onPress, ...props }, ref) => {
+    const rowClassName = cn('flex-row border-b border-border', className);
+    if (onPress !== undefined) {
+      return (
+        <Pressable
+          ref={ref}
+          onPress={onPress}
+          accessibilityRole="button"
+          className={cn(rowClassName, 'focus:outline-none')}
+          {...props}
+        >
+          {children}
+        </Pressable>
+      );
+    }
+    return (
+      <View ref={ref} className={rowClassName} {...props}>
+        {children}
+      </View>
+    );
+  },
 );
 Row.displayName = 'TableRow';
 
@@ -138,12 +150,19 @@ interface TableCellProps extends ViewProps {
   className?: string;
   width?: number;
   children?: React.ReactNode;
+  /** When the row itself is clickable (`Table.Row`'s `onPress`), set this on
+   *  a cell that owns its own click handling (a checkbox, an inline editor,
+   *  action icons) so pressing it doesn't also fire the row's `onPress` —
+   *  same nested-`Pressable`-with-`stopPropagation` guard `Sheet.tsx` already
+   *  uses for its backdrop-vs-panel click. No-op when the row isn't clickable. */
+  stopPropagation?: boolean;
 }
 
 const Cell = React.forwardRef<View, TableCellProps>(
-  ({ className, width, children, style, ...props }, ref) => {
+  ({ className, width, children, style, stopPropagation, ...props }, ref) => {
     const isTextChild =
       typeof children === 'string' || typeof children === 'number';
+    const content = isTextChild ? <Text className="text-sm text-foreground">{children}</Text> : children;
 
     return (
       <View
@@ -152,10 +171,12 @@ const Cell = React.forwardRef<View, TableCellProps>(
         style={[width !== undefined ? { width } : undefined, style]}
         {...props}
       >
-        {isTextChild ? (
-          <Text className="text-sm text-foreground">{children}</Text>
+        {stopPropagation === true ? (
+          <Pressable onPress={(e) => e.stopPropagation()} className="w-full">
+            {content}
+          </Pressable>
         ) : (
-          children
+          content
         )}
       </View>
     );

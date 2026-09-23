@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import { DEFAULT_PAGE_SIZE } from '@/shared/constants/pagination';
 import type { DrawerTabId } from '../utils/taxonomy';
 import type { SortKey } from '../utils/fields';
 
@@ -46,6 +47,10 @@ interface SourceProfileState {
   readonly sortKey: SortKey;
   readonly sortDirection: SortDirection;
   readonly page: number;
+  /** User-selectable rows-per-page, seeded from the app-wide
+   *  `DEFAULT_PAGE_SIZE` — takes precedence over the taxonomy-sourced
+   *  `PAGE_SIZE` constant once the user has picked one. */
+  readonly pageSize: number;
   // Selection is capped at 2, enforced here so CompareSelectionBar/
   // FieldComparisonModal never need to guard against a 3rd selection.
   readonly selectedIds: readonly string[];
@@ -73,6 +78,8 @@ interface SourceProfileActions {
   ) => void;
   setSort: (key: SortKey) => void;
   setPage: (page: number) => void;
+  /** Also resets `page` to 0 — same convention as `setCategoryFilter`/`setSort`. */
+  setPageSize: (size: number) => void;
   toggleSelected: (fieldId: string) => void;
   clearSelected: () => void;
   openField: (fieldId: string, tab?: DrawerTabId) => void;
@@ -104,6 +111,7 @@ const initialState: SourceProfileState = {
   sortKey: null,
   sortDirection: 'asc',
   page: 0,
+  pageSize: DEFAULT_PAGE_SIZE,
   selectedIds: [],
   openFieldId: null,
   openFieldTab: null,
@@ -172,6 +180,13 @@ export const useSourceProfileStore = create<SourceProfileStore>()(
     setPage: (page: number) => {
       set((state) => {
         state.page = page;
+      });
+    },
+
+    setPageSize: (size: number) => {
+      set((state) => {
+        state.pageSize = size;
+        state.page = 0;
       });
     },
 

@@ -1,5 +1,4 @@
 import { useCallback, useMemo } from 'react';
-import type { EntityField } from '../dp-kit/types/entity';
 
 interface FieldNav {
   readonly onPrev: () => void;
@@ -7,12 +6,14 @@ interface FieldNav {
 }
 
 /**
- * Wrap-around prev/next over the full, unfiltered field list — matching the
- * reference's own `(idx - 1 + len) % len` / `(idx + 1) % len` navigation
- * exactly, including having no disabled state at either end.
+ * Wrap-around prev/next over a field/row list — matching the reference's own
+ * `(idx - 1 + len) % len` / `(idx + 1) % len` navigation exactly, including
+ * having no disabled state at either end. Only reads `.id`, so any
+ * id-carrying list works — `EntityField[]` (Profile) and `MappingRow[]`
+ * (Mapping) both satisfy this without adaptation.
  */
 export function useFieldNav(
-  fields: readonly EntityField[],
+  fields: readonly { id: string }[],
   activeFieldId: string | null,
   openField: (fieldId: string) => void,
 ): FieldNav {

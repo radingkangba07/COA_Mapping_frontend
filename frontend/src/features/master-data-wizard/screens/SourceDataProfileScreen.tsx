@@ -3,12 +3,14 @@ import { ArrowLeft, ArrowRight } from 'lucide-react-native';
 import { ScrollView, Text, View } from 'react-native';
 import { colors } from '@/config/theme';
 import { useAppStore } from '@/shared/store/app.store';
+import { useToast } from '@/shared/hooks/useToast';
 import { Button } from '@/shared/components/ui/Button';
 import { Spinner } from '@/shared/components/ui/Spinner';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
 import { useQuery } from '@tanstack/react-query';
 import { useEntityPackPreview } from '../hooks/useEntityPackPreview';
 import { usePipelineRunPoller } from '../hooks/usePipelineRunPoller';
+import { useSyncWizardRightPanel } from '../hooks/useSyncWizardRightPanel';
 import { getEntityPackFromApi } from '../services/entity-pack.service';
 import { useFieldNav } from '../hooks/useFieldNav';
 import { useSourceProfileStore } from '../store/sourceProfile.store';
@@ -30,6 +32,7 @@ import { CopilotPanelShell } from '@/shared/components/ui/CopilotPanelShell/Copi
 import { SourceFileIcon } from '@/shared/components/icons/SourceFileIcon';
 import { getStep, STEPS } from '../utils/taxonomy';
 import { buildMetrics } from '../utils/fields';
+import { approvalCopyFor } from '../utils/approval';
 import type { EntityId } from '../dp-kit/types/entity';
 import type { StepId } from '../types/wizard.types';
 import type { AppError } from '@/shared/types/result.types';
@@ -68,6 +71,7 @@ export function SourceDataProfileScreen({
   // project's Profile step never picks up another project's run id for the
   // same object.
   const runId = useWizardStore((s) => s.pipelineRunIdByEntity[buildEntityKey(parentProjectId ?? '', entityId)]);
+  const toast = useToast();
 
   const canGoBack = Boolean(onBackProp);
   const handleBack = useCallback((): void => {
@@ -130,6 +134,13 @@ export function SourceDataProfileScreen({
   // a manual refetch() call while `pack` is already set).
   const isFetchingLive = hasLiveRun && pack !== null && livePackQuery.isFetching;
 
+  // Registers into the wizard's single rightPanel slot (owned by
+  // MasterDataWizardScreen) — same pattern as FieldMappingScreen's Copilot
+  // panel (see useSyncWizardRightPanel's doc comment). Called unconditionally,
+  // before the loading/error/empty early returns below, per the Rules of Hooks.
+  const copilotPanel = pack ? <CopilotPanelShell pack={pack} testID="profile-copilot" /> : null;
+  useSyncWizardRightPanel(copilotPanel);
+
   const categoryFilter = useSourceProfileStore((s) => s.categoryFilter);
   const setCategoryFilter = useSourceProfileStore((s) => s.setCategoryFilter);
   const metricFilterId = useSourceProfileStore((s) => s.metricFilterId);
@@ -149,6 +160,7 @@ export function SourceDataProfileScreen({
   const closeCompare = useSourceProfileStore((s) => s.closeCompare);
   const pendingApproval = useSourceProfileStore((s) => s.pendingApproval);
   const closeApproval = useSourceProfileStore((s) => s.closeApproval);
+  const applyApproval = useSourceProfileStore((s) => s.applyApproval);
   const decisions = useSourceProfileStore((s) => s.decisions);
   const undoDecision = useSourceProfileStore((s) => s.undoDecision);
 
@@ -204,8 +216,12 @@ export function SourceDataProfileScreen({
 
   if (error) {
     const content = (
-      <View className="flex-1 flex-col bg-background" testID="source-profile-screen">
-        <ScrollView className="flex-1 pr-5" keyboardShouldPersistTaps="handled">
+      <View className="-mx-4 -my-4 flex-1 flex-col bg-background md:-mx-6 lg:-mx-8" testID="source-profile-screen">
+        <ScrollView
+          className="flex-1 pr-5"
+          contentContainerClassName="px-4 py-4 md:px-6 lg:px-8"
+          keyboardShouldPersistTaps="handled"
+        >
           {/* ── Wizard stepper (all 8 taxonomy steps) ───────────────────────── */}
           <StepRail rail={stepRail} />
           <EmptyState
@@ -227,8 +243,12 @@ export function SourceDataProfileScreen({
 
   if (pack.fields.length === 0) {
     const content = (
-      <View className="flex-1 flex-col bg-background" testID="source-profile-screen">
-        <ScrollView className="flex-1 pr-5" keyboardShouldPersistTaps="handled">
+      <View className="-mx-4 -my-4 flex-1 flex-col bg-background md:-mx-6 lg:-mx-8" testID="source-profile-screen">
+        <ScrollView
+          className="flex-1 pr-5"
+          contentContainerClassName="px-4 py-4 md:px-6 lg:px-8"
+          keyboardShouldPersistTaps="handled"
+        >
           {/* ── Wizard stepper (all 8 taxonomy steps) ───────────────────────── */}
           <StepRail rail={stepRail} />
           <EmptyState
@@ -247,11 +267,16 @@ export function SourceDataProfileScreen({
   const compareFieldA = fieldAId !== undefined ? pack.fields.find((f) => f.id === fieldAId) ?? null : null;
   const compareFieldB = fieldBId !== undefined ? pack.fields.find((f) => f.id === fieldBId) ?? null : null;
   const approvalField = pendingApproval ? pack.fields.find((f) => f.id === pendingApproval.fieldId) ?? null : null;
+  const approvalCopy =
+    pendingApproval && approvalField ? approvalCopyFor(approvalField, pendingApproval.kind, pack.source.rowCount ?? 0) : null;
 
   const content = (
-    <View className="flex-1 flex-col bg-background" testID="source-profile-screen">
-      <View className="flex-1 flex-row">
-        <ScrollView className="flex-1 pr-5" keyboardShouldPersistTaps="handled">
+    <View className="-mx-4 -my-4 flex-1 flex-col bg-background md:-mx-6 lg:-mx-8" testID="source-profile-screen">
+        <ScrollView
+          className="flex-1 pr-5"
+          contentContainerClassName="px-4 py-4 md:px-6 lg:px-8"
+          keyboardShouldPersistTaps="handled"
+        >
           {/* ── Wizard stepper (all 8 taxonomy steps) ───────────────────────── */}
           <StepRail rail={stepRail} />
 
@@ -347,9 +372,6 @@ export function SourceDataProfileScreen({
           />
         </ScrollView>
 
-        <CopilotPanelShell pack={pack} testID="source-profile-copilot" />
-      </View>
-
       <FieldDetailDrawer
         field={openedField}
         rowCount={pack.source.rowCount ?? 0}
@@ -371,9 +393,10 @@ export function SourceDataProfileScreen({
       />
 
       <ApprovalModal
-        pending={pendingApproval}
-        field={approvalField}
-        rowCount={pack.source.rowCount ?? 0}
+        visible={pendingApproval !== null}
+        copy={approvalCopy}
+        onConfirm={() => approvalCopy && applyApproval(approvalCopy.decisionLabel)}
+        onReviewIndividually={() => toast.showSuccess('Opening row-by-row review…')}
         onClose={closeApproval}
         testID="source-profile-approval"
       />

@@ -35,6 +35,7 @@ import { Spinner } from '@/shared/components/ui/Spinner';
 import { FileUploadField, FileTargetCard, type UploadedFile } from '@/shared/components/ui/FileUploader';
 import { NetworkErrorFallback } from '@/shared/components/feedback/NetworkErrorFallback';
 import { SampleFileCard } from '@/shared/components/ui/SampleFileCard';
+import { CopilotPanelShell } from '@/shared/components/ui/CopilotPanelShell/CopilotPanelShell';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -424,6 +425,8 @@ export function MasterDataUploadScreen(): React.JSX.Element {
   // The single point where a backend-confirmed upload becomes part of wizard
   // state — mirrors is the source of truth for later steps, never the local
   // CSV preview parsed in loadContent (which the server never sees).
+  // Pipeline-run creation itself happens in handleContinue below (the real
+  // POST /api/v1/pipeline/runs call, via createPipelineRun) — not here.
   useEffect(() => {
     if (uploadResult) {
       setUploadedFile(entityId as EntityId, uploadResult);

@@ -166,6 +166,91 @@ describe('entity-pack.service', () => {
       }
     });
 
+    it('validates the items fixture\'s mapping block (DA-358) instead of leaving it as unvalidated passthrough', async () => {
+      const result = await getEntityPack('items');
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        const { mapping } = result.data;
+        expect(mapping).toBeDefined();
+        expect(mapping?.targetFields?.length).toBeGreaterThan(0);
+        expect(mapping?.proposals?.length).toBeGreaterThan(0);
+        expect(mapping?.cards?.length).toBeGreaterThan(0);
+        expect(mapping?.readiness).toBeDefined();
+      }
+    });
+
+    it('items fixture\'s mapping block is grounded in item105.csv\'s real 45 columns, one row per column (DA-359)', async () => {
+      // Locks in the real-data rewrite so a future fixture edit that drifts
+      // back toward invented/illustrative data (or silently drops rows) is
+      // caught here rather than discovered later in the UI. Counts below
+      // are the exact tally from item105(Sheet1).csv's real column profile,
+      // not the HTML reference's own generic Odoo-demo numbers.
+      const result = await getEntityPack('items');
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const { mapping } = result.data;
+
+      expect(mapping?.proposals?.length).toBe(45);
+      expect(mapping?.missingTargets?.length).toBe(1);
+      expect(mapping?.autoAcceptAt).toBe(95);
+      expect(mapping?.pageSize).toBe(15);
+
+      const statusCounts = new Map<string, number>();
+      for (const p of mapping?.proposals ?? []) {
+        statusCounts.set(p.status, (statusCounts.get(p.status) ?? 0) + 1);
+      }
+      expect(statusCounts.get('Suggested')).toBe(3);
+      expect(statusCounts.get('Review required')).toBe(4);
+      expect(statusCounts.get('Blocked')).toBe(8);
+      expect(statusCounts.get('Unmapped')).toBe(9);
+      expect(statusCounts.get('Excluded')).toBe(21);
+
+      const cardCounts = Object.fromEntries(
+        (mapping?.cards ?? []).map((c) => [c.id, undefined]),
+      );
+      expect(Object.keys(cardCounts)).toEqual(['high', 'review', 'none', 'missing', 'excluded']);
+
+      // Every Suggested row clears the autoAcceptAt threshold; nothing else does.
+      const suggested = (mapping?.proposals ?? []).filter((p) => p.status === 'Suggested');
+      expect(suggested.every((p) => (p.conf ?? 0) >= 95)).toBe(true);
+      const notSuggested = (mapping?.proposals ?? []).filter((p) => p.status !== 'Suggested');
+      expect(notSuggested.every((p) => (p.conf ?? 0) < 95)).toBe(true);
+
+      // The one required target with zero source candidates.
+      expect(mapping?.missingTargets?.[0]?.targetId).toBe('invoice_policy');
+    });
+
+    it('returns entity_pack_invalid when a mapping proposal is missing its required status', async () => {
+      jest.resetModules();
+      jest.doMock('../../dp-kit/fixtures/items.entity.json', () => ({
+        id: 'items',
+        label: { singular: 'Item', plural: 'Items' },
+        source: { object: 'Item master extract' },
+        identity: { candidates: [] },
+        fields: [{ id: 'f1', name: 'SKU', datatype: 'Text', impact: 'clean' }],
+        mapping: {
+          // `status` is required on every proposal row — omitting it is the
+          // deliberate break here, exercising entityMappingSchema's own
+          // validation rather than the top-level fields/impact one above.
+          proposals: [{ id: 'p1', name: 'SKU' }],
+        },
+      }));
+
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { getEntityPack: getEntityPackWithBrokenMapping } = require('../entity-pack.service');
+      const result = await getEntityPackWithBrokenMapping('items');
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('entity_pack_invalid');
+      }
+
+      jest.dontMock('../../dp-kit/fixtures/items.entity.json');
+      jest.resetModules();
+    });
+
     it('returns entity_pack_invalid when the fixture fails schema validation', async () => {
       // The fixture is a static import, so a mid-file mock + re-require (this
       // Jest config transpiles to CommonJS — dynamic `import()` isn't

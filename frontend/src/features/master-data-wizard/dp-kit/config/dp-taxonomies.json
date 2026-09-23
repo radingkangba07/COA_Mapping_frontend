@@ -299,7 +299,7 @@
     ]
   },
   "pagination": {
-    "pageSize": 30
+    "pageSize": 15
   },
   "drawerTabs": {
     "_comment": "Tabs in the field-detail drawer. A tab renders only if the field carries the data it needs \u2014 see dp-base.js buildDrawer().",

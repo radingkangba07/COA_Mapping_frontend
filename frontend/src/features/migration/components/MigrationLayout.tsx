@@ -23,6 +23,15 @@ export interface MigrationLayoutProps {
   readonly children: React.ReactNode;
   readonly scroll?: boolean;
   readonly rightActions?: React.ReactNode;
+  /**
+   * A flush, full-height side panel (e.g. the Copilot shell) rendered
+   * outside the padded content area — sibling to the sidebar, not nested
+   * inside `children`'s `px-4 py-4 md:px-6 lg:px-8` wrapper. Nesting it
+   * in `children` was what left a gap between the top bar and the
+   * panel's own border, since that padding pushed the panel down/in from
+   * the screen edges instead of letting it sit flush like the sidebar.
+   */
+  readonly rightPanel?: React.ReactNode;
   readonly testID?: string;
   /**
    * Overrides for the sidebar's source/target row counts. Callers outside
@@ -44,6 +53,7 @@ export const MigrationLayout = ({
   children,
   scroll = false,
   rightActions,
+  rightPanel,
   testID,
   sourceRowCount,
   targetRowCount,
@@ -78,6 +88,8 @@ export const MigrationLayout = ({
         {isDesktop ? <SidebarContent {...sidebarProps} /> : null}
 
         <View className="flex-1">{contentArea}</View>
+
+        {rightPanel}
       </View>
 
       {!isDesktop ? (

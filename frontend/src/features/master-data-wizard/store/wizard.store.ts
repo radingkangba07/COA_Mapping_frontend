@@ -1,15 +1,16 @@
 /* ============================================================================
    wizard.store.ts  ·  Master-data wizard state — decisions, step nav, approval
    ----------------------------------------------------------------------------
-   Root CLAUDE.md, "master-data wizard (dp-kit) rules":
-     #5 "Every write goes through one approval component ... There is no
-     write endpoint yet. Keep decisions (accepted / excluded / overrides) in
-     the feature's zustand store and raise the endpoint question; do not
-     invent a route."
+   Root CLAUDE.md, "master-data wizard (dp-kit) rules" #5: "Every write goes
+   through one approval component."
 
-   This store is that home. It never writes to the network — every action
-   here mutates local state only, via the pure helpers in
-   ../services/decision.service.ts (recordDecision / clearDecision).
+   This store itself stays a pure, synchronous state container — it never
+   calls the network. Accept, Retarget, and Exclude all go through
+   raiseApproval -> confirmApproval (rule #4: "If a number cannot be
+   recomputed by the profiler, it must not render as fact"; nothing becomes
+   state until confirmed) — useApproval.ts is what turns a confirmed
+   decision into the real PATCH column-mappings call (DA-401), with
+   optimistic-update/rollback orchestration living there, not here.
 
    Decisions are keyed by buildEntityKey(parentProjectId, entityId) because
    entityId is a route parameter and a user can navigate between the 8
@@ -221,9 +222,10 @@ interface WizardActions {
   /** The one point where an ai-sourced or user-overridden target becomes a FieldDecision. */
   confirmApproval: (decidedBy?: string) => void;
 
-  excludeField: (entityId: EntityId, fieldId: string, decidedBy?: string) => void;
   /** Undo a decision — e.g. revert a field back to the AI proposal. */
   clearFieldDecision: (entityId: EntityId, fieldId: string) => void;
+  /** Records a field as excluded directly — used by the write paths that don't go through the raise/confirm approval flow. */
+  excludeField: (entityId: EntityId, fieldId: string, decidedBy?: string) => void;
 
   reset: () => void;
 }
@@ -471,8 +473,29 @@ export const useWizardStore = create<WizardStore>()(
         const context = state.pendingApproval;
         if (!context) return;
 
+        // DA-384: one decision per accepted row, all 'accepted' — bulk has
+        // no override/exclude variant, so this branch never needs the
+        // status-derivation ternary below.
+        if (context.reason === 'bulk-accept' && context.bulkFields) {
+          const decidedAt = new Date().toISOString();
+          const bulkKey = buildEntityKey(state.parentProjectId ?? '', context.entityId);
+          let existing = state.decisionsByEntity[bulkKey] ?? [];
+          for (const bulkField of context.bulkFields) {
+            existing = recordDecision(existing, {
+              fieldId: bulkField.fieldId,
+              status: 'accepted',
+              targetId: bulkField.targetFieldId,
+              decidedAt,
+              decidedBy,
+            });
+          }
+          state.decisionsByEntity[bulkKey] = existing;
+          state.pendingApproval = null;
+          return;
+        }
+
         const status: FieldDecisionStatus =
-          context.reason === 'user-override' ? 'overridden' : 'accepted';
+          context.reason === 'user-override' ? 'overridden' : context.reason === 'exclude' ? 'excluded' : 'accepted';
         const decision: FieldDecision = {
           fieldId: context.fieldId,
           status,

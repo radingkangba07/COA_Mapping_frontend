@@ -13,15 +13,16 @@ import { colors } from '@/config/theme';
 import { useAppStore } from '@/shared/store/app.store';
 import { isWeb } from '@/shared/utils/platform.utils';
 import { Table } from '@/shared/components/ui/Table';
-import { Checkbox } from '@/shared/components/ui/Checkbox';
 import { Button } from '@/shared/components/ui/Button';
+import { Checkbox } from '@/shared/components/ui/Checkbox';
+import { TablePagination } from '@/shared/components/ui/TablePagination';
 import { Tooltip } from '@/shared/components/ui/Tooltip';
 import { SemanticBadge } from '../SemanticBadge/SemanticBadge';
 import { GradientChip } from '@/shared/components/ui/GradientChip';
 import { RowActionsCell } from './RowActionsCell';
 import { useSourceProfileStore, type SortKey } from '@/features/master-data-wizard/store/sourceProfile.store';
 import { decisionStateFor } from '@/features/master-data-wizard/utils/decisions';
-import { tint } from '@/features/master-data-wizard/utils/colorMix';
+import { tint, mixHex } from '@/features/master-data-wizard/utils/colorMix';
 import { matchesCategory, fmt, pctOf, uniquenessPct, confidencePct, humanizeLabel, sortValueFor } from '@/features/master-data-wizard/utils/fields';
 import { UnsortedIcon } from '@/shared/components/icons/UnsortedIcon';
 import { confidenceRamp, nullRowsRamp } from '@/features/master-data-wizard/utils/metricRamp';
@@ -47,37 +48,6 @@ interface FieldsTableProps {
   // (post category-filter) renders, same as before this prop existed.
   readonly filterIds?: readonly string[] | null;
   readonly testID?: string;
-}
-
-// Generic opaque hex blend, two uses in this file:
-// 1. The reference's row highlight (`tr[data-hl="true"]`) uses an 8% accent
-//    tint — `dp-theme.ts`'s `badgeTint()` is generated/read-only and fixed
-//    at 13% (for count badges), so this one-off alpha is computed locally
-//    instead of adding a parameter to the generated helper. Returns a SOLID
-//    (opaque) blend, not an rgba string, since it's applied to the whole
-//    row (behind the transparent, non-frozen cells) — the three sticky/
-//    frozen columns (checkbox, #, Field) deliberately do NOT use this: the
-//    reference's own CSS gives them an unconditional, always-opaque
-//    `background:var(--card)` (`td:nth-child(-n+3)`), never tinted by
-//    `data-hl`/`data-dim` — confirmed by inspecting the reference source,
-//    not assumed from a screenshot.
-// 2. Darkening the header's rest-state text a step past `mutedForeground`
-//    (user-requested readability tweak, kept on-token rather than a
-//    hardcoded hex — see `HEADER_REST_TEXT` below).
-function mixHex(baseHex: string, tintHex: string, alpha: number): string {
-  const parse = (hex: string): readonly [number, number, number] | null => {
-    const m = /^#?([0-9a-f]{6})$/i.exec(hex.replace('#', ''));
-    if (!m || m[1] === undefined) return null;
-    const n = parseInt(m[1], 16);
-    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-  };
-  const base = parse(baseHex);
-  const tint = parse(tintHex);
-  if (!base || !tint) return baseHex;
-  const [baseR, baseG, baseB] = base;
-  const [tintR, tintG, tintB] = tint;
-  const mix = (b: number, t: number) => Math.round(b * (1 - alpha) + t * alpha);
-  return `rgb(${mix(baseR, tintR)}, ${mix(baseG, tintG)}, ${mix(baseB, tintB)})`;
 }
 
 interface HeaderDef {
@@ -402,7 +372,7 @@ export const FieldsTable = ({ pack, highlightIds, dimIds, filterIds = null, test
               onPress={() => openField(field.id)}
               onHoverIn={() => setHoveredRowId(field.id)}
               onHoverOut={() => setHoveredRowId((current) => (current === field.id ? null : current))}
-              className="flex-row border-b border-border"
+              className="flex-row border-b border-border focus:outline-none"
               style={[
                 { backgroundColor: displayBg, opacity: isDimmed ? 0.34 : 1 },
                 selectedStripe as StyleProp<ViewStyle>,

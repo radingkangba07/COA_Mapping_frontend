@@ -31,7 +31,7 @@ const DialogRoot = React.forwardRef<View, DialogRootProps>(
     >
       <View className="flex-1 items-center justify-center">
         <Pressable
-          className="absolute inset-0 bg-black/50"
+          className="absolute inset-0 bg-black/40"
           onPress={onClose}
           accessibilityRole="button"
           accessibilityLabel="Close dialog"
