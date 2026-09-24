@@ -3,9 +3,6 @@ import { renderHook, waitFor, act } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useWizardStore } from '../../store/wizard.store';
 
-// The service calls httpClient.get / httpClient.post (an axios instance); mock
-// that layer so the whole real hook -> service -> parse path runs, and assert
-// on the polling/mutation behaviour built on top of it.
 const mockGet = jest.fn();
 const mockPost = jest.fn();
 jest.mock('@/shared/services/http/http.instance', () => ({
@@ -25,22 +22,25 @@ function createWrapper(): React.ComponentType<{ children: React.ReactNode }> {
   };
 }
 
-/** Build a complete TestRunDto response wrapped as an axios `{ data }` result. */
-function testRunResponse(overrides: Record<string, unknown>): { data: Record<string, unknown> } {
+function importRunResponse(overrides: Record<string, unknown>): { data: Record<string, unknown> } {
   return {
     data: {
-      id: 'test-run-1',
+      id: 'ir-1',
       run_id: 'run-1',
       status: 'pending',
+      run_code: 'run_ti_0001',
+      batch_size: 20,
+      req_per_sec: 4,
       rows_attempted: null,
-      rows_passed: null,
+      rows_imported: null,
       rows_failed: null,
-      failure_summary: null,
-      sample_failures: null,
+      rows_skipped: null,
+      rows_reconciled: null,
+      duration_ms: null,
       error_detail: null,
-      created_at: '2026-09-23T10:00:00Z',
       started_at: null,
       completed_at: null,
+      created_at: '2026-09-23T10:00:00Z',
       ...overrides,
     },
   };
@@ -53,10 +53,10 @@ describe('useTestImport', () => {
     mockPost.mockReset();
   });
 
-  it('returns a null testRun and does not load when there is no run id in the store', () => {
+  it('returns a null importRun and does not load when there is no run id in the store', () => {
     const { result } = renderHook(() => useTestImport('items' as EntityId), { wrapper: createWrapper() });
 
-    expect(result.current.testRun).toBeNull();
+    expect(result.current.importRun).toBeNull();
     expect(result.current.isLoading).toBe(false);
     expect(mockGet).not.toHaveBeenCalled();
   });
@@ -64,48 +64,61 @@ describe('useTestImport', () => {
   it('polls until it reaches a terminal complete status', async () => {
     useWizardStore.getState().setPipelineRunId('items', 'run-1');
     mockGet
-      .mockResolvedValueOnce(testRunResponse({ status: 'running' }))
-      .mockResolvedValueOnce(
-        testRunResponse({ status: 'complete', rows_attempted: 10, rows_passed: 8, rows_failed: 2 }),
+      .mockResolvedValueOnce(importRunResponse({ status: 'running' }))
+      .mockResolvedValue(
+        importRunResponse({ status: 'complete', rows_attempted: 10, rows_imported: 8, rows_failed: 2 }),
       );
 
     const { result } = renderHook(() => useTestImport('items' as EntityId), { wrapper: createWrapper() });
 
-    await waitFor(() => expect(result.current.testRun?.status).toBe('running'));
-    await waitFor(() => expect(result.current.testRun?.status).toBe('complete'), { timeout: 5000 });
-    expect(result.current.testRun?.rows_failed).toBe(2);
+    await waitFor(() => expect(result.current.importRun?.status).toBe('running'));
+    await waitFor(() => expect(result.current.importRun?.status).toBe('complete'), { timeout: 5000 });
+    expect(result.current.importRun?.rows_failed).toBe(2);
   }, 10000);
 
-  it('sets testRun after triggerRun POSTs a new dry run', async () => {
+  it('sets importRun after triggerRun POSTs a new run', async () => {
     useWizardStore.getState().setPipelineRunId('items', 'run-1');
-    // Query fetch fails so only the mutation result populates testRun.
-    mockGet.mockRejectedValue(new Error('no test run yet'));
-    mockPost.mockResolvedValue(testRunResponse({ status: 'pending' }));
+    mockGet.mockRejectedValue(new Error('no run yet'));
+    mockPost.mockResolvedValue(importRunResponse({ status: 'pending' }));
 
     const { result } = renderHook(() => useTestImport('items' as EntityId), { wrapper: createWrapper() });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    act(() => {
-      result.current.triggerRun();
-    });
+    act(() => { result.current.triggerRun(); });
 
     await waitFor(() => expect(result.current.isTriggering).toBe(false));
-    await waitFor(() => expect(result.current.testRun?.status).toBe('pending'));
-    expect(mockPost).toHaveBeenCalledWith('/api/v1/pipeline/runs/run-1/test', {});
+    await waitFor(() => expect(result.current.importRun?.status).toBe('pending'));
+    expect(mockPost).toHaveBeenCalledWith('/api/v1/pipeline/runs/run-1/import-run', {});
   }, 10000);
 
   it('stops polling once the run has failed', async () => {
     useWizardStore.getState().setPipelineRunId('items', 'run-1');
-    mockGet.mockResolvedValue(testRunResponse({ status: 'failed', error_detail: 'boom' }));
+    mockGet.mockResolvedValue(importRunResponse({ status: 'failed', error_detail: 'worker crashed' }));
 
     const { result } = renderHook(() => useTestImport('items' as EntityId), { wrapper: createWrapper() });
 
-    await waitFor(() => expect(result.current.testRun?.status).toBe('failed'));
-
-    // refetchInterval returns false for terminal states, so no further GETs fire.
+    await waitFor(() => expect(result.current.importRun?.status).toBe('failed'));
     await new Promise((resolve) => setTimeout(resolve, 2500));
-    expect(mockGet).toHaveBeenCalledTimes(1);
-    expect(result.current.testRun?.error_detail).toBe('boom');
+    // Only the import-run endpoint itself is polled — sub-resource GETs fire once
+    // when the run becomes terminal but the import-run poll must not repeat.
+    const importRunPolls = (mockGet.mock.calls as [string][]).filter(
+      ([url]) => !url.includes('/batches') && !url.includes('/errors') && !url.includes('/records') && !url.includes('/connector-requests'),
+    );
+    expect(importRunPolls).toHaveLength(1);
+    expect(result.current.importRun?.error_detail).toBe('worker crashed');
   }, 10000);
+
+  it('exposes setSelectedBatch and defaults selectedBatch to null', () => {
+    useWizardStore.getState().setPipelineRunId('items', 'run-1');
+    mockGet.mockResolvedValue(importRunResponse({ status: 'pending' }));
+
+    const { result } = renderHook(() => useTestImport('items' as EntityId), { wrapper: createWrapper() });
+
+    expect(result.current.selectedBatch).toBeNull();
+
+    act(() => { result.current.setSelectedBatch('batch_01'); });
+
+    expect(result.current.selectedBatch).toBe('batch_01');
+  });
 });
