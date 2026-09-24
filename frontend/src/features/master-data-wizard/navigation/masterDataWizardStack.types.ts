@@ -20,7 +20,7 @@ export type MasterDataWizardStackParamList = {
   Upload: undefined;
   Profile: undefined;
   Mapping: undefined;
-  ValueMapping: undefined;
+  Values: undefined;
 };
 
 // One entry per step that actually has a registered <Stack.Screen> in
@@ -33,7 +33,7 @@ const STEP_ROUTE: Partial<Record<StepId, keyof MasterDataWizardStackParamList>> 
   upload: 'Upload',
   profile: 'Profile',
   mapping: 'Mapping',
-  values: 'ValueMapping',
+  values: 'Values',
 };
 
 /**

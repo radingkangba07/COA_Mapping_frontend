@@ -38,14 +38,13 @@ function ProfileStep(): React.JSX.Element {
   const entityId = useWizardStore((s) => s.entityId) as EntityId;
   const recordStep = useWizardStore((s) => s.recordStep);
   const handleBack = useCallback((): void => {
-    if (navigation.canGoBack()) {
-      recordStep(entityId, 'upload');
-    }
-    navigation.goBack();
+    recordStep(entityId, 'upload');
+    navigation.navigate('Upload');
   }, [navigation, entityId, recordStep]);
   const handleContinue = useCallback((): void => {
+    recordStep(entityId, 'mapping');
     navigation.navigate('Mapping');
-  }, [navigation]);
+  }, [navigation, entityId, recordStep]);
   return <SourceDataProfileScreen onBack={handleBack} onContinue={handleContinue} />;
 }
 
@@ -55,14 +54,13 @@ function MappingStep(): React.JSX.Element {
   const entityId = useWizardStore((s) => s.entityId) as EntityId;
   const recordStep = useWizardStore((s) => s.recordStep);
   const handleBack = useCallback((): void => {
-    if (navigation.canGoBack()) {
-      recordStep(entityId, 'profile');
-    }
-    navigation.goBack();
+    recordStep(entityId, 'profile');
+    navigation.navigate('Profile');
   }, [navigation, entityId, recordStep]);
   const handleContinue = useCallback((): void => {
-    navigation.navigate('ValueMapping');
-  }, [navigation]);
+    recordStep(entityId, 'values');
+    navigation.navigate('Values');
+  }, [navigation, entityId, recordStep]);
   return <FieldMappingScreen onBack={handleBack} onContinue={handleContinue} />;
 }
 
@@ -72,10 +70,8 @@ function ValuesStep(): React.JSX.Element {
   const entityId = useWizardStore((s) => s.entityId) as EntityId;
   const recordStep = useWizardStore((s) => s.recordStep);
   const handleBack = useCallback((): void => {
-    if (navigation.canGoBack()) {
-      recordStep(entityId, 'mapping');
-    }
-    navigation.goBack();
+    recordStep(entityId, 'mapping');
+    navigation.navigate('Mapping');
   }, [navigation, entityId, recordStep]);
   return <ValueMappingScreen onBack={handleBack} />;
 }
@@ -91,7 +87,7 @@ export function MasterDataWizardStack({ initialRouteName }: MasterDataWizardStac
       <Stack.Screen name="Upload" component={MasterDataUploadScreen} />
       <Stack.Screen name="Profile" component={ProfileStep} />
       <Stack.Screen name="Mapping" component={MappingStep} />
-      <Stack.Screen name="ValueMapping" component={ValuesStep} />
+      <Stack.Screen name="Values" component={ValuesStep} />
     </Stack.Navigator>
   );
 }

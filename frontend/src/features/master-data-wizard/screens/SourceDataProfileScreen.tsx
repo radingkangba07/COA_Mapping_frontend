@@ -132,7 +132,6 @@ export function SourceDataProfileScreen({
   // Rare once `pack` never renders until real data lands (see above) — this
   // only fires for a background refetch of an already-loaded live pack (e.g.
   // a manual refetch() call while `pack` is already set).
-  const isFetchingLive = hasLiveRun && pack !== null && livePackQuery.isFetching;
 
   // Registers into the wizard's single rightPanel slot (owned by
   // MasterDataWizardScreen) — same pattern as FieldMappingScreen's Copilot
@@ -287,12 +286,11 @@ export function SourceDataProfileScreen({
                 <Text className="font-body text-xs text-muted-foreground">
                   {`Step ${step.n} of ${stepCount}`}
                 </Text>
-                {isFetchingLive ? <Spinner size="sm" testID="source-profile-fetching-spinner" /> : null}
               </View>
               <View className="mt-2 flex-row items-center gap-2">
                 <SourceFileIcon size={15} color={colors.mutedForeground} />
                 <Text className="font-body text-xs text-muted-foreground">
-                  {`${pack.source.object} · ${(pack.source.rowCount ?? 0).toLocaleString('en-US')} rows`}
+                  {`${pack.source.object}  master extract · ${(pack.source.rowCount ?? 0).toLocaleString('en-US')} rows`}
                 </Text>
               </View>
             </View>
