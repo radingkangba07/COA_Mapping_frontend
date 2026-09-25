@@ -103,7 +103,7 @@ export function SourceDataProfileScreen({
     // for the same project+entity reused the previous run's cached pack
     // forever instead of fetching the new run's data.
     queryKey: ['entity-pack-live', orgProjectId, entityId, runId] as const,
-    enabled: run?.status === 'complete',
+    enabled: run?.status === 'complete' || run?.status === 'error',
     queryFn: async () => {
       const result = await getEntityPackFromApi(orgProjectId as string, entityId);
       if (!result.ok) throw result.error;
