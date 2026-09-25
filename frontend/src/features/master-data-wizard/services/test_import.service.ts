@@ -144,12 +144,23 @@ function parse<T>(schema: z.ZodType<T>, data: unknown, label: string): Result<T,
 
 // ─── Service functions ────────────────────────────────────────────────────────
 
+export interface ImportRunTriggerContext {
+  readonly connectionId: string;
+  readonly encryptedCredentials: string;
+}
+
 export async function triggerImportRun(
   client: HttpClient,
   runId: string,
+  context?: ImportRunTriggerContext,
 ): Promise<Result<ImportRunDto, AppError>> {
   try {
-    const response = await client.post<unknown>(`/api/v1/pipeline/runs/${runId}/import-run`, {});
+    const body: Record<string, unknown> = {};
+    if (context !== undefined) {
+      body.connection_id = context.connectionId;
+      body.encrypted_credentials = context.encryptedCredentials;
+    }
+    const response = await client.post<unknown>(`/api/v1/pipeline/runs/${runId}/import-run`, body);
     return parse(importRunSchema, response.data, 'Import run');
   } catch (error: unknown) {
     return err(toAppError(error));

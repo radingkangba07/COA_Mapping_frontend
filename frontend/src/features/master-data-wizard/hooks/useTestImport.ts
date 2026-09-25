@@ -21,6 +21,9 @@ import type {
 import type { EntityId } from '../dp-kit/types/entity';
 import type { AppError } from '@/shared/types/result.types';
 import { isAppError } from '@/shared/types/result.types';
+import { useProjectScopeStore } from '@/features/projects/store/project-scope.store';
+import { CONNECTION_METHODS } from '@/features/projects/types/project-scope.types';
+import { encryptCredentials, clearKeyCache } from '@/shared/services/crypto/credentials.crypto';
 
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLLS = 60;
@@ -50,6 +53,10 @@ export function useTestImport(entityId: EntityId): UseTestImportResult {
   );
   const queryClient = useQueryClient();
   const [selectedBatch, setSelectedBatch] = useState<string | null>(null);
+
+  const targetMethod = useProjectScopeStore((s) => s.draft.targetMethod);
+  const targetConnectionId = useProjectScopeStore((s) => s.targetConnectionId);
+  const targetCredentials = useProjectScopeStore((s) => s.targetCredentials);
 
   const importRunQuery = useQuery({
     queryKey: ['import-run', entityId, runId] as const,
@@ -129,7 +136,29 @@ export function useTestImport(entityId: EntityId): UseTestImportResult {
       if (!runId) {
         throw { code: 'NO_PIPELINE_RUN', message: 'No pipeline run for this entity' } satisfies AppError;
       }
-      const result = await triggerImportRun(httpClient, runId);
+
+      // When the target uses MCP, encrypt credentials and pass the connection
+      // context so the import-run worker can authenticate against the ERP.
+      // Mirrors the same hybrid RSA-OAEP + AES-GCM pattern used by useMcpFetch.
+      let context: { connectionId: string; encryptedCredentials: string } | undefined;
+      if (
+        targetMethod === CONNECTION_METHODS.MCP &&
+        targetConnectionId !== null &&
+        targetCredentials !== null
+      ) {
+        try {
+          const encryptedCredentials = await encryptCredentials(targetCredentials);
+          context = { connectionId: targetConnectionId, encryptedCredentials };
+        } catch {
+          clearKeyCache();
+          throw {
+            code: 'CREDENTIAL_ENCRYPT_ERROR',
+            message: 'Failed to encrypt MCP credentials. Please retry.',
+          } satisfies AppError;
+        }
+      }
+
+      const result = await triggerImportRun(httpClient, runId, context);
       if (!result.ok) throw result.error;
       return result.data;
     },
