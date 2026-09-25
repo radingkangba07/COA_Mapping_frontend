@@ -42,6 +42,7 @@ export function SidebarContent({
   targetERP,
   sourceRowCount,
   targetRowCount,
+  entityProgressPercent,
   currentUser,
   onToggle,
   testID,
@@ -216,6 +217,9 @@ export function SidebarContent({
         <View className="border-t border-border pt-3 mb-4">
           {projectId ? (
             <SidebarRow label="Project ID" value={projectId!.slice(0, 8)} />
+          ) : null}
+          {entityProgressPercent !== undefined ? (
+            <SidebarRow label="Progress" value={`${entityProgressPercent}%`} />
           ) : null}
           {createdAt ? (
             <View className="py-1.5">

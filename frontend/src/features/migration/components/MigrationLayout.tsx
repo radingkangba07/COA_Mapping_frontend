@@ -41,6 +41,8 @@ export interface MigrationLayoutProps {
    */
   readonly sourceRowCount?: number;
   readonly targetRowCount?: number;
+  /** See SidebarContentProps.entityProgressPercent — same override reasoning. */
+  readonly entityProgressPercent?: number;
 }
 
 const SCROLL_CONTENT_STYLE = { flexGrow: 1 } as const;
@@ -57,6 +59,7 @@ export const MigrationLayout = ({
   testID,
   sourceRowCount,
   targetRowCount,
+  entityProgressPercent,
 }: MigrationLayoutProps): React.JSX.Element => {
   useMigrationFlowDetector();
   const baseSidebarProps = useSidebarData(projectId);
@@ -64,6 +67,7 @@ export const MigrationLayout = ({
     ...baseSidebarProps,
     ...(sourceRowCount !== undefined ? { sourceRowCount } : {}),
     ...(targetRowCount !== undefined ? { targetRowCount } : {}),
+    ...(entityProgressPercent !== undefined ? { entityProgressPercent } : {}),
   };
   const { width } = useWindowDimensions();
   const isDesktop = width >= BREAKPOINTS.md;

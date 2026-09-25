@@ -22,6 +22,13 @@ export interface SidebarContentProps {
   readonly targetERP: ERPInfo | null;
   readonly sourceRowCount?: number;
   readonly targetRowCount?: number;
+  /**
+   * This entity's server-computed progress % (0-100) — currently only
+   * populated by the master-data wizard (wizard.store's
+   * entityProgressByEntity, via hydrateEntityProgress). Omitted entirely
+   * for the classic COA migration flow, which has no equivalent field.
+   */
+  readonly entityProgressPercent?: number;
   readonly currentUser: CurrentUserInfo | null;
   readonly onToggle?: () => void;
   readonly testID?: string;

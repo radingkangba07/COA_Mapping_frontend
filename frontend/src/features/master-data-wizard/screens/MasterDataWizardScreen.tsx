@@ -59,6 +59,7 @@ export function MasterDataWizardScreen(): React.JSX.Element {
   const setWizardContext = useWizardStore((s) => s.setWizardContext);
   const hydrateStepByEntity = useWizardStore((s) => s.hydrateStepByEntity);
   const hydrateUploadedFileByEntity = useWizardStore((s) => s.hydrateUploadedFileByEntity);
+  const hydrateEntityProgress = useWizardStore((s) => s.hydrateEntityProgress);
   // Zustand state updates don't take effect synchronously mid-render, so the
   // very first render would otherwise mount MasterDataWizardStack (and thus
   // Upload) before the store has this session's identifiers and its
@@ -94,11 +95,26 @@ export function MasterDataWizardScreen(): React.JSX.Element {
       });
       const resumeStep = useWizardStore.getState().stepByEntity[buildEntityKey(parentProjectId, entityId as EntityId)];
       setInitialRouteName(stepIdToWizardRoute(resumeStep));
+      // Fire-and-forget, after the resume route above is already decided —
+      // never gates the spinner on a network round trip. Populates
+      // workstreamStagesByEntity (needed so completeStep can resolve a stage
+      // id) and entityProgressByEntity (the real 0-100 percentage) before the
+      // user can complete a step on this entity.
+      void hydrateEntityProgress(entityId as EntityId);
     })();
     return () => {
       cancelled = true;
     };
-  }, [entityId, orgProjectId, parentProjectId, workstreamId, setWizardContext, hydrateStepByEntity, hydrateUploadedFileByEntity]);
+  }, [
+    entityId,
+    orgProjectId,
+    parentProjectId,
+    workstreamId,
+    setWizardContext,
+    hydrateStepByEntity,
+    hydrateUploadedFileByEntity,
+    hydrateEntityProgress,
+  ]);
 
   // The sidebar must show the same "N source rows" on every step, and the
   // same count in every browser/tab. GET /api/v1/storage/files/{fileId}
@@ -121,6 +137,14 @@ export function MasterDataWizardScreen(): React.JSX.Element {
   // no file yet) for this entity.
   const sidebarTargetRowCount = workstreamId ? sidebarSourceRowCount : 0;
 
+  // entityProgressByEntity is hydrated above by hydrateEntityProgress — the
+  // one place this entity's real, server-computed 0-100 progress % lives.
+  // Rendered via MigrationLayout's sidebar (see sidebar.types.ts's
+  // entityProgressPercent) rather than added as a second consumer of
+  // fileDetails/discoveredFiles above, which track row counts, not progress.
+  const entityProgressKey = buildEntityKey(parentProjectId, entityId as EntityId);
+  const entityProgress = useWizardStore((s) => s.entityProgressByEntity[entityProgressKey]);
+
   const handleBack = useCallback((): void => {
     navigation.navigate('ProjectOverview', { projectId: parentProjectId });
   }, [navigation, parentProjectId]);
@@ -138,6 +162,7 @@ export function MasterDataWizardScreen(): React.JSX.Element {
       onBack={handleBack}
       sourceRowCount={sidebarSourceRowCount}
       targetRowCount={sidebarTargetRowCount}
+      entityProgressPercent={entityProgress?.progress}
       rightPanel={wizardRightPanel}
       testID="master-data-wizard-screen"
     >

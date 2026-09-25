@@ -4,13 +4,18 @@
    Root CLAUDE.md, "master-data wizard (dp-kit) rules" #5: "Every write goes
    through one approval component."
 
-   This store itself stays a pure, synchronous state container — it never
-   calls the network. Accept, Retarget, and Exclude all go through
-   raiseApproval -> confirmApproval (rule #4: "If a number cannot be
+   Field decisions stay behind that approval gate — this store never turns
+   an ai proposal into state on its own. Accept, Retarget, and Exclude all go
+   through raiseApproval -> confirmApproval (rule #4: "If a number cannot be
    recomputed by the profiler, it must not render as fact"; nothing becomes
    state until confirmed) — useApproval.ts is what turns a confirmed
    decision into the real PATCH column-mappings call (DA-401), with
    optimistic-update/rollback orchestration living there, not here.
+
+   Step-rail/progress tracking is a different concern, not a field decision,
+   and is not gated behind approval: hydrateEntityProgress and completeStep
+   do call the network directly (org-projects/{id}/overview and
+   workstreams/.../stages/{id}/complete — see their own doc comments below).
 
    Decisions are keyed by buildEntityKey(parentProjectId, entityId) because
    entityId is a route parameter and a user can navigate between the 8
@@ -37,8 +42,17 @@ import type {
 } from '../types/decision.types';
 import type { UploadResult } from '../types/upload.types';
 import { recordDecision, clearDecision } from '../services/decision.service';
+import { getWorkstreamProgress, completeWorkstreamStage, type WorkstreamStageInfo } from '../services/entity-pack.service';
+import { getOrgProjectOverview } from '@/features/project-overview/services/project-overview.service';
+import { httpClient } from '@/shared/services/http/http.instance';
 import { storageService } from '@/shared/services/storage/storage.service';
 import { STORAGE_KEYS } from '@/shared/services/storage/storage.types';
+
+export interface EntityProgress {
+  readonly progress: number;
+  readonly status: string;
+  readonly currentStage: string;
+}
 
 /**
  * A workstream (and thus an entityId, e.g. "items") is re-created per
@@ -135,15 +149,30 @@ interface WizardState {
   loadPreviewByEntity: Partial<Record<string, { fileName: string; rows: string[][] }>>;
   /**
    * StepRail completion for Upload/Profile, keyed by buildEntityKey(parentProjectId,
-   * entityId) — deliberately local-only, mirroring migration.store.ts's
-   * completedSteps: completeStep() below never calls the workstream-progress
-   * API (contrast entity-pack.service.ts's completeWorkstreamStage, which is
-   * no longer wired to these two screens). A step ticks the instant its
-   * screen's Continue is pressed, but — same trade-off migration.store.ts
-   * accepts — that tick does not survive a refresh, a new tab, or another
-   * device, since nothing server-side backs it any more.
+   * entityId) — ticks locally the instant a screen's Continue is pressed, for
+   * an immediate StepRail response, and completeStep() below also mirrors it
+   * to the backend (entity-pack.service.ts's completeWorkstreamStage) on a
+   * best-effort basis: the local tick never rolls back if that call fails or
+   * workstreamStagesByEntity hasn't hydrated yet, so a refresh/new tab/another
+   * device may still show it as not-done until the next successful mirror.
    */
   completedStepIdsByEntity: Partial<Record<string, StepId[]>>;
+  /**
+   * This entity's server-computed progress %, status and current stage —
+   * keyed the same way — from GET /api/v1/org-projects/{orgProjectId}/overview
+   * (see hydrateEntityProgress). This is the only source for a real 0-100
+   * number: GET .../workstreams/{id}/context (workstreamStagesByEntity below)
+   * has no percentage field, only per-stage completion flags.
+   */
+  entityProgressByEntity: Partial<Record<string, EntityProgress>>;
+  /**
+   * This entity's workstream stage list (id/name/sequence/isCompleted),
+   * keyed the same way — resolves a StepId to the stage id
+   * completeWorkstreamStage's PATCH expects (stage.name === stepId, per
+   * entity-pack.service.ts's own doc comment on the workstream context
+   * schema). Hydrated alongside entityProgressByEntity.
+   */
+  workstreamStagesByEntity: Partial<Record<string, readonly WorkstreamStageInfo[]>>;
   /** Set by raiseApproval; the approval component reads this to render itself. */
   pendingApproval: ApprovalContext | null;
 }
@@ -210,8 +239,22 @@ interface WizardActions {
   hydrateUploadedFileByEntity: () => Promise<void>;
 
   /**
-   * Marks `stepId` complete for this entity, purely in local state — no
-   * network call. See completedStepIdsByEntity's doc comment above.
+   * Fetches this entity's own progress/status/current-stage (via
+   * GET /org-projects/{orgProjectId}/overview) and its workstream's stage
+   * list (via GET /workstreams/{workstreamId}/context), storing both under
+   * buildEntityKey(parentProjectId, entityId). Call once on wizard mount —
+   * completeStep below needs workstreamStagesByEntity populated to resolve a
+   * stage id — and again after every successful completeWorkstreamStage so
+   * the displayed percentage reflects the step that was just completed.
+   * Best-effort: a failed fetch leaves both maps at whatever they last held.
+   */
+  hydrateEntityProgress: (entityId: EntityId) => Promise<void>;
+
+  /**
+   * Marks `stepId` complete for this entity in local state (immediate
+   * StepRail feedback), and best-effort mirrors it to the backend via
+   * completeWorkstreamStage when this entity's workstream stage list is
+   * already hydrated — see completedStepIdsByEntity's doc comment above.
    */
   completeStep: (entityId: EntityId, stepId: StepId) => void;
 
@@ -248,6 +291,8 @@ const initialState: WizardState = {
   pipelineRunIdByEntity: {},
   loadPreviewByEntity: {},
   completedStepIdsByEntity: {},
+  entityProgressByEntity: {},
+  workstreamStagesByEntity: {},
   pendingApproval: null,
 };
 
@@ -446,6 +491,73 @@ export const useWizardStore = create<WizardStore>()(
       }
     },
 
+    hydrateEntityProgress: async (entityId: EntityId): Promise<void> => {
+      const { orgProjectId, workstreamId, parentProjectId } = get();
+      if (!orgProjectId) return;
+      const key = buildEntityKey(parentProjectId ?? '', entityId);
+
+      // Raw DTO, not toProjectOverview(dto) — that mapper's augmentNotIncluded
+      // step can inject client-synthesised placeholder rows (progress: 0,
+      // status: 'not_included') for workstreams the backend never returned.
+      // Matching directly off the DTO's own groups[].workstreams[] guarantees
+      // this only ever stores a real, server-computed row — never a
+      // fabricated one rendered as if it were fact (wizard rule #4).
+      const overviewPromise = getOrgProjectOverview(httpClient, orgProjectId).catch(() => null);
+      const stagesPromise = workstreamId ? getWorkstreamProgress(workstreamId) : Promise.resolve(null);
+
+      const [dto, stagesResult] = await Promise.all([overviewPromise, stagesPromise]);
+
+      set((state) => {
+        // React Navigation reuses this screen instance across a project/
+        // entity switch — no unmount, just a re-seeded wizard context (see
+        // MasterDataWizardScreen's own doc comment) — so by the time this
+        // fetch resolves, orgProjectId/workstreamId/parentProjectId may
+        // already belong to a different session than the one `key` above was
+        // built from. Bail rather than write this entity's data under a key
+        // built from a mix of the old entityId and the new project/
+        // workstream identifiers.
+        if (
+          state.orgProjectId !== orgProjectId ||
+          state.workstreamId !== workstreamId ||
+          state.parentProjectId !== parentProjectId
+        ) {
+          return;
+        }
+        // Only ever matched by workstreamId — no items[0] fallback. Without a
+        // workstreamId there is no reliable way to pick "this entity's" row
+        // out of the response, and guessing risks landing on one of
+        // augmentNotIncluded's placeholder rows (moot now that this reads the
+        // raw DTO, but a wrong real row is just as much a provenance
+        // violation).
+        const match = workstreamId
+          ? dto?.groups?.flatMap((g) => g.workstreams).find((w) => w.id === workstreamId)
+          : undefined;
+        if (match) {
+          state.entityProgressByEntity[key] = {
+            progress: match.progress,
+            status: match.status,
+            currentStage: match.current_stage,
+          };
+        }
+        if (stagesResult && stagesResult.ok) {
+          state.workstreamStagesByEntity[key] = [...stagesResult.data.stages];
+          // The StepRail's checkmarks come from completedStepIdsByEntity, not
+          // from workstreamStagesByEntity — without this merge, a step the
+          // backend already has marked complete (from a previous session, a
+          // different tab, or completeStep's own best-effort mirror below)
+          // shows as not-done after every refresh, since completedStepIdsByEntity
+          // is otherwise only ever written by completeStep's local tick.
+          const doneFromServer = stagesResult.data.stages
+            .filter((s) => s.isCompleted)
+            .map((s) => s.name as StepId);
+          const existingDone = state.completedStepIdsByEntity[key] ?? [];
+          state.completedStepIdsByEntity[key] = Array.from(
+            new Set([...existingDone, ...doneFromServer]),
+          );
+        }
+      });
+    },
+
     completeStep: (entityId: EntityId, stepId: StepId): void => {
       set((state) => {
         const key = buildEntityKey(state.parentProjectId ?? '', entityId);
@@ -454,6 +566,39 @@ export const useWizardStore = create<WizardStore>()(
           state.completedStepIdsByEntity[key] = [...existing, stepId];
         }
       });
+
+      const { workstreamId, parentProjectId } = get();
+      const key = buildEntityKey(parentProjectId ?? '', entityId);
+
+      void (async (): Promise<void> => {
+        let stage = get().workstreamStagesByEntity[key]?.find((s) => s.name === stepId);
+        if (!stage) {
+          // First Continue on a freshly-opened entity can race
+          // hydrateEntityProgress's own in-flight fetch (fired on mount, see
+          // MasterDataWizardScreen) — workstreamStagesByEntity isn't
+          // populated yet, so the lookup above misses. Retry once, after
+          // waiting for a fresh hydrate, instead of silently giving up and
+          // never mirroring this step to the backend.
+          await get().hydrateEntityProgress(entityId);
+          // Session may have moved on to a different project/workstream
+          // while we waited on that retry fetch — same reasoning as the
+          // guard below, checked here too so a stale stage id is never used.
+          if (get().parentProjectId !== parentProjectId || get().workstreamId !== workstreamId) return;
+          stage = get().workstreamStagesByEntity[key]?.find((s) => s.name === stepId);
+        }
+        if (!workstreamId || !stage) return;
+
+        const result = await completeWorkstreamStage(workstreamId, stage.id);
+        if (!result.ok) return;
+        // Same reasoning as hydrateEntityProgress's own guard above — the
+        // session may have moved on to a different project/workstream
+        // during this PATCH's round trip. Calling hydrateEntityProgress
+        // with this (now stale) entityId against the current, different
+        // context would mix the two — skip the refresh rather than
+        // contaminate the new session's entry.
+        if (get().parentProjectId !== parentProjectId || get().workstreamId !== workstreamId) return;
+        void get().hydrateEntityProgress(entityId);
+      })();
     },
 
     raiseApproval: (context: ApprovalContext): void => {

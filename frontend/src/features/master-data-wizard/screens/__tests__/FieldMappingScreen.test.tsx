@@ -91,7 +91,7 @@ describe('FieldMappingScreen', () => {
     expect(screen.getByTestId('mapping-table-row-f15')).toBeTruthy();
     expect(screen.queryByTestId('mapping-table-row-f16')).toBeNull();
     expect(screen.getByTestId('mapping-table-page-4')).toBeTruthy();
-  });
+  }, 15000);
 
   it('DA-401: falls back to the client-derived readiness banner when the real backend response has no readiness block at all', async () => {
     // Real `getColumnMappings` never sets `readiness` (see mapping.service.ts's

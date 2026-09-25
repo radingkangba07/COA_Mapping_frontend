@@ -1,8 +1,13 @@
 import { buildEntityKey, useWizardStore } from '../wizard.store';
 import { storageService } from '@/shared/services/storage/storage.service';
 import { STORAGE_KEYS } from '@/shared/services/storage/storage.types';
+import { getWorkstreamProgress, completeWorkstreamStage } from '../../services/entity-pack.service';
+import { getOrgProjectOverview } from '@/features/project-overview/services/project-overview.service';
+import { ok, err } from '@/shared/types/result.types';
 import type { ApprovalContext } from '../../types/decision.types';
 import type { UploadResult } from '../../types/upload.types';
+import type { WorkstreamStageInfo } from '../../services/entity-pack.service';
+import type { ProjectOverviewDTO } from '@/features/project-overview/types/project-overview.types';
 
 jest.mock('@/shared/services/storage/storage.service', () => ({
   storageService: {
@@ -13,8 +18,72 @@ jest.mock('@/shared/services/storage/storage.service', () => ({
   },
 }));
 
+jest.mock('../../services/entity-pack.service', () => ({
+  getWorkstreamProgress: jest.fn(),
+  completeWorkstreamStage: jest.fn(),
+}));
+
+jest.mock('@/features/project-overview/services/project-overview.service', () => ({
+  getOrgProjectOverview: jest.fn(),
+}));
+
+jest.mock('@/shared/services/http/http.instance', () => ({
+  httpClient: {},
+}));
+
 const mockStorageGet = storageService.get as jest.Mock;
 const mockStorageSet = storageService.set as jest.Mock;
+const mockGetWorkstreamProgress = getWorkstreamProgress as jest.Mock;
+const mockCompleteWorkstreamStage = completeWorkstreamStage as jest.Mock;
+const mockGetOrgProjectOverview = getOrgProjectOverview as jest.Mock;
+
+function makeStage(overrides: Partial<WorkstreamStageInfo> = {}): WorkstreamStageInfo {
+  return { id: 'stage-upload', name: 'upload', sequence: 1, isCompleted: false, ...overrides };
+}
+
+function makeOverviewDTO(workstream: {
+  id: string;
+  progress?: number;
+  status?: string;
+  current_stage?: string;
+}): ProjectOverviewDTO {
+  return {
+    id: 'org-1',
+    name: 'Org Project',
+    project_code: 'OP-1',
+    status: 'active',
+    source_erp: 'a',
+    target_erp: 'b',
+    source_deployment: null,
+    target_deployment: null,
+    last_edited_at: '2026-01-01T00:00:00Z',
+    groups: [
+      {
+        key: 'master-data',
+        title: 'Master Data',
+        workstreams: [
+          {
+            id: workstream.id,
+            code: 'ITM-001',
+            name: 'Items',
+            status: workstream.status ?? 'in_progress',
+            progress: workstream.progress ?? 50,
+            current_stage: workstream.current_stage ?? 'profile',
+            included: true,
+          },
+        ],
+      },
+    ],
+  };
+}
+
+// Async store actions here resolve over real microtasks (no fake timers) —
+// flush the queue so assertions run after every `.then()`/`await` in the
+// action itself has settled, not just the promise this helper is chained onto.
+async function flushPromises(): Promise<void> {
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+}
 
 function makeUploadResult(overrides: Partial<UploadResult> = {}): UploadResult {
   return {
@@ -47,6 +116,9 @@ describe('wizard.store', () => {
     jest.clearAllMocks();
     mockStorageSet.mockResolvedValue(undefined);
     mockStorageGet.mockResolvedValue(null);
+    mockGetOrgProjectOverview.mockResolvedValue(makeOverviewDTO({ id: 'ws-1' }));
+    mockGetWorkstreamProgress.mockResolvedValue(ok({ currentStage: 'profile', stages: [makeStage()] }));
+    mockCompleteWorkstreamStage.mockResolvedValue(ok(undefined));
     useWizardStore.getState().reset();
   });
 
@@ -219,6 +291,139 @@ describe('wizard.store', () => {
         'proj-1:items': ['upload'],
         'proj-2:items': ['profile'],
       });
+    });
+
+    it('mirrors a completed step to completeWorkstreamStage using the resolved stage id', async () => {
+      useWizardStore.getState().setWizardContext({
+        entityId: 'items', orgProjectId: 'org-1', parentProjectId: 'proj-1', workstreamId: 'ws-1',
+      });
+      mockGetWorkstreamProgress.mockResolvedValue(
+        ok({ currentStage: 'upload', stages: [makeStage({ id: 'stage-upload-1', name: 'upload' })] }),
+      );
+      // Pre-hydrate so workstreamStagesByEntity is populated before completeStep
+      // runs — this test is about the resolved stage id reaching the PATCH
+      // call, not about the race-retry path (covered separately below).
+      await useWizardStore.getState().hydrateEntityProgress('items');
+
+      useWizardStore.getState().completeStep('items', 'upload');
+      await flushPromises();
+
+      expect(mockCompleteWorkstreamStage).toHaveBeenCalledWith('ws-1', 'stage-upload-1');
+    });
+
+    it('retries via hydrateEntityProgress when workstreamStagesByEntity has not hydrated yet (race on first Continue)', async () => {
+      useWizardStore.getState().setWizardContext({
+        entityId: 'items', orgProjectId: 'org-1', parentProjectId: 'proj-1', workstreamId: 'ws-1',
+      });
+      mockGetWorkstreamProgress.mockResolvedValue(
+        ok({ currentStage: 'upload', stages: [makeStage({ id: 'stage-upload-1', name: 'upload' })] }),
+      );
+      expect(useWizardStore.getState().workstreamStagesByEntity['proj-1:items']).toBeUndefined();
+
+      // No prior hydrateEntityProgress call — workstreamStagesByEntity[key]
+      // is empty, so the first lookup inside completeStep must miss and
+      // retry via hydrateEntityProgress rather than silently giving up.
+      useWizardStore.getState().completeStep('items', 'upload');
+      await flushPromises();
+
+      expect(mockGetWorkstreamProgress).toHaveBeenCalledWith('ws-1');
+      expect(mockCompleteWorkstreamStage).toHaveBeenCalledWith('ws-1', 'stage-upload-1');
+    });
+
+    it('does not call completeWorkstreamStage when the retry also finds no matching stage', async () => {
+      useWizardStore.getState().setWizardContext({
+        entityId: 'items', orgProjectId: 'org-1', parentProjectId: 'proj-1', workstreamId: 'ws-1',
+      });
+      // Server knows about a "profile" stage, not "upload" — stepId never resolves.
+      mockGetWorkstreamProgress.mockResolvedValue(
+        ok({ currentStage: 'profile', stages: [makeStage({ id: 'stage-profile', name: 'profile' })] }),
+      );
+
+      useWizardStore.getState().completeStep('items', 'upload');
+      await flushPromises();
+
+      expect(mockCompleteWorkstreamStage).not.toHaveBeenCalled();
+      // Local tick still happened regardless — the mirror is best-effort.
+      expect(useWizardStore.getState().completedStepIdsByEntity['proj-1:items']).toEqual(['upload']);
+    });
+  });
+
+  describe('hydrateEntityProgress', () => {
+    it('stores the matched workstream row and merges its completed stages into completedStepIdsByEntity', async () => {
+      useWizardStore.getState().setWizardContext({
+        entityId: 'items', orgProjectId: 'org-1', parentProjectId: 'proj-1', workstreamId: 'ws-1',
+      });
+      mockGetOrgProjectOverview.mockResolvedValue(
+        makeOverviewDTO({ id: 'ws-1', progress: 40, status: 'in_progress', current_stage: 'mapping' }),
+      );
+      mockGetWorkstreamProgress.mockResolvedValue(
+        ok({
+          currentStage: 'mapping',
+          stages: [
+            makeStage({ id: 's-upload', name: 'upload', isCompleted: true }),
+            makeStage({ id: 's-profile', name: 'profile', isCompleted: true }),
+            makeStage({ id: 's-mapping', name: 'mapping', isCompleted: false }),
+          ],
+        }),
+      );
+
+      await useWizardStore.getState().hydrateEntityProgress('items');
+
+      const state = useWizardStore.getState();
+      expect(state.entityProgressByEntity['proj-1:items']).toEqual({
+        progress: 40,
+        status: 'in_progress',
+        currentStage: 'mapping',
+      });
+      expect(state.workstreamStagesByEntity['proj-1:items']).toHaveLength(3);
+      // This is the fix for "refresh loses completed ticks" — the server's
+      // isCompleted flags must reach completedStepIdsByEntity, since that's
+      // the field the StepRail's checkmarks actually read from.
+      expect(state.completedStepIdsByEntity['proj-1:items']).toEqual(
+        expect.arrayContaining(['upload', 'profile']),
+      );
+      expect(state.completedStepIdsByEntity['proj-1:items']).not.toContain('mapping');
+    });
+
+    it('does not clobber an already-locally-ticked step that the server has not caught up on yet', async () => {
+      useWizardStore.getState().setWizardContext({
+        entityId: 'items', orgProjectId: 'org-1', parentProjectId: 'proj-1', workstreamId: 'ws-1',
+      });
+      useWizardStore.getState().completeStep('items', 'values'); // local-only tick, unknown to the server mock
+      mockGetWorkstreamProgress.mockResolvedValue(
+        ok({ currentStage: 'upload', stages: [makeStage({ id: 's-upload', name: 'upload', isCompleted: true })] }),
+      );
+
+      await useWizardStore.getState().hydrateEntityProgress('items');
+
+      expect(useWizardStore.getState().completedStepIdsByEntity['proj-1:items']).toEqual(
+        expect.arrayContaining(['values', 'upload']),
+      );
+    });
+
+    it('bails without writing when the session has moved on before the fetch resolves (stale-session guard)', async () => {
+      useWizardStore.getState().setWizardContext({
+        entityId: 'items', orgProjectId: 'org-1', parentProjectId: 'proj-1', workstreamId: 'ws-1',
+      });
+      let resolveOverview: (dto: ProjectOverviewDTO) => void = () => {};
+      mockGetOrgProjectOverview.mockReturnValue(
+        new Promise((resolve) => {
+          resolveOverview = resolve;
+        }),
+      );
+
+      const hydratePromise = useWizardStore.getState().hydrateEntityProgress('items');
+
+      // Session moves on to a different project/workstream while the fetch
+      // above is still in flight.
+      useWizardStore.getState().setWizardContext({
+        entityId: 'items', orgProjectId: 'org-2', parentProjectId: 'proj-2', workstreamId: 'ws-2',
+      });
+      resolveOverview(makeOverviewDTO({ id: 'ws-1', progress: 99 }));
+      await hydratePromise;
+
+      // Nothing written under the old (now stale) session's key.
+      expect(useWizardStore.getState().entityProgressByEntity['proj-1:items']).toBeUndefined();
     });
   });
 
