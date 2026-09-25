@@ -14,6 +14,7 @@
    ========================================================================= */
 
 import React, { useCallback } from 'react';
+import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,6 +22,7 @@ import { MasterDataUploadScreen } from '../screens/MasterDataUploadScreen';
 import { SourceDataProfileScreen } from '../screens/SourceDataProfileScreen';
 import { FieldMappingScreen } from '../screens/FieldMappingScreen';
 import { ValueMappingScreen } from '../screens/ValueMappingScreen';
+import { TestImportScreen } from '../screens/TestImportScreen';
 import { useWizardStore } from '../store/wizard.store';
 import type { EntityId } from '../types/entity-pack.types';
 import type { MasterDataWizardStackParamList } from './masterDataWizardStack.types';
@@ -64,7 +66,7 @@ function MappingStep(): React.JSX.Element {
   return <FieldMappingScreen onBack={handleBack} onContinue={handleContinue} />;
 }
 
-/** Step 4 — placeholder screen (see ValueMappingScreen's own doc comment); only Back is wired, there's no step 5 to continue to yet. */
+/** Step 4 — placeholder screen; back goes to Mapping, continue goes to TestImport. */
 function ValuesStep(): React.JSX.Element {
   const navigation = useNavigation<NativeStackNavigationProp<MasterDataWizardStackParamList>>();
   const entityId = useWizardStore((s) => s.entityId) as EntityId;
@@ -73,7 +75,27 @@ function ValuesStep(): React.JSX.Element {
     recordStep(entityId, 'mapping');
     navigation.navigate('Mapping');
   }, [navigation, entityId, recordStep]);
-  return <ValueMappingScreen onBack={handleBack} />;
+  const handleContinue = useCallback((): void => {
+    navigation.navigate('TestImport');
+  }, [navigation]);
+  return <ValueMappingScreen onBack={handleBack} onContinue={handleContinue} />;
+}
+
+/** Step 7 — test import dry-run; back goes to ValueMapping. Step 8 (Import) is not yet built. */
+function TestImportStep(): React.JSX.Element {
+  const navigation = useNavigation<NativeStackNavigationProp<MasterDataWizardStackParamList>>();
+  const entityId = useWizardStore((s) => s.entityId) as EntityId;
+  const recordStep = useWizardStore((s) => s.recordStep);
+  const handleBack = useCallback((): void => {
+    if (navigation.canGoBack()) {
+      recordStep(entityId, 'values');
+    }
+    navigation.goBack();
+  }, [navigation, entityId, recordStep]);
+  const handleContinue = useCallback((): void => {
+    Alert.alert('Step 8 not yet built', 'The Import step is coming soon.');
+  }, []);
+  return <TestImportScreen onBack={handleBack} onContinue={handleContinue} />;
 }
 
 export interface MasterDataWizardStackProps {
@@ -88,6 +110,7 @@ export function MasterDataWizardStack({ initialRouteName }: MasterDataWizardStac
       <Stack.Screen name="Profile" component={ProfileStep} />
       <Stack.Screen name="Mapping" component={MappingStep} />
       <Stack.Screen name="Values" component={ValuesStep} />
+      <Stack.Screen name="TestImport" component={TestImportStep} />
     </Stack.Navigator>
   );
 }

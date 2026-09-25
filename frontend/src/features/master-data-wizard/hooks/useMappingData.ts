@@ -50,7 +50,11 @@ const EMPTY_BOOKMARKED_IDS: ReadonlySet<string> = new Set();
 
 function isEmptyMapping(mapping: EntityMapping | undefined): boolean {
   if (!mapping) return true;
-  return (mapping.proposals?.length ?? 0) === 0 && (mapping.missingTargets?.length ?? 0) === 0;
+  // An all-'Blocked' result means _auto_propose ran before the target-field
+  // catalogue was seeded. Treat it as empty so the poll interval keeps firing
+  // until real proposals arrive.
+  const actionable = (mapping.proposals ?? []).filter((p) => p.status !== 'Blocked').length;
+  return actionable === 0 && (mapping.missingTargets?.length ?? 0) === 0;
 }
 
 export function useMappingData(entityId: EntityId): UseMappingDataResult {

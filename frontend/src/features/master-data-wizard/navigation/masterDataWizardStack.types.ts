@@ -21,6 +21,7 @@ export type MasterDataWizardStackParamList = {
   Profile: undefined;
   Mapping: undefined;
   Values: undefined;
+  TestImport: undefined;
 };
 
 // One entry per step that actually has a registered <Stack.Screen> in
@@ -34,6 +35,7 @@ const STEP_ROUTE: Partial<Record<StepId, keyof MasterDataWizardStackParamList>> 
   profile: 'Profile',
   mapping: 'Mapping',
   values: 'Values',
+  test: 'TestImport',
 };
 
 /**

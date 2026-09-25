@@ -16,6 +16,8 @@ interface ValueMappingScreenProps {
   readonly entityId?: EntityId;
   /** Same plain-callback contract as FieldMappingScreen/SourceDataProfileScreen. */
   readonly onBack?: () => void;
+  /** Navigate forward to step 7 (TestImport). Not yet wired when step 5/6 are built — at that point this callback should route to step 5 instead. */
+  readonly onContinue?: () => void;
 }
 
 /**
@@ -29,6 +31,7 @@ interface ValueMappingScreenProps {
 export function ValueMappingScreen({
   entityId: entityIdProp,
   onBack: onBackProp,
+  onContinue,
 }: ValueMappingScreenProps): React.JSX.Element {
   const storeEntityId = useWizardStore((s) => s.entityId);
   const entityId = entityIdProp ?? storeEntityId ?? 'items';
@@ -37,6 +40,9 @@ export function ValueMappingScreen({
   const handleBack = useCallback((): void => {
     onBackProp?.();
   }, [onBackProp]);
+  const handleContinue = useCallback((): void => {
+    onContinue?.();
+  }, [onContinue]);
 
   const step = getStep('values');
   const stepRail = toStepRail('values' as StepId);
@@ -56,14 +62,21 @@ export function ValueMappingScreen({
             </View>
           </View>
 
-          {canGoBack ? (
-            <Button variant="outline" onPress={handleBack} testID="value-mapping-back">
-              <View className="flex-row items-center justify-center gap-1.5">
-                <ArrowLeft size={14} color={colors.foreground} />
-                <Text className="text-sm font-medium text-foreground">Back</Text>
-              </View>
-            </Button>
-          ) : null}
+          <View className="flex-row items-center gap-2">
+            {canGoBack ? (
+              <Button variant="outline" onPress={handleBack} testID="value-mapping-back">
+                <View className="flex-row items-center justify-center gap-1.5">
+                  <ArrowLeft size={14} color={colors.foreground} />
+                  <Text className="text-sm font-medium text-foreground">Back</Text>
+                </View>
+              </Button>
+            ) : null}
+            {onContinue != null ? (
+              <Button onPress={handleContinue} testID="value-mapping-continue">
+                <Text className="text-sm font-semibold text-primary-foreground">Continue</Text>
+              </Button>
+            ) : null}
+          </View>
         </View>
 
         <EmptyState
