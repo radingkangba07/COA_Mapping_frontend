@@ -36,6 +36,17 @@ function formatDuration(ms: number): string {
   return `${String(mins)}m ${String(secs)}s`;
 }
 
+// "batch-001" → "b1", "batch-012" → "b12"
+function shortBatch(code: string): string {
+  const m = code.match(/^batch-0*(\d+)$/);
+  return m != null ? `b${m[1]}` : code;
+}
+
+// "batch-001-req-0004" → "b1-req-0004"
+function shortReqCode(code: string): string {
+  return code.replace(/^batch-0*(\d+)-req-/, 'b$1-req-');
+}
+
 // ─── StatStrip ───────────────────────────────────────────────────────────────
 
 function StatTile({
@@ -149,11 +160,11 @@ function BatchSidebarItem({
   return (
     <Pressable
       onPress={onPress}
-      className="px-3 py-2.5 border-b border-border"
+      className="px-3 py-2.5"
       style={
         isSelected
-          ? { backgroundColor: colors.accent + '12', borderLeftWidth: 2, borderLeftColor: colors.accent }
-          : undefined
+          ? { backgroundColor: colors.accent + '12', borderLeftWidth: 2, borderLeftColor: colors.accent, borderBottomWidth: 1, borderBottomColor: colors.border }
+          : { borderBottomWidth: 1, borderBottomColor: colors.border }
       }
       testID={`batch-item-${batch.batch_code}`}
     >
@@ -166,7 +177,7 @@ function BatchSidebarItem({
           }}
           numberOfLines={1}
         >
-          {batch.batch_code}
+          {shortBatch(batch.batch_code)}
         </Text>
         {hasErrors ? (
           <View className="h-5 w-5 items-center justify-center rounded-full bg-destructive">
@@ -189,11 +200,24 @@ function BatchSidebarItem({
 
 function ErrorDetailDrawer({
   error,
+  records,
+  connectorRequests,
   onClose,
+  onRetry,
 }: {
   error: ImportErrorDto | null;
+  records: ImportRecordDto[];
+  connectorRequests: ConnectorRequestDto[];
   onClose: () => void;
+  onRetry: () => void;
 }): React.JSX.Element {
+  const record = error != null
+    ? (records.find((r) => r.source_row_index === error.source_row_index) ?? null)
+    : null;
+  const connReq = error?.connector_request_id != null
+    ? (connectorRequests.find((c) => c.id === error.connector_request_id) ?? null)
+    : null;
+
   return (
     <Sheet visible={error != null} onClose={onClose} side="right" width={480} testID="error-detail-sheet">
       {error != null ? (
@@ -205,10 +229,10 @@ function ErrorDetailDrawer({
                   Import error
                 </Text>
                 <Text className="font-body text-xs text-muted-foreground">{`Row ${String(error.source_row_index)}`}</Text>
-                {error.record_ref != null ? (
+                {error.record_ref != null && error.record_ref !== String(error.source_row_index) ? (
                   <Text className="font-body text-xs text-muted-foreground">{error.record_ref}</Text>
                 ) : null}
-                <Text className="font-body text-xs text-muted-foreground">{error.batch_code}</Text>
+                <Text className="font-body text-xs text-muted-foreground">{shortBatch(error.batch_code)}</Text>
               </View>
               <Sheet.Title>{error.error_title}</Sheet.Title>
             </View>
@@ -219,7 +243,7 @@ function ErrorDetailDrawer({
             <Sheet.Content className="gap-5 pt-4">
 
               {/* Meta row */}
-              <View className="flex-row gap-6">
+              <View className="flex-row gap-6 flex-wrap">
                 <View className="gap-1">
                   <Text className="font-body text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                     Retry Class
@@ -235,9 +259,22 @@ function ErrorDetailDrawer({
                   <Text className="font-body text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                     Attempts
                   </Text>
-                  <Text className="font-body text-sm text-foreground">1 of 1</Text>
+                  <Text className="font-body text-sm text-foreground">
+                    {connReq != null
+                      ? `${String(connReq.retries + 1)} of ${String(connReq.retries + 1)}`
+                      : '—'}
+                  </Text>
                 </View>
-                {error.connector_request_id != null ? (
+                {connReq != null ? (
+                  <View className="gap-1">
+                    <Text className="font-body text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Connector Request
+                    </Text>
+                    <Text className="font-body text-xs font-mono text-foreground">
+                      {shortReqCode(connReq.request_code)}
+                    </Text>
+                  </View>
+                ) : error.connector_request_id != null ? (
                   <View className="gap-1">
                     <Text className="font-body text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                       Connector Request
@@ -252,12 +289,29 @@ function ErrorDetailDrawer({
               {/* What was rejected */}
               <View className="rounded-lg bg-muted/50 p-3 gap-3">
                 <View className="flex-row items-center justify-between">
-                  <ProvenanceLabel state="fact">What was rejected</ProvenanceLabel>
+                  <View className="flex-row items-center gap-2">
+                    <ProvenanceLabel state="fact">FACT</ProvenanceLabel>
+                    <Text className="font-body text-sm font-semibold text-foreground">What was rejected</Text>
+                  </View>
                   <Text className="font-body text-xs text-muted-foreground">
                     {`Row ${String(error.source_row_index)} of the source extract`}
                   </Text>
                 </View>
                 <View className="gap-1.5">
+                  {record?.display_name != null ? (
+                    <View className="flex-row gap-4">
+                      <Text className="font-body text-xs text-muted-foreground w-28">Item</Text>
+                      <Text className="font-body text-xs font-semibold text-foreground flex-1" numberOfLines={1}>
+                        {record.display_name}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {record?.internal_id != null ? (
+                    <View className="flex-row gap-4">
+                      <Text className="font-body text-xs text-muted-foreground w-28">Item Number</Text>
+                      <Text className="font-mono text-xs text-foreground flex-1">{record.internal_id}</Text>
+                    </View>
+                  ) : null}
                   {error.source_field != null ? (
                     <View className="flex-row gap-4">
                       <Text className="font-body text-xs text-muted-foreground w-28">Source column</Text>
@@ -287,6 +341,9 @@ function ErrorDetailDrawer({
                     </View>
                   ) : null}
                 </View>
+                {error.error_detail != null ? (
+                  <Text className="font-body text-xs text-muted-foreground">{error.error_detail}</Text>
+                ) : null}
               </View>
 
               {/* ERP response */}
@@ -305,7 +362,10 @@ function ErrorDetailDrawer({
               {error.parsed_by === 'deterministic' && error.deterministic_rule != null ? (
                 <View className="rounded-lg bg-muted/50 p-3 gap-2">
                   <View className="flex-row items-center justify-between">
-                    <ProvenanceLabel state="fact">Deterministic parse</ProvenanceLabel>
+                    <View className="flex-row items-center gap-2">
+                      <ProvenanceLabel state="fact">FACT</ProvenanceLabel>
+                      <Text className="font-body text-sm font-semibold text-foreground">Deterministic parse</Text>
+                    </View>
                     <Text className="font-body text-xs" style={{ color: colors.success }}>
                       Rule matched
                     </Text>
@@ -318,29 +378,34 @@ function ErrorDetailDrawer({
               {error.parsed_by === 'ai' && error.ai_analysis != null ? (
                 <View className="rounded-lg bg-muted/50 p-3 gap-2">
                   <View className="flex-row items-center justify-between">
-                    <ProvenanceLabel state="ai">Mig's analysis</ProvenanceLabel>
+                    <View className="flex-row items-center gap-2">
+                      <ProvenanceLabel state="ai">AI</ProvenanceLabel>
+                      <Text className="font-body text-sm font-semibold text-foreground">Mig's analysis</Text>
+                    </View>
                     {error.ai_model != null ? (
                       <Text className="font-body text-xs text-muted-foreground">{error.ai_model}</Text>
                     ) : null}
                   </View>
                   <Text className="font-body text-xs text-foreground">{error.ai_analysis}</Text>
                   {error.ai_likely_cause != null ? (
-                    <View className="mt-1 gap-1">
+                    <View className="mt-1 rounded-lg bg-muted/80 p-2.5 gap-1">
                       <Text className="font-body text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                         {error.ai_cause_category != null
                           ? `Likely cause · ${error.ai_cause_category}`
                           : 'Likely cause'}
                       </Text>
                       <Text className="font-body text-xs text-foreground">{error.ai_likely_cause}</Text>
+                      {error.ai_fix_suggestion != null ? (
+                        <Text className="font-body text-xs text-muted-foreground mt-0.5">
+                          {error.ai_fix_suggestion}
+                        </Text>
+                      ) : null}
                     </View>
                   ) : null}
-                  {error.ai_fix_suggestion != null ? (
-                    <View className="mt-1 gap-1">
-                      <Text className="font-body text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        Fix suggestion
-                      </Text>
-                      <Text className="font-body text-xs text-foreground">{error.ai_fix_suggestion}</Text>
-                    </View>
+                  {error.ai_fix_step != null ? (
+                    <Text className="font-body text-[11px] text-muted-foreground mt-1">
+                      Suggestions reopen the earlier step for review — nothing is changed automatically.
+                    </Text>
                   ) : null}
                 </View>
               ) : null}
@@ -349,11 +414,14 @@ function ErrorDetailDrawer({
           </ScrollArea>
 
           <Sheet.Footer>
-            <Button variant="outline" onPress={onClose} testID="error-drawer-retry">
-              <Text className="text-sm font-medium text-foreground">Retry record</Text>
-            </Button>
             <Button onPress={onClose} testID="error-drawer-fix">
               <Text className="text-sm font-semibold text-primary-foreground">Fix in Step 4 · Values</Text>
+            </Button>
+            <Button variant="outline" onPress={onRetry} testID="error-drawer-retry">
+              <View className="flex-row items-center gap-1.5">
+                <RotateCcw size={14} color={colors.foreground} />
+                <Text className="text-sm font-medium text-foreground">Retry record</Text>
+              </View>
             </Button>
           </Sheet.Footer>
         </>
@@ -430,7 +498,7 @@ export function TestImportScreen({
     <View className="flex-1 flex-col bg-background" testID="test-import-screen">
 
       {/* ── Top section (full width) ─────────────────────────────────────── */}
-      <View className="px-5 pt-5 pb-0 gap-3">
+      <View className="px-5 pt-5 pb-3 gap-3">
         <StepRail rail={stepRail} />
 
         {/* Title + action buttons */}
@@ -504,11 +572,11 @@ export function TestImportScreen({
         {importRun != null ? <ImportRunBar run={importRun} /> : null}
       </View>
 
-      {/* ── Body: import content (left) + MCP panel (right) ──────────────── */}
-      <View className="flex-1 flex-col lg:flex-row border-t border-border mt-3">
+      {/* ── Body: import content (left) + MCP panel (right, MCP only) ──── */}
+      <View className="flex-1 flex-col lg:flex-row border-t border-border">
 
         {/* Left column — all import run states */}
-        <View className="flex-1 lg:flex-[13]">
+        <View className={isMcpRequired ? 'flex-1 lg:flex-[13]' : 'flex-1'}>
           {isLoading ? (
             <View className="flex-1 items-center justify-center">
               <ActivityIndicator size="large" color={colors.primary} />
@@ -582,11 +650,11 @@ export function TestImportScreen({
                 {/* All batches row */}
                 <Pressable
                   onPress={() => setSelectedBatch(null)}
-                  className="px-3 py-2.5 border-b border-border"
+                  className="px-3 py-2.5"
                   style={
                     selectedBatch == null
-                      ? { backgroundColor: colors.accent + '12', borderLeftWidth: 2, borderLeftColor: colors.accent }
-                      : undefined
+                      ? { borderWidth: 1.5, borderColor: colors.accent, borderRadius: 6, backgroundColor: colors.accent + '12', marginHorizontal: 6, marginVertical: 3 }
+                      : { borderBottomWidth: 1, borderBottomColor: colors.border }
                   }
                   testID="batch-item-all"
                 >
@@ -600,9 +668,11 @@ export function TestImportScreen({
                     >
                       All batches
                     </Text>
-                    <Text className="font-body text-xs text-muted-foreground">
-                      {String(importRun.rows_attempted ?? 0)}
-                    </Text>
+                    <View className="rounded-[5px] border border-border bg-muted px-2 py-0.5">
+                      <Text className="font-mono text-[11px] text-foreground">
+                        {String(importRun.rows_attempted ?? 0)}
+                      </Text>
+                    </View>
                   </View>
                 </Pressable>
 
@@ -629,13 +699,13 @@ export function TestImportScreen({
                 <Tabs defaultValue="errors" variant="underline" className="flex-1">
                   <Tabs.List className="px-4 border-b border-border">
                     <Tabs.Trigger value="errors" testID="tab-errors">
-                      {`Import errors  ${String(errors.total)}`}
+                      {`Import errors ${String(errors.total)}`}
                     </Tabs.Trigger>
                     <Tabs.Trigger value="records" testID="tab-records">
-                      {`Records  ${String(records.total)}`}
+                      {`Records ${String(records.total)}`}
                     </Tabs.Trigger>
                     <Tabs.Trigger value="connectors" testID="tab-connectors">
-                      {`Connector requests  ${String(connectorRequests.total)}`}
+                      {`Connector requests ${String(connectorRequests.total)}`}
                     </Tabs.Trigger>
                   </Tabs.List>
 
@@ -648,26 +718,26 @@ export function TestImportScreen({
                     ) : (
                       <Table maxHeight={600}>
                         <Table.Header>
-                          <Table.HeaderCell width={120}>Source Row</Table.HeaderCell>
-                          <Table.HeaderCell width={72}>Batch</Table.HeaderCell>
+                          <Table.HeaderCell width={100}>Source Row</Table.HeaderCell>
+                          <Table.HeaderCell width={88}>Batch</Table.HeaderCell>
                           <Table.HeaderCell>Error</Table.HeaderCell>
-                          <Table.HeaderCell width={110}>Retry Class</Table.HeaderCell>
-                          <Table.HeaderCell width={120}>Parsed By</Table.HeaderCell>
-                          <Table.HeaderCell width={80}>Status</Table.HeaderCell>
-                          <Table.HeaderCell width={32} />
+                          <Table.HeaderCell width={90}>Retry Class</Table.HeaderCell>
+                          <Table.HeaderCell width={90}>Parsed By</Table.HeaderCell>
+                          <Table.HeaderCell width={72}>Status</Table.HeaderCell>
+                          <Table.HeaderCell width={24} />
                         </Table.Header>
                         {errors.items.map((e) => (
                           <Table.Row key={e.id} onPress={() => setSelectedError(e)}>
-                            <Table.Cell width={120}>
+                            <Table.Cell width={100}>
                               <Text className="font-body text-sm font-semibold text-foreground">
                                 {`Row ${String(e.source_row_index)}`}
                               </Text>
-                              {e.record_ref != null ? (
-                                <Text className="font-body text-xs text-muted-foreground">{e.record_ref}</Text>
+                              {e.record_ref != null && e.record_ref !== String(e.source_row_index) ? (
+                                <Text className="font-body text-xs text-muted-foreground" numberOfLines={1}>{e.record_ref}</Text>
                               ) : null}
                             </Table.Cell>
-                            <Table.Cell width={72}>
-                              <Text className="font-body text-xs text-muted-foreground">{e.batch_code}</Text>
+                            <Table.Cell width={88}>
+                              <Text className="font-body text-[11px] text-muted-foreground" numberOfLines={1}>{shortBatch(e.batch_code)}</Text>
                             </Table.Cell>
                             <Table.Cell>
                               <Text className="font-body text-sm font-semibold text-foreground" numberOfLines={1}>
@@ -679,7 +749,7 @@ export function TestImportScreen({
                                 </Text>
                               ) : null}
                             </Table.Cell>
-                            <Table.Cell width={110}>
+                            <Table.Cell width={90}>
                               <Badge
                                 variant={e.retry_class === 'permanent' ? 'destructive' : 'warning'}
                                 className="self-start"
@@ -687,15 +757,15 @@ export function TestImportScreen({
                                 {e.retry_class === 'permanent' ? 'Permanent' : 'Transient'}
                               </Badge>
                             </Table.Cell>
-                            <Table.Cell width={120}>
+                            <Table.Cell width={90}>
                               <ProvenanceLabel state={e.parsed_by === 'deterministic' ? 'fact' : 'ai'}>
                                 {e.parsed_by === 'deterministic' ? 'Deterministic' : 'AI'}
                               </ProvenanceLabel>
                             </Table.Cell>
-                            <Table.Cell width={80}>
+                            <Table.Cell width={72}>
                               <Text className="font-body text-sm text-foreground capitalize">{e.status}</Text>
                             </Table.Cell>
-                            <Table.Cell width={32}>
+                            <Table.Cell width={24}>
                               <Text className="font-body text-sm text-muted-foreground">›</Text>
                             </Table.Cell>
                           </Table.Row>
@@ -714,18 +784,18 @@ export function TestImportScreen({
                       <>
                         <Table maxHeight={560}>
                           <Table.Header>
-                            <Table.HeaderCell width={56}>Row</Table.HeaderCell>
-                            <Table.HeaderCell width={100}>Internal ID</Table.HeaderCell>
+                            <Table.HeaderCell width={64}>Row</Table.HeaderCell>
+                            <Table.HeaderCell width={128}>Internal ID</Table.HeaderCell>
                             <Table.HeaderCell>Name</Table.HeaderCell>
-                            <Table.HeaderCell width={72}>Batch</Table.HeaderCell>
+                            <Table.HeaderCell width={76}>Batch</Table.HeaderCell>
                             <Table.HeaderCell width={100}>Outcome</Table.HeaderCell>
                             <Table.HeaderCell width={200}>Target ID</Table.HeaderCell>
                             <Table.HeaderCell width={64}>ms</Table.HeaderCell>
                           </Table.Header>
                           {records.items.map((r) => (
                             <Table.Row key={r.id}>
-                              <Table.Cell width={56}>{String(r.source_row_index)}</Table.Cell>
-                              <Table.Cell width={100}>
+                              <Table.Cell width={64}>{String(r.source_row_index)}</Table.Cell>
+                              <Table.Cell width={128}>
                                 <Text className="font-mono text-xs text-foreground">{r.internal_id ?? '—'}</Text>
                               </Table.Cell>
                               <Table.Cell>
@@ -733,8 +803,8 @@ export function TestImportScreen({
                                   {r.display_name ?? '—'}
                                 </Text>
                               </Table.Cell>
-                              <Table.Cell width={72}>
-                                <Text className="font-body text-xs text-muted-foreground">{r.batch_code}</Text>
+                              <Table.Cell width={76}>
+                                <Text className="font-body text-xs text-muted-foreground">{shortBatch(r.batch_code)}</Text>
                               </Table.Cell>
                               <Table.Cell width={100}>
                                 <Badge
@@ -788,23 +858,23 @@ export function TestImportScreen({
                       <>
                         <Table maxHeight={560}>
                           <Table.Header>
-                            <Table.HeaderCell width={100}>Request</Table.HeaderCell>
-                            <Table.HeaderCell width={90}>Operation</Table.HeaderCell>
+                            <Table.HeaderCell width={136}>Request</Table.HeaderCell>
+                            <Table.HeaderCell width={110}>Operation</Table.HeaderCell>
                             <Table.HeaderCell>Model / Record</Table.HeaderCell>
-                            <Table.HeaderCell width={72}>Batch</Table.HeaderCell>
-                            <Table.HeaderCell width={72}>Result</Table.HeaderCell>
+                            <Table.HeaderCell width={76}>Batch</Table.HeaderCell>
+                            <Table.HeaderCell width={84}>Result</Table.HeaderCell>
                             <Table.HeaderCell width={90}>Latency</Table.HeaderCell>
-                            <Table.HeaderCell width={72}>Retries</Table.HeaderCell>
+                            <Table.HeaderCell width={92}>Retries</Table.HeaderCell>
                           </Table.Header>
                           {connectorRequests.items.map((c) => {
                             const is2xx = c.http_status != null && c.http_status >= 200 && c.http_status < 300;
                             return (
                               <Table.Row key={c.id}>
-                                <Table.Cell width={100}>
-                                  <Text className="font-mono text-xs text-foreground">{c.request_code}</Text>
+                                <Table.Cell width={136}>
+                                  <Text className="font-mono text-xs text-foreground" numberOfLines={1}>{shortReqCode(c.request_code)}</Text>
                                 </Table.Cell>
-                                <Table.Cell width={90}>
-                                  <Text className="font-body text-xs text-muted-foreground">{c.operation}</Text>
+                                <Table.Cell width={110}>
+                                  <Text className="font-body text-xs text-muted-foreground" numberOfLines={1}>{c.operation}</Text>
                                 </Table.Cell>
                                 <Table.Cell>
                                   <Text className="font-body text-sm text-foreground" numberOfLines={1}>
@@ -813,10 +883,10 @@ export function TestImportScreen({
                                       : (c.erp_model ?? c.record_ref ?? '—')}
                                   </Text>
                                 </Table.Cell>
-                                <Table.Cell width={72}>
-                                  <Text className="font-body text-xs text-muted-foreground">{c.batch_code}</Text>
+                                <Table.Cell width={76}>
+                                  <Text className="font-body text-xs text-muted-foreground">{shortBatch(c.batch_code)}</Text>
                                 </Table.Cell>
-                                <Table.Cell width={72}>
+                                <Table.Cell width={84}>
                                   {c.http_status != null ? (
                                     <Text
                                       className="font-heading text-sm font-semibold"
@@ -833,7 +903,7 @@ export function TestImportScreen({
                                     {c.latency_ms != null ? `${String(c.latency_ms)} ms` : '—'}
                                   </Text>
                                 </Table.Cell>
-                                <Table.Cell width={72}>
+                                <Table.Cell width={92}>
                                   <Text className="font-body text-xs text-muted-foreground">
                                     {String(c.retries)}
                                   </Text>
@@ -856,20 +926,27 @@ export function TestImportScreen({
           )}
         </View>
 
-        {/* Right column — MCP Connection Details panel */}
-        <View className="lg:flex-[7] border-t border-border lg:border-t-0 lg:border-l p-4">
-          <MCPConnectionPanel
-            fixedScope="target"
-            isDisabled={!isMcpRequired}
-            value={mcpPanelSeed}
-            testID="test-import-mcp-panel"
-          />
-        </View>
+        {/* Right column — MCP connection panel, only when target method is MCP */}
+        {isMcpRequired ? (
+          <View className="lg:flex-[7] border-t border-border lg:border-t-0 lg:border-l p-4">
+            <MCPConnectionPanel
+              fixedScope="target"
+              value={mcpPanelSeed}
+              testID="test-import-mcp-panel"
+            />
+          </View>
+        ) : null}
 
       </View>
 
       {/* Error detail drawer */}
-      <ErrorDetailDrawer error={selectedError} onClose={() => setSelectedError(null)} />
+      <ErrorDetailDrawer
+        error={selectedError}
+        records={records.items}
+        connectorRequests={connectorRequests.items}
+        onClose={() => setSelectedError(null)}
+        onRetry={() => { setSelectedError(null); void triggerRun(); }}
+      />
     </View>
   );
 }

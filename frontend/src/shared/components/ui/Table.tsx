@@ -135,7 +135,7 @@ const HeaderCell = React.forwardRef<View, TableHeaderCellProps>(
       {...props}
     >
       {typeof children === 'string' || typeof children === 'number' ? (
-        <Text className="text-xs font-semibold text-muted-foreground uppercase">
+        <Text className="text-xs font-semibold text-muted-foreground uppercase" numberOfLines={1}>
           {children}
         </Text>
       ) : (

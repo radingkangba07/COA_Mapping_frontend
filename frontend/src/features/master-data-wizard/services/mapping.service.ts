@@ -83,6 +83,8 @@ const mappingRowSchema = z.object({
   validation: z.string().nullable(),
   evidence: z.array(z.string()).nullable(),
   is_bookmarked: z.boolean().default(false),
+  source_semantic_role: z.string().nullable().optional(),
+  source_sample_values: z.object({ values: z.array(z.string()) }).nullable().optional(),
 });
 
 const columnMappingsResponseSchema = z.object({
@@ -180,6 +182,8 @@ function toEntityMapping(dto: z.infer<typeof columnMappingsResponseSchema>, targ
     status: toTitleStatus(row.status),
     validation: toTitleValidation(row.validation),
     evidence: row.evidence ?? undefined,
+    role: row.source_semantic_role ?? undefined,
+    samples: row.source_sample_values?.values ?? undefined,
   }));
 
   return {
@@ -214,12 +218,9 @@ function bookmarkedIdsFrom(dto: z.infer<typeof columnMappingsResponseSchema>): R
 export async function getTargetFields(
   client: HttpClient,
   runId: string,
-  erpId = 'odoo',
 ): Promise<Result<TargetField[], AppError>> {
   try {
-    const response = await client.get<unknown>(`/api/v1/pipeline/runs/${runId}/target-fields`, {
-      params: { erp_id: erpId },
-    });
+    const response = await client.get<unknown>(`/api/v1/pipeline/runs/${runId}/target-fields`);
 
     const parsed = targetFieldListResponseSchema.safeParse(response.data);
     if (!parsed.success) {
@@ -253,11 +254,11 @@ export interface ColumnMappingsResult {
 export async function getColumnMappings(
   client: HttpClient,
   runId: string,
-  erpId = 'odoo',
+  connectionId?: string,
 ): Promise<Result<ColumnMappingsResult, AppError>> {
   try {
     const response = await client.get<unknown>(`/api/v1/pipeline/runs/${runId}/mappings`, {
-      params: { erp_id: erpId },
+      params: connectionId !== undefined ? { connection_id: connectionId } : undefined,
     });
 
     const parsed = columnMappingsResponseSchema.safeParse(response.data);
@@ -272,7 +273,7 @@ export async function getColumnMappings(
     // The full target-field catalogue is a supplementary enhancement to the
     // retarget dropdown — if it fails, degrade to the per-row set rather
     // than failing the whole mapping table over a secondary call.
-    const targetFieldsResult = await getTargetFields(client, runId, erpId);
+    const targetFieldsResult = await getTargetFields(client, runId);
     const targetFields = targetFieldsResult.ok ? targetFieldsResult.data : targetFieldsFromRows(parsed.data.mappings);
 
     return ok({
@@ -302,12 +303,9 @@ export async function patchColumnMapping(
   runId: string,
   mappingId: string,
   body: PatchColumnMappingBody,
-  erpId = 'odoo',
 ): Promise<Result<void, AppError>> {
   try {
-    await client.patch<unknown>(`/api/v1/pipeline/runs/${runId}/mappings/${mappingId}`, body, {
-      params: { erp_id: erpId },
-    });
+    await client.patch<unknown>(`/api/v1/pipeline/runs/${runId}/mappings/${mappingId}`, body);
     return ok(undefined);
   } catch (error: unknown) {
     return err(toAppError(error));
@@ -331,7 +329,6 @@ export async function bulkAcceptColumnMappings(
   client: HttpClient,
   runId: string,
   fields: readonly BulkAcceptField[],
-  erpId = 'odoo',
 ): Promise<Result<void, AppError>> {
   try {
     const body = {
@@ -346,9 +343,7 @@ export async function bulkAcceptColumnMappings(
         evidence: f.evidence ? [...f.evidence] : null,
       })),
     };
-    await client.put<unknown>(`/api/v1/pipeline/runs/${runId}/mappings`, body, {
-      params: { erp_id: erpId },
-    });
+    await client.put<unknown>(`/api/v1/pipeline/runs/${runId}/mappings`, body);
     return ok(undefined);
   } catch (error: unknown) {
     return err(toAppError(error));
