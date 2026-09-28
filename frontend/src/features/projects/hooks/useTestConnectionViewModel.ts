@@ -5,7 +5,6 @@ import {
   hasConnectionErrors,
   validateConnection,
   type McpConnectionForm,
-  type McpFormAuthType,
 } from '../services/mcp.service';
 import {
   createMcpConnection,
@@ -14,16 +13,6 @@ import {
 } from '../services/erp-connection.service';
 import { useProjectScopeStore } from '../store/project-scope.store';
 import { selectSource, selectTarget } from '../store/project-scope.selectors';
-
-function buildCredentialsForStore(form: McpConnectionForm): Record<string, string> {
-  const type: McpFormAuthType = form.authType;
-  switch (type) {
-    case 'bearer': return { access_token: form.token };
-    case 'apiKey': return { api_key: form.apiKey };
-    case 'tba': return { consumer_key: form.consumerKey, consumer_secret: form.consumerSecret, token_id: form.tokenId, token_secret: form.tokenSecret };
-    case 'oauth2': return { access_token: form.token };
-  }
-}
 
 export type TestConnectionStatus = 'idle' | 'testing' | 'success' | 'failure';
 
@@ -50,23 +39,11 @@ export function useTestConnectionViewModel(
 
   const sourceProductId = useProjectScopeStore(selectSource);
   const targetProductId = useProjectScopeStore(selectTarget);
-  const sourceConnectionId = useProjectScopeStore((s) => s.sourceConnectionId);
-  const targetConnectionId = useProjectScopeStore((s) => s.targetConnectionId);
 
-  // Seed the ref from the store on mount so a remount reuses the existing
-  // connection record rather than creating a new one.
-  const connectionIdRef = useRef<string | null>(
-    connection.scope === 'target' ? targetConnectionId : sourceConnectionId,
-  );
-
-  // Keep the ref in sync when the store's connection ID is cleared externally
-  // (e.g. clearCredentials() called while the component is still mounted).
-  useEffect(() => {
-    const stored = connection.scope === 'target' ? targetConnectionId : sourceConnectionId;
-    if (stored === null) {
-      connectionIdRef.current = null;
-    }
-  }, [connection.scope, sourceConnectionId, targetConnectionId]);
+  // Created connection record ID for this panel. Null on first test; reused on
+  // retry within the same mount so a credential-edit-then-retry does not create
+  // a duplicate backend record. Reset by the gate-hygiene effect on URL/cred change.
+  const connectionIdRef = useRef<string | null>(null);
 
   const isFormValid = useMemo(
     () => !hasConnectionErrors(validateConnection(connection)),
@@ -76,15 +53,19 @@ export function useTestConnectionViewModel(
   const isTesting = status === 'testing';
   const canTest = isFormValid && status !== 'testing';
 
-  // Content signature of the test-relevant fields (normalized via the payload
-  // builder). Two referentially-different but content-equal connection objects
-  // produce the SAME signature, so a parent re-render cannot wipe a fresh success.
   const connectionSignature = useMemo(
     () => JSON.stringify(buildTestConnectionPayload(connection)),
     [connection],
   );
 
   const lastSignatureRef = useRef<string | null>(null);
+
+  // Keep the current scope accessible inside the hygiene effect without adding
+  // it as a dependency (would cause infinite re-runs via the signature).
+  const scopeRef = useRef(connection.scope);
+  useEffect(() => {
+    scopeRef.current = connection.scope;
+  });
 
   // GATE HYGIENE: a real credential/URL edit (signature change) invalidates a
   // prior successful test and forces a re-test before Create. The first run
@@ -99,15 +80,18 @@ export function useTestConnectionViewModel(
       return;
     }
     lastSignatureRef.current = connectionSignature;
-    // URL or credentials changed — any previously created connection record is
-    // now stale. Clear it so the next test creates a fresh one.
+    // URL or credentials changed — the created connection record is now stale.
     connectionIdRef.current = null;
     setStatus('idle');
     setConnectedAt(null);
     setLogs([]);
     setError(null);
-    useProjectScopeStore.getState().setConnectionReady(false);
-    useProjectScopeStore.getState().setTestStatus('idle');
+    const store = useProjectScopeStore.getState();
+    store.setTestStatus('idle');
+    // Reset only the gate(s) this panel covers.
+    const scope = scopeRef.current;
+    if (scope !== 'target') store.setSourceConnectionReady(false);
+    if (scope !== 'source') store.setTargetConnectionReady(false);
   }, [connectionSignature]);
 
   const onTestConnection = useCallback(async (): Promise<void> => {
@@ -118,11 +102,13 @@ export function useTestConnectionViewModel(
 
     setError(null);
     setStatus('testing');
-    useProjectScopeStore.getState().setTestStatus('loading');
-    useProjectScopeStore.getState().setConnectionReady(false);
+    const store = useProjectScopeStore.getState();
+    store.setTestStatus('loading');
+    // Reset this panel's gate(s) while the test is in flight.
+    if (connection.scope !== 'target') store.setSourceConnectionReady(false);
+    if (connection.scope !== 'source') store.setTargetConnectionReady(false);
 
-    // Resolve the ERP id from the project scope store based on which side the
-    // MCP form is configured for.
+    // Resolve the ERP id from the project scope based on which side this panel covers.
     const productId =
       connection.scope === 'target' ? targetProductId : sourceProductId;
     const erpId = resolveErpId(productId);
@@ -155,13 +141,11 @@ export function useTestConnectionViewModel(
       setLogs(result.data.logs);
       setError(null);
       setStatus('success');
-      useProjectScopeStore.getState().setTestStatus('success');
-      useProjectScopeStore.getState().setConnectionReady(true);
-      // Persist the connection record and credentials so data fetch calls after
-      // project creation don't require the user to re-authenticate.
-      const role = connection.scope === 'target' ? 'target' : 'source';
-      const credentials = buildCredentialsForStore(connection);
-      useProjectScopeStore.getState().setConnectionContext(role, connectionIdRef.current!, credentials);
+      const s = useProjectScopeStore.getState();
+      s.setTestStatus('success');
+      // Open only this panel's gate(s).
+      if (connection.scope !== 'target') s.setSourceConnectionReady(true);
+      if (connection.scope !== 'source') s.setTargetConnectionReady(true);
       return;
     }
 
@@ -175,8 +159,10 @@ export function useTestConnectionViewModel(
     setError(result.error.message);
     setConnectedAt(null);
     setStatus('failure');
-    useProjectScopeStore.getState().setTestStatus('error');
-    useProjectScopeStore.getState().setConnectionReady(false);
+    const s = useProjectScopeStore.getState();
+    s.setTestStatus('error');
+    if (connection.scope !== 'target') s.setSourceConnectionReady(false);
+    if (connection.scope !== 'source') s.setTargetConnectionReady(false);
   }, [connection, sourceProductId, targetProductId]);
 
   return {

@@ -37,7 +37,12 @@ export function toActionableMessage(raw: string): string {
   ) {
     return 'The connection timed out — verify the URL/network or increase the request timeout.';
   }
+  if (normalized.includes('invalid_netsuite_url') || normalized.includes('account-specific url')) {
+    return 'Invalid NetSuite URL — enter your account-specific URL, e.g. https://<accountId>.app.netsuite.com';
+  }
   if (
+    normalized.includes('connection_refused') ||
+    normalized.includes('connection refused') ||
     normalized.includes('econnrefused') ||
     normalized.includes('network') ||
     normalized.includes('failed to fetch')

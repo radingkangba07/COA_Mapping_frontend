@@ -11,16 +11,14 @@ import {
 import type { AuthFieldErrors } from './McpAuthFields.config';
 import { McpScopeSelector } from './McpScopeSelector';
 import { McpAuthFields } from './McpAuthFields';
-import { McpHeadersEditor } from './McpHeadersEditor';
 import { McpPanelTitle } from './McpPanelTitle';
 import { TestConnectionFlow } from './TestConnectionFlow';
-import type { McpFormHeader } from '../services/mcp.service';
 
 interface MCPConnectionPanelProps {
   value?: McpConnectionForm;
   onChange?: (next: McpConnectionForm) => void;
   // When provided, the panel is locked to a single side: the scope selector is
-  // hidden and the form's scope is forced to this value.
+  // shown in read-only mode and the form's scope is forced to this value.
   fixedScope?: McpConfigureScope;
   // Mutes the whole panel (greyed out, non-interactive) until an MCP
   // connection method is selected in Step 3.
@@ -79,17 +77,8 @@ export const MCPConnectionPanel = ({
     setTouched(true);
   }, []);
 
-  const handleHeadersChange = useCallback(
-    (headers: readonly McpFormHeader[]): void => {
-      applyPatch({ headers });
-    },
-    [applyPatch],
-  );
-
   const errors = useMemo(() => validateConnection(form), [form]);
 
-  // Keep the existing touched-gated URL UX; only the message source moves to
-  // the service. Empty URLs stay un-flagged until the field is blurred.
   const urlError = urlTouched && form.url.length > 0 ? errors.url : undefined;
 
   const authErrors = useMemo<AuthFieldErrors | undefined>(() => {
@@ -133,22 +122,9 @@ export const MCPConnectionPanel = ({
           errors={authErrors}
           testID="mcp-auth-fields"
         />
-        <McpHeadersEditor
-          headers={form.headers}
-          onChange={handleHeadersChange}
-          testID="mcp-headers"
-        />
       </View>
     ),
-    [
-      form,
-      handleUrlChange,
-      handleUrlBlur,
-      applyPatch,
-      urlError,
-      authErrors,
-      handleHeadersChange,
-    ],
+    [form, handleUrlChange, handleUrlBlur, applyPatch, urlError, authErrors],
   );
 
   return (
@@ -169,13 +145,12 @@ export const MCPConnectionPanel = ({
         <Text className="font-body text-sm text-muted-foreground">
           Configure MCP server connection details for the selected connection method.
         </Text>
-        {fixedScope === undefined && (
-          <McpScopeSelector
-            value={form.scope}
-            onChange={handleScopeChange}
-            testID="mcp-scope"
-          />
-        )}
+        <McpScopeSelector
+          value={form.scope}
+          onChange={handleScopeChange}
+          isReadOnly={fixedScope !== undefined}
+          testID="mcp-scope"
+        />
 
         {renderFields()}
 

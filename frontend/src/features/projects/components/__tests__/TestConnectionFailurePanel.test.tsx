@@ -48,8 +48,14 @@ describe('toActionableMessage', () => {
     expect(toActionableMessage('error 408')).toMatch(/timed out/);
   });
 
-  it('maps network / econnrefused to an unreachable message', () => {
+  it('maps network / econnrefused / connection_refused to an unreachable message', () => {
     expect(toActionableMessage('connect ECONNREFUSED 127.0.0.1')).toMatch(
+      /Could not reach the MCP server/,
+    );
+    expect(toActionableMessage('connection_refused')).toMatch(
+      /Could not reach the MCP server/,
+    );
+    expect(toActionableMessage('connection refused')).toMatch(
       /Could not reach the MCP server/,
     );
     expect(toActionableMessage('Network Error')).toMatch(
@@ -57,6 +63,15 @@ describe('toActionableMessage', () => {
     );
     expect(toActionableMessage('TypeError: Failed to fetch')).toMatch(
       /Could not reach the MCP server/,
+    );
+  });
+
+  it('maps invalid_netsuite_url to a NetSuite URL guidance message', () => {
+    expect(toActionableMessage('invalid_netsuite_url: enter your account-specific URL')).toMatch(
+      /Invalid NetSuite URL/,
+    );
+    expect(toActionableMessage('account-specific url required')).toMatch(
+      /Invalid NetSuite URL/,
     );
   });
 

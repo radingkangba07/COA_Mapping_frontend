@@ -121,12 +121,12 @@ describe('MCPConnectionPanel — auth-type conditional fields', () => {
 // ─── Configure-for scope (applicability tag) ──────────────────────────────────
 
 describe('MCPConnectionPanel — configure-for scope', () => {
-  it('renders the single fields container with default scope "both"', () => {
+  it('renders the fields container', () => {
     renderPanel();
     expect(screen.getByTestId('mcp-fields')).toBeTruthy();
   });
 
-  it('updates scope via onChange and keeps the single fields container', () => {
+  it('updates scope via onChange when source/target options are selected', () => {
     const onChange = jest.fn();
     renderPanel(onChange);
 
@@ -138,9 +138,16 @@ describe('MCPConnectionPanel — configure-for scope', () => {
     expect(lastChangeArg(onChange).scope).toBe('target');
     expect(screen.getByTestId('mcp-fields')).toBeTruthy();
 
-    fireEvent.press(screen.getByTestId('mcp-scope-both'));
-    expect(lastChangeArg(onChange).scope).toBe('both');
-    expect(screen.getByTestId('mcp-fields')).toBeTruthy();
+    // "Both" option was removed — not rendered
+    expect(screen.queryByTestId('mcp-scope-both')).toBeNull();
+  });
+
+  it('shows a read-only badge instead of radio buttons when fixedScope is set', () => {
+    render(<MCPConnectionPanel fixedScope="target" />);
+
+    expect(screen.getByTestId('mcp-scope-readonly')).toBeTruthy();
+    expect(screen.queryByTestId('mcp-scope-source')).toBeNull();
+    expect(screen.queryByTestId('mcp-scope-target')).toBeNull();
   });
 });
 
@@ -169,38 +176,12 @@ describe('MCPConnectionPanel — masked token toggle', () => {
   });
 });
 
-// ─── Dynamic headers ──────────────────────────────────────────────────────────
-
-describe('MCPConnectionPanel — dynamic headers', () => {
-  it('starts with an empty-state hint and no rows', () => {
+// Custom headers editor was removed — no mcp-headers-* testIDs should be present.
+describe('MCPConnectionPanel — headers editor removed', () => {
+  it('does not render any headers editor', () => {
     renderPanel();
-    expect(screen.getByTestId('mcp-headers-empty')).toBeTruthy();
-    expect(screen.queryByTestId('mcp-headers-row-0')).toBeNull();
-  });
-
-  it('adds a header row, edits it, then deletes it', () => {
-    const onChange = jest.fn();
-    renderPanel(onChange);
-
-    fireEvent.press(screen.getByTestId('mcp-headers-add'));
-    expect(screen.getByTestId('mcp-headers-row-0')).toBeTruthy();
     expect(screen.queryByTestId('mcp-headers-empty')).toBeNull();
-
-    fireEvent.changeText(
-      textInputForField('mcp-headers-key-0'),
-      'X-Custom-Header',
-    );
-    fireEvent.changeText(textInputForField('mcp-headers-value-0'), 'abc');
-
-    const afterEdit = lastChangeArg(onChange);
-    expect(afterEdit.headers).toEqual([
-      { id: 'h-0', key: 'X-Custom-Header', value: 'abc' },
-    ]);
-
-    fireEvent.press(screen.getByTestId('mcp-headers-delete-0'));
-    expect(screen.queryByTestId('mcp-headers-row-0')).toBeNull();
-    expect(screen.getByTestId('mcp-headers-empty')).toBeTruthy();
-    expect(lastChangeArg(onChange).headers).toEqual([]);
+    expect(screen.queryByTestId('mcp-headers-add')).toBeNull();
   });
 });
 

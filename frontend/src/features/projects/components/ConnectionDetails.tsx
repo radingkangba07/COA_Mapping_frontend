@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { View } from 'react-native';
 import {
   CONNECTION_METHODS,
@@ -32,34 +32,86 @@ export const ConnectionDetails = ({
   onConnectionChange,
   testID,
 }: ConnectionDetailsProps): React.JSX.Element => {
-  const [form, setForm] = useState<McpConnectionForm>(() => {
-    const scope: McpConfigureScope =
-      sourceMethod === CONNECTION_METHODS.MCP && targetMethod === CONNECTION_METHODS.MCP
-        ? 'both'
-        : targetMethod === CONNECTION_METHODS.MCP
-          ? 'target'
-          : 'source';
-    return seedForm(connection, scope);
-  });
+  const sourceIsMcp = sourceMethod === CONNECTION_METHODS.MCP;
+  const targetIsMcp = targetMethod === CONNECTION_METHODS.MCP;
 
-  const handleFormChange = useCallback(
+  const handleSourceChange = useCallback(
     (next: McpConnectionForm): void => {
-      setForm(next);
-      onConnectionChange(mcpFormToConnection(next, next.scope));
+      onConnectionChange(mcpFormToConnection(next, 'source'));
     },
     [onConnectionChange],
   );
 
-  const isMcpSelected =
-    sourceMethod === CONNECTION_METHODS.MCP || targetMethod === CONNECTION_METHODS.MCP;
+  const handleTargetChange = useCallback(
+    (next: McpConnectionForm): void => {
+      onConnectionChange(mcpFormToConnection(next, 'target'));
+    },
+    [onConnectionChange],
+  );
 
+  const handleBothChange = useCallback(
+    (next: McpConnectionForm): void => {
+      onConnectionChange(mcpFormToConnection(next, 'both'));
+    },
+    [onConnectionChange],
+  );
+
+  // Both sides are MCP — single panel covering both source and target.
+  if (sourceIsMcp && targetIsMcp) {
+    return (
+      <View className="flex-1" testID={testID}>
+        <MCPConnectionPanel
+          key="both"
+          className="flex-1"
+          value={seedForm(connection, 'both')}
+          fixedScope="both"
+          onChange={handleBothChange}
+          testID="mcp-panel"
+        />
+      </View>
+    );
+  }
+
+  // Only source is MCP — single panel locked to source.
+  if (sourceIsMcp) {
+    return (
+      <View className="flex-1" testID={testID}>
+        <MCPConnectionPanel
+          key="source-only"
+          className="flex-1"
+          value={seedForm(connection, 'source')}
+          fixedScope="source"
+          onChange={handleSourceChange}
+          testID="mcp-panel"
+        />
+      </View>
+    );
+  }
+
+  // Only target is MCP — single panel locked to target.
+  if (targetIsMcp) {
+    return (
+      <View className="flex-1" testID={testID}>
+        <MCPConnectionPanel
+          key="target-only"
+          className="flex-1"
+          value={seedForm(connection, 'target')}
+          fixedScope="target"
+          onChange={handleTargetChange}
+          testID="mcp-panel"
+        />
+      </View>
+    );
+  }
+
+  // Neither side is MCP — disabled placeholder.
   return (
     <View className="flex-1" testID={testID}>
       <MCPConnectionPanel
+        key="disabled"
         className="flex-1"
-        value={form}
-        onChange={handleFormChange}
-        isDisabled={!isMcpSelected}
+        value={seedForm(connection, 'source')}
+        isDisabled
         testID="mcp-panel"
       />
     </View>

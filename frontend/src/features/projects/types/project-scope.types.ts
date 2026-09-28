@@ -98,8 +98,13 @@ export interface ProjectScopeSeed {
 
 export interface ProjectScopeState {
   readonly draft: ProjectScopeDraft;
-  // SINGLE readiness gate — set true only after a SUCCESSFUL test connection.
-  // Also read by the untouchable features/migration consumer (useFetchFromErp).
+  // Per-side readiness gates — each set true only after a SUCCESSFUL test on that side.
+  // sourceSatisfied = sourceMethod is CSV  OR sourceConnectionReady.
+  // targetSatisfied = targetMethod is CSV  OR targetConnectionReady.
+  readonly sourceConnectionReady: boolean;
+  readonly targetConnectionReady: boolean;
+  // Legacy combined gate — derived as sourceConnectionReady || targetConnectionReady.
+  // Retained for the untouchable features/migration consumer (useFetchFromErp).
   readonly connectionReady: boolean;
   readonly testStatus: RequestStatus; // shared status for Test Connection panel
   readonly fetchStatus: RequestStatus; // shared status for Fetch-from-ERP
@@ -139,7 +144,10 @@ export interface ProjectScopeActions {
   addMember: (member: ProjectScopeMember) => void;
   removeMember: (id: string) => void;
   updateMemberRole: (id: string, role: ProjectPermission) => void;
-  // Single readiness gate setter (also consumed by features/migration tests).
+  // Per-side readiness gate setters. Legacy setConnectionReady is retained for
+  // features/migration tests; it now sets both per-side gates simultaneously.
+  setSourceConnectionReady: (ready: boolean) => void;
+  setTargetConnectionReady: (ready: boolean) => void;
   setConnectionReady: (ready: boolean) => void;
   setTestStatus: (status: RequestStatus) => void;
   setFetchStatus: (status: RequestStatus) => void;

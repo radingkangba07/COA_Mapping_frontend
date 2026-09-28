@@ -1,6 +1,4 @@
-// MCP Connection Details panel is always visible and collapsed by default,
-// regardless of the selected connection method. CSV upload boxes are not
-// rendered here (file upload happens in a different screen).
+// ConnectionDetails renders the correct panel layout based on source/target methods.
 
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
@@ -41,8 +39,8 @@ jest.mock('@/shared/services/http/http.instance', () => ({ httpClient: {} }));
 import { ConnectionDetails } from '../ConnectionDetails';
 import { INITIAL_CONNECTION } from '../../store/project-scope.store';
 
-describe('ConnectionDetails — always-visible MCP panel', () => {
-  it('renders MCP panel and Test Connection regardless of connection method', () => {
+describe('ConnectionDetails — panel layout', () => {
+  it('shows disabled placeholder when neither side is MCP', () => {
     render(
       <ConnectionDetails
         sourceMethod="csv"
@@ -54,17 +52,16 @@ describe('ConnectionDetails — always-visible MCP panel', () => {
     );
 
     expect(screen.getByTestId('mcp-panel')).toBeTruthy();
-    expect(screen.getByTestId('mcp-panel-test-connection')).toBeTruthy();
-    // No CSV upload boxes on this screen
     expect(screen.queryByTestId('upload-source')).toBeNull();
     expect(screen.queryByTestId('upload-target')).toBeNull();
-    // "Configure for" scope radio is present inside the collapsible
+    // Scope selector is interactive (no fixedScope on disabled placeholder)
     expect(screen.getByTestId('mcp-scope-source')).toBeTruthy();
     expect(screen.getByTestId('mcp-scope-target')).toBeTruthy();
-    expect(screen.getByTestId('mcp-scope-both')).toBeTruthy();
+    // "Both" option is removed
+    expect(screen.queryByTestId('mcp-scope-both')).toBeNull();
   });
 
-  it('seeds scope to "source" when only source uses MCP', () => {
+  it('shows single panel locked to source when only source is MCP', () => {
     render(
       <ConnectionDetails
         sourceMethod="mcp"
@@ -75,9 +72,11 @@ describe('ConnectionDetails — always-visible MCP panel', () => {
     );
     expect(screen.getByTestId('mcp-panel')).toBeTruthy();
     expect(screen.getByTestId('mcp-panel-test-connection')).toBeTruthy();
+    // Read-only scope badge shown instead of radio buttons
+    expect(screen.getByTestId('mcp-scope-readonly')).toBeTruthy();
   });
 
-  it('seeds scope to "target" when only target uses MCP', () => {
+  it('shows single panel locked to target when only target is MCP', () => {
     render(
       <ConnectionDetails
         sourceMethod="csv"
@@ -87,9 +86,12 @@ describe('ConnectionDetails — always-visible MCP panel', () => {
       />,
     );
     expect(screen.getByTestId('mcp-panel')).toBeTruthy();
+    expect(screen.getByTestId('mcp-panel-test-connection')).toBeTruthy();
+    // Read-only scope badge shown instead of radio buttons
+    expect(screen.getByTestId('mcp-scope-readonly')).toBeTruthy();
   });
 
-  it('seeds scope to "both" when both sides use MCP', () => {
+  it('shows single panel locked to both sides when both sides are MCP', () => {
     render(
       <ConnectionDetails
         sourceMethod="mcp"
@@ -98,6 +100,10 @@ describe('ConnectionDetails — always-visible MCP panel', () => {
         onConnectionChange={jest.fn()}
       />,
     );
+    // Single panel — not two separate panels
     expect(screen.getByTestId('mcp-panel')).toBeTruthy();
+    expect(screen.getByTestId('mcp-panel-test-connection')).toBeTruthy();
+    // Read-only scope badge shows "Source and Target"
+    expect(screen.getByTestId('mcp-scope-readonly')).toBeTruthy();
   });
 });

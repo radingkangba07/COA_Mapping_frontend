@@ -72,6 +72,8 @@ export function createInitialDraft(): ProjectScopeDraft {
 
 export const initialState: ProjectScopeState = {
   draft: createInitialDraft(),
+  sourceConnectionReady: false,
+  targetConnectionReady: false,
   connectionReady: false,
   testStatus: 'idle',
   fetchStatus: 'idle',
@@ -217,12 +219,18 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
     setSourceMethod: (method: ConnectionMethod): void => {
       set((state) => {
         state.draft.sourceMethod = method;
+        // Changing the source method invalidates any prior source test result.
+        state.sourceConnectionReady = false;
+        state.connectionReady = state.targetConnectionReady;
       });
     },
 
     setTargetMethod: (method: ConnectionMethod): void => {
       set((state) => {
         state.draft.targetMethod = method;
+        // Changing the target method invalidates any prior target test result.
+        state.targetConnectionReady = false;
+        state.connectionReady = state.sourceConnectionReady;
       });
     },
 
@@ -302,8 +310,25 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
       });
     },
 
+    setSourceConnectionReady: (ready: boolean): void => {
+      set((state) => {
+        state.sourceConnectionReady = ready;
+        state.connectionReady = ready || state.targetConnectionReady;
+      });
+    },
+
+    setTargetConnectionReady: (ready: boolean): void => {
+      set((state) => {
+        state.targetConnectionReady = ready;
+        state.connectionReady = state.sourceConnectionReady || ready;
+      });
+    },
+
+    // Legacy: sets both per-side gates simultaneously (for features/migration tests).
     setConnectionReady: (ready: boolean): void => {
       set((state) => {
+        state.sourceConnectionReady = ready;
+        state.targetConnectionReady = ready;
         state.connectionReady = ready;
       });
     },
@@ -374,6 +399,8 @@ export const useProjectScopeStore = create<ProjectScopeStore>()(
         state.targetConnectionId = null;
         state.sourceCredentials = null;
         state.targetCredentials = null;
+        state.sourceConnectionReady = false;
+        state.targetConnectionReady = false;
         state.connectionReady = false;
         state.testStatus = 'idle';
         state.draft.connection.token = '';

@@ -93,7 +93,14 @@ export const selectAggregation = (
   state: ProjectScopeStore,
 ): AggregationMode => state.draft.scope.aggregation;
 
-// Single readiness gate — also consumed by features/migration's useFetchFromErp.
+// Per-side readiness gates — set independently by each MCP panel's test flow.
+export const selectSourceConnectionReady = (state: ProjectScopeStore): boolean =>
+  state.sourceConnectionReady;
+
+export const selectTargetConnectionReady = (state: ProjectScopeStore): boolean =>
+  state.targetConnectionReady;
+
+// Legacy combined gate — also consumed by features/migration's useFetchFromErp.
 export const selectConnectionReady = (state: ProjectScopeStore): boolean =>
   state.connectionReady;
 
@@ -111,14 +118,13 @@ export const selectScopeError = (
 ): AppError | null => state.error;
 
 export const selectCanCreateProject = (state: ProjectScopeStore): boolean => {
-  const { draft, connectionReady } = state;
+  const { draft, sourceConnectionReady, targetConnectionReady } = state;
   const hasCompany = draft.companyId !== null && draft.companyId !== '';
   const hasBothErps = draft.source !== null && draft.target !== null;
   const erpsDistinct = draft.source !== draft.target;
-  // CSV needs no test connection; an MCP side requires the single shared
-  // connection to have a successful test connection.
-  const sourceSatisfied = draft.sourceMethod === CONNECTION_METHODS.CSV || connectionReady;
-  const targetSatisfied = draft.targetMethod === CONNECTION_METHODS.CSV || connectionReady;
+  // CSV needs no test; an MCP side requires that side's own gate to be open.
+  const sourceSatisfied = draft.sourceMethod === CONNECTION_METHODS.CSV || sourceConnectionReady;
+  const targetSatisfied = draft.targetMethod === CONNECTION_METHODS.CSV || targetConnectionReady;
 
   return (
     hasCompany &&

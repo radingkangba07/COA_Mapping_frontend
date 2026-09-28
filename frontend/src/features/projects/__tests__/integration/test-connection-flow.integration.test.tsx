@@ -41,8 +41,10 @@ const testMock = testMcpConnection as jest.MockedFunction<typeof testMcpConnecti
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
+// scope:'both' — single panel covers both sides; both gates open on success.
 const validForm: McpConnectionForm = {
   ...createInitialMcpForm(),
+  scope: 'both',
   url: 'https://mcp.example.com',
   authType: 'bearer',
   token: 'abc',
@@ -70,8 +72,8 @@ const failureResult = (
     details: { logs: [...logs] },
   });
 
-// Seeds every Create precondition EXCEPT connectionReady so the gate is driven
-// solely by the test-connection result. Use 'odoo' source so resolveErpId resolves.
+// Seeds every Create precondition EXCEPT the connection gates so they are driven
+// solely by the test-connection result. Use supported ERPs so resolveErpId resolves.
 const seedCreatePreconditions = (): void => {
   const store = useProjectScopeStore.getState();
   store.setCompanyId('company-1');
@@ -84,7 +86,6 @@ const seedCreatePreconditions = (): void => {
 beforeEach(() => {
   createMock.mockReset();
   testMock.mockReset();
-  // createMcpConnection succeeds by default
   createMock.mockResolvedValue(ok({ id: 'conn-1', version: 1 }));
   useProjectScopeStore.getState().reset();
 });
@@ -105,15 +106,16 @@ describe('test-connection flow — SUCCESS', () => {
       await result.current.onTestConnection();
     });
 
-    // Hook surfaces success and server logs.
     expect(result.current.status).toBe('success');
     expect(result.current.connectedAt).not.toBeNull();
     expect(result.current.logs).toEqual(['connected ok']);
     expect(result.current.error).toBeNull();
 
-    // Store gate flips open.
     const state = useProjectScopeStore.getState();
     expect(state.testStatus).toBe('success');
+    // scope='both' → both per-side gates open, legacy combined gate open.
+    expect(state.sourceConnectionReady).toBe(true);
+    expect(state.targetConnectionReady).toBe(true);
     expect(state.connectionReady).toBe(true);
     expect(selectCanCreateProject(state)).toBe(true);
   });
@@ -138,6 +140,8 @@ describe('test-connection flow — FAILURE', () => {
 
     const state = useProjectScopeStore.getState();
     expect(state.testStatus).toBe('error');
+    expect(state.sourceConnectionReady).toBe(false);
+    expect(state.targetConnectionReady).toBe(false);
     expect(state.connectionReady).toBe(false);
     expect(selectCanCreateProject(state)).toBe(false);
   });
@@ -221,6 +225,8 @@ describe('test-connection flow — GATE HYGIENE', () => {
     });
 
     expect(result.current.status).toBe('success');
+    expect(useProjectScopeStore.getState().sourceConnectionReady).toBe(true);
+    expect(useProjectScopeStore.getState().targetConnectionReady).toBe(true);
     expect(useProjectScopeStore.getState().connectionReady).toBe(true);
 
     const editedForm: McpConnectionForm = { ...validForm, token: 'different' };
@@ -232,8 +238,120 @@ describe('test-connection flow — GATE HYGIENE', () => {
     expect(result.current.connectedAt).toBeNull();
 
     const state = useProjectScopeStore.getState();
+    expect(state.sourceConnectionReady).toBe(false);
+    expect(state.targetConnectionReady).toBe(false);
     expect(state.connectionReady).toBe(false);
     expect(state.testStatus).toBe('idle');
     expect(selectCanCreateProject(state)).toBe(false);
+  });
+});
+
+// ─── 6. PER-SIDE GATE ISOLATION ──────────────────────────────────────────────
+
+describe('test-connection flow — PER-SIDE GATE ISOLATION', () => {
+  it('source-scoped test opens only the source gate, leaving target gate closed', async () => {
+    testMock.mockResolvedValue(successResult('2026-06-28T10:00:00.000Z'));
+    seedCreatePreconditions();
+
+    const sourceForm: McpConnectionForm = { ...validForm, scope: 'source' };
+    const { result } = renderHook(() => useTestConnectionViewModel(sourceForm));
+
+    await act(async () => {
+      await result.current.onTestConnection();
+    });
+
+    const state = useProjectScopeStore.getState();
+    expect(state.sourceConnectionReady).toBe(true);
+    expect(state.targetConnectionReady).toBe(false);
+    // Both MCP methods — target gate still closed → Create blocked.
+    expect(selectCanCreateProject(state)).toBe(false);
+  });
+
+  it('target-scoped test opens only the target gate, leaving source gate closed', async () => {
+    testMock.mockResolvedValue(successResult('2026-06-28T10:00:00.000Z'));
+    seedCreatePreconditions();
+
+    const targetForm: McpConnectionForm = { ...validForm, scope: 'target' };
+    const { result } = renderHook(() => useTestConnectionViewModel(targetForm));
+
+    await act(async () => {
+      await result.current.onTestConnection();
+    });
+
+    const state = useProjectScopeStore.getState();
+    expect(state.sourceConnectionReady).toBe(false);
+    expect(state.targetConnectionReady).toBe(true);
+    // Both MCP methods — source gate still closed → Create blocked.
+    expect(selectCanCreateProject(state)).toBe(false);
+  });
+
+  it('CSV source + MCP target: target test alone opens the Create gate', async () => {
+    testMock.mockResolvedValue(successResult('2026-06-28T10:00:00.000Z'));
+    const store = useProjectScopeStore.getState();
+    store.setCompanyId('company-1');
+    store.setSource('odoo');
+    store.setTarget('oracle_netsuite');
+    store.setSourceMethod('csv');  // CSV — no test required
+    store.setTargetMethod('mcp');  // MCP — test required
+
+    const targetForm: McpConnectionForm = { ...validForm, scope: 'target' };
+    const { result } = renderHook(() => useTestConnectionViewModel(targetForm));
+
+    await act(async () => {
+      await result.current.onTestConnection();
+    });
+
+    const state = useProjectScopeStore.getState();
+    expect(state.targetConnectionReady).toBe(true);
+    // sourceSatisfied = CSV (no test needed) + targetSatisfied = gate open → Create enabled.
+    expect(selectCanCreateProject(state)).toBe(true);
+  });
+});
+
+// ─── 7. METHOD CHANGE RESETS GATE ────────────────────────────────────────────
+
+describe('test-connection flow — METHOD CHANGE RESETS GATE', () => {
+  it('changing source method clears sourceConnectionReady, preventing stale gate', async () => {
+    testMock.mockResolvedValue(successResult('2026-06-28T10:00:00.000Z'));
+    seedCreatePreconditions();
+
+    // Test source panel (scope='source') — sets sourceConnectionReady=true
+    const sourceForm: McpConnectionForm = { ...validForm, scope: 'source' };
+    const { result } = renderHook(() => useTestConnectionViewModel(sourceForm));
+
+    await act(async () => {
+      await result.current.onTestConnection();
+    });
+
+    expect(useProjectScopeStore.getState().sourceConnectionReady).toBe(true);
+
+    // Change source method — gate must reset
+    act(() => {
+      useProjectScopeStore.getState().setSourceMethod('csv');
+    });
+
+    expect(useProjectScopeStore.getState().sourceConnectionReady).toBe(false);
+  });
+
+  it('changing target method clears targetConnectionReady, preventing stale gate', async () => {
+    testMock.mockResolvedValue(successResult('2026-06-28T10:00:00.000Z'));
+    seedCreatePreconditions();
+
+    // Test target panel (scope='target') — sets targetConnectionReady=true
+    const targetForm: McpConnectionForm = { ...validForm, scope: 'target' };
+    const { result } = renderHook(() => useTestConnectionViewModel(targetForm));
+
+    await act(async () => {
+      await result.current.onTestConnection();
+    });
+
+    expect(useProjectScopeStore.getState().targetConnectionReady).toBe(true);
+
+    // Change target method — gate must reset
+    act(() => {
+      useProjectScopeStore.getState().setTargetMethod('csv');
+    });
+
+    expect(useProjectScopeStore.getState().targetConnectionReady).toBe(false);
   });
 });
