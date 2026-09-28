@@ -125,7 +125,7 @@ export function hasConnectionErrors(errors: McpConnectionErrors): boolean {
 
 export type McpAuthCredentials =
   | { readonly token: string }
-  | { readonly api_key: string; readonly key_name: string }
+  | { readonly api_key: string }
   | { readonly consumer_key: string; readonly token_id: string }
   | { readonly client_id: string; readonly access_token: string };
 
@@ -150,7 +150,7 @@ function buildCredentials(conn: McpConnectionForm): McpAuthCredentials {
     case 'bearer':
       return { token: conn.token };
     case 'apiKey':
-      return { api_key: conn.apiKey, key_name: conn.apiKeyName };
+      return { api_key: conn.apiKey };
     case 'tba':
       return { consumer_key: conn.consumerKey, token_id: conn.tokenId };
     case 'oauth2':
