@@ -14,6 +14,7 @@ import {
   toCreatePayload,
   toUpdatePayload,
 } from './projects.mapper';
+import type { ProjectResponseDTO } from './projects.mapper';
 
 // ─── Service Functions ──────────────────────────────────────────────────────
 
@@ -93,7 +94,7 @@ export async function getOrgProject(
         details: { issues: parsed.error.issues },
       });
     }
-    return ok(toProject(parsed.data as Parameters<typeof toProject>[0]));
+    return ok(toProject({ ...parsed.data, status: parsed.data.status as ProjectResponseDTO['status'] }));
   } catch (error: unknown) {
     return err(toAppError(error));
   }

@@ -498,7 +498,7 @@ export function TestImportScreen({
     const store = useProjectScopeStore.getState();
     if (project.sourceErp) store.setSource(project.sourceErp);
     if (project.targetErp) store.setTarget(project.targetErp);
-  }, [project]);
+  }, [project?.sourceErp, project?.targetErp]);
 
   // Seed the MCP panel from the target connection saved during project setup.
   // Only url and skipSSL are carried into the lean draft; auth credentials live
