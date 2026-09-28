@@ -5,7 +5,18 @@ import {
   hasConnectionErrors,
   validateConnection,
   type McpConnectionForm,
+  type McpFormAuthType,
 } from '../services/mcp.service';
+
+function buildCredentialsForStore(form: McpConnectionForm): Record<string, string> {
+  const type: McpFormAuthType = form.authType;
+  switch (type) {
+    case 'bearer': return { access_token: form.token };
+    case 'apiKey': return { api_key: form.apiKey };
+    case 'tba': return { consumer_key: form.consumerKey, consumer_secret: form.consumerSecret, token_id: form.tokenId, token_secret: form.tokenSecret };
+    case 'oauth2': return { access_token: form.token };
+  }
+}
 import {
   createMcpConnection,
   testMcpConnection,
@@ -157,10 +168,11 @@ export function useTestConnectionViewModel(
       setStatus('success');
       const s = useProjectScopeStore.getState();
       s.setTestStatus('success');
-      // Persist the connection ID so remounts reuse this record instead of
-      // creating a duplicate (which the backend rejects with 409).
+      // Persist the connection ID and credentials so downstream screens
+      // (McpFetchScreen, useTestImport) can re-encrypt them without
+      // requiring the user to re-enter their credentials.
       const role = connection.scope === 'target' ? 'target' : 'source';
-      s.setConnectionContext(role, connectionIdRef.current!, {});
+      s.setConnectionContext(role, connectionIdRef.current!, buildCredentialsForStore(connection));
       // Open only this panel's gate(s).
       if (connection.scope !== 'target') s.setSourceConnectionReady(true);
       if (connection.scope !== 'source') s.setTargetConnectionReady(true);
