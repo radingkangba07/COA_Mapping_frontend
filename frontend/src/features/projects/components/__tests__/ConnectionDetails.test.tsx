@@ -91,7 +91,7 @@ describe('ConnectionDetails — panel layout', () => {
     expect(screen.getByTestId('mcp-scope-readonly')).toBeTruthy();
   });
 
-  it('shows single panel locked to both sides when both sides are MCP', () => {
+  it('shows two independent panels when both sides are MCP', () => {
     render(
       <ConnectionDetails
         sourceMethod="mcp"
@@ -100,10 +100,11 @@ describe('ConnectionDetails — panel layout', () => {
         onConnectionChange={jest.fn()}
       />,
     );
-    // Single panel — not two separate panels
-    expect(screen.getByTestId('mcp-panel')).toBeTruthy();
-    expect(screen.getByTestId('mcp-panel-test-connection')).toBeTruthy();
-    // Read-only scope badge shows "Source and Target"
-    expect(screen.getByTestId('mcp-scope-readonly')).toBeTruthy();
+    // Two separate panels — source and target are always distinct connections.
+    expect(screen.getByTestId('mcp-panel-source')).toBeTruthy();
+    expect(screen.getByTestId('mcp-panel-target')).toBeTruthy();
+    // Each panel shows a read-only scope badge.
+    const readonlyBadges = screen.getAllByTestId('mcp-scope-readonly');
+    expect(readonlyBadges).toHaveLength(2);
   });
 });

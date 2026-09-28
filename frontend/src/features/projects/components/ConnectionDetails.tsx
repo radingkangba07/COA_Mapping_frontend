@@ -49,24 +49,24 @@ export const ConnectionDetails = ({
     [onConnectionChange],
   );
 
-  const handleBothChange = useCallback(
-    (next: McpConnectionForm): void => {
-      onConnectionChange(mcpFormToConnection(next, 'both'));
-    },
-    [onConnectionChange],
-  );
-
-  // Both sides are MCP — single panel covering both source and target.
+  // Both sides are MCP — two independent panels so source and target each create
+  // their own backend connection record and test independently without sharing state.
   if (sourceIsMcp && targetIsMcp) {
     return (
-      <View className="flex-1" testID={testID}>
+      <View className="flex-1 gap-4" testID={testID}>
         <MCPConnectionPanel
-          key="both"
+          key="source"
           className="flex-1"
-          value={seedForm(connection, 'both')}
-          fixedScope="both"
-          onChange={handleBothChange}
-          testID="mcp-panel"
+          value={seedForm(connection, 'source')}
+          fixedScope="source"
+          testID="mcp-panel-source"
+        />
+        <MCPConnectionPanel
+          key="target"
+          className="flex-1"
+          value={seedForm(connection, 'target')}
+          fixedScope="target"
+          testID="mcp-panel-target"
         />
       </View>
     );

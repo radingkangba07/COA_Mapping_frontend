@@ -45,6 +45,20 @@ export function useTestConnectionViewModel(
   // a duplicate backend record. Reset by the gate-hygiene effect on URL/cred change.
   const connectionIdRef = useRef<string | null>(null);
 
+  // Keep connectionIdRef in sync with the store's per-scope connection ID.
+  // Seeds the ref on mount so a remount reuses an existing backend record
+  // instead of creating a duplicate. Clears the ref when the store ID is
+  // wiped externally (e.g. clearCredentials called from another part of the UI).
+  const storeConnectionId = useProjectScopeStore(
+    useCallback(
+      (s) => (connection.scope === 'target' ? s.targetConnectionId : s.sourceConnectionId),
+      [connection.scope],
+    ),
+  );
+  useEffect(() => {
+    connectionIdRef.current = storeConnectionId;
+  }, [storeConnectionId]);
+
   const isFormValid = useMemo(
     () => !hasConnectionErrors(validateConnection(connection)),
     [connection],
@@ -143,6 +157,10 @@ export function useTestConnectionViewModel(
       setStatus('success');
       const s = useProjectScopeStore.getState();
       s.setTestStatus('success');
+      // Persist the connection ID so remounts reuse this record instead of
+      // creating a duplicate (which the backend rejects with 409).
+      const role = connection.scope === 'target' ? 'target' : 'source';
+      s.setConnectionContext(role, connectionIdRef.current!, {});
       // Open only this panel's gate(s).
       if (connection.scope !== 'target') s.setSourceConnectionReady(true);
       if (connection.scope !== 'source') s.setTargetConnectionReady(true);
