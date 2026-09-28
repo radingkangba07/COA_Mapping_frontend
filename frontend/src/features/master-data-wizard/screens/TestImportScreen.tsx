@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { AlertCircle, ArrowLeft, ArrowRight, Check, Play, RotateCcw } from 'lucide-react-native';
 import { colors } from '@/config/theme';
@@ -10,10 +10,13 @@ import { Table } from '@/shared/components/ui/Table';
 import { Badge } from '@/shared/components/ui/Badge';
 import { ScrollArea } from '@/shared/components/ui/ScrollArea';
 import { ProvenanceLabel } from '@/shared/components/ui/ProvenanceLabel/ProvenanceLabel';
+import { useQuery } from '@tanstack/react-query';
 import { MCPConnectionPanel } from '@/features/projects/components/MCPConnectionPanel';
 import { createInitialMcpForm } from '@/features/projects/services/mcp.service';
+import { getProject, getOrgProject } from '@/features/projects/services/projects.service';
 import { useProjectScopeStore } from '@/features/projects/store/project-scope.store';
-import { CONNECTION_METHODS } from '@/features/projects/types/project-scope.types';
+import { httpClient } from '@/shared/services/http/http.instance';
+import { createProjectId } from '@/shared/types/common.types';
 import { CopilotPanelShell } from '@/shared/components/ui/CopilotPanelShell/CopilotPanelShell';
 import { toStepRail } from '../mappers/toStepRail';
 import { getStep, STEPS } from '../utils/taxonomy';
@@ -449,14 +452,53 @@ export function TestImportScreen({
   const storeEntityId = useWizardStore((s) => s.entityId);
   const entityId = (entityIdProp ?? storeEntityId) as EntityId;
 
-  // ── MCP connection context from project setup ──────────────────────────────
-  const targetMethod = useProjectScopeStore((s) => s.draft.targetMethod);
-  const targetConnectionId = useProjectScopeStore((s) => s.targetConnectionId);
+  // ── MCP connection context ────────────────────────────────────────────────
+  // Read the project's target connection method from the backend — not from
+  // the in-memory project-scope store, which is only populated during project
+  // creation and is not available when the wizard is opened independently.
+  const parentProjectId = useWizardStore((s) => s.parentProjectId);
+  const projectQuery = useQuery({
+    queryKey: ['project', parentProjectId] as const,
+    queryFn: async () => {
+      const coaResult = await getProject(httpClient, createProjectId(parentProjectId as string));
+      if (coaResult.ok) return coaResult;
+      // parentProjectId is an org_project id (pure master-data project, no COA scope)
+      return getOrgProject(httpClient, parentProjectId as string);
+    },
+    enabled: parentProjectId != null,
+    staleTime: 60_000,
+  });
+  const project = projectQuery.data?.ok ? projectQuery.data.data : null;
+  const isMcpRequired = project?.targetConnectionMethodId === 'mcp_server';
+
+  const targetConnectionReady = useProjectScopeStore((s) => s.targetConnectionReady);
   const targetConnection = useProjectScopeStore((s) => s.draft.connection);
 
-  const isMcpRequired = targetMethod === CONNECTION_METHODS.MCP;
-  const isMcpValidated = targetConnectionId !== null;
-  const showMcpWarning = isMcpRequired && !isMcpValidated;
+  // Gate on targetConnectionReady so every visit to this page requires an
+  // explicit test — tokens carried over from project creation are not reused.
+  const isMcpValidated = targetConnectionReady;
+  // Block the run button while the project query is in-flight so isMcpRequired
+  // cannot be false due to a loading race (parentProjectId always set in the
+  // wizard; if null the query is disabled and isMcpRequired defaults to false).
+  const isProjectLoading = projectQuery.isLoading && parentProjectId != null;
+
+  useEffect(() => {
+    if (isMcpRequired) {
+      useProjectScopeStore.getState().setTargetConnectionReady(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMcpRequired]);
+
+  // Seed source/target ERP IDs into the project-scope store so the MCP panel's
+  // useTestConnectionViewModel can resolve the ERP ID for connection creation.
+  // The store is only populated during project creation; when the wizard is
+  // opened from the project overview the store is empty and resolveErpId fails.
+  useEffect(() => {
+    if (project == null) return;
+    const store = useProjectScopeStore.getState();
+    if (project.sourceErp) store.setSource(project.sourceErp);
+    if (project.targetErp) store.setTarget(project.targetErp);
+  }, [project]);
 
   // Seed the MCP panel from the target connection saved during project setup.
   // Only url and skipSSL are carried into the lean draft; auth credentials live
@@ -489,7 +531,20 @@ export function TestImportScreen({
   const copilotPanel = copilotPack ? <CopilotPanelShell pack={copilotPack} testID="test-import-copilot" /> : null;
   useSyncWizardRightPanel(copilotPanel);
 
+  // Suppress the warning once a run exists — the gate in handleRunPress still
+  // protects any new trigger; the banner is only useful before the first import.
+  const showMcpWarning = isMcpRequired && !isMcpValidated && importRun == null;
+
   const [selectedError, setSelectedError] = useState<ImportErrorDto | null>(null);
+  const [showMcpGate, setShowMcpGate] = useState(false);
+
+  const handleRunPress = useCallback((): void => {
+    if (isMcpRequired && !isMcpValidated) {
+      setShowMcpGate(true);
+      return;
+    }
+    triggerRun();
+  }, [isMcpRequired, isMcpValidated, triggerRun]);
 
   const handleBack = useCallback((): void => { onBackProp?.(); }, [onBackProp]);
 
@@ -554,7 +609,7 @@ export function TestImportScreen({
           <View className="flex-row items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
             <AlertCircle size={16} color={colors.destructive} />
             <Text className="font-body text-sm text-destructive flex-1">
-              Target MCP connection has not been validated. Test the connection in the panel on the right before starting the import.
+              Target MCP connection has not been validated. Click Start Simulated Import to open the connection validator first.
             </Text>
           </View>
         ) : null}
@@ -580,7 +635,7 @@ export function TestImportScreen({
       <View className="flex-1 flex-col lg:flex-row">
 
         {/* Left column — all import run states */}
-        <View className={isMcpRequired ? 'flex-1 lg:flex-[13]' : 'flex-1'}>
+        <View className="flex-1">
           {isLoading ? (
             <View className="flex-1 items-center justify-center">
               <ActivityIndicator size="large" color={colors.primary} />
@@ -589,7 +644,7 @@ export function TestImportScreen({
             <View className="flex-1 px-5 py-6">
               <View className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 gap-3">
                 <Text className="font-body text-sm text-destructive">{error.message}</Text>
-                <Button variant="outline" onPress={triggerRun} testID="test-import-retry">
+                <Button variant="outline" onPress={handleRunPress} testID="test-import-retry">
                   <View className="flex-row items-center gap-1.5">
                     <RotateCcw size={14} color={colors.foreground} />
                     <Text className="text-sm font-medium text-foreground">Retry</Text>
@@ -609,7 +664,7 @@ export function TestImportScreen({
                 {importRun?.error_detail != null ? (
                   <Text className="font-body text-sm text-muted-foreground">{importRun.error_detail}</Text>
                 ) : null}
-                <Button variant="outline" onPress={triggerRun} disabled={isTriggering} testID="test-import-retry">
+                <Button variant="outline" onPress={handleRunPress} disabled={isTriggering} testID="test-import-retry">
                   <View className="flex-row items-center gap-1.5">
                     <RotateCcw size={14} color={colors.foreground} />
                     <Text className="text-sm font-medium text-foreground">Retry</Text>
@@ -624,18 +679,18 @@ export function TestImportScreen({
                   Run a simulated import to validate your field mappings against the ERP connector. No production data is written — all requests are captured for audit.
                 </Text>
                 <Button
-                  onPress={triggerRun}
-                  disabled={isTriggering || showMcpWarning}
+                  onPress={handleRunPress}
+                  disabled={isTriggering || isProjectLoading}
                   testID="test-import-run"
                 >
                   <View className="flex-row items-center gap-1.5">
-                    {isTriggering ? (
+                    {isTriggering || isProjectLoading ? (
                       <ActivityIndicator size="small" color={colors.primaryForeground} />
                     ) : (
                       <Play size={14} color={colors.primaryForeground} />
                     )}
                     <Text className="text-sm font-semibold text-primary-foreground">
-                      {isTriggering ? 'Starting…' : 'Start Simulated Import'}
+                      {isTriggering ? 'Starting…' : isProjectLoading ? 'Loading…' : 'Start Simulated Import'}
                     </Text>
                   </View>
                 </Button>
@@ -936,17 +991,6 @@ export function TestImportScreen({
           )}
         </View>
 
-        {/* Right column — MCP connection panel, only when target method is MCP */}
-        {isMcpRequired ? (
-          <View className="lg:flex-[7] border-t border-border lg:border-t-0 lg:border-l p-4">
-            <MCPConnectionPanel
-              fixedScope="target"
-              value={mcpPanelSeed}
-              testID="test-import-mcp-panel"
-            />
-          </View>
-        ) : null}
-
       </View>
 
       {/* Error detail drawer */}
@@ -955,8 +999,59 @@ export function TestImportScreen({
         records={records.items}
         connectorRequests={connectorRequests.items}
         onClose={() => setSelectedError(null)}
-        onRetry={() => { setSelectedError(null); void triggerRun(); }}
+        onRetry={() => { setSelectedError(null); handleRunPress(); }}
       />
+
+      {/* MCP connection gate — slides in when import is triggered without a validated connection */}
+      <Sheet
+        visible={showMcpGate}
+        onClose={() => setShowMcpGate(false)}
+        side="right"
+        width={480}
+        testID="mcp-gate-sheet"
+      >
+        <Sheet.Header>
+          <View className="flex-1 gap-0.5">
+            <Text className="font-body text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Step 1 of 2 — Connection
+            </Text>
+            <Sheet.Title>Validate MCP Connection</Sheet.Title>
+          </View>
+          <Sheet.Close onPress={() => setShowMcpGate(false)} />
+        </Sheet.Header>
+        <ScrollArea className="flex-1">
+          <Sheet.Content className="pt-4">
+            <Text className="font-body text-sm text-muted-foreground mb-4">
+              Test the target MCP connection before running the import. Once connected, click Start Import to begin the dry run against the live ERP.
+            </Text>
+            <MCPConnectionPanel
+              fixedScope="target"
+              value={mcpPanelSeed}
+              testID="mcp-gate-panel"
+            />
+          </Sheet.Content>
+        </ScrollArea>
+        {isMcpValidated ? (
+          <Sheet.Footer>
+            <Button
+              onPress={() => { setShowMcpGate(false); triggerRun(); }}
+              disabled={isTriggering}
+              testID="mcp-gate-start-import"
+            >
+              <View className="flex-row items-center gap-1.5">
+                {isTriggering ? (
+                  <ActivityIndicator size="small" color={colors.primaryForeground} />
+                ) : (
+                  <Play size={14} color={colors.primaryForeground} />
+                )}
+                <Text className="text-sm font-semibold text-primary-foreground">
+                  {isTriggering ? 'Starting…' : 'Start Import'}
+                </Text>
+              </View>
+            </Button>
+          </Sheet.Footer>
+        ) : null}
+      </Sheet>
     </View>
   );
 }

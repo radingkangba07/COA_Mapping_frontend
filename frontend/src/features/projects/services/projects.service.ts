@@ -9,6 +9,7 @@ import type { ProjectDraftPayload } from '../types/project-scope.types';
 import {
   projectResponseSchema,
   projectListResponseSchema,
+  orgProjectResponseSchema,
   toProject,
   toCreatePayload,
   toUpdatePayload,
@@ -68,6 +69,31 @@ export async function getProject(
     }
 
     return ok(toProject(parsed.data));
+  } catch (error: unknown) {
+    return err(toAppError(error));
+  }
+}
+
+// Fetches an org-project (pure master-data project with no COA scope).
+// Returns the same Project shape as getProject() so callers can treat both
+// project types uniformly.
+export async function getOrgProject(
+  client: HttpClient,
+  orgProjectId: string,
+): Promise<Result<Project, AppError>> {
+  try {
+    const { data } = await client.get<unknown>(
+      `/api/v1/org-projects/${orgProjectId}`,
+    );
+    const parsed = orgProjectResponseSchema.safeParse(data);
+    if (!parsed.success) {
+      return err({
+        code: 'INVALID_RESPONSE',
+        message: 'Org project response failed validation',
+        details: { issues: parsed.error.issues },
+      });
+    }
+    return ok(toProject(parsed.data as Parameters<typeof toProject>[0]));
   } catch (error: unknown) {
     return err(toAppError(error));
   }

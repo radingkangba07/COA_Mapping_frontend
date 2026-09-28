@@ -21,9 +21,10 @@ import type {
 import type { EntityId } from '../dp-kit/types/entity';
 import type { AppError } from '@/shared/types/result.types';
 import { isAppError } from '@/shared/types/result.types';
+import { getProject, getOrgProject } from '@/features/projects/services/projects.service';
 import { useProjectScopeStore } from '@/features/projects/store/project-scope.store';
-import { CONNECTION_METHODS } from '@/features/projects/types/project-scope.types';
 import { encryptCredentials, clearKeyCache } from '@/shared/services/crypto/credentials.crypto';
+import { createProjectId } from '@/shared/types/common.types';
 
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLLS = 60;
@@ -54,7 +55,20 @@ export function useTestImport(entityId: EntityId): UseTestImportResult {
   const queryClient = useQueryClient();
   const [selectedBatch, setSelectedBatch] = useState<string | null>(null);
 
-  const targetMethod = useProjectScopeStore((s) => s.draft.targetMethod);
+  const projectQuery = useQuery({
+    queryKey: ['project', parentProjectId] as const,
+    queryFn: async () => {
+      const coaResult = await getProject(httpClient, createProjectId(parentProjectId as string));
+      if (coaResult.ok) return coaResult;
+      return getOrgProject(httpClient, parentProjectId as string);
+    },
+    enabled: parentProjectId != null,
+    staleTime: 60_000,
+  });
+  const isMcpTarget =
+    projectQuery.data?.ok === true &&
+    projectQuery.data.data.targetConnectionMethodId === 'mcp_server';
+
   const targetConnectionId = useProjectScopeStore((s) => s.targetConnectionId);
   const targetCredentials = useProjectScopeStore((s) => s.targetCredentials);
 
@@ -137,15 +151,18 @@ export function useTestImport(entityId: EntityId): UseTestImportResult {
         throw { code: 'NO_PIPELINE_RUN', message: 'No pipeline run for this entity' } satisfies AppError;
       }
 
+      if (isMcpTarget && (targetConnectionId === null || targetCredentials === null)) {
+        throw {
+          code: 'MCP_CONNECTION_REQUIRED',
+          message: 'Validate the MCP connection before running the import.',
+        } satisfies AppError;
+      }
+
       // When the target uses MCP, encrypt credentials and pass the connection
       // context so the import-run worker can authenticate against the ERP.
       // Mirrors the same hybrid RSA-OAEP + AES-GCM pattern used by useMcpFetch.
       let context: { connectionId: string; encryptedCredentials: string } | undefined;
-      if (
-        targetMethod === CONNECTION_METHODS.MCP &&
-        targetConnectionId !== null &&
-        targetCredentials !== null
-      ) {
+      if (isMcpTarget && targetConnectionId !== null && targetCredentials !== null) {
         try {
           const encryptedCredentials = await encryptCredentials(targetCredentials);
           context = { connectionId: targetConnectionId, encryptedCredentials };

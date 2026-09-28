@@ -38,6 +38,11 @@ export const projectListResponseSchema = z.object({
   total: z.number(),
 });
 
+// org-projects return the same fields but status is unconstrained at the DB level
+export const orgProjectResponseSchema = projectResponseSchema.extend({
+  status: z.string(),
+});
+
 // ─── Mappers ────────────────────────────────────────────────────────────────
 
 export function toProject(dto: ProjectResponseDTO): Project {
