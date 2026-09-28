@@ -105,7 +105,7 @@ function ImportRunBar({ run }: { run: ImportRunDto }): React.JSX.Element {
   const isRunning = run.status === 'pending' || run.status === 'running';
 
   return (
-    <View className="flex-row items-center justify-between rounded-lg border border-border bg-surface px-4 py-2.5 gap-3">
+    <View className="flex-row items-center justify-between border-b border-border px-4 py-2.5 gap-3">
       <View className="flex-row items-center gap-2 flex-1 flex-wrap">
         <Text className="font-body text-xs text-muted-foreground">Import run</Text>
         {run.run_code != null ? (
@@ -498,7 +498,7 @@ export function TestImportScreen({
     <View className="flex-1 flex-col bg-background" testID="test-import-screen">
 
       {/* ── Top section (full width) ─────────────────────────────────────── */}
-      <View className="px-5 pt-5 pb-3 gap-3">
+      <View className="px-5 pt-5 pb-2 gap-3">
         <StepRail rail={stepRail} />
 
         {/* Title + action buttons */}
@@ -567,13 +567,10 @@ export function TestImportScreen({
 
         {/* Stat strip */}
         {importRun != null ? <StatStrip run={importRun} /> : null}
-
-        {/* Import run metadata bar */}
-        {importRun != null ? <ImportRunBar run={importRun} /> : null}
       </View>
 
       {/* ── Body: import content (left) + MCP panel (right, MCP only) ──── */}
-      <View className="flex-1 flex-col lg:flex-row border-t border-border">
+      <View className="flex-1 flex-col lg:flex-row">
 
         {/* Left column — all import run states */}
         <View className={isMcpRequired ? 'flex-1 lg:flex-[13]' : 'flex-1'}>
@@ -639,7 +636,12 @@ export function TestImportScreen({
             </View>
           ) : (
             /* ── Two-panel layout (complete state) ── */
-            <View className="flex-1 flex-row">
+            <View className="flex-1 mx-5 mt-2 mb-4 rounded-lg border border-border overflow-hidden">
+
+              {/* Import run metadata bar — inside the border */}
+              <ImportRunBar run={importRun} />
+
+              <View className="flex-1 flex-row border-t border-border">
 
               {/* Batch sidebar */}
               <View className="w-72 border-r border-border">
@@ -719,11 +721,11 @@ export function TestImportScreen({
                       <Table maxHeight={600}>
                         <Table.Header>
                           <Table.HeaderCell width={100}>Source Row</Table.HeaderCell>
-                          <Table.HeaderCell width={88}>Batch</Table.HeaderCell>
+                          <Table.HeaderCell width={56}>Batch</Table.HeaderCell>
                           <Table.HeaderCell>Error</Table.HeaderCell>
-                          <Table.HeaderCell width={90}>Retry Class</Table.HeaderCell>
-                          <Table.HeaderCell width={90}>Parsed By</Table.HeaderCell>
-                          <Table.HeaderCell width={72}>Status</Table.HeaderCell>
+                          <Table.HeaderCell width={112}>Retry Class</Table.HeaderCell>
+                          <Table.HeaderCell width={136}>Parsed By</Table.HeaderCell>
+                          <Table.HeaderCell width={80}>Status</Table.HeaderCell>
                           <Table.HeaderCell width={24} />
                         </Table.Header>
                         {errors.items.map((e) => (
@@ -736,7 +738,7 @@ export function TestImportScreen({
                                 <Text className="font-body text-xs text-muted-foreground" numberOfLines={1}>{e.record_ref}</Text>
                               ) : null}
                             </Table.Cell>
-                            <Table.Cell width={88}>
+                            <Table.Cell width={56}>
                               <Text className="font-body text-[11px] text-muted-foreground" numberOfLines={1}>{shortBatch(e.batch_code)}</Text>
                             </Table.Cell>
                             <Table.Cell>
@@ -749,7 +751,7 @@ export function TestImportScreen({
                                 </Text>
                               ) : null}
                             </Table.Cell>
-                            <Table.Cell width={90}>
+                            <Table.Cell width={112}>
                               <Badge
                                 variant={e.retry_class === 'permanent' ? 'destructive' : 'warning'}
                                 className="self-start"
@@ -757,12 +759,12 @@ export function TestImportScreen({
                                 {e.retry_class === 'permanent' ? 'Permanent' : 'Transient'}
                               </Badge>
                             </Table.Cell>
-                            <Table.Cell width={90}>
+                            <Table.Cell width={136}>
                               <ProvenanceLabel state={e.parsed_by === 'deterministic' ? 'fact' : 'ai'}>
                                 {e.parsed_by === 'deterministic' ? 'Deterministic' : 'AI'}
                               </ProvenanceLabel>
                             </Table.Cell>
-                            <Table.Cell width={72}>
+                            <Table.Cell width={80}>
                               <Text className="font-body text-sm text-foreground capitalize">{e.status}</Text>
                             </Table.Cell>
                             <Table.Cell width={24}>
@@ -784,18 +786,18 @@ export function TestImportScreen({
                       <>
                         <Table maxHeight={560}>
                           <Table.Header>
-                            <Table.HeaderCell width={64}>Row</Table.HeaderCell>
-                            <Table.HeaderCell width={128}>Internal ID</Table.HeaderCell>
+                            <Table.HeaderCell width={56}>Row</Table.HeaderCell>
+                            <Table.HeaderCell width={140}>Internal ID</Table.HeaderCell>
                             <Table.HeaderCell>Name</Table.HeaderCell>
-                            <Table.HeaderCell width={76}>Batch</Table.HeaderCell>
-                            <Table.HeaderCell width={100}>Outcome</Table.HeaderCell>
-                            <Table.HeaderCell width={200}>Target ID</Table.HeaderCell>
-                            <Table.HeaderCell width={64}>ms</Table.HeaderCell>
+                            <Table.HeaderCell width={56}>Batch</Table.HeaderCell>
+                            <Table.HeaderCell width={96}>Outcome</Table.HeaderCell>
+                            <Table.HeaderCell width={220}>Target ID</Table.HeaderCell>
+                            <Table.HeaderCell width={56}>ms</Table.HeaderCell>
                           </Table.Header>
                           {records.items.map((r) => (
                             <Table.Row key={r.id}>
-                              <Table.Cell width={64}>{String(r.source_row_index)}</Table.Cell>
-                              <Table.Cell width={128}>
+                              <Table.Cell width={56}>{String(r.source_row_index)}</Table.Cell>
+                              <Table.Cell width={140}>
                                 <Text className="font-mono text-xs text-foreground">{r.internal_id ?? '—'}</Text>
                               </Table.Cell>
                               <Table.Cell>
@@ -803,10 +805,10 @@ export function TestImportScreen({
                                   {r.display_name ?? '—'}
                                 </Text>
                               </Table.Cell>
-                              <Table.Cell width={76}>
+                              <Table.Cell width={56}>
                                 <Text className="font-body text-xs text-muted-foreground">{shortBatch(r.batch_code)}</Text>
                               </Table.Cell>
-                              <Table.Cell width={100}>
+                              <Table.Cell width={96}>
                                 <Badge
                                   variant={
                                     r.outcome === 'imported'
@@ -824,12 +826,12 @@ export function TestImportScreen({
                                       : 'Skipped'}
                                 </Badge>
                               </Table.Cell>
-                              <Table.Cell width={200}>
+                              <Table.Cell width={220}>
                                 <Text className="font-mono text-xs text-muted-foreground" numberOfLines={1}>
                                   {r.target_id ?? '—'}
                                 </Text>
                               </Table.Cell>
-                              <Table.Cell width={64}>
+                              <Table.Cell width={56}>
                                 <Text className="font-body text-xs text-muted-foreground">
                                   {r.latency_ms != null ? String(r.latency_ms) : '—'}
                                 </Text>
@@ -922,6 +924,7 @@ export function TestImportScreen({
                   </Tabs.Content>
                 </Tabs>
               </View>
+            </View>
             </View>
           )}
         </View>
