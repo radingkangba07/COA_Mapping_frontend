@@ -14,9 +14,12 @@ import { MCPConnectionPanel } from '@/features/projects/components/MCPConnection
 import { createInitialMcpForm } from '@/features/projects/services/mcp.service';
 import { useProjectScopeStore } from '@/features/projects/store/project-scope.store';
 import { CONNECTION_METHODS } from '@/features/projects/types/project-scope.types';
+import { CopilotPanelShell } from '@/shared/components/ui/CopilotPanelShell/CopilotPanelShell';
 import { toStepRail } from '../mappers/toStepRail';
 import { getStep, STEPS } from '../utils/taxonomy';
 import { useWizardStore } from '../store/wizard.store';
+import { useEntityPackPreview } from '../hooks/useEntityPackPreview';
+import { useSyncWizardRightPanel } from '../hooks/useSyncWizardRightPanel';
 import { useTestImport } from '../hooks/useTestImport';
 import type { EntityId } from '../dp-kit/types/entity';
 import type { StepId } from '../types/wizard.types';
@@ -481,6 +484,10 @@ export function TestImportScreen({
     error,
     triggerRun,
   } = useTestImport(entityId);
+
+  const { pack: copilotPack } = useEntityPackPreview(entityId);
+  const copilotPanel = copilotPack ? <CopilotPanelShell pack={copilotPack} testID="test-import-copilot" /> : null;
+  useSyncWizardRightPanel(copilotPanel);
 
   const [selectedError, setSelectedError] = useState<ImportErrorDto | null>(null);
 
