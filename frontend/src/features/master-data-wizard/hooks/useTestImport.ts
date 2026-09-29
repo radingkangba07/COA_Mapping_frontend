@@ -65,7 +65,7 @@ export function useTestImport(entityId: EntityId): UseTestImportResult {
     enabled: parentProjectId != null,
     staleTime: 60_000,
   });
-  const isMcpTarget =
+  const isMcpRequired =
     projectQuery.data?.ok === true &&
     projectQuery.data.data.targetConnectionMethodId === 'mcp_server';
 
@@ -151,7 +151,7 @@ export function useTestImport(entityId: EntityId): UseTestImportResult {
         throw { code: 'NO_PIPELINE_RUN', message: 'No pipeline run for this entity' } satisfies AppError;
       }
 
-      if (isMcpTarget && (targetConnectionId === null || targetCredentials === null)) {
+      if (isMcpRequired && (targetConnectionId === null || targetCredentials === null)) {
         throw {
           code: 'MCP_CONNECTION_REQUIRED',
           message: 'Validate the MCP connection before running the import.',
@@ -162,7 +162,7 @@ export function useTestImport(entityId: EntityId): UseTestImportResult {
       // context so the import-run worker can authenticate against the ERP.
       // Mirrors the same hybrid RSA-OAEP + AES-GCM pattern used by useMcpFetch.
       let context: { connectionId: string; encryptedCredentials: string } | undefined;
-      if (isMcpTarget && targetConnectionId !== null && targetCredentials !== null) {
+      if (isMcpRequired && targetConnectionId !== null && targetCredentials !== null) {
         try {
           const encryptedCredentials = await encryptCredentials(targetCredentials);
           context = { connectionId: targetConnectionId, encryptedCredentials };
