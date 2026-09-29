@@ -71,11 +71,17 @@ interface TableHeaderProps extends ViewProps {
 }
 
 const Header = React.forwardRef<View, TableHeaderProps>(
-  ({ className, children, ...props }, ref) => {
+  ({ className, children, style, ...props }, ref) => {
+    // On web, stick the header to the top of its scrolling ancestor so column
+    // names remain visible when the table body scrolls past the viewport.
+    const stickyStyle = isWeb
+      ? ({ position: 'sticky', top: 0, zIndex: 1 } as object)
+      : undefined;
     return (
       <View
         ref={ref}
         className={cn('flex-row bg-surface border-b border-border', className)}
+        style={[stickyStyle, style]}
         {...props}
       >
         {children}

@@ -782,17 +782,17 @@ export function TestImportScreen({
                     ) : (
                       <Table maxHeight={600}>
                         <Table.Header>
-                          <Table.HeaderCell width={100}>Source Row</Table.HeaderCell>
-                          <Table.HeaderCell width={56}>Batch</Table.HeaderCell>
+                          <Table.HeaderCell width={124}>Source Row</Table.HeaderCell>
+                          <Table.HeaderCell width={76}>Batch</Table.HeaderCell>
                           <Table.HeaderCell>Error</Table.HeaderCell>
-                          <Table.HeaderCell width={112}>Retry Class</Table.HeaderCell>
+                          <Table.HeaderCell width={128}>Retry Class</Table.HeaderCell>
                           <Table.HeaderCell width={136}>Parsed By</Table.HeaderCell>
                           <Table.HeaderCell width={80}>Status</Table.HeaderCell>
                           <Table.HeaderCell width={24} />
                         </Table.Header>
                         {errors.items.map((e) => (
                           <Table.Row key={e.id} onPress={() => setSelectedError(e)}>
-                            <Table.Cell width={100}>
+                            <Table.Cell width={124}>
                               <Text className="font-body text-sm font-semibold text-foreground">
                                 {`Row ${String(e.source_row_index)}`}
                               </Text>
@@ -800,7 +800,7 @@ export function TestImportScreen({
                                 <Text className="font-body text-xs text-muted-foreground" numberOfLines={1}>{e.record_ref}</Text>
                               ) : null}
                             </Table.Cell>
-                            <Table.Cell width={56}>
+                            <Table.Cell width={76}>
                               <Text className="font-body text-[11px] text-muted-foreground" numberOfLines={1}>{shortBatch(e.batch_code)}</Text>
                             </Table.Cell>
                             <Table.Cell>
@@ -813,7 +813,7 @@ export function TestImportScreen({
                                 </Text>
                               ) : null}
                             </Table.Cell>
-                            <Table.Cell width={112}>
+                            <Table.Cell width={128}>
                               <Badge
                                 variant={e.retry_class === 'permanent' ? 'destructive' : 'warning'}
                                 className="self-start"
@@ -848,17 +848,17 @@ export function TestImportScreen({
                       <>
                         <Table maxHeight={560}>
                           <Table.Header>
-                            <Table.HeaderCell width={56}>Row</Table.HeaderCell>
+                            <Table.HeaderCell width={72}>Row</Table.HeaderCell>
                             <Table.HeaderCell width={140}>Internal ID</Table.HeaderCell>
                             <Table.HeaderCell>Name</Table.HeaderCell>
-                            <Table.HeaderCell width={56}>Batch</Table.HeaderCell>
+                            <Table.HeaderCell width={76}>Batch</Table.HeaderCell>
                             <Table.HeaderCell width={96}>Outcome</Table.HeaderCell>
                             <Table.HeaderCell width={220}>Target ID</Table.HeaderCell>
                             <Table.HeaderCell width={56}>ms</Table.HeaderCell>
                           </Table.Header>
                           {records.items.map((r) => (
                             <Table.Row key={r.id}>
-                              <Table.Cell width={56}>{String(r.source_row_index)}</Table.Cell>
+                              <Table.Cell width={72}>{String(r.source_row_index)}</Table.Cell>
                               <Table.Cell width={140}>
                                 <Text className="font-mono text-xs text-foreground">{r.internal_id ?? '—'}</Text>
                               </Table.Cell>
@@ -867,7 +867,7 @@ export function TestImportScreen({
                                   {r.display_name ?? '—'}
                                 </Text>
                               </Table.Cell>
-                              <Table.Cell width={56}>
+                              <Table.Cell width={76}>
                                 <Text className="font-body text-xs text-muted-foreground">{shortBatch(r.batch_code)}</Text>
                               </Table.Cell>
                               <Table.Cell width={96}>
